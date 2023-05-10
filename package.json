@@ -1,7 +1,7 @@
 {
-  "name": "chrome-remote-debug",
+  "name": "devtools-remote-debugger",
   "version": "1.0.0",
-  "description": "remote debug by chrome devtools",
+  "description": "remote debugger by chrome devtools",
   "main": "index.js",
   "scripts": {
     "client": "webpack serve --config ./src/client/webpack.config.dev.js",
