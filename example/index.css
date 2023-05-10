@@ -1,0 +1,441 @@
+a,
+address,
+b,
+blockquote,
+body,
+div,
+em,
+fieldset,
+form,
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+html,
+i,
+iframe,
+img,
+label,
+legend,
+li,
+ol,
+p,
+s,
+span,
+table,
+tbody,
+td,
+tfoot,
+th,
+thead,
+tr,
+ul {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  font-weight: inherit;
+  font-style: inherit;
+  font-size: 100%;
+  font-family: -apple-system, sans-serif
+}
+
+ol,
+ul {
+  list-style: none
+}
+
+a img {
+  border: none;
+  vertical-align: top
+}
+
+a {
+  text-decoration: none
+}
+
+button {
+  overflow: visible;
+  padding: 0;
+  margin: 0;
+  border: 0;
+  background-color: transparent;
+  font-family: inherit
+}
+
+button::-moz-focus-inner {
+  padding: 0
+}
+
+input,
+textarea {
+  background: none;
+  padding: 0;
+  -webkit-border-radius: 0;
+  -moz-border-radius: 0;
+  border-radius: 0;
+  -webkit-appearance: none;
+  font-family: inherit
+}
+
+input[type=password] {
+  -webkit-text-security: disc
+}
+
+button:focus,
+input:focus,
+textarea:focus {
+  outline: none
+}
+
+body {
+  word-wrap: break-word
+}
+
+* {
+  -webkit-tap-highlight-color: rgba(0, 0, 0, 0)
+}
+
+body {
+  background-color: #f5f6fa
+}
+
+body,
+img {
+  -webkit-user-select: none;
+  user-select: none
+}
+
+img {
+  -webkit-touch-callout: none
+}
+
+
+.button {
+  font-size: 17px;
+  color: #03081a;
+  background-color: #fff;
+  border-radius: 6px;
+  line-height: normal
+}
+
+.button__inner {
+  display: flex;
+  justify-content: center;
+  align-items: center
+}
+
+.button_large {
+  width: 100%;
+  height: 45px
+}
+
+.button_primary {
+  color: #fff;
+  background-color: #00cafc
+}
+
+.button_primary:not(:disabled):active {
+  background-color: #00afdb
+}
+
+.button_primary:disabled {
+  background-color: #b3effe
+}
+
+.button_link {
+  color: #4d94ff;
+  background-color: transparent;
+  width: auto
+}
+
+.button_link:disabled,
+.button_link:not(:disabled):active {
+  opacity: .5
+}
+
+.action-sheet__panel {
+  background-color: #dedfe0;
+  border-top-left-radius: 6px;
+  border-top-right-radius: 6px;
+  overflow: hidden
+}
+
+.action-sheet__title {
+  position: relative;
+  height: 56px;
+  padding: 0 20px;
+  line-height: 1.4;
+  display: flex;
+  justify-content: center;
+  flex-direction: column;
+  text-align: center;
+  font-size: 12px;
+  color: #878b99;
+  background-color: #fff
+}
+
+.action-sheet__menu:before,
+.action-sheet__title:before {
+  content: " ";
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  right: 0;
+  height: 1px;
+  border-bottom: 1px solid #dedede;
+  transform-origin: 0 100%;
+  transform: scaleY(.5)
+}
+
+.action-sheet__title-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2
+}
+
+.action-sheet__cell {
+  font-size: 17px;
+  text-align: center;
+  padding: 16px 0;
+  background-color: #fff
+}
+
+.action-sheet__cell:active {
+  background-color: #ececec
+}
+
+.action-sheet__cell:first-child:before {
+  display: none
+}
+
+.action-sheet__cell-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding: 0 20px
+}
+
+.action-sheet__cell .icon-success {
+  position: absolute;
+  right: 16px;
+  top: 50%;
+  margin-top: -8px;
+  color: #00cafc;
+  font-size: 16px
+}
+
+.action-sheet__menu {
+  position: relative
+}
+
+.action-sheet__action {
+  margin-top: 12px;
+  background-color: #fff;
+  padding-bottom: env(safe-area-inset-bottom)
+}
+
+.button-group {
+  display: -webkit-flex;
+  display: -webkit-box;
+  display: flex
+}
+
+.button-group .button:not(:last-child) {
+  margin-right: 8px
+}
+
+.button-group .button_medium {
+  min-width: auto
+}
+
+
+.overflow-hidden {
+  overflow: hidden
+}
+
+.popup__mask {
+  position: fixed;
+  left: 0;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  height: 100%;
+  z-index: 1000;
+  background-color: rgba(0, 0, 0, .5)
+}
+
+.popup__mask-content {
+  top: 0;
+  left: 0
+}
+
+.popup__content,
+.popup__mask-content {
+  position: fixed;
+  z-index: 1001
+}
+
+.popup__content_top {
+  top: 0;
+  left: 0;
+  right: 0
+}
+
+.popup__content_right {
+  top: 0;
+  right: 0;
+  bottom: 0
+}
+
+.popup__content_bottom {
+  left: 0;
+  right: 0;
+  bottom: 0
+}
+
+.popup__content_left {
+  top: 0;
+  left: 0;
+  bottom: 0
+}
+
+.popup__content_center {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%)
+}
+
+.auth-layer {
+  background-color: #fff;
+  padding: 4.26666667vw 4.26666667vw 4vw;
+  border-radius: 1.6vw 1.6vw 0 0;
+  max-height: 100vh
+}
+
+.auth-layer__header {
+  display: flex;
+  align-items: center;
+  color: #878b99;
+  font-size: 3.73333333vw
+}
+
+.auth-layer__header .avatar {
+  margin-right: 3.2vw
+}
+
+.auth-layer__title {
+  font-size: 5.33333333vw;
+  margin-top: 4.26666667vw;
+  margin-bottom: 9.33333333vw
+}
+
+.auth-layer__content {
+  border-bottom: 1px solid #f5f6fa;
+  max-height: 50vh;
+  overflow: scroll
+}
+
+.auth-layer__item {
+  margin-bottom: 4.53333333vw
+}
+
+.auth-layer__tips {
+  color: #878b99;
+  font-size: 3.73333333vw;
+  margin-top: 3.46666667vw;
+  margin-bottom: 9.6vw
+}
+
+.debug-detail {
+  background-color: #fff
+}
+
+.debug-detail .debug__hd {
+  padding: 3.2vw 10% 5.6vw;
+  text-align: center
+}
+
+.debug-detail .debug__hd-name {
+  font-size: 4.53333333vw;
+  color: #03081a;
+  max-width: 80%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  margin: 3.46666667vw auto 0
+}
+
+.debug-detail .debug__hd-txt {
+  font-size: 3.73333333vw;
+  margin-top: 2.93333333vw;
+  color: #878b99;
+  display: -webkit-box;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  line-height: 1.4
+}
+
+.debug-detail .debug__bd {
+  text-align: center;
+  padding: 1.06666667vw 0 6.4vw
+}
+
+.debug-func__panel {
+  padding: 4.26666667vw
+}
+
+.debug-func__title {
+  font-size: 3.73333333vw;
+  color: #878b99;
+  margin-bottom: 2.13333333vw;
+  line-height: 1.2
+}
+
+.debug-func__item {
+  margin-bottom: 3.2vw;
+  background-color: #fff;
+  border-radius: 1.6vw;
+  padding: 3.2vw 4.26666667vw 4vw
+}
+
+.debug-func__item:active {
+  background-color: #ebedf5
+}
+
+.debug-func__hd {
+  display: flex;
+  justify-content: space-between;
+  align-items: center
+}
+
+.debug-func__hd-title {
+  font-size: 4.26666667vw
+}
+
+.debug-func__hd-setting {
+  font-size: 3.73333333vw;
+  color: #b0b3bf
+}
+
+.debug-func__hd-content {
+  line-height: 1.42857143;
+  margin-top: 2.13333333vw
+}
+
+.empty-tips,
+.debug-func__hd-content {
+  font-size: 3.73333333vw;
+  color: #878b99
+}
+
+.empty-tips {
+  text-align: center;
+  margin-top: 12.8vw
+}

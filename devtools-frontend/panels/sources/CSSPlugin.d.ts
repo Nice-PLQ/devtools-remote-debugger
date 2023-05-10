@@ -1,0 +1,38 @@
+import type * as Workspace from '../../models/workspace/workspace.js';
+import * as SourceFrame from '../../ui/legacy/components/source_frame/source_frame.js';
+import { Plugin } from './Plugin.js';
+export declare class CSSPlugin extends Plugin {
+    private textEditor;
+    private readonly swatchPopoverHelper;
+    private muteSwatchProcessing;
+    private hadSwatchChange;
+    private bezierEditor;
+    private editedSwatchTextRange;
+    private spectrum;
+    private currentSwatch;
+    private boundHandleKeyDown;
+    constructor(textEditor: SourceFrame.SourcesTextEditor.SourcesTextEditor);
+    static accepts(uiSourceCode: Workspace.UISourceCode.UISourceCode): boolean;
+    private registerShortcuts;
+    private textEditorScrolled;
+    private modifyUnit;
+    private handleUnitModification;
+    private updateSwatches;
+    private createColorSwatch;
+    private createBezierSwatch;
+    private swatchIconClicked;
+    private showSpectrum;
+    private spectrumResized;
+    private spectrumChanged;
+    private showBezierEditor;
+    private bezierChanged;
+    private changeSwatchText;
+    private swatchPopoverHidden;
+    private onTextChanged;
+    private isWordChar;
+    private cssSuggestions;
+    private backtrackPropertyToken;
+    dispose(): void;
+}
+export declare const maxSwatchProcessingLength: number;
+export declare const SwatchBookmark: symbol;

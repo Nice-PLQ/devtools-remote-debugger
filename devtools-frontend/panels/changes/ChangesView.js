@@ -1,0 +1,197 @@
+// Copyright 2017 The Chromium Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+import * as Common from '../../core/common/common.js';
+import * as i18n from '../../core/i18n/i18n.js';
+import * as Diff from '../../third_party/diff/diff.js';
+import * as DiffView from '../../ui/components/diff_view/diff_view.js';
+import * as UI from '../../ui/legacy/legacy.js';
+import changesViewStyles from './changesView.css.js';
+import * as WorkspaceDiff from '../../models/workspace_diff/workspace_diff.js';
+import { ChangesSidebar } from './ChangesSidebar.js';
+const UIStrings = {
+    /**
+    *@description Screen reader/tooltip label for a button in the Changes tool that reverts all changes to the currently open file.
+    */
+    revertAllChangesToCurrentFile: 'Revert all changes to current file',
+    /**
+    *@description Text in Changes View of the Changes tab
+    */
+    noChanges: 'No changes',
+    /**
+    *@description Text in Changes View of the Changes tab
+    */
+    binaryData: 'Binary data',
+    /**
+    * @description Text in the Changes tab that indicates how many lines of code have changed in the
+    * selected file. An insertion refers to an added line of code. The (+) is a visual cue to indicate
+    * lines were added (not translatable).
+    */
+    sInsertions: '{n, plural, =1 {# insertion (+)} other {# insertions (+)}}',
+    /**
+    * @description Text in the Changes tab that indicates how many lines of code have changed in the
+    * selected file. A deletion refers to a removed line of code. The (-) is a visual cue to indicate
+    * lines were removed (not translatable).
+    */
+    sDeletions: '{n, plural, =1 {# deletion (-)} other {# deletions (-)}}',
+};
+const str_ = i18n.i18n.registerUIStrings('panels/changes/ChangesView.ts', UIStrings);
+const i18nString = i18n.i18n.getLocalizedString.bind(undefined, str_);
+function diffStats(diff) {
+    const insertions = diff.reduce((ins, token) => ins + (token[0] === Diff.Diff.Operation.Insert ? token[1].length : 0), 0);
+    const deletions = diff.reduce((ins, token) => ins + (token[0] === Diff.Diff.Operation.Delete ? token[1].length : 0), 0);
+    const deletionText = i18nString(UIStrings.sDeletions, { n: deletions });
+    const insertionText = i18nString(UIStrings.sInsertions, { n: insertions });
+    return `${insertionText}, ${deletionText}`;
+}
+let changesViewInstance;
+export class ChangesView extends UI.Widget.VBox {
+    emptyWidget;
+    workspaceDiff;
+    changesSidebar;
+    selectedUISourceCode;
+    diffContainer;
+    toolbar;
+    diffStats;
+    diffView;
+    constructor() {
+        super(true);
+        const splitWidget = new UI.SplitWidget.SplitWidget(true /* vertical */, false /* sidebar on left */);
+        const mainWidget = new UI.Widget.Widget();
+        splitWidget.setMainWidget(mainWidget);
+        splitWidget.show(this.contentElement);
+        this.emptyWidget = new UI.EmptyWidget.EmptyWidget('');
+        this.emptyWidget.show(mainWidget.element);
+        this.workspaceDiff = WorkspaceDiff.WorkspaceDiff.workspaceDiff();
+        this.changesSidebar = new ChangesSidebar(this.workspaceDiff);
+        this.changesSidebar.addEventListener("SelectedUISourceCodeChanged" /* SelectedUISourceCodeChanged */, this.selectedUISourceCodeChanged, this);
+        splitWidget.setSidebarWidget(this.changesSidebar);
+        this.selectedUISourceCode = null;
+        this.diffContainer = mainWidget.element.createChild('div', 'diff-container');
+        UI.ARIAUtils.markAsTabpanel(this.diffContainer);
+        this.diffContainer.addEventListener('click', event => this.click(event));
+        this.diffView = this.diffContainer.appendChild(new DiffView.DiffView.DiffView());
+        this.toolbar = new UI.Toolbar.Toolbar('changes-toolbar', mainWidget.element);
+        const revertButton = new UI.Toolbar.ToolbarButton(i18nString(UIStrings.revertAllChangesToCurrentFile), 'largeicon-undo');
+        revertButton.addEventListener(UI.Toolbar.ToolbarButton.Events.Click, this.revert.bind(this));
+        this.toolbar.appendToolbarItem(revertButton);
+        this.diffStats = new UI.Toolbar.ToolbarText('');
+        this.toolbar.appendToolbarItem(this.diffStats);
+        this.toolbar.setEnabled(false);
+        this.hideDiff(i18nString(UIStrings.noChanges));
+        this.selectedUISourceCodeChanged();
+    }
+    static instance(opts = { forceNew: null }) {
+        const { forceNew } = opts;
+        if (!changesViewInstance || forceNew) {
+            changesViewInstance = new ChangesView();
+        }
+        return changesViewInstance;
+    }
+    selectedUISourceCodeChanged() {
+        this.revealUISourceCode(this.changesSidebar.selectedUISourceCode());
+    }
+    revert() {
+        const uiSourceCode = this.selectedUISourceCode;
+        if (!uiSourceCode) {
+            return;
+        }
+        this.workspaceDiff.revertToOriginal(uiSourceCode);
+    }
+    click(event) {
+        if (!this.selectedUISourceCode) {
+            return;
+        }
+        for (let target = event.target; target; target = target.parentElement) {
+            if (target.classList.contains('diff-line-content')) {
+                const number = target.getAttribute('data-line-number');
+                if (number) {
+                    // Unfortunately, caretRangeFromPoint is broken in shadow
+                    // roots, which makes determining the character offset more
+                    // work than justified here.
+                    Common.Revealer.reveal(this.selectedUISourceCode.uiLocation(Number(number) - 1, 0), false);
+                    event.consume(true);
+                }
+                break;
+            }
+            else if (target.classList.contains('diff-listing')) {
+                break;
+            }
+        }
+    }
+    revealUISourceCode(uiSourceCode) {
+        if (this.selectedUISourceCode === uiSourceCode) {
+            return;
+        }
+        if (this.selectedUISourceCode) {
+            this.workspaceDiff.unsubscribeFromDiffChange(this.selectedUISourceCode, this.refreshDiff, this);
+        }
+        if (uiSourceCode && this.isShowing()) {
+            this.workspaceDiff.subscribeToDiffChange(uiSourceCode, this.refreshDiff, this);
+        }
+        this.selectedUISourceCode = uiSourceCode;
+        this.refreshDiff();
+    }
+    wasShown() {
+        this.refreshDiff();
+        this.registerCSSFiles([changesViewStyles]);
+    }
+    refreshDiff() {
+        if (!this.isShowing()) {
+            return;
+        }
+        if (!this.selectedUISourceCode) {
+            this.renderDiffRows(null);
+            return;
+        }
+        const uiSourceCode = this.selectedUISourceCode;
+        if (!uiSourceCode.contentType().isTextType()) {
+            this.hideDiff(i18nString(UIStrings.binaryData));
+            return;
+        }
+        this.workspaceDiff.requestDiff(uiSourceCode).then((diff) => {
+            if (this.selectedUISourceCode !== uiSourceCode) {
+                return;
+            }
+            this.renderDiffRows(diff);
+        });
+    }
+    hideDiff(message) {
+        this.diffStats.setText('');
+        this.toolbar.setEnabled(false);
+        this.diffContainer.style.display = 'none';
+        this.emptyWidget.text = message;
+        this.emptyWidget.showWidget();
+    }
+    renderDiffRows(diff) {
+        if (!diff || (diff.length === 1 && diff[0][0] === Diff.Diff.Operation.Equal)) {
+            this.hideDiff(i18nString(UIStrings.noChanges));
+        }
+        else {
+            this.diffStats.setText(diffStats(diff));
+            this.toolbar.setEnabled(true);
+            this.emptyWidget.hideWidget();
+            const mimeType = this.selectedUISourceCode.mimeType();
+            this.diffContainer.style.display = 'block';
+            this.diffView.data = { diff, mimeType };
+        }
+    }
+}
+let diffUILocationRevealerInstance;
+export class DiffUILocationRevealer {
+    static instance(opts = { forceNew: false }) {
+        const { forceNew } = opts;
+        if (!diffUILocationRevealerInstance || forceNew) {
+            diffUILocationRevealerInstance = new DiffUILocationRevealer();
+        }
+        return diffUILocationRevealerInstance;
+    }
+    async reveal(diffUILocation, omitFocus) {
+        if (!(diffUILocation instanceof WorkspaceDiff.WorkspaceDiff.DiffUILocation)) {
+            throw new Error('Internal error: not a diff ui location');
+        }
+        await UI.ViewManager.ViewManager.instance().showView('changes.changes');
+        ChangesView.instance().changesSidebar.selectUISourceCode(diffUILocation.uiSourceCode, omitFocus);
+    }
+}
+//# sourceMappingURL=ChangesView.js.map

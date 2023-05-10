@@ -1,0 +1,625 @@
+<html>
+
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="ie=edge">
+  <link rel="shortcut icon" href="./favicon.ico">
+  <meta name="viewport"
+    content="width=device-width,initial-scale=1,minimum-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <title>Debug Demo</title>
+  <style>
+    a,
+    address,
+    b,
+    blockquote,
+    body,
+    div,
+    em,
+    fieldset,
+    form,
+    h1,
+    h2,
+    h3,
+    h4,
+    h5,
+    h6,
+    html,
+    i,
+    iframe,
+    img,
+    label,
+    legend,
+    li,
+    ol,
+    p,
+    s,
+    span,
+    table,
+    tbody,
+    td,
+    tfoot,
+    th,
+    thead,
+    tr,
+    ul {
+      margin: 0;
+      padding: 0;
+      border: 0;
+      font-weight: inherit;
+      font-style: inherit;
+      font-size: 100%;
+      font-family: -apple-system, sans-serif
+    }
+
+    ol,
+    ul {
+      list-style: none
+    }
+
+    a img {
+      border: 0;
+      vertical-align: top
+    }
+
+    a {
+      text-decoration: none
+    }
+
+    button {
+      overflow: visible;
+      padding: 0;
+      margin: 0;
+      border: 0;
+      background-color: transparent;
+      font-family: inherit
+    }
+
+    button::-moz-focus-inner {
+      padding: 0
+    }
+
+    input,
+    textarea {
+      background: 0;
+      padding: 0;
+      -webkit-border-radius: 0;
+      -moz-border-radius: 0;
+      border-radius: 0;
+      -webkit-appearance: none;
+      font-family: inherit
+    }
+
+    input[type=password] {
+      -webkit-text-security: disc
+    }
+
+    button:focus,
+    input:focus,
+    textarea:focus {
+      outline: 0
+    }
+
+    body {
+      word-wrap: break-word
+    }
+
+    * {
+      -webkit-tap-highlight-color: rgba(0, 0, 0, 0)
+    }
+
+    body {
+      background-color: #f5f6fa
+    }
+
+    body,
+    img {
+      -webkit-user-select: none;
+      user-select: none
+    }
+
+    img {
+      -webkit-touch-callout: none
+    }
+
+    .button {
+      font-size: 17px;
+      color: #03081a;
+      background-color: #fff;
+      border-radius: 6px;
+      line-height: normal
+    }
+
+    .button__inner {
+      display: flex;
+      justify-content: center;
+      align-items: center
+    }
+
+    .button_large {
+      width: 100%;
+      height: 45px
+    }
+
+    .button_primary {
+      color: #fff;
+      background-color: #00cafc
+    }
+
+    .button_primary:not(:disabled):active {
+      background-color: #00afdb
+    }
+
+    .button_primary:disabled {
+      background-color: #b3effe
+    }
+
+    .button_link {
+      color: #4d94ff;
+      background-color: transparent;
+      width: auto
+    }
+
+    .button_link:disabled,
+    .button_link:not(:disabled):active {
+      opacity: .5
+    }
+
+    .action-sheet__panel {
+      background-color: #dedfe0;
+      border-top-left-radius: 6px;
+      border-top-right-radius: 6px;
+      overflow: hidden
+    }
+
+    .action-sheet__title {
+      position: relative;
+      height: 56px;
+      padding: 0 20px;
+      line-height: 1.4;
+      display: flex;
+      justify-content: center;
+      flex-direction: column;
+      text-align: center;
+      font-size: 12px;
+      color: #878b99;
+      background-color: #fff
+    }
+
+    .action-sheet__menu:before,
+    .action-sheet__title:before {
+      content: " ";
+      position: absolute;
+      left: 0;
+      bottom: 0;
+      right: 0;
+      height: 1px;
+      border-bottom: 1px solid #dedede;
+      transform-origin: 0 100%;
+      transform: scaleY(.5)
+    }
+
+    .action-sheet__title-text {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      display: -webkit-box;
+      -webkit-box-orient: vertical;
+      -webkit-line-clamp: 2
+    }
+
+    .action-sheet__cell {
+      font-size: 17px;
+      text-align: center;
+      padding: 16px 0;
+      background-color: #fff
+    }
+
+    .action-sheet__cell:active {
+      background-color: #ececec
+    }
+
+    .action-sheet__cell:first-child:before {
+      display: none
+    }
+
+    .action-sheet__cell-text {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      padding: 0 20px
+    }
+
+    .action-sheet__cell .icon-success {
+      position: absolute;
+      right: 16px;
+      top: 50%;
+      margin-top: -8px;
+      color: #00cafc;
+      font-size: 16px
+    }
+
+    .action-sheet__menu {
+      position: relative
+    }
+
+    .action-sheet__action {
+      margin-top: 12px;
+      background-color: #fff;
+      padding-bottom: env(safe-area-inset-bottom)
+    }
+
+    .button-group {
+      display: -webkit-flex;
+      display: -webkit-box;
+      display: flex
+    }
+
+    .button-group .button:not(:last-child) {
+      margin-right: 8px
+    }
+
+    .button-group .button_medium {
+      min-width: auto
+    }
+
+    .overflow-hidden {
+      overflow: hidden
+    }
+
+    .popup__mask {
+      position: fixed;
+      left: 0;
+      right: 0;
+      top: 0;
+      bottom: 0;
+      height: 100%;
+      z-index: 1000;
+      background-color: rgba(0, 0, 0, .5)
+    }
+
+    .popup__mask-content {
+      top: 0;
+      left: 0
+    }
+
+    .popup__content,
+    .popup__mask-content {
+      position: fixed;
+      z-index: 1001
+    }
+
+    .popup__content_top {
+      top: 0;
+      left: 0;
+      right: 0
+    }
+
+    .popup__content_right {
+      top: 0;
+      right: 0;
+      bottom: 0
+    }
+
+    .popup__content_bottom {
+      left: 0;
+      right: 0;
+      bottom: 0
+    }
+
+    .popup__content_left {
+      top: 0;
+      left: 0;
+      bottom: 0
+    }
+
+    .popup__content_center {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%)
+    }
+
+    .auth-layer {
+      background-color: #fff;
+      padding: 4.26666667vw 4.26666667vw 4vw;
+      border-radius: 1.6vw 1.6vw 0 0;
+      max-height: 100vh
+    }
+
+    .auth-layer__header {
+      display: flex;
+      align-items: center;
+      color: #878b99;
+      font-size: 3.73333333vw
+    }
+
+    .auth-layer__header .avatar {
+      margin-right: 3.2vw
+    }
+
+    .auth-layer__title {
+      font-size: 5.33333333vw;
+      margin-top: 4.26666667vw;
+      margin-bottom: 9.33333333vw
+    }
+
+    .auth-layer__content {
+      border-bottom: 1px solid #f5f6fa;
+      max-height: 50vh;
+      overflow: scroll
+    }
+
+    .auth-layer__item {
+      margin-bottom: 4.53333333vw
+    }
+
+    .auth-layer__tips {
+      color: #878b99;
+      font-size: 3.73333333vw;
+      margin-top: 3.46666667vw;
+      margin-bottom: 9.6vw
+    }
+
+    .debug-detail {
+      background-color: #fff
+    }
+
+    .debug-detail .debug__hd {
+      padding: 3.2vw 10% 5.6vw;
+      text-align: center
+    }
+
+    .debug-detail .debug__hd-name {
+      font-size: 4.53333333vw;
+      color: #03081a;
+      max-width: 80%;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      margin: 3.46666667vw auto 0
+    }
+
+    .debug-detail .debug__hd-txt {
+      font-size: 3.73333333vw;
+      margin-top: 2.93333333vw;
+      color: #878b99;
+      display: -webkit-box;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      line-height: 1.4
+    }
+
+    .debug-detail .debug__bd {
+      text-align: center;
+      padding: 1.06666667vw 0 6.4vw
+    }
+
+    .debug-func__panel {
+      padding: 4.26666667vw
+    }
+
+    .debug-func__title {
+      font-size: 3.73333333vw;
+      color: #878b99;
+      margin-bottom: 2.13333333vw;
+      line-height: 1.2
+    }
+
+    .debug-func__item {
+      margin-bottom: 3.2vw;
+      background-color: #fff;
+      border-radius: 1.6vw;
+      padding: 3.2vw 4.26666667vw 4vw
+    }
+
+    .debug-func__item:active {
+      background-color: #ebedf5
+    }
+
+    .debug-func__hd {
+      display: flex;
+      justify-content: space-between;
+      align-items: center
+    }
+
+    .debug-func__hd-title {
+      font-size: 4.26666667vw
+    }
+
+    .debug-func__hd-setting {
+      font-size: 3.73333333vw;
+      color: #b0b3bf
+    }
+
+    .debug-func__hd-content {
+      line-height: 1.42857143;
+      margin-top: 2.13333333vw
+    }
+
+    .empty-tips,
+    .debug-func__hd-content {
+      font-size: 3.73333333vw;
+      color: #878b99
+    }
+
+    .empty-tips {
+      text-align: center;
+      margin-top: 12.8vw
+    }
+  </style>
+  <script src="http://localhost:8899/sdk.js"></script>
+</head>
+
+<body>
+  <div id="app">
+    <div>
+      <div class="debug-detail">
+        <div class="debug__hd">
+          <svg t="1681373640980" class="icon" viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg"
+            p-id="6973" width="50" height="50">
+            <path
+              d="M510.272 0q137.152-1.152 257.728 68.576 132.576 76.576 201.152 212.576l-424-22.272q-91.424-5.152-168 42.56t-105.728 131.136l-157.728-242.272q73.152-90.848 177.728-140.288t218.848-50.016zM83.424 231.424l192.576 378.848q41.152 81.728 120.576 124t167.424 25.728l-131.424 257.728q-121.152-18.848-220-90.016t-155.712-180.576-56.864-235.136q0-152.576 83.424-280.576zM989.728 328q33.152 85.728 34.016 177.44t-27.712 174.848-87.424 155.424-140.576 119.712q-131.424 76-284.576 68l231.424-356q50.272-74.848 47.136-166.016t-60.864-158.56zM512 339.424q71.424 0 122.016 50.56t50.56 122.016-50.56 122.016-122.016 50.56-122.016-50.56-50.56-122.016 50.56-122.016 122.016-50.56z"
+              p-id="6974"></path>
+          </svg>
+          <p class="debug__hd-name">
+            Chrome Remote Debug
+          </p>
+          <div class="debug__hd-txt">
+            remote debug by chrome devtools
+          </div>
+        </div>
+        <div class="debug__bd">
+          <button id="request" class="button button_link">
+            <div class="button__inner">
+              Send XHR
+            </div>
+          </button>
+          &nbsp;&nbsp;&nbsp;
+          <button id="js-error" class="button button_link">
+            <div class="button__inner" style="color: rgb(243, 106, 106)">
+              Trigger Javascript Error
+            </div>
+          </button>
+        </div>
+      </div>
+      <div class="debug-func__panel">
+        <h2 class="debug-func__title">
+          Supported Features
+        </h2>
+        <ul class="debug-func__list">
+          <li class="debug-func__item" id="func1">
+            <div class="debug-func__hd">
+              <div class="debug-func__hd-title">
+                Elements
+              </div>
+            </div>
+            <div class="debug-func__hd-content">
+              <ul>
+                <li>Display Html Tags</li>
+                <li>Edit Html Attributes</li>
+                <li>Display Style Rules</li>
+                <li>Highlight Node</li>
+              </ul>
+            </div>
+          </li>
+          <li class="debug-func__item" id="func2">
+            <div class="debug-func__hd">
+              <div class="debug-func__hd-title">
+                Console
+              </div>
+            </div>
+            <div class="debug-func__hd-content">
+              <ul>
+                <li>Execute JavaScript Code</li>
+                <li>Show Error Stack</li>
+              </ul>
+            </div>
+          </li>
+          <li class="debug-func__item">
+            <div class="debug-func__hd">
+              <div class="debug-func__hd-title">
+                Sources
+              </div>
+            </div>
+            <div class="debug-func__hd-content">
+              <ul>
+                <li>Show Source Code</li>
+              </ul>
+            </div>
+          </li>
+          <li class="debug-func__item">
+            <div class="debug-func__hd">
+              <div class="debug-func__hd-title">
+                Network
+              </div>
+            </div>
+            <div class="debug-func__hd-content">
+              <ul>
+                <li>Show XHR request</li>
+              </ul>
+            </div>
+          </li>
+          <li class="debug-func__item">
+            <div class="debug-func__hd">
+              <div class="debug-func__hd-title">
+                Application
+              </div>
+            </div>
+            <div class="debug-func__hd-content">
+              <ul>
+                <li>Local storage</li>
+                <li>Session storage</li>
+                <li>Cookies</li>
+              </ul>
+            </div>
+          </li>
+          <li class="debug-func__item">
+            <div class="debug-func__hd">
+              <div class="debug-func__hd-title">
+                Screenshot
+              </div>
+            </div>
+            <div class="debug-func__hd-content">
+              <ul>
+                <li>Live Preview</li>
+              </ul>
+            </div>
+          </li>
+        </ul>
+      </div>
+    </div>
+    <div id="panel1" style="display:none;">
+      <div class="popup__mask"></div>
+      <div class="popup__content popup__content_bottom">
+        <div class="auth-layer">
+          <div class="auth-layer__header">
+            Hello World
+          </div>
+          <div class="auth-layer__title">
+            This is a pop-up window, you can open the real-time preview of the screenshot to view the synchronization
+            effect of the interface.
+          </div>
+          <div class="button-group">
+            <button class="button button_primary button_large">
+              <div class="button__inner">
+                Close
+              </div>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="action-sheet" id="panel2" style="display:none;">
+      <div class="popup__mask"></div>
+      <div class="popup__content popup__content_bottom">
+        <div class="action-sheet__panel">
+          <div class="action-sheet__title">
+            <p class="action-sheet__title-text">Yes, this is the second popup</p>
+          </div>
+          <div class="action-sheet__menu">
+            <a href="###" target="_blank" style="color:#388de6;">
+              <div class="action-sheet__cell">
+                <div class="action-sheet__cell-text">
+                  Star Project
+                </div>
+              </div>
+            </a>
+          </div>
+          <div class="action-sheet__action">
+            <div class="action-sheet__cell">Close</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <script>
+    window.__GLOBAL_DATA__ = {
+      debug: true,
+    }
+  </script>
+  <script src="./example.js"></script>
+</body>
+
+</html>

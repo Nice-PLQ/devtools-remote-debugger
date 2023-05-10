@@ -1,0 +1,35 @@
+import * as UI from '../../ui/legacy/legacy.js';
+export declare class ComputedStyleWidget extends UI.ThrottledWidget.ThrottledWidget {
+    private computedStyleModel;
+    private readonly showInheritedComputedStylePropertiesSetting;
+    private readonly groupComputedStylesSetting;
+    input: Element;
+    private filterRegex;
+    private readonly noMatchesElement;
+    private propertiesOutline;
+    private readonly propertyByTreeElement;
+    private readonly categoryByTreeElement;
+    private readonly expandedProperties;
+    private readonly expandedGroups;
+    private readonly linkifier;
+    private readonly imagePreviewPopover;
+    private idleCallbackManager;
+    constructor();
+    onResize(): void;
+    private showInheritedComputedStyleChanged;
+    update(): void;
+    wasShown(): void;
+    doUpdate(): Promise<void>;
+    private fetchMatchedCascade;
+    private rebuildAlphabeticalList;
+    private rebuildGroupedList;
+    private onTreeElementToggled;
+    private buildPropertyTreeElement;
+    private renderPropertyTrace;
+    private handleContextMenuEvent;
+    private computePropertyTraces;
+    private computeNonInheritedProperties;
+    filterComputedStyles(this: ComputedStyleWidget, regex: RegExp | null): void;
+    private filterAlphabeticalList;
+    private filterGroupLists;
+}
