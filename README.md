@@ -36,7 +36,7 @@ The web page being debugged is connected to the middle node layer through websoc
 
 ## Debug DEMO
 
-https://user-images.githubusercontent.com/10710341/235180357-52ab12cc-dd62-4762-a6c6-6f753b468551.mp4
+https://github.com/Nice-PLQ/devtools-remote-debugger/assets/10710341/93c5cbb4-c13d-4f93-866c-9b97ffc327e9
 
 
 ## How to start?
