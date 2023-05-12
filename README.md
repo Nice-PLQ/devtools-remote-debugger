@@ -64,7 +64,16 @@ Open two pages in the browser
 
 ## How to use?
 
-1. First, you need to execute `npm run build` to build the project code, and the `dist` directory will be packaged. The structure is as follows:
+1、Modify the variables of the `.env` file
+
+```sh
+# The port number to start the Node, such as: port 80
+DEBUG_PORT=8080
+# Debug the domain name after the deployment of the backend, such as: https://www.remote-debug.com/
+DEBUG_HOST='http://localhost:8080'
+```
+
+2. Execute `npm run build` to build the project code, and the `dist` directory will be packaged. The structure is as follows:
 
 ```
 ├── page    # Debug backend
@@ -72,15 +81,6 @@ Open two pages in the browser
 │   ├── index.html
 │   ├── index.js
 ├── sdk.js  # The sdk code for debugging needs to load the script in the debugged page, and it can be deployed to cdn
-```
-
-2、Modify the variables of the `.env` file
-
-```sh
-# The port number to start the Node, such as: port 80
-DEBUG_PORT=8080
-# Debug the domain name after the deployment of the backend, such as: https://www.remote-debug.com/
-DEBUG_HOST='http://localhost:8080'
 ```
 
 3、Start the backend
