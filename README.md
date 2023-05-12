@@ -62,6 +62,33 @@ Open two pages in the browser
 
 ![](./images/img2.png)
 
-## Deploy
+## How to use?
 
-Modify variables in the `.env` file
+1. First, you need to execute `npm run build` to build the project code, and the `dist` directory will be packaged. The structure is as follows:
+
+```
+├── page    # Debug backend
+│   ├── index.css
+│   ├── index.html
+│   ├── index.js
+├── sdk.js  # The sdk code for debugging needs to load the script in the debugged page, and it can be deployed to cdn
+```
+
+2、Modify the variables of the `.env` file
+
+```sh
+# The port number to start the Node, such as: port 80
+DEBUG_PORT=8080
+# Debug the domain name after the deployment of the backend, such as: https://www.remote-debug.com/
+DEBUG_HOST='http://localhost:8080'
+```
+
+3、Start the Node
+```sh
+npm run start
+```
+
+## Other instructions
+Due to the restrictions of the same-origin policy, you may need to make the following changes:
+- Browsers do not allow JavaScript to read CSSRules of different domains by default, so you need to add the `crossorigin="anonymous"` attribute when the link introduces an external style, and the style of the style tag does not have this problem.
+- To capture Javascript specific error messages, you also need to add `crossorigin="anonymous"` to the script tag.
