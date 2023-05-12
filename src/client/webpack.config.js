@@ -2,9 +2,10 @@ const path = require('path');
 const HtmlWebpackPlugin = require('html-webpack-plugin');
 const MiniCssExtractPlugin = require('mini-css-extract-plugin');
 const { VueLoaderPlugin } = require('vue-loader');
-const AutoImport = require('unplugin-auto-import/webpack')
-const Components = require('unplugin-vue-components/webpack')
-const { ElementPlusResolver } = require('unplugin-vue-components/resolvers')
+const AutoImport = require('unplugin-auto-import/webpack');
+const Components = require('unplugin-vue-components/webpack');
+const { ElementPlusResolver } = require('unplugin-vue-components/resolvers');
+const Dotenv = require('dotenv-webpack');
 
 const cwd = process.cwd();
 
@@ -24,6 +25,9 @@ module.exports = [
         },
       ],
     },
+    plugins: [
+      new Dotenv(),
+    ],
   },
   {
     mode: 'production',
@@ -48,6 +52,7 @@ module.exports = [
       extensions: ['.js', '.vue', '.json'],
     },
     plugins: [
+      new Dotenv(),
       new VueLoaderPlugin(),
       new MiniCssExtractPlugin({
         filename: 'index.css'
