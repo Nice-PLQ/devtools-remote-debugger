@@ -83,7 +83,7 @@ DEBUG_PORT=8080
 DEBUG_HOST='http://localhost:8080'
 ```
 
-3、Start the Node
+3、Start the backend
 ```sh
 npm run start
 ```
