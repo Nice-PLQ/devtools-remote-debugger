@@ -58,22 +58,22 @@ npm run client
 
 ## 三、如何使用？
 
-1、首先需要执行`npm run build`构建下项目代码，会打包出`dist`目录，结构如下：
-```
-├── page    # 调试管理端
-│   ├── index.css
-│   ├── index.html
-│   ├── index.js
-├── sdk.js  # 调试用的sdk代码，需要在被调试页面中加载该脚本，可以将其部署到cdn
-```
-
-2、修改`.env`文件的变量
+1、修改`.env`文件的变量
 
 ```sh
 # 启动node服务的端口号，如：80端口
 DEBUG_PORT=8080
 # 调试管理端部署之后的域名，如：https://www.remote-debug.com/
 DEBUG_HOST='http://localhost:8080'
+```
+
+2、执行`npm run build`构建项目代码，会打包出`dist`目录，结构如下：
+```
+├── page    # 调试管理端
+│   ├── index.css
+│   ├── index.html
+│   ├── index.js
+├── sdk.js  # 调试用的sdk代码，需要在被调试页面中加载该脚本，可以将其部署到cdn
 ```
 
 3、启动Node服务
