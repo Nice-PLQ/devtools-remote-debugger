@@ -4,13 +4,8 @@ import { Event } from './protocol';
 
 const callsite = require('callsite');
 
-const oriAlert = window.alert;
-const oriConfirm = window.confirm;
-const oriPrompt = window.prompt;
-
 export default class Runtime extends BaseDomain {
   namespace = 'Runtime';
-
 
   cacheConsole = [];
 
@@ -102,10 +97,6 @@ export default class Runtime extends BaseDomain {
     this.isEnable = true;
     this.cacheConsole.forEach(data => this.send(data));
     this.cacheError.forEach(data => this.send(data));
-
-    window.alert = oriAlert;
-    window.confirm = oriConfirm;
-    window.prompt = oriPrompt;
 
     this.send({
       method: Event.executionContextCreated,
