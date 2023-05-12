@@ -83,5 +83,5 @@ npm run start
 
 ## 四、其他说明
 由于同源策略的限制，你可能需要进行以下的变更：
-- Chrome浏览器默认不允许JavaScript读取不同域的CSSRule，所以你需要在link引入外部样式的时候加上`crossorigin="anonymous"`属性，style标签的样式没有此问题。
+- 浏览器默认不允许JavaScript读取不同域的CSSRule，所以你需要在link引入外部样式的时候加上`crossorigin="anonymous"`属性，style标签的样式没有此问题。
 - 捕获Javascript的具体错误信息，同样需要在script标签添加`crossorigin="anonymous"`。
