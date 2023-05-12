@@ -1,4 +1,4 @@
-# Chrome Remote Debug
+# Devtools Remote Debugger
 
 [中文文档](./README_ZH.md)
 
