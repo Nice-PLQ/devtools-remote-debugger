@@ -6,7 +6,8 @@
   "scripts": {
     "client": "webpack serve --config ./src/client/webpack.config.dev.js",
     "build": "webpack --progress --config ./src/client/webpack.config.js",
-    "serve": "npx nodemon ./src/server/index.js"
+    "serve": "npx nodemon ./src/server/index.js",
+    "start": "node ./src/server/index.js"
   },
   "keywords": [
     "devtools",
