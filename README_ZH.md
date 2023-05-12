@@ -10,22 +10,19 @@
 
 - Elements
   - html 的实时查看，属性编辑、Styles、Computed 样式查看、hover 元素高亮、元素审查
-- Console
 
-  - js 运行时的错误堆栈查看、 js 代码执行、查看 console.error/warn
-    调用堆栈。
+- Console
+  - js 运行时的错误堆栈查看、 js 代码执行、查看 console.error/warn调用堆栈。
 
 - Sources
-
-  - js 运行时的错误代码文件定位索引、查看 html、js、css 源文件内容、
-    代码格式化。
-
+  - js 运行时的错误代码文件定位索引、查看 html、js、css 源文件内容、代码格式化。
+  
 - Network
-
   - 异步请求抓包、html、js、css 静态资源请求抓包。
 
 - Application
   - Local Storage、Session Storage、Cookies。
+
 - Screenshot（自定义）
   - 页面实时预览。
 
