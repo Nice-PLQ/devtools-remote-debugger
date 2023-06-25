@@ -1,1 +1,55 @@
-{"compilerOptions": {"module": "esnext", "target": "esnext", "checkJs": true, "allowJs": true, "noEmitOnError": true, "strict": true, "forceConsistentCasingInFileNames": true, "noImplicitReturns": true, "noFallthroughCasesInSwitch": true, "useUnknownInCatchVariables": false, "composite": true, "declaration": true, "sourceMap": true, "inlineSources": true, "skipLibCheck": true, "rootDir": "../../../../../../front_end/core/platform", "typeRoots": [], "outDir": ".", "tsBuildInfoFile": "platform-tsconfig.json.tsbuildinfo", "lib": ["esnext", "dom", "dom.iterable"]}, "files": ["../../../../../../front_end/core/platform/DevToolsPath.ts", "../../../../../../front_end/core/platform/UIString.ts", "../../../../../../front_end/core/platform/array-utilities.ts", "../../../../../../front_end/core/platform/date-utilities.ts", "../../../../../../front_end/core/platform/keyboard-utilities.ts", "../../../../../../front_end/core/platform/map-utilities.ts", "../../../../../../front_end/core/platform/number-utilities.ts", "../../../../../../front_end/core/platform/set-utilities.ts", "../../../../../../front_end/core/platform/string-utilities.ts", "../../../../../../front_end/core/platform/typescript-utilities.ts", "../../../../../../front_end/core/platform/utilities.ts", "../../../../../../front_end/legacy/legacy-defs.d.ts", "../../../../../../front_end/global_typings/global_defs.d.ts", "../../../../../../front_end/global_typings/request_idle_callback.d.ts", "../../../../../../front_end/global_typings/intl_display_names.d.ts", "../../../../../../node_modules/@types/filesystem/index.d.ts"], "references": [{"path": "./dcheck-tsconfig.json"}]}
+{
+  "compilerOptions": {
+    "allowJs": true,
+    "checkJs": true,
+    "composite": true,
+    "declaration": true,
+    "experimentalDecorators": true,
+    "forceConsistentCasingInFileNames": true,
+    "inlineSources": true,
+    "lib": [
+      "esnext",
+      "dom",
+      "dom.iterable"
+    ],
+    "module": "esnext",
+    "noEmitOnError": true,
+    "noFallthroughCasesInSwitch": true,
+    "noImplicitOverride": true,
+    "noImplicitReturns": true,
+    "noUnusedLocals": false,
+    "outDir": ".",
+    "rootDir": "../../../../../../front_end/core/platform",
+    "skipLibCheck": true,
+    "sourceMap": true,
+    "strict": true,
+    "target": "esnext",
+    "tsBuildInfoFile": "platform-tsconfig.json.tsbuildinfo",
+    "typeRoots": [],
+    "useUnknownInCatchVariables": false
+  },
+  "files": [
+    "../../../../../../front_end/core/platform/DevToolsPath.ts",
+    "../../../../../../front_end/core/platform/UIString.ts",
+    "../../../../../../front_end/core/platform/UserVisibleError.ts",
+    "../../../../../../front_end/core/platform/array-utilities.ts",
+    "../../../../../../front_end/core/platform/brand.ts",
+    "../../../../../../front_end/core/platform/date-utilities.ts",
+    "../../../../../../front_end/core/platform/dom-utilities.ts",
+    "../../../../../../front_end/core/platform/keyboard-utilities.ts",
+    "../../../../../../front_end/core/platform/map-utilities.ts",
+    "../../../../../../front_end/core/platform/number-utilities.ts",
+    "../../../../../../front_end/core/platform/set-utilities.ts",
+    "../../../../../../front_end/core/platform/string-utilities.ts",
+    "../../../../../../front_end/core/platform/typescript-utilities.ts",
+    "../../../../../../front_end/legacy/legacy-defs.d.ts",
+    "../../../../../../front_end/global_typings/global_defs.d.ts",
+    "../../../../../../front_end/global_typings/request_idle_callback.d.ts",
+    "../../../../../../node_modules/@types/filesystem/index.d.ts"
+  ],
+  "references": [
+    {
+      "path": "./dcheck-tsconfig.json"
+    }
+  ]
+}

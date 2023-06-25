@@ -7,14 +7,14 @@
  */
 self.SourcesTestRunner = self.SourcesTestRunner || {};
 
-SourcesTestRunner.startDebuggerTest = function(callback, quiet) {
+SourcesTestRunner.startDebuggerTest = async function(callback, quiet) {
   console.assert(TestRunner.debuggerModel.debuggerEnabled(), 'Debugger has to be enabled');
 
   if (quiet !== undefined) {
     SourcesTestRunner.quiet = quiet;
   }
 
-  self.UI.viewManager.showView('sources');
+  await TestRunner.showPanel('sources');
   TestRunner.addSniffer(SDK.DebuggerModel.prototype, 'pausedScript', SourcesTestRunner.pausedScript, true);
   TestRunner.addSniffer(SDK.DebuggerModel.prototype, 'resumedScript', SourcesTestRunner.resumedScript, true);
   TestRunner.safeWrap(callback)();
@@ -198,31 +198,31 @@ SourcesTestRunner.waitUntilPausedAndDumpStackAndResume = function(callback, opti
 };
 
 SourcesTestRunner.stepOver = function() {
-  Promise.resolve().then(function() {
+  queueMicrotask(function() {
     UI.panels.sources.stepOver();
   });
 };
 
 SourcesTestRunner.stepInto = function() {
-  Promise.resolve().then(function() {
+  queueMicrotask(function() {
     UI.panels.sources.stepInto();
   });
 };
 
 SourcesTestRunner.stepIntoAsync = function() {
-  Promise.resolve().then(function() {
+  queueMicrotask(function() {
     UI.panels.sources.stepIntoAsync();
   });
 };
 
 SourcesTestRunner.stepOut = function() {
-  Promise.resolve().then(function() {
+  queueMicrotask(function() {
     UI.panels.sources.stepOut();
   });
 };
 
 SourcesTestRunner.togglePause = function() {
-  Promise.resolve().then(function() {
+  queueMicrotask(function() {
     UI.panels.sources.togglePause();
   });
 };
@@ -291,7 +291,7 @@ SourcesTestRunner.captureStackTraceIntoString = async function(callFrames, async
       const script = location.script();
       const uiLocation = await self.Bindings.debuggerWorkspaceBinding.rawLocationToUILocation(location);
       const isFramework =
-          uiLocation ? self.Bindings.ignoreListManager.isIgnoreListedUISourceCode(uiLocation.uiSourceCode) : false;
+          uiLocation ? self.Bindings.ignoreListManager.isUserIgnoreListedURL(uiLocation.uiSourceCode.url()) : false;
 
       if (options.dropFrameworkCallFrames && isFramework) {
         continue;
@@ -355,10 +355,11 @@ SourcesTestRunner.captureStackTraceIntoString = async function(callFrames, async
 
 SourcesTestRunner.dumpSourceFrameContents = function(sourceFrame) {
   TestRunner.addResult('==Source frame contents start==');
-  const textEditor = sourceFrame.textEditor;
+  const {baseDoc} = sourceFrame;
 
-  for (let i = 0; i < textEditor.linesCount; ++i) {
-    TestRunner.addResult(textEditor.line(i));
+  for (let i = 1; i <= baseDoc.lines; ++i) {
+    const {text} = baseDoc.line(i);
+    TestRunner.addResult(text);
   }
 
   TestRunner.addResult('==Source frame contents end==');
@@ -429,7 +430,7 @@ SourcesTestRunner.showScriptSourcePromise = function(scriptName) {
   return new Promise(resolve => SourcesTestRunner.showScriptSource(scriptName, resolve));
 };
 
-SourcesTestRunner.waitForScriptSource = function(scriptName, callback) {
+SourcesTestRunner.waitForScriptSource = function(scriptName, callback, contentType) {
   const panel = UI.panels.sources;
   const uiSourceCodes = panel.workspace.uiSourceCodes();
 
@@ -438,7 +439,8 @@ SourcesTestRunner.waitForScriptSource = function(scriptName, callback) {
       continue;
     }
 
-    if (uiSourceCodes[i].name() === scriptName) {
+    if (uiSourceCodes[i].name() === scriptName &&
+        (uiSourceCodes[i].contentType() === contentType || contentType === undefined)) {
       callback(uiSourceCodes[i]);
       return;
     }
@@ -446,7 +448,7 @@ SourcesTestRunner.waitForScriptSource = function(scriptName, callback) {
 
   TestRunner.addSniffer(
       Sources.SourcesView.prototype, 'addUISourceCode',
-      SourcesTestRunner.waitForScriptSource.bind(SourcesTestRunner, scriptName, callback));
+      SourcesTestRunner.waitForScriptSource.bind(SourcesTestRunner, scriptName, callback, contentType));
 };
 
 SourcesTestRunner.objectForPopover = function(sourceFrame, lineNumber, columnNumber) {
@@ -460,7 +462,8 @@ SourcesTestRunner.objectForPopover = function(sourceFrame, lineNumber, columnNum
 SourcesTestRunner.setBreakpoint = async function(sourceFrame, lineNumber, condition, enabled) {
   const debuggerPlugin = SourcesTestRunner.debuggerPlugin(sourceFrame);
   if (!debuggerPlugin.muted) {
-    await debuggerPlugin.setBreakpoint(lineNumber, 0, condition, enabled);
+    const bp = await debuggerPlugin.setBreakpoint(lineNumber, 0, condition, enabled);
+    await bp.refreshInDebugger();  // Make sure the breakpoint is really set
   }
 };
 
@@ -486,42 +489,6 @@ SourcesTestRunner.toggleBreakpoint = async function(sourceFrame, lineNumber, dis
   if (!debuggerPlugin.muted) {
     await debuggerPlugin.toggleBreakpoint(lineNumber, disableOnly);
   }
-};
-
-SourcesTestRunner.waitBreakpointSidebarPane = function(waitUntilResolved) {
-  return new Promise(
-             resolve =>
-                 TestRunner.addSniffer(Sources.JavaScriptBreakpointsSidebarPane.prototype, 'didUpdateForTest', resolve))
-      .then(checkIfReady);
-
-  function checkIfReady() {
-    if (!waitUntilResolved) {
-      return;
-    }
-
-    for (const {breakpoint} of self.Bindings.breakpointManager.allBreakpointLocations()) {
-      if (!breakpoint.bound() && breakpoint.enabled()) {
-        return SourcesTestRunner.waitBreakpointSidebarPane();
-      }
-    }
-  }
-};
-
-SourcesTestRunner.breakpointsSidebarPaneContent = function() {
-  const pane = Sources.JavaScriptBreakpointsSidebarPane.instance();
-  const empty = pane.emptyElement;
-
-  if (!empty.classList.contains('hidden')) {
-    return TestRunner.textContentWithLineBreaks(empty);
-  }
-
-  const entries = Array.from(pane.contentElement.querySelectorAll('.breakpoint-entry'));
-  return entries.map(TestRunner.textContentWithLineBreaks).join('\n');
-};
-
-SourcesTestRunner.dumpBreakpointSidebarPane = function(title) {
-  TestRunner.addResult('Breakpoint sidebar pane ' + (title || ''));
-  TestRunner.addResult(SourcesTestRunner.breakpointsSidebarPaneContent());
 };
 
 SourcesTestRunner.dumpScopeVariablesSidebarPane = function() {
@@ -627,7 +594,7 @@ SourcesTestRunner.queryScripts = function(filter) {
 
 SourcesTestRunner.createScriptMock = function(
     url, startLine, startColumn, isContentScript, source, target, preRegisterCallback) {
-  target = target || self.SDK.targetManager.mainTarget();
+  target = target || self.SDK.targetManager.primaryPageTarget();
   const debuggerModel = target.model(SDK.DebuggerModel);
   const scriptId = String(++SourcesTestRunner.lastScriptId);
   const sourceLineEndings = TestRunner.findLineEndingIndexes(source);
@@ -675,10 +642,6 @@ SourcesTestRunner.checkUILocation = function(uiSourceCode, lineNumber, columnNum
   TestRunner.assertEquals(
       columnNumber, location.columnNumber,
       'Incorrect columnNumber, expected \'' + columnNumber + '\', but got \'' + location.columnNumber + '\'');
-};
-
-SourcesTestRunner.scriptFormatter = function() {
-  return Promise.resolve(Sources.ScriptFormatterEditorAction.instance());
 };
 
 SourcesTestRunner.waitForExecutionContextInTarget = function(target, callback) {

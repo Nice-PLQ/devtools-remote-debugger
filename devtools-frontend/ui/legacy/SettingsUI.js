@@ -36,12 +36,12 @@ import { Tooltip } from './Tooltip.js';
 import { CheckboxLabel } from './UIUtils.js';
 const UIStrings = {
     /**
-    *@description Note when a setting change will require the user to reload DevTools
-    */
+     *@description Note when a setting change will require the user to reload DevTools
+     */
     srequiresReload: '*Requires reload',
     /**
-    *@description Message to display if a setting change requires a reload of DevTools
-    */
+     *@description Message to display if a setting change requires a reload of DevTools
+     */
     oneOrMoreSettingsHaveChanged: 'One or more settings have changed which requires a reload to take effect.',
 };
 const str_ = i18n.i18n.registerUIStrings('ui/legacy/SettingsUI.ts', UIStrings);
@@ -84,6 +84,12 @@ const createSettingSelect = function (name, options, requiresReload, setting, su
         reloadWarning.textContent = i18nString(UIStrings.srequiresReload);
         ARIAUtils.markAsAlert(reloadWarning);
     }
+    const { deprecation } = setting;
+    if (deprecation) {
+        const warning = new Settings.SettingDeprecationWarning.SettingDeprecationWarning();
+        warning.data = deprecation;
+        label.appendChild(warning);
+    }
     setting.addChangeListener(settingChanged);
     settingChanged();
     select.addEventListener('change', selectChanged, false);
@@ -95,6 +101,7 @@ const createSettingSelect = function (name, options, requiresReload, setting, su
                 select.selectedIndex = i;
             }
         }
+        select.disabled = setting.disabled();
     }
     function selectChanged() {
         // Don't use event.target.value to avoid conversion of the value to string.
@@ -123,11 +130,11 @@ export const bindCheckbox = function (inputElement, setting) {
 };
 export const createCustomSetting = function (name, element) {
     const p = document.createElement('p');
-    const fieldsetElement = p.createChild('fieldset');
-    const label = fieldsetElement.createChild('label');
+    p.classList.add('settings-select');
+    const label = p.createChild('label');
     label.textContent = name;
     ARIAUtils.bindLabelToControl(label, element);
-    fieldsetElement.appendChild(element);
+    p.appendChild(element);
     return p;
 };
 export const createControlForSetting = function (setting, subtitle) {

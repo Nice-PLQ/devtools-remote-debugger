@@ -1,4 +1,5 @@
 import * as Common from '../../core/common/common.js';
+import type * as Platform from '../../core/platform/platform.js';
 import type * as TextUtils from '../../models/text_utils/text_utils.js';
 import * as UI from '../../ui/legacy/legacy.js';
 export declare class BinaryResourceView extends UI.Widget.VBox {
@@ -10,7 +11,7 @@ export declare class BinaryResourceView extends UI.Widget.VBox {
     private readonly copiedText;
     private addFadeoutSettimeoutId;
     private lastView;
-    constructor(base64content: string, contentUrl: string, resourceType: Common.ResourceType.ResourceType);
+    constructor(base64content: string, contentUrl: Platform.DevToolsPath.UrlString, resourceType: Common.ResourceType.ResourceType);
     private getCurrentViewObject;
     private copySelectedViewToClipboard;
     wasShown(): void;

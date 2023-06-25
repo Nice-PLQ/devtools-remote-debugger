@@ -2,31 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 import * as Common from '../common/common.js';
-import * as i18n from '../i18n/i18n.js';
 import * as Platform from '../platform/platform.js';
 import { ProfileNode, ProfileTreeModel } from './ProfileTreeModel.js';
-const UIStrings = {
-    /**
-     * @description Text in CPUProfile Data Model. The phrase is a warning shown to users when
-     * DevTools has received incomplete data and tries to interpolate the missing data manually.
-     * The placeholder is always a number, and references the number of data points that DevTools
-     * is trying to fix up.
-     * A sample is a single point of recorded data at a specific point in time. If many such samples
-     * are collected over a period of time, its called a "profile". In this context, "CPU profile"
-     * means collected data about the behavior of the CPU.
-     * "Parser" in this context is the piece of DevTools, that interprets the collected samples.
-     * @example {2} PH1
-     */
-    devtoolsCpuProfileParserIsFixing: '`DevTools`: `CPU` profile parser is fixing {PH1} missing samples.',
-};
-const str_ = i18n.i18n.registerUIStrings('core/sdk/CPUProfileDataModel.ts', UIStrings);
-const i18nString = i18n.i18n.getLocalizedString.bind(undefined, str_);
 export class CPUProfileNode extends ProfileNode {
     id;
     self;
     positionTicks;
     deoptReason;
-    constructor(node, sampleTime) {
+    constructor(node, sampleTime, target) {
         const callFrame = node.callFrame || {
             // TODO(crbug.com/1172300) Ignored during the jsdoc to ts migration
             // @ts-expect-error
@@ -44,7 +27,7 @@ export class CPUProfileNode extends ProfileNode {
             // @ts-expect-error
             columnNumber: node['columnNumber'] - 1,
         };
-        super(callFrame);
+        super(callFrame, target);
         this.id = node.id;
         this.self = (node.hitCount || 0) * sampleTime;
         this.positionTicks = node.positionTicks;
@@ -62,7 +45,12 @@ export class CPUProfileDataModel extends ProfileTreeModel {
     lines;
     totalHitCount;
     profileHead;
-    #idToNode;
+    /**
+     * A cache for the nodes we have parsed.
+     * Note: "Parsed" nodes are different from the "Protocol" nodes, the
+     * latter being the raw data we receive from the backend.
+     */
+    #idToParsedNode;
     gcNode;
     programNode;
     idleNode;
@@ -94,7 +82,6 @@ export class CPUProfileDataModel extends ProfileTreeModel {
         this.initialize(this.profileHead);
         this.extractMetaNodes();
         if (this.samples) {
-            this.buildIdToNodeMap();
             this.sortSamples();
             this.normalizeTimestamps();
             this.fixMissingSamples();
@@ -122,14 +109,23 @@ export class CPUProfileDataModel extends ProfileTreeModel {
         if (!profile.timeDeltas) {
             return [];
         }
-        let lastTimeUsec = profile.startTime;
+        let lastTimeMicroSec = profile.startTime;
         const timestamps = new Array(profile.timeDeltas.length);
         for (let i = 0; i < profile.timeDeltas.length; ++i) {
-            lastTimeUsec += profile.timeDeltas[i];
-            timestamps[i] = lastTimeUsec;
+            lastTimeMicroSec += profile.timeDeltas[i];
+            timestamps[i] = lastTimeMicroSec;
         }
         return timestamps;
     }
+    /**
+     * Creates a Tree of CPUProfileNodes using the Protocol.Profiler.ProfileNodes.
+     * As the tree is built, samples of native code (prefixed with "native ") are
+     * filtered out. Samples of filtered nodes are replaced with the parent of the
+     * node being filtered.
+     *
+     * This function supports legacy and new definitions of the CDP Profiler.Profile
+     * type as well as the type of a CPU profile contained in trace events.
+     */
     translateProfileTree(nodes) {
         function isNativeNode(node) {
             if (node.callFrame) {
@@ -146,7 +142,7 @@ export class CPUProfileDataModel extends ProfileTreeModel {
             for (let i = 1; i < nodes.length; ++i) {
                 const node = nodes[i];
                 // @ts-ignore Legacy types
-                const parentNode = nodeByIdMap.get(node.parent);
+                const parentNode = protocolNodeById.get(node.parent);
                 // @ts-ignore Legacy types
                 if (parentNode.children) {
                     // @ts-ignore Legacy types
@@ -158,7 +154,13 @@ export class CPUProfileDataModel extends ProfileTreeModel {
                 }
             }
         }
+        /**
+         * Calculate how many times each node was sampled in the profile, if
+         * not available in the profile data.
+         */
         function buildHitCountFromSamples(nodes, samples) {
+            // If hit count is available, this profile has the new format, so
+            // no need to continue.`
             if (typeof (nodes[0].hitCount) === 'number') {
                 return;
             }
@@ -169,15 +171,18 @@ export class CPUProfileDataModel extends ProfileTreeModel {
                 nodes[i].hitCount = 0;
             }
             for (let i = 0; i < samples.length; ++i) {
-                // TODO(crbug.com/1172300) Ignored during the jsdoc to ts migration
-                // @ts-expect-error
-                ++(nodeByIdMap.get(samples[i]).hitCount);
+                const node = protocolNodeById.get(samples[i]);
+                if (!node || node.hitCount === undefined) {
+                    continue;
+                }
+                node.hitCount++;
             }
         }
-        const nodeByIdMap = new Map();
+        // A cache for the raw nodes received from the traces / CDP.
+        const protocolNodeById = new Map();
         for (let i = 0; i < nodes.length; ++i) {
             const node = nodes[i];
-            nodeByIdMap.set(node.id, node);
+            protocolNodeById.set(node.id, node);
         }
         buildHitCountFromSamples(nodes, this.samples);
         buildChildrenFromParents(nodes);
@@ -185,13 +190,17 @@ export class CPUProfileDataModel extends ProfileTreeModel {
         const sampleTime = (this.profileEndTime - this.profileStartTime) / this.totalHitCount;
         const keepNatives = Boolean(Common.Settings.Settings.instance().moduleSetting('showNativeFunctionsInJSProfile').get());
         const root = nodes[0];
-        const idMap = new Map([[root.id, root.id]]);
-        const resultRoot = new CPUProfileNode(root, sampleTime);
+        // If a node is filtered out, its samples are replaced with its parent,
+        // so we keep track of the which id to use in the samples data.
+        const idToUseForRemovedNode = new Map([[root.id, root.id]]);
+        this.#idToParsedNode = new Map();
+        const resultRoot = new CPUProfileNode(root, sampleTime, this.target());
+        this.#idToParsedNode.set(root.id, resultRoot);
         if (!root.children) {
             throw new Error('Missing children for root');
         }
         const parentNodeStack = root.children.map(() => resultRoot);
-        const sourceNodeStack = root.children.map(id => nodeByIdMap.get(id));
+        const sourceNodeStack = root.children.map(id => protocolNodeById.get(id));
         while (sourceNodeStack.length) {
             let parentNode = parentNodeStack.pop();
             const sourceNode = sourceNodeStack.pop();
@@ -201,7 +210,7 @@ export class CPUProfileDataModel extends ProfileTreeModel {
             if (!sourceNode.children) {
                 sourceNode.children = [];
             }
-            const targetNode = new CPUProfileNode(sourceNode, sampleTime);
+            const targetNode = new CPUProfileNode(sourceNode, sampleTime, this.target());
             if (keepNatives || !isNativeNode(sourceNode)) {
                 parentNode.children.push(targetNode);
                 parentNode = targetNode;
@@ -209,46 +218,40 @@ export class CPUProfileDataModel extends ProfileTreeModel {
             else {
                 parentNode.self += targetNode.self;
             }
-            idMap.set(sourceNode.id, parentNode.id);
+            idToUseForRemovedNode.set(sourceNode.id, parentNode.id);
             parentNodeStack.push.apply(parentNodeStack, sourceNode.children.map(() => parentNode));
-            sourceNodeStack.push.apply(sourceNodeStack, sourceNode.children.map(id => nodeByIdMap.get(id)));
+            sourceNodeStack.push.apply(sourceNodeStack, sourceNode.children.map(id => protocolNodeById.get(id)));
+            this.#idToParsedNode.set(sourceNode.id, targetNode);
         }
         if (this.samples) {
-            this.samples = this.samples.map(id => idMap.get(id));
+            this.samples = this.samples.map(id => idToUseForRemovedNode.get(id));
         }
         return resultRoot;
     }
+    /**
+     * Sorts the samples array using the timestamps array (there is a one
+     * to one matching by index between the two).
+     */
     sortSamples() {
+        if (!this.timestamps || !this.samples) {
+            return;
+        }
         const timestamps = this.timestamps;
-        if (!timestamps) {
-            return;
-        }
         const samples = this.samples;
-        if (!samples) {
-            return;
-        }
-        const indices = timestamps.map((x, index) => index);
-        indices.sort((a, b) => timestamps[a] - timestamps[b]);
-        for (let i = 0; i < timestamps.length; ++i) {
-            let index = indices[i];
-            if (index === i) {
-                continue;
-            }
-            // Move items in a cycle.
-            const savedTimestamp = timestamps[i];
-            const savedSample = samples[i];
-            let currentIndex = i;
-            while (index !== i) {
-                samples[currentIndex] = samples[index];
-                timestamps[currentIndex] = timestamps[index];
-                currentIndex = index;
-                index = indices[index];
-                indices[currentIndex] = currentIndex;
-            }
-            samples[currentIndex] = savedSample;
-            timestamps[currentIndex] = savedTimestamp;
+        const orderedIndices = timestamps.map((_x, index) => index);
+        orderedIndices.sort((a, b) => timestamps[a] - timestamps[b]);
+        this.timestamps = [];
+        this.samples = [];
+        for (let i = 0; i < orderedIndices.length; i++) {
+            const orderedIndex = orderedIndices[i];
+            this.timestamps.push(timestamps[orderedIndex]);
+            this.samples.push(samples[orderedIndex]);
         }
     }
+    /**
+     * Fills in timestamps and/or time deltas from legacy profiles where
+     * they could be missing.
+     */
     normalizeTimestamps() {
         if (!this.samples) {
             return;
@@ -268,29 +271,19 @@ export class CPUProfileDataModel extends ProfileTreeModel {
             this.timestamps = timestamps;
             return;
         }
-        // Convert samples from usec to msec
+        // Convert samples from micro to milliseconds
         for (let i = 0; i < timestamps.length; ++i) {
             timestamps[i] /= 1000;
         }
         if (this.samples.length === timestamps.length) {
-            // Support for a legacy format where were no timeDeltas.
+            // Support for a legacy format where there are no timeDeltas.
             // Add an extra timestamp used to calculate the last sample duration.
-            const averageSample = ((timestamps[timestamps.length - 1] || 0) - timestamps[0]) / (timestamps.length - 1);
-            this.timestamps.push((timestamps[timestamps.length - 1] || 0) + averageSample);
+            const lastTimestamp = timestamps.at(-1) || 0;
+            const averageIntervalTime = (lastTimestamp - timestamps[0]) / (timestamps.length - 1);
+            this.timestamps.push(lastTimestamp + averageIntervalTime);
         }
-        this.profileStartTime = timestamps[0];
-        this.profileEndTime = timestamps[timestamps.length - 1];
-    }
-    buildIdToNodeMap() {
-        this.#idToNode = new Map();
-        const idToNode = this.#idToNode;
-        const stack = [this.profileHead];
-        while (stack.length) {
-            const node = stack.pop();
-            idToNode.set(node.id, node);
-            // @ts-ignore Legacy types
-            stack.push.apply(stack, node.children);
-        }
+        this.profileStartTime = timestamps.at(0) || this.profileStartTime;
+        this.profileEndTime = timestamps.at(-1) || this.profileEndTime;
     }
     extractMetaNodes() {
         const topLevelNodes = this.profileHead.children;
@@ -308,9 +301,9 @@ export class CPUProfileDataModel extends ProfileTreeModel {
         }
     }
     fixMissingSamples() {
-        // Sometimes sampler is not able to parse the JS stack and returns
-        // a (program) sample instead. The issue leads to call frames belong
-        // to the same function invocation being split apart.
+        // Sometimes the V8 sampler is not able to parse the JS stack and returns
+        // a (program) sample instead. The issue leads to call frames being split
+        // apart when they shouldn't.
         // Here's a workaround for that. When there's a single (program) sample
         // between two call stacks sharing the same bottom node, it is replaced
         // with the preceeding sample.
@@ -322,26 +315,21 @@ export class CPUProfileDataModel extends ProfileTreeModel {
         if (!this.programNode || samplesCount < 3) {
             return;
         }
-        const idToNode = this.#idToNode;
+        const idToNode = this.#idToParsedNode;
         const programNodeId = this.programNode.id;
         const gcNodeId = this.gcNode ? this.gcNode.id : -1;
         const idleNodeId = this.idleNode ? this.idleNode.id : -1;
         let prevNodeId = samples[0];
         let nodeId = samples[1];
-        let count = 0;
         for (let sampleIndex = 1; sampleIndex < samplesCount - 1; sampleIndex++) {
             const nextNodeId = samples[sampleIndex + 1];
             if (nodeId === programNodeId && !isSystemNode(prevNodeId) && !isSystemNode(nextNodeId) &&
                 bottomNode(idToNode.get(prevNodeId)) ===
                     bottomNode(idToNode.get(nextNodeId))) {
-                ++count;
                 samples[sampleIndex] = prevNodeId;
             }
             prevNodeId = nodeId;
             nodeId = nextNodeId;
-        }
-        if (count) {
-            Common.Console.Console.instance().warn(i18nString(UIStrings.devtoolsCpuProfileParserIsFixing, { PH1: count }));
         }
         function bottomNode(node) {
             while (node.parent && node.parent.parent) {
@@ -361,7 +349,7 @@ export class CPUProfileDataModel extends ProfileTreeModel {
         stopTime = stopTime || Infinity;
         const samples = this.samples;
         const timestamps = this.timestamps;
-        const idToNode = this.#idToNode;
+        const idToNode = this.#idToParsedNode;
         const gcNode = this.gcNode;
         const samplesCount = samples.length;
         const startIndex = Platform.ArrayUtilities.lowerBound(timestamps, startTime, Platform.ArrayUtilities.DEFAULT_COMPARATOR);
@@ -458,8 +446,17 @@ export class CPUProfileDataModel extends ProfileTreeModel {
             --stackTop;
         }
     }
+    /**
+     * Returns the node that corresponds to a given index of a sample.
+     */
     nodeByIndex(index) {
-        return this.samples && this.#idToNode.get(this.samples[index]) || null;
+        return this.samples && this.#idToParsedNode.get(this.samples[index]) || null;
+    }
+    nodes() {
+        if (!this.#idToParsedNode) {
+            return null;
+        }
+        return [...this.#idToParsedNode.values()];
     }
 }
 //# sourceMappingURL=CPUProfileDataModel.js.map

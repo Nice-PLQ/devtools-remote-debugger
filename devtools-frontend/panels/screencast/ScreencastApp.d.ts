@@ -7,6 +7,7 @@ export declare class ScreencastApp implements Common.App.App, SDK.TargetManager.
     private rootSplitWidget?;
     private screenCaptureModel?;
     private screencastView?;
+    rootView?: UI.RootView.RootView;
     constructor();
     static instance(): ScreencastApp;
     presentUI(document: Document): void;

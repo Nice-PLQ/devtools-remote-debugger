@@ -1,5 +1,5 @@
 import type * as SDK from '../../core/sdk/sdk.js';
-import type { StylesSidebarPane } from './StylesSidebarPane.js';
+import { type StylesSidebarPane } from './StylesSidebarPane.js';
 export declare class StylePropertyHighlighter {
     private readonly styleSidebarPane;
     constructor(ssp: StylesSidebarPane);
@@ -7,6 +7,7 @@ export declare class StylePropertyHighlighter {
      * Expand all shorthands, find the given property, scroll to it and highlight it.
      */
     highlightProperty(cssProperty: SDK.CSSProperty.CSSProperty): void;
+    findAndHighlightSectionBlock(sectionBlockName: string): void;
     /**
      * Find the first non-overridden property that matches the provided name, scroll to it and highlight it.
      */
@@ -16,5 +17,6 @@ export declare class StylePropertyHighlighter {
      * return the first tree element and corresponding section for which the callback returns a truthy value.
      */
     private findTreeElementAndSection;
+    private findTreeElementFromSection;
     private scrollAndHighlightTreeElement;
 }

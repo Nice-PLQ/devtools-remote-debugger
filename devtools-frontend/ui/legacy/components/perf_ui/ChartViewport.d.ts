@@ -35,7 +35,6 @@ export declare class ChartViewport extends UI.Widget.VBox {
     private lastMouseOffsetX;
     private minimumBoundary;
     private totalTime;
-    private updateTimerId?;
     private cancelWindowTimesAnimation?;
     constructor(delegate: ChartViewportDelegate);
     alwaysShowVerticalScroll(): void;

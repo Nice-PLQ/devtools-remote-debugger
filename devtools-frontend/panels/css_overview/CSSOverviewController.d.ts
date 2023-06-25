@@ -1,13 +1,13 @@
 import * as Common from '../../core/common/common.js';
 import type * as Protocol from '../../generated/protocol.js';
-import type { ContrastIssue } from './CSSOverviewCompletedView.js';
-import type { UnusedDeclaration } from './CSSOverviewUnusedDeclarations.js';
+import { type ContrastIssue } from './CSSOverviewCompletedView.js';
+import { type UnusedDeclaration } from './CSSOverviewUnusedDeclarations.js';
 export declare class OverviewController extends Common.ObjectWrapper.ObjectWrapper<EventTypes> {
+    #private;
     currentUrl: string;
     constructor();
-    private checkUrlAndResetIfChanged;
 }
-export declare type PopulateNodesEvent = {
+export type PopulateNodesEvent = {
     type: 'contrast';
     key: string;
     section: string | undefined;
@@ -34,8 +34,8 @@ export declare type PopulateNodesEvent = {
         nodeId: Protocol.DOM.BackendNodeId;
     }[];
 };
-export declare type PopulateNodesEventNodes = PopulateNodesEvent['nodes'];
-export declare type PopulateNodesEventNodeTypes = PopulateNodesEventNodes[0];
+export type PopulateNodesEventNodes = PopulateNodesEvent['nodes'];
+export type PopulateNodesEventNodeTypes = PopulateNodesEventNodes[0];
 export declare const enum Events {
     RequestOverviewStart = "RequestOverviewStart",
     RequestNodeHighlight = "RequestNodeHighlight",
@@ -44,7 +44,7 @@ export declare const enum Events {
     OverviewCompleted = "OverviewCompleted",
     Reset = "Reset"
 }
-export declare type EventTypes = {
+export type EventTypes = {
     [Events.RequestOverviewStart]: void;
     [Events.RequestNodeHighlight]: number;
     [Events.PopulateNodes]: {

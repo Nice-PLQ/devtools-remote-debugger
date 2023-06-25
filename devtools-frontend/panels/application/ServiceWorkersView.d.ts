@@ -2,7 +2,7 @@ import * as SDK from '../../core/sdk/sdk.js';
 import * as UI from '../../ui/legacy/legacy.js';
 export declare const setThrottleDisabledForDebugging: (enable: boolean) => void;
 export declare class ServiceWorkersView extends UI.Widget.VBox implements SDK.TargetManager.SDKModelObserver<SDK.ServiceWorkerManager.ServiceWorkerManager> {
-    private currentWorkersView;
+    currentWorkersView: UI.ReportView.ReportView;
     private readonly toolbar;
     private readonly sections;
     private manager;

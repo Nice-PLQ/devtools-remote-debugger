@@ -23,12 +23,11 @@ export declare class Automapping {
     private onUISourceCodeAdded;
     private onUISourceCodeRemoved;
     private onUISourceCodeRenamed;
-    private computeNetworkStatus;
+    computeNetworkStatus(networkSourceCode: Workspace.UISourceCode.UISourceCode): Promise<void>;
     private prevalidationFailedForTest;
     private onBindingFailedForTest;
     private clearNetworkStatus;
     private createBinding;
-    private pullMetadatas;
     private filterWithMetadata;
 }
 export declare class AutomappingStatus {

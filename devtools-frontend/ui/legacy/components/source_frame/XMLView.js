@@ -5,10 +5,12 @@ import * as i18n from '../../../../core/i18n/i18n.js';
 import * as Platform from '../../../../core/platform/platform.js';
 import * as TextUtils from '../../../../models/text_utils/text_utils.js';
 import * as UI from '../../legacy.js';
+import xmlTreeStyles from './xmlTree.css.legacy.js';
+import xmlViewStyles from './xmlView.css.legacy.js';
 const UIStrings = {
     /**
-    *@description Text to find an item
-    */
+     *@description Text to find an item
+     */
     find: 'Find',
 };
 const str_ = i18n.i18n.registerUIStrings('ui/legacy/components/source_frame/XMLView.ts', UIStrings);
@@ -21,10 +23,10 @@ export class XMLView extends UI.Widget.Widget {
     searchConfig;
     constructor(parsedXML) {
         super(true);
-        this.registerRequiredCSS('ui/legacy/components/source_frame/xmlView.css');
+        this.registerRequiredCSS(xmlViewStyles);
         this.contentElement.classList.add('shadow-xml-view', 'source-code');
         this.treeOutline = new UI.TreeOutline.TreeOutlineInShadow();
-        this.treeOutline.registerRequiredCSS('ui/legacy/components/source_frame/xmlTree.css');
+        this.treeOutline.registerRequiredCSS(xmlTreeStyles);
         this.contentElement.appendChild(this.treeOutline.element);
         this.currentSearchFocusIndex = 0;
         this.currentSearchTreeElements = [];
@@ -66,7 +68,7 @@ export class XMLView extends UI.Widget.Widget {
         if (!this.searchConfig) {
             return;
         }
-        const regex = this.searchConfig.toSearchRegex(true);
+        const { regex } = this.searchConfig.toSearchRegex(true);
         const previousFocusElement = this.currentSearchTreeElements[this.currentSearchFocusIndex];
         if (previousFocusElement) {
             previousFocusElement.setSearchRegex(regex);
@@ -104,7 +106,7 @@ export class XMLView extends UI.Widget.Widget {
         const previousSearchFocusElement = this.currentSearchTreeElements[newIndex];
         this.innerSearchCanceled();
         this.currentSearchTreeElements = [];
-        const regex = this.searchConfig.toSearchRegex(true);
+        const { regex } = this.searchConfig.toSearchRegex(true);
         for (let element = this.treeOutline.rootElement(); element; element = element.traverseNextTreeElement(false)) {
             if (!(element instanceof XMLViewNode)) {
                 continue;
@@ -141,7 +143,7 @@ export class XMLView extends UI.Widget.Widget {
         this.updateSearchCount(0);
         this.updateSearchIndex(0);
     }
-    searchCanceled() {
+    onSearchCanceled() {
         this.searchConfig = null;
         this.currentSearchTreeElements = [];
         this.innerSearchCanceled();

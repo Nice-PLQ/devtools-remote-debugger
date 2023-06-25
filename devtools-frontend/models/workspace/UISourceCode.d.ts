@@ -1,8 +1,9 @@
 import * as Common from '../../core/common/common.js';
 import * as Platform from '../../core/platform/platform.js';
 import * as TextUtils from '../text_utils/text_utils.js';
-import type { Project } from './WorkspaceImpl.js';
+import { type Project } from './WorkspaceImpl.js';
 export declare class UISourceCode extends Common.ObjectWrapper.ObjectWrapper<EventTypes> implements TextUtils.ContentProvider.ContentProvider {
+    #private;
     private projectInternal;
     private urlInternal;
     private readonly originInternal;
@@ -22,24 +23,28 @@ export declare class UISourceCode extends Common.ObjectWrapper.ObjectWrapper<Eve
     private workingCopyGetter;
     private disableEditInternal;
     private contentEncodedInternal?;
-    constructor(project: Project, url: string, contentType: Common.ResourceType.ResourceType);
+    private isKnownThirdPartyInternal;
+    private isUnconditionallyIgnoreListedInternal;
+    constructor(project: Project, url: Platform.DevToolsPath.UrlString, contentType: Common.ResourceType.ResourceType);
     requestMetadata(): Promise<UISourceCodeMetadata | null>;
     name(): string;
     mimeType(): string;
-    url(): string;
-    parentURL(): string;
-    origin(): string;
+    url(): Platform.DevToolsPath.UrlString;
+    canononicalScriptId(): string;
+    parentURL(): Platform.DevToolsPath.UrlString;
+    origin(): Platform.DevToolsPath.UrlString;
     fullDisplayName(): string;
     displayName(skipTrim?: boolean): string;
     canRename(): boolean;
-    rename(newName: string): Promise<boolean>;
+    rename(newName: Platform.DevToolsPath.RawPathString): Promise<boolean>;
     remove(): void;
     private updateName;
-    contentURL(): Platform.DevToolsPath.RawPathString;
+    contentURL(): Platform.DevToolsPath.UrlString;
     contentType(): Common.ResourceType.ResourceType;
-    contentEncoded(): Promise<boolean>;
     project(): Project;
-    requestContent(): Promise<TextUtils.ContentProvider.DeferredContent>;
+    requestContent({ cachedWasmOnly }?: {
+        cachedWasmOnly?: boolean;
+    }): Promise<TextUtils.ContentProvider.DeferredContent>;
     private requestContentImpl;
     checkContentUpdated(): Promise<void>;
     forceLoadOnCheckContent(): void;
@@ -48,6 +53,7 @@ export declare class UISourceCode extends Common.ObjectWrapper.ObjectWrapper<Eve
     addRevision(content: string): void;
     hasCommits(): boolean;
     workingCopy(): string;
+    workingCopyContent(): TextUtils.ContentProvider.DeferredContent;
     resetWorkingCopy(): void;
     private innerResetWorkingCopy;
     setWorkingCopy(newWorkingCopy: string): void;
@@ -57,6 +63,17 @@ export declare class UISourceCode extends Common.ObjectWrapper.ObjectWrapper<Eve
     removeWorkingCopyGetter(): void;
     commitWorkingCopy(): void;
     isDirty(): boolean;
+    isKnownThirdParty(): boolean;
+    markKnownThirdParty(): void;
+    /**
+     * {@link markAsUnconditionallyIgnoreListed}
+     */
+    isUnconditionallyIgnoreListed(): boolean;
+    /**
+     * Unconditionally ignore list this UISourcecode, ignoring any user
+     * setting. We use this to mark breakpoint/logpoint condition scripts for now.
+     */
+    markAsUnconditionallyIgnoreListed(): void;
     extension(): string;
     content(): string;
     loadError(): string | null;
@@ -68,12 +85,8 @@ export declare class UISourceCode extends Common.ObjectWrapper.ObjectWrapper<Eve
     addMessage(message: Message): void;
     removeMessage(message: Message): void;
     private removeAllMessages;
-    addLineDecoration(lineNumber: number, type: string, data: any): void;
-    addDecoration(range: TextUtils.TextRange.TextRange, type: string, data: any): void;
-    removeDecorationsForType(type: string): void;
-    allDecorations(): LineMarker[];
-    removeAllDecorations(): void;
-    decorationsForType(type: string): Set<LineMarker> | null;
+    setDecorationData(type: string, data: any): void;
+    getDecorationData(type: string): any;
     disableEdit(): void;
     editDisabled(): boolean;
 }
@@ -83,22 +96,20 @@ export declare enum Events {
     TitleChanged = "TitleChanged",
     MessageAdded = "MessageAdded",
     MessageRemoved = "MessageRemoved",
-    LineDecorationAdded = "LineDecorationAdded",
-    LineDecorationRemoved = "LineDecorationRemoved"
+    DecorationChanged = "DecorationChanged"
 }
 export interface WorkingCopyCommitedEvent {
     uiSourceCode: UISourceCode;
     content: string;
     encoded: boolean | undefined;
 }
-export declare type EventTypes = {
+export type EventTypes = {
     [Events.WorkingCopyChanged]: UISourceCode;
     [Events.WorkingCopyCommitted]: WorkingCopyCommitedEvent;
     [Events.TitleChanged]: UISourceCode;
     [Events.MessageAdded]: Message;
     [Events.MessageRemoved]: Message;
-    [Events.LineDecorationAdded]: LineMarker;
-    [Events.LineDecorationRemoved]: LineMarker;
+    [Events.DecorationChanged]: string;
 };
 export declare class UILocation {
     uiSourceCode: UISourceCode;
@@ -106,6 +117,7 @@ export declare class UILocation {
     columnNumber: number | undefined;
     constructor(uiSourceCode: UISourceCode, lineNumber: number, columnNumber?: number);
     linkText(skipTrim?: boolean, showColumnNumber?: boolean): string;
+    lineAndColumnText(showColumnNumber?: boolean): string | undefined;
     id(): string;
     lineId(): string;
     toUIString(): string;

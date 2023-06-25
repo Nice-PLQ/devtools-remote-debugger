@@ -1,13 +1,14 @@
 import * as SDK from '../../core/sdk/sdk.js';
 import * as UI from '../../ui/legacy/legacy.js';
 import { AnimationGroupPreviewUI } from './AnimationGroupPreviewUI.js';
-import type { AnimationEffect, AnimationGroup } from './AnimationModel.js';
-import { AnimationModel } from './AnimationModel.js';
+import { AnimationModel, type AnimationEffect, type AnimationGroup } from './AnimationModel.js';
 import { AnimationUI } from './AnimationUI.js';
 export declare class AnimationTimeline extends UI.Widget.VBox implements SDK.TargetManager.SDKModelObserver<AnimationModel> {
     #private;
     private constructor();
-    static instance(): AnimationTimeline;
+    static instance(opts?: {
+        forceNew: boolean;
+    }): AnimationTimeline;
     get previewMap(): Map<AnimationGroup, AnimationGroupPreviewUI>;
     get uiAnimations(): AnimationUI[];
     get groupBuffer(): AnimationGroup[];

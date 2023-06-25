@@ -2,16 +2,23 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 import * as i18n from '../../core/i18n/i18n.js';
+import * as Bindings from '../../models/bindings/bindings.js';
 import * as Persistence from '../../models/persistence/persistence.js';
+import * as Root from '../../core/root/root.js';
 import * as Workspace from '../../models/workspace/workspace.js';
 import * as QuickOpen from '../../ui/legacy/components/quick_open/quick_open.js';
 import * as UI from '../../ui/legacy/legacy.js';
 import { FilePathScoreFunction } from './FilePathScoreFunction.js';
 const UIStrings = {
     /**
-    *@description Text in Filtered UISource Code List Provider of the Sources panel
-    */
+     *@description Text in Filtered UISource Code List Provider of the Sources panel
+     */
     noFilesFound: 'No files found',
+    /**
+     *@description Name of an item that is on the ignore list
+     *@example {compile.html} PH1
+     */
+    sIgnoreListed: '{PH1} (ignore listed)',
 };
 const str_ = i18n.i18n.registerUIStrings('panels/sources/FilteredUISourceCodeListProvider.ts', UIStrings);
 const i18nString = i18n.i18n.getLocalizedString.bind(undefined, str_);
@@ -20,7 +27,7 @@ export class FilteredUISourceCodeListProvider extends QuickOpen.FilteredListWidg
     defaultScores;
     scorer;
     uiSourceCodes;
-    uiSourceCodeUrls;
+    uiSourceCodeIds;
     query;
     constructor() {
         super();
@@ -28,7 +35,7 @@ export class FilteredUISourceCodeListProvider extends QuickOpen.FilteredListWidg
         this.defaultScores = null;
         this.scorer = new FilePathScoreFunction('');
         this.uiSourceCodes = [];
-        this.uiSourceCodeUrls = new Set();
+        this.uiSourceCodeIds = new Set();
     }
     projectRemoved(event) {
         const project = event.data;
@@ -37,20 +44,24 @@ export class FilteredUISourceCodeListProvider extends QuickOpen.FilteredListWidg
     }
     populate(skipProject) {
         this.uiSourceCodes = [];
-        this.uiSourceCodeUrls.clear();
+        this.uiSourceCodeIds.clear();
         for (const project of Workspace.Workspace.WorkspaceImpl.instance().projects()) {
             if (project !== skipProject && this.filterProject(project)) {
                 for (const uiSourceCode of project.uiSourceCodes()) {
                     if (this.filterUISourceCode(uiSourceCode)) {
                         this.uiSourceCodes.push(uiSourceCode);
-                        this.uiSourceCodeUrls.add(uiSourceCode.url());
+                        this.uiSourceCodeIds.add(uiSourceCode.canononicalScriptId());
                     }
                 }
             }
         }
     }
     filterUISourceCode(uiSourceCode) {
-        if (this.uiSourceCodeUrls.has(uiSourceCode.url())) {
+        if (this.uiSourceCodeIds.has(uiSourceCode.canononicalScriptId())) {
+            return false;
+        }
+        if (Root.Runtime.experiments.isEnabled(Root.Runtime.ExperimentName.JUST_MY_CODE) &&
+            Bindings.IgnoreListManager.IgnoreListManager.instance().isUserOrSourceMapIgnoreListedUISourceCode(uiSourceCode)) {
             return false;
         }
         const binding = Persistence.Persistence.PersistenceImpl.instance().binding(uiSourceCode);
@@ -90,8 +101,19 @@ export class FilteredUISourceCodeListProvider extends QuickOpen.FilteredListWidg
             !Persistence.Persistence.PersistenceImpl.instance().binding(uiSourceCode)) {
             multiplier = 5;
         }
+        let contentTypeBonus = 0;
+        if (uiSourceCode.contentType().isFromSourceMap() && !uiSourceCode.isKnownThirdParty()) {
+            contentTypeBonus = 100;
+        }
+        if (uiSourceCode.contentType().isScript()) {
+            // Bonus points for being a script if it is not ignore-listed. Note
+            // that ignore listing logic does not apply to non-scripts.
+            if (!Bindings.IgnoreListManager.IgnoreListManager.instance().isUserOrSourceMapIgnoreListedUISourceCode(uiSourceCode)) {
+                contentTypeBonus += 50;
+            }
+        }
         const fullDisplayName = uiSourceCode.fullDisplayName();
-        return score + multiplier * this.scorer.calculateScore(fullDisplayName, null);
+        return score + multiplier * (contentTypeBonus + this.scorer.calculateScore(fullDisplayName, null));
     }
     renderItem(itemIndex, query, titleElement, subtitleElement) {
         query = this.rewriteQuery(query);
@@ -100,9 +122,15 @@ export class FilteredUISourceCodeListProvider extends QuickOpen.FilteredListWidg
         const indexes = [];
         new FilePathScoreFunction(query).calculateScore(fullDisplayName, indexes);
         const fileNameIndex = fullDisplayName.lastIndexOf('/');
+        const isIgnoreListed = Bindings.IgnoreListManager.IgnoreListManager.instance().isUserOrSourceMapIgnoreListedUISourceCode(uiSourceCode);
+        let tooltipText = fullDisplayName;
+        if (isIgnoreListed) {
+            titleElement.parentElement?.classList.add('is-ignore-listed');
+            tooltipText = i18nString(UIStrings.sIgnoreListed, { PH1: tooltipText });
+        }
         titleElement.textContent = uiSourceCode.displayName() + (this.queryLineNumberAndColumnNumber || '');
         this.renderSubtitleElement(subtitleElement, fullDisplayName.substring(0, fileNameIndex + 1));
-        /** @type {!HTMLElement} */ UI.Tooltip.Tooltip.install(subtitleElement, fullDisplayName);
+        UI.Tooltip.Tooltip.install(subtitleElement, tooltipText);
         const ranges = [];
         for (let i = 0; i < indexes.length; ++i) {
             ranges.push({ offset: indexes[i], length: 1 });
@@ -128,7 +156,7 @@ export class FilteredUISourceCodeListProvider extends QuickOpen.FilteredListWidg
         first.textContent = text.substring(0, splitPosition);
         const second = element.createChild('div', 'second-part');
         second.textContent = text.substring(splitPosition);
-        /** @type {!HTMLElement} */ UI.Tooltip.Tooltip.install(element, text);
+        UI.Tooltip.Tooltip.install(element, text);
     }
     selectItem(itemIndex, promptValue) {
         const parsedExpression = promptValue.trim().match(/^([^:]*)(:\d+)?(:\d+)?$/);
@@ -161,7 +189,7 @@ export class FilteredUISourceCodeListProvider extends QuickOpen.FilteredListWidg
             return;
         }
         this.uiSourceCodes.push(uiSourceCode);
-        this.uiSourceCodeUrls.add(uiSourceCode.url());
+        this.uiSourceCodeIds.add(uiSourceCode.canononicalScriptId());
         this.refresh();
     }
     notFoundText() {

@@ -32,7 +32,7 @@ export declare enum Events {
     DatabaseAdded = "DatabaseAdded",
     DatabasesRemoved = "DatabasesRemoved"
 }
-export declare type EventTypes = {
+export type EventTypes = {
     [Events.DatabaseAdded]: Database;
     [Events.DatabasesRemoved]: void;
 };

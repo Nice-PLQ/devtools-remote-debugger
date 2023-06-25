@@ -15,13 +15,13 @@ export class CoverageDecorationManager {
         this.textByProvider = new Map();
         this.uiSourceCodeByContentProvider = new Platform.MapUtilities.Multimap();
         for (const uiSourceCode of Workspace.Workspace.WorkspaceImpl.instance().uiSourceCodes()) {
-            uiSourceCode.addLineDecoration(0, decoratorType, this);
+            uiSourceCode.setDecorationData(decoratorType, this);
         }
         Workspace.Workspace.WorkspaceImpl.instance().addEventListener(Workspace.Workspace.Events.UISourceCodeAdded, this.onUISourceCodeAdded, this);
     }
     reset() {
         for (const uiSourceCode of Workspace.Workspace.WorkspaceImpl.instance().uiSourceCodes()) {
-            uiSourceCode.removeDecorationsForType(decoratorType);
+            uiSourceCode.setDecorationData(decoratorType, undefined);
         }
     }
     dispose() {
@@ -31,8 +31,7 @@ export class CoverageDecorationManager {
     update(updatedEntries) {
         for (const entry of updatedEntries) {
             for (const uiSourceCode of this.uiSourceCodeByContentProvider.get(entry.getContentProvider())) {
-                uiSourceCode.removeDecorationsForType(decoratorType);
-                uiSourceCode.addLineDecoration(0, decoratorType, this);
+                uiSourceCode.setDecorationData(decoratorType, this);
             }
         }
     }
@@ -160,7 +159,7 @@ export class CoverageDecorationManager {
     }
     onUISourceCodeAdded(event) {
         const uiSourceCode = event.data;
-        uiSourceCode.addLineDecoration(0, decoratorType, this);
+        uiSourceCode.setDecorationData(decoratorType, this);
     }
 }
 //# sourceMappingURL=CoverageDecorationManager.js.map

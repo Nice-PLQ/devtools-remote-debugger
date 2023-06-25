@@ -1,5 +1,5 @@
 import type * as UI from '../../legacy/legacy.js';
-import type { DataGrid } from './DataGrid.js';
+import { type DataGrid } from './DataGrid.js';
 /**
  * This adds a checkbox to the context menu for each column in the datagrid that
  * is hideable. Columns that are visible will have a tick next to them, and

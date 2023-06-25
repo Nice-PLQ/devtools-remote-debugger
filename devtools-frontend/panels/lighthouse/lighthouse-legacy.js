@@ -16,7 +16,7 @@ Lighthouse.LighthousePanel = LighthouseModule.LighthousePanel.LighthousePanel;
  */
 Lighthouse.ReportSelector = LighthouseModule.LighthouseReportSelector.ReportSelector;
 /**
-* @constructor
-*/
+ * @constructor
+ */
 Lighthouse.StatusView = LighthouseModule.LighthouseStatusView.StatusView;
 //# sourceMappingURL=lighthouse-legacy.js.map

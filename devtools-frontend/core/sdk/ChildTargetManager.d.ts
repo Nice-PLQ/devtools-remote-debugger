@@ -1,7 +1,7 @@
 import type * as ProtocolClient from '../protocol_client/protocol_client.js';
 import type * as ProtocolProxyApi from '../../generated/protocol-proxy-api.js';
 import type * as Protocol from '../../generated/protocol.js';
-import type { Target } from './Target.js';
+import { type Target } from './Target.js';
 import { SDKModel } from './SDKModel.js';
 export declare class ChildTargetManager extends SDKModel<EventTypes> implements ProtocolProxyApi.TargetDispatcher {
     #private;
@@ -23,7 +23,10 @@ export declare class ChildTargetManager extends SDKModel<EventTypes> implements 
     attachedToTarget({ sessionId, targetInfo, waitingForDebugger }: Protocol.Target.AttachedToTargetEvent): Promise<void>;
     detachedFromTarget({ sessionId }: Protocol.Target.DetachedFromTargetEvent): void;
     receivedMessageFromTarget({}: Protocol.Target.ReceivedMessageFromTargetEvent): void;
-    createParallelConnection(onMessage: (arg0: (Object | string)) => void): Promise<ProtocolClient.InspectorBackend.Connection>;
+    createParallelConnection(onMessage: (arg0: (Object | string)) => void): Promise<{
+        connection: ProtocolClient.InspectorBackend.Connection;
+        sessionId: string;
+    }>;
     private createParallelConnectionAndSessionForTarget;
     targetInfos(): Protocol.Target.TargetInfo[];
     private static lastAnonymousTargetId;
@@ -34,7 +37,7 @@ export declare enum Events {
     TargetDestroyed = "TargetDestroyed",
     TargetInfoChanged = "TargetInfoChanged"
 }
-export declare type EventTypes = {
+export type EventTypes = {
     [Events.TargetCreated]: Protocol.Target.TargetInfo;
     [Events.TargetDestroyed]: Protocol.Target.TargetID;
     [Events.TargetInfoChanged]: Protocol.Target.TargetInfo;

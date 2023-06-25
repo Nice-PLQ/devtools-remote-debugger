@@ -8,7 +8,7 @@ export class ApplicationPanelTreeElement extends UI.TreeOutline.TreeElement {
     constructor(resourcesPanel, title, expandable) {
         super(title, expandable);
         this.resourcesPanel = resourcesPanel;
-        UI.ARIAUtils.setAccessibleName(this.listItemElement, title);
+        UI.ARIAUtils.setLabel(this.listItemElement, title);
     }
     get itemURL() {
         throw new Error('Unimplemented Method');

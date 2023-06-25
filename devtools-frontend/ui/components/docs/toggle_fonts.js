@@ -11,6 +11,7 @@ export function init() {
     // we want a single font-family to be used by the tests.
     if (urlParams.has('fontFamily')) {
         const div = document.createElement('div');
+        div.className = 'component-docs-ui';
         div.style.position = 'fixed';
         div.style.bottom = '10px';
         div.style.right = '230px';
@@ -26,6 +27,7 @@ export function init() {
     }
     document.body.classList.add(PLATFORM_LINUX_CLASS);
     const button = document.createElement('button');
+    button.className = 'component-docs-ui';
     const loop = [
         PLATFORM_LINUX_CLASS,
         PLATFORM_MAC_CLASS,

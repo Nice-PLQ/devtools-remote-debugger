@@ -50,8 +50,8 @@ export class ExtensionPanel extends UI.Panel.Panel {
         this.panelToolbar.element.classList.remove('hidden');
         this.panelToolbar.appendToolbarItem(item);
     }
-    searchCanceled() {
-        this.server.notifySearchAction(this.id, "cancelSearch" /* CancelSearch */);
+    onSearchCanceled() {
+        this.server.notifySearchAction(this.id, "cancelSearch" /* ExtensionAPI.PrivateAPI.Panels.SearchAction.CancelSearch */);
         this.searchableViewInternal.updateSearchMatchesCount(0);
     }
     searchableView() {
@@ -59,13 +59,13 @@ export class ExtensionPanel extends UI.Panel.Panel {
     }
     performSearch(searchConfig, _shouldJump, _jumpBackwards) {
         const query = searchConfig.query;
-        this.server.notifySearchAction(this.id, "performSearch" /* PerformSearch */, query);
+        this.server.notifySearchAction(this.id, "performSearch" /* ExtensionAPI.PrivateAPI.Panels.SearchAction.PerformSearch */, query);
     }
     jumpToNextSearchResult() {
-        this.server.notifySearchAction(this.id, "nextSearchResult" /* NextSearchResult */);
+        this.server.notifySearchAction(this.id, "nextSearchResult" /* ExtensionAPI.PrivateAPI.Panels.SearchAction.NextSearchResult */);
     }
     jumpToPreviousSearchResult() {
-        this.server.notifySearchAction(this.id, "previousSearchResult" /* PreviousSearchResult */);
+        this.server.notifySearchAction(this.id, "previousSearchResult" /* ExtensionAPI.PrivateAPI.Panels.SearchAction.PreviousSearchResult */);
     }
     supportsCaseSensitiveSearch() {
         return false;
@@ -172,7 +172,7 @@ export class ExtensionSidebarPane extends UI.View.SimpleView {
             return;
         }
         objectPropertiesView.element.removeChildren();
-        UI.UIUtils.Renderer.render(object, { title, editable: false }).then(result => {
+        void UI.UIUtils.Renderer.render(object, { title, editable: false }).then(result => {
             if (!result) {
                 callback();
                 return;

@@ -4,18 +4,10 @@
 import * as Common from '../../core/common/common.js';
 import * as Host from '../../core/host/host.js';
 import * as IconButton from '../../ui/components/icon_button/icon_button.js';
-import { imageNameForResourceType } from '../../panels/utils/utils.js';
+import { iconDataForResourceType } from '../../panels/utils/utils.js';
 import { FilteredUISourceCodeListProvider } from './FilteredUISourceCodeListProvider.js';
 import { SourcesView } from './SourcesView.js';
-let openFileQuickOpenInstance;
 export class OpenFileQuickOpen extends FilteredUISourceCodeListProvider {
-    static instance(opts = { forceNew: null }) {
-        const { forceNew } = opts;
-        if (!openFileQuickOpenInstance || forceNew) {
-            openFileQuickOpenInstance = new OpenFileQuickOpen();
-        }
-        return openFileQuickOpenInstance;
-    }
     attach() {
         this.setDefaultScores(SourcesView.defaultUISourceCodeScores());
         super.attach();
@@ -26,10 +18,10 @@ export class OpenFileQuickOpen extends FilteredUISourceCodeListProvider {
             return;
         }
         if (typeof lineNumber === 'number') {
-            Common.Revealer.reveal(uiSourceCode.uiLocation(lineNumber, columnNumber));
+            void Common.Revealer.reveal(uiSourceCode.uiLocation(lineNumber, columnNumber));
         }
         else {
-            Common.Revealer.reveal(uiSourceCode);
+            void Common.Revealer.reveal(uiSourceCode);
         }
     }
     filterProject(project) {
@@ -38,14 +30,12 @@ export class OpenFileQuickOpen extends FilteredUISourceCodeListProvider {
     renderItem(itemIndex, query, titleElement, subtitleElement) {
         super.renderItem(itemIndex, query, titleElement, subtitleElement);
         const iconElement = new IconButton.Icon.Icon();
-        const iconName = imageNameForResourceType(this.itemContentTypeAt(itemIndex));
+        const iconData = iconDataForResourceType(this.itemContentTypeAt(itemIndex));
         iconElement.data = {
-            iconName: iconName,
-            color: 'var(--icon-color)',
-            width: '18px',
-            height: '18px',
+            ...iconData,
+            width: '20px',
+            height: '20px',
         };
-        iconElement.classList.add(iconName);
         titleElement.parentElement?.parentElement?.insertBefore(iconElement, titleElement.parentElement);
     }
     renderAsTwoRows() {

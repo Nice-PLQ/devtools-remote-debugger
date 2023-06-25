@@ -23,8 +23,6 @@ Timeline.EventsTimelineTreeView = TimelineModule.EventsTimelineTreeView.EventsTi
 /** @constructor */
 Timeline.EventsTimelineTreeView.Filters = TimelineModule.EventsTimelineTreeView.Filters;
 /** @constructor */
-Timeline.ExtensionTracingSession = TimelineModule.ExtensionTracingSession.ExtensionTracingSession;
-/** @constructor */
 Timeline.PerformanceModel = TimelineModule.PerformanceModel.PerformanceModel;
 /** @enum {symbol} */
 Timeline.PerformanceModel.Events = TimelineModule.PerformanceModel.Events;
@@ -39,8 +37,6 @@ Timeline.TimelineDetailsView.Tab = TimelineModule.TimelineDetailsView.Tab;
 /** @constructor */
 Timeline.TimelineEventOverview = TimelineModule.TimelineEventOverview.TimelineEventOverview;
 /** @constructor */
-Timeline.TimelineEventOverviewInput = TimelineModule.TimelineEventOverview.TimelineEventOverviewInput;
-/** @constructor */
 Timeline.TimelineEventOverviewNetwork = TimelineModule.TimelineEventOverview.TimelineEventOverviewNetwork;
 /** @constructor */
 Timeline.TimelineEventOverviewCPUActivity = TimelineModule.TimelineEventOverview.TimelineEventOverviewCPUActivity;
@@ -49,13 +45,9 @@ Timeline.TimelineEventOverviewResponsiveness = TimelineModule.TimelineEventOverv
 /** @constructor */
 Timeline.TimelineFilmStripOverview = TimelineModule.TimelineEventOverview.TimelineFilmStripOverview;
 /** @constructor */
-Timeline.TimelineEventOverviewFrames = TimelineModule.TimelineEventOverview.TimelineEventOverviewFrames;
-/** @constructor */
 Timeline.TimelineEventOverviewMemory = TimelineModule.TimelineEventOverview.TimelineEventOverviewMemory;
 /** @constructor */
 Timeline.Quantizer = TimelineModule.TimelineEventOverview.Quantizer;
-/** @constructor */
-Timeline.TimelineEventOverviewCoverage = TimelineModule.TimelineEventOverview.TimelineEventOverviewCoverage;
 Timeline.TimelineFilters = {};
 /** @constructor */
 Timeline.TimelineFilters.IsLong = TimelineModule.TimelineFilters.IsLong;
@@ -106,8 +98,6 @@ Timeline.TimelinePaintImageView = TimelineModule.TimelinePaintProfilerView.Timel
 Timeline.TimelinePanel = TimelineModule.TimelinePanel.TimelinePanel;
 /** @enum {symbol} */
 Timeline.TimelinePanel.State = TimelineModule.TimelinePanel.State;
-/** @enum {string} */
-Timeline.TimelinePanel.ViewMode = TimelineModule.TimelinePanel.ViewMode;
 Timeline.TimelinePanel.rowHeight = TimelineModule.TimelinePanel.rowHeight;
 Timeline.TimelinePanel.headerHeight = TimelineModule.TimelinePanel.headerHeight;
 /** @constructor */
@@ -115,7 +105,7 @@ Timeline.TimelinePanel.StatusPane = TimelineModule.TimelinePanel.StatusPane;
 /** @constructor */
 Timeline.TimelinePanel.ActionDelegate = TimelineModule.TimelinePanel.ActionDelegate;
 /** @constructor */
-Timeline.TimelineSelection = TimelineModule.TimelinePanel.TimelineSelection;
+Timeline.TimelineSelection = TimelineModule.TimelineSelection.TimelineSelection;
 /** @interface */
 Timeline.TimelineModeViewDelegate = TimelineModule.TimelinePanel.TimelineModeViewDelegate;
 /** @constructor */

@@ -28,7 +28,39 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 import * as Platform from '../platform/platform.js';
-import * as Root from '../root/root.js';
+/**
+ * http://tools.ietf.org/html/rfc3986#section-5.2.4
+ */
+export function normalizePath(path) {
+    if (path.indexOf('..') === -1 && path.indexOf('.') === -1) {
+        return path;
+    }
+    // Remove leading slash (will be added back below) so we
+    // can handle all (including empty) segments consistently.
+    const segments = (path[0] === '/' ? path.substring(1) : path).split('/');
+    const normalizedSegments = [];
+    for (const segment of segments) {
+        if (segment === '.') {
+            continue;
+        }
+        else if (segment === '..') {
+            normalizedSegments.pop();
+        }
+        else {
+            normalizedSegments.push(segment);
+        }
+    }
+    let normalizedPath = normalizedSegments.join('/');
+    if (path[0] === '/' && normalizedPath) {
+        normalizedPath = '/' + normalizedPath;
+    }
+    if (normalizedPath[normalizedPath.length - 1] !== '/' &&
+        ((path[path.length - 1] === '/') || (segments[segments.length - 1] === '.') ||
+            (segments[segments.length - 1] === '..'))) {
+        normalizedPath = normalizedPath + '/';
+    }
+    return normalizedPath;
+}
 export class ParsedURL {
     isValid;
     url;
@@ -68,12 +100,12 @@ export class ParsedURL {
             else {
                 this.scheme = match[2].toLowerCase();
             }
-            this.user = match[3];
-            this.host = match[4];
-            this.port = match[5];
-            this.path = match[6] || '/';
-            this.queryParams = match[7] || '';
-            this.fragment = match[8];
+            this.user = match[3] ?? '';
+            this.host = match[4] ?? '';
+            this.port = match[5] ?? '';
+            this.path = match[6] ?? '/';
+            this.queryParams = match[7] ?? '';
+            this.fragment = match[8] ?? '';
         }
         else {
             if (this.url.startsWith('data:')) {
@@ -106,25 +138,94 @@ export class ParsedURL {
         }
         return null;
     }
+    static preEncodeSpecialCharactersInPath(path) {
+        // Based on net::FilePathToFileURL. Ideally we would handle
+        // '\\' as well on non-Windows file systems.
+        for (const specialChar of ['%', ';', '#', '?', ' ']) {
+            path = path.replaceAll(specialChar, encodeURIComponent(specialChar));
+        }
+        return path;
+    }
+    static rawPathToEncodedPathString(path) {
+        const partiallyEncoded = ParsedURL.preEncodeSpecialCharactersInPath(path);
+        if (path.startsWith('/')) {
+            return new URL(partiallyEncoded, 'file:///').pathname;
+        }
+        // URL prepends a '/'
+        return new URL('/' + partiallyEncoded, 'file:///').pathname.substr(1);
+    }
+    /**
+     * @param name Must not be encoded
+     */
+    static encodedFromParentPathAndName(parentPath, name) {
+        return ParsedURL.concatenate(parentPath, '/', ParsedURL.preEncodeSpecialCharactersInPath(name));
+    }
+    /**
+     * @param name Must not be encoded
+     */
+    static urlFromParentUrlAndName(parentUrl, name) {
+        return ParsedURL.concatenate(parentUrl, '/', ParsedURL.preEncodeSpecialCharactersInPath(name));
+    }
+    static encodedPathToRawPathString(encPath) {
+        return decodeURIComponent(encPath);
+    }
     static rawPathToUrlString(fileSystemPath) {
-        let rawPath = fileSystemPath;
-        rawPath = rawPath.replace(/\\/g, '/');
-        if (!rawPath.startsWith('file://')) {
-            if (rawPath.startsWith('/')) {
-                rawPath = 'file://' + rawPath;
+        let preEncodedPath = ParsedURL.preEncodeSpecialCharactersInPath(fileSystemPath.replace(/\\/g, '/'));
+        preEncodedPath = preEncodedPath.replace(/\\/g, '/');
+        if (!preEncodedPath.startsWith('file://')) {
+            if (preEncodedPath.startsWith('/')) {
+                preEncodedPath = 'file://' + preEncodedPath;
             }
             else {
-                rawPath = 'file:///' + rawPath;
+                preEncodedPath = 'file:///' + preEncodedPath;
             }
         }
-        return rawPath;
+        return new URL(preEncodedPath).toString();
     }
-    static capFilePrefix(fileURL, isWindows) {
+    static relativePathToUrlString(relativePath, baseURL) {
+        const preEncodedPath = ParsedURL.preEncodeSpecialCharactersInPath(relativePath.replace(/\\/g, '/'));
+        return new URL(preEncodedPath, baseURL).toString();
+    }
+    static urlToRawPathString(fileURL, isWindows) {
         console.assert(fileURL.startsWith('file://'), 'This must be a file URL.');
+        const decodedFileURL = decodeURIComponent(fileURL);
         if (isWindows) {
-            return fileURL.substr('file:///'.length).replace(/\//g, '\\');
+            return decodedFileURL.substr('file:///'.length).replace(/\//g, '\\');
         }
-        return fileURL.substr('file://'.length);
+        return decodedFileURL.substr('file://'.length);
+    }
+    static sliceUrlToEncodedPathString(url, start) {
+        return url.substring(start);
+    }
+    static substr(devToolsPath, from, length) {
+        return devToolsPath.substr(from, length);
+    }
+    static substring(devToolsPath, start, end) {
+        return devToolsPath.substring(start, end);
+    }
+    static prepend(prefix, devToolsPath) {
+        return prefix + devToolsPath;
+    }
+    static concatenate(devToolsPath, ...appendage) {
+        return devToolsPath.concat(...appendage);
+    }
+    static trim(devToolsPath) {
+        return devToolsPath.trim();
+    }
+    static slice(devToolsPath, start, end) {
+        return devToolsPath.slice(start, end);
+    }
+    static join(devToolsPaths, separator) {
+        return devToolsPaths.join(separator);
+    }
+    static split(devToolsPath, separator, limit) {
+        return devToolsPath.split(separator, limit);
+    }
+    static toLowerCase(devToolsPath) {
+        return devToolsPath.toLowerCase();
+    }
+    static isValidUrlString(str) {
+        return new ParsedURL(str).isValid;
     }
     static urlWithoutHash(url) {
         const hashIndex = url.indexOf('#');
@@ -159,11 +260,11 @@ export class ParsedURL {
     }
     static extractPath(url) {
         const parsedURL = this.fromString(url);
-        return parsedURL ? parsedURL.path : '';
+        return (parsedURL ? parsedURL.path : '');
     }
     static extractOrigin(url) {
         const parsedURL = this.fromString(url);
-        return parsedURL ? parsedURL.securityOrigin() : '';
+        return parsedURL ? parsedURL.securityOrigin() : Platform.DevToolsPath.EmptyUrlString;
     }
     static extractExtension(url) {
         url = ParsedURL.urlWithoutHash(url);
@@ -199,10 +300,14 @@ export class ParsedURL {
             trimmedHref.startsWith('mailto:')) {
             return href;
         }
-        // Return absolute URLs as-is.
+        // Return absolute URLs with normalized path and other components as-is.
         const parsedHref = this.fromString(trimmedHref);
         if (parsedHref && parsedHref.scheme) {
-            return trimmedHref;
+            const securityOrigin = parsedHref.securityOrigin();
+            const pathText = normalizePath(parsedHref.path);
+            const queryText = parsedHref.queryParams && `?${parsedHref.queryParams}`;
+            const fragmentText = parsedHref.fragment && `#${parsedHref.fragment}`;
+            return securityOrigin + pathText + queryText + fragmentText;
         }
         const parsedURL = this.fromString(baseURL);
         if (!parsedURL) {
@@ -237,7 +342,7 @@ export class ParsedURL {
         if (hrefPath.charAt(0) !== '/') {
             hrefPath = parsedURL.folderPathComponents + '/' + hrefPath;
         }
-        return securityOrigin + Root.Runtime.Runtime.normalizePath(hrefPath) + hrefSuffix;
+        return securityOrigin + normalizePath(hrefPath) + hrefSuffix;
     }
     static splitLineAndColumn(string) {
         // Only look for line and column numbers in the path to avoid matching port numbers.
@@ -283,10 +388,16 @@ export class ParsedURL {
         if (wasmFunctionIndex === -1) {
             return url;
         }
-        return url.substring(0, wasmFunctionIndex);
+        return ParsedURL.substring(url, 0, wasmFunctionIndex);
+    }
+    static beginsWithWindowsDriveLetter(url) {
+        return /^[A-Za-z]:/.test(url);
+    }
+    static beginsWithScheme(url) {
+        return /^[A-Za-z][A-Za-z0-9+.-]*:/.test(url);
     }
     static isRelativeURL(url) {
-        return !(/^[A-Za-z][A-Za-z0-9+.-]*:/.test(url));
+        return !this.beginsWithScheme(url) || this.beginsWithWindowsDriveLetter(url);
     }
     get displayName() {
         if (this.#displayNameInternal) {

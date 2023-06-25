@@ -1,5 +1,5 @@
 import * as HeapSnapshotModel from '../../models/heap_snapshot_model/heap_snapshot_model.js';
-import type { HeapSnapshotWorkerDispatcher } from './HeapSnapshotWorkerDispatcher.js';
+import { type HeapSnapshotWorkerDispatcher } from './HeapSnapshotWorkerDispatcher.js';
 export interface HeapSnapshotItem {
     itemIndex(): number;
     serialize(): Object;
@@ -31,22 +31,22 @@ export interface HeapSnapshotItemIndexProvider {
     itemForIndex(newIndex: number): HeapSnapshotItem;
 }
 export declare class HeapSnapshotNodeIndexProvider implements HeapSnapshotItemIndexProvider {
-    private node;
+    #private;
     constructor(snapshot: HeapSnapshot);
     itemForIndex(index: number): HeapSnapshotNode;
 }
 export declare class HeapSnapshotEdgeIndexProvider implements HeapSnapshotItemIndexProvider {
-    private edge;
+    #private;
     constructor(snapshot: HeapSnapshot);
     itemForIndex(index: number): HeapSnapshotEdge;
 }
 export declare class HeapSnapshotRetainerEdgeIndexProvider implements HeapSnapshotItemIndexProvider {
-    private readonly retainerEdge;
+    #private;
     constructor(snapshot: HeapSnapshot);
     itemForIndex(index: number): HeapSnapshotRetainerEdge;
 }
 export declare class HeapSnapshotEdgeIterator implements HeapSnapshotItemIterator {
-    private readonly sourceNode;
+    #private;
     edge: JSHeapSnapshotEdge;
     constructor(node: HeapSnapshotNode);
     hasNext(): boolean;
@@ -54,12 +54,8 @@ export declare class HeapSnapshotEdgeIterator implements HeapSnapshotItemIterato
     next(): void;
 }
 export declare class HeapSnapshotRetainerEdge implements HeapSnapshotItem {
+    #private;
     protected snapshot: HeapSnapshot;
-    private retainerIndexInternal;
-    private globalEdgeIndex;
-    private retainingNodeIndex?;
-    private edgeInstance?;
-    private nodeInstance?;
     constructor(snapshot: HeapSnapshot, retainerIndex: number);
     clone(): HeapSnapshotRetainerEdge;
     hasStringName(): boolean;
@@ -77,7 +73,7 @@ export declare class HeapSnapshotRetainerEdge implements HeapSnapshotItem {
     type(): string;
 }
 export declare class HeapSnapshotRetainerEdgeIterator implements HeapSnapshotItemIterator {
-    private readonly retainersEnd;
+    #private;
     retainer: JSHeapSnapshotRetainerEdge;
     constructor(retainedNode: HeapSnapshotNode);
     hasNext(): boolean;
@@ -118,25 +114,22 @@ export declare class HeapSnapshotNode implements HeapSnapshotItem {
     rawType(): number;
 }
 export declare class HeapSnapshotNodeIterator implements HeapSnapshotItemIterator {
+    #private;
     node: HeapSnapshotNode;
-    private readonly nodesLength;
     constructor(node: HeapSnapshotNode);
     hasNext(): boolean;
     item(): HeapSnapshotNode;
     next(): void;
 }
 export declare class HeapSnapshotIndexRangeIterator implements HeapSnapshotItemIterator {
-    private readonly itemProvider;
-    private readonly indexes;
-    private position;
+    #private;
     constructor(itemProvider: HeapSnapshotItemIndexProvider, indexes: number[] | Uint32Array);
     hasNext(): boolean;
     item(): HeapSnapshotItem;
     next(): void;
 }
 export declare class HeapSnapshotFilteredIterator implements HeapSnapshotItemIterator {
-    private iterator;
-    private filter;
+    #private;
     constructor(iterator: HeapSnapshotItemIterator, filter?: ((arg0: HeapSnapshotItem) => boolean));
     hasNext(): boolean;
     item(): HeapSnapshotItem;
@@ -144,7 +137,7 @@ export declare class HeapSnapshotFilteredIterator implements HeapSnapshotItemIte
     private skipFilteredItems;
 }
 export declare class HeapSnapshotProgress {
-    private readonly dispatcher;
+    #private;
     constructor(dispatcher?: HeapSnapshotWorkerDispatcher);
     updateStatus(status: string): void;
     updateProgress(title: string, value: number, total: number): void;
@@ -152,7 +145,7 @@ export declare class HeapSnapshotProgress {
     private sendUpdateEvent;
 }
 export declare class HeapSnapshotProblemReport {
-    private readonly errors;
+    #private;
     constructor(title: string);
     addError(error: string): void;
     toString(): string;
@@ -169,26 +162,15 @@ export interface Profile {
     trace_tree: Object;
 }
 export declare abstract class HeapSnapshot {
+    #private;
     nodes: Uint32Array;
     containmentEdges: Uint32Array;
-    private readonly metaNode;
-    private readonly rawSamples;
-    private samples;
     strings: string[];
-    private readonly locations;
-    private readonly progress;
-    private readonly noDistance;
     rootNodeIndexInternal: number;
-    private snapshotDiffs;
-    private aggregatesForDiffInternal;
-    private aggregates;
-    private aggregatesSortedFlags;
-    private profile;
     nodeTypeOffset: number;
     nodeNameOffset: number;
     nodeIdOffset: number;
     nodeSelfSizeOffset: number;
-    private nodeEdgeCountOffset;
     nodeTraceNodeIdOffset: number;
     nodeFieldCount: number;
     nodeTypes: string[];
@@ -211,25 +193,16 @@ export declare abstract class HeapSnapshot {
     edgeShortcutType: number;
     edgeWeakType: number;
     edgeInvisibleType: number;
-    private locationIndexOffset;
-    private locationScriptIdOffset;
-    private locationLineOffset;
-    private locationColumnOffset;
-    private locationFieldCount;
     nodeCount: number;
-    private edgeCount;
     retainedSizes: Float64Array;
     firstEdgeIndexes: Uint32Array;
     retainingNodes: Uint32Array;
     retainingEdges: Uint32Array;
     firstRetainerIndex: Uint32Array;
     nodeDistances: Int32Array;
-    private firstDominatedNodeIndex;
-    private dominatedNodes;
+    firstDominatedNodeIndex: Uint32Array;
+    dominatedNodes: Uint32Array;
     dominatorsTree: Uint32Array;
-    private allocationProfile;
-    private nodeDetachednessOffset;
-    private locationMap;
     lazyStringCache: {
         [x: string]: string;
     };
@@ -286,18 +259,18 @@ export declare abstract class HeapSnapshot {
      */
     private addString;
     /**
-      * The phase propagates whether a node is attached or detached through the
-      * graph and adjusts the low-level representation of nodes.
-      *
-      * State propagation:
-      * 1. Any object reachable from an attached object is itself attached.
-      * 2. Any object reachable from a detached object that is not already
-      *    attached is considered detached.
-      *
-      * Representation:
-      * - Name of any detached node is changed from "<Name>"" to
-      *   "Detached <Name>".
-      */
+     * The phase propagates whether a node is attached or detached through the
+     * graph and adjusts the low-level representation of nodes.
+     *
+     * State propagation:
+     * 1. Any object reachable from an attached object is itself attached.
+     * 2. Any object reachable from a detached object that is not already
+     *    attached is considered detached.
+     *
+     * Representation:
+     * - Name of any detached node is changed from "<Name>"" to
+     *   "Detached <Name>".
+     */
     private propagateDOMState;
     private buildSamples;
     private buildLocationMap;
@@ -352,13 +325,10 @@ export declare class HeapSnapshotHeader {
     constructor();
 }
 export declare abstract class HeapSnapshotItemProvider {
+    #private;
     protected readonly iterator: HeapSnapshotItemIterator;
-    private readonly indexProvider;
-    private readonly isEmptyInternal;
     protected iterationOrder: number[] | null;
     protected currentComparator: HeapSnapshotModel.HeapSnapshotModel.ComparatorConfig | null;
-    private sortedPrefixLength;
-    private sortedSuffixLength;
     constructor(iterator: HeapSnapshotItemIterator, indexProvider: HeapSnapshotItemIndexProvider);
     protected createIterationOrder(): void;
     isEmpty(): boolean;
@@ -379,6 +349,7 @@ export declare class HeapSnapshotNodesProvider extends HeapSnapshotItemProvider 
     sort(comparator: HeapSnapshotModel.HeapSnapshotModel.ComparatorConfig, leftBound: number, rightBound: number, windowLeft: number, windowRight: number): void;
 }
 export declare class JSHeapSnapshot extends HeapSnapshot {
+    #private;
     readonly nodeFlags: {
         canBeQueried: number;
         detachedDOMTreeNode: number;
@@ -386,7 +357,6 @@ export declare class JSHeapSnapshot extends HeapSnapshot {
     };
     lazyStringCache: {};
     private flags;
-    private statistics?;
     constructor(profile: Profile, progress: HeapSnapshotProgress);
     createNode(nodeIndex?: number): JSHeapSnapshotNode;
     createEdge(edgeIndex: number): JSHeapSnapshotEdge;

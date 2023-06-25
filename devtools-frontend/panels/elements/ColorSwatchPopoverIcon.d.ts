@@ -1,7 +1,14 @@
+import * as Common from '../../core/common/common.js';
 import * as ColorPicker from '../../ui/legacy/components/color_picker/color_picker.js';
 import * as InlineEditor from '../../ui/legacy/components/inline_editor/inline_editor.js';
-import type { StylePropertyTreeElement } from './StylePropertyTreeElement.js';
-import type { StylePropertiesSection, StylesSidebarPane } from './StylesSidebarPane.js';
+import { type StylePropertiesSection } from './StylePropertiesSection.js';
+import { type StylePropertyTreeElement } from './StylePropertyTreeElement.js';
+import { type StylesSidebarPane } from './StylesSidebarPane.js';
+interface BezierPopoverIconParams {
+    treeElement: StylePropertyTreeElement;
+    swatchPopoverHelper: InlineEditor.SwatchPopoverHelper.SwatchPopoverHelper;
+    swatch: InlineEditor.Swatches.BezierSwatch;
+}
 export declare class BezierPopoverIcon {
     private treeElement;
     private readonly swatchPopoverHelper;
@@ -11,13 +18,19 @@ export declare class BezierPopoverIcon {
     private bezierEditor?;
     private scrollerElement?;
     private originalPropertyText?;
-    constructor(treeElement: StylePropertyTreeElement, swatchPopoverHelper: InlineEditor.SwatchPopoverHelper.SwatchPopoverHelper, swatch: InlineEditor.Swatches.BezierSwatch);
+    constructor({ treeElement, swatchPopoverHelper, swatch, }: BezierPopoverIconParams);
     private iconClick;
     private bezierChanged;
     private onScroll;
     private onPopoverHidden;
 }
-export declare class ColorSwatchPopoverIcon {
+export declare const enum ColorSwatchPopoverIconEvents {
+    ColorChanged = "colorchanged"
+}
+export type ColorSwatchPopoverIconEventTypes = {
+    [ColorSwatchPopoverIconEvents.ColorChanged]: string;
+};
+export declare class ColorSwatchPopoverIcon extends Common.ObjectWrapper.ObjectWrapper<ColorSwatchPopoverIconEventTypes> {
     private treeElement;
     private readonly swatchPopoverHelper;
     private swatch;
@@ -31,6 +44,7 @@ export declare class ColorSwatchPopoverIcon {
     private generateCSSVariablesPalette;
     setContrastInfo(contrastInfo: ColorPicker.ContrastInfo.ContrastInfo): void;
     private iconClick;
+    toggleEyeDropper(): Promise<void>;
     showPopover(): void;
     private spectrumResized;
     private spectrumChanged;
@@ -76,3 +90,4 @@ export declare class FontEditorSectionManager {
     private onPopoverHidden;
     private static readonly treeElementSymbol;
 }
+export {};

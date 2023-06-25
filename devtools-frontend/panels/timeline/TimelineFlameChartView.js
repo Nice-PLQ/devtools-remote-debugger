@@ -8,95 +8,28 @@ import * as Root from '../../core/root/root.js';
 import * as SDK from '../../core/sdk/sdk.js';
 import * as Bindings from '../../models/bindings/bindings.js';
 import * as TimelineModel from '../../models/timeline_model/timeline_model.js';
+import * as TraceEngine from '../../models/trace/trace.js';
 import * as PerfUI from '../../ui/legacy/components/perf_ui/perf_ui.js';
 import * as UI from '../../ui/legacy/legacy.js';
 import { CountersGraph } from './CountersGraph.js';
 import { Events as PerformanceModelEvents } from './PerformanceModel.js';
 import { TimelineDetailsView } from './TimelineDetailsView.js';
 import { TimelineRegExp } from './TimelineFilters.js';
-import { Events as TimelineFlameChartDataProviderEvents, TimelineFlameChartDataProvider } from './TimelineFlameChartDataProvider.js';
+import { Events as TimelineFlameChartDataProviderEvents, TimelineFlameChartDataProvider, } from './TimelineFlameChartDataProvider.js';
 import { TimelineFlameChartNetworkDataProvider } from './TimelineFlameChartNetworkDataProvider.js';
-import { TimelineSelection } from './TimelinePanel.js';
+import { TimelineSelection } from './TimelineSelection.js';
 import { AggregatedTimelineTreeView } from './TimelineTreeView.js';
 import { TimelineUIUtils } from './TimelineUIUtils.js';
-import { WebVitalsIntegrator } from './WebVitalsTimelineUtils.js';
 const UIStrings = {
     /**
-    *@description Text in Timeline Flame Chart View of the Performance panel
-    *@example {Frame} PH1
-    *@example {10ms} PH2
-    */
+     *@description Text in Timeline Flame Chart View of the Performance panel
+     *@example {Frame} PH1
+     *@example {10ms} PH2
+     */
     sAtS: '{PH1} at {PH2}',
 };
 const str_ = i18n.i18n.registerUIStrings('panels/timeline/TimelineFlameChartView.ts', UIStrings);
 const i18nString = i18n.i18n.getLocalizedString.bind(undefined, str_);
-class MainSplitWidget extends UI.SplitWidget.SplitWidget {
-    webVitals;
-    model;
-    constructor(isVertical, secondIsSidebar, settingName, defaultSidebarWidth, defaultSidebarHeight, constraintsInDip) {
-        super(isVertical, secondIsSidebar, settingName, defaultSidebarWidth, defaultSidebarHeight, constraintsInDip);
-    }
-    setWebVitals(webVitals) {
-        /** @type {!WebVitalsIntegrator} */
-        this.webVitals = webVitals;
-        this.webVitals.setMinimumSize(0, 120);
-    }
-    setWindowTimes(left, right, animate) {
-        if (!this.webVitals) {
-            return;
-        }
-        const startTime = left - (this.model ? this.model.timelineModel().minimumRecordTime() : 0);
-        this.webVitals.chartViewport.setWindowTimes(left, right, animate);
-        this.webVitals.webVitalsTimeline.data = {
-            startTime: startTime,
-            duration: right - left,
-            fcps: undefined,
-            lcps: undefined,
-            layoutShifts: undefined,
-            longTasks: undefined,
-            mainFrameNavigations: undefined,
-            maxDuration: undefined,
-        };
-    }
-    setModelAndUpdateBoundaries(model) {
-        this.model = model;
-        if (!this.webVitals || !model) {
-            return;
-        }
-        const left = model.window().left;
-        const right = model.window().right;
-        const timelineModel = model.timelineModel();
-        const events = timelineModel.tracks().reduce((prev, curr) => prev.concat(curr.events), []);
-        const minimumBoundary = model.timelineModel().minimumRecordTime();
-        const prepareEvents = (filterFunction) => events.filter(filterFunction).map(e => e.startTime - minimumBoundary);
-        const lcpEvents = events.filter(e => timelineModel.isLCPCandidateEvent(e) || timelineModel.isLCPInvalidateEvent(e));
-        const lcpEventsByNavigationId = new Map();
-        for (const e of lcpEvents) {
-            const navigationId = e.args['data']['navigationId'];
-            const previousLastEvent = lcpEventsByNavigationId.get(navigationId);
-            if (!previousLastEvent || previousLastEvent.args['data']['candidateIndex'] < e.args['data']['candidateIndex']) {
-                lcpEventsByNavigationId.set(navigationId, e);
-            }
-        }
-        const latestLcpCandidatesByNavigationId = Array.from(lcpEventsByNavigationId.values());
-        const latestLcpEvents = latestLcpCandidatesByNavigationId.filter(e => timelineModel.isLCPCandidateEvent(e));
-        const longTasks = events.filter(e => SDK.TracingModel.TracingModel.isCompletePhase(e.phase) && timelineModel.isLongRunningTask(e))
-            .map(e => ({ start: e.startTime - minimumBoundary, duration: e.duration || 0 }));
-        this.webVitals.chartViewport.setBoundaries(left, right - left);
-        this.webVitals.chartViewport.setWindowTimes(left, right);
-        const startTime = left - (this.model ? this.model.timelineModel().minimumRecordTime() : 0);
-        this.webVitals.webVitalsTimeline.data = {
-            startTime: startTime,
-            duration: right - left,
-            maxDuration: timelineModel.maximumRecordTime(),
-            fcps: events.filter(e => timelineModel.isFCPEvent(e)).map(e => ({ timestamp: e.startTime - minimumBoundary, e })),
-            lcps: latestLcpEvents.map(e => e.startTime).map(t => ({ timestamp: t - minimumBoundary })),
-            layoutShifts: prepareEvents(e => timelineModel.isLayoutShiftEvent(e)).map(t => ({ timestamp: t })),
-            longTasks,
-            mainFrameNavigations: prepareEvents(e => timelineModel.isMainFrameNavigationStartEvent(e)),
-        };
-    }
-}
 export class TimelineFlameChartView extends UI.Widget.VBox {
     delegate;
     model;
@@ -105,9 +38,6 @@ export class TimelineFlameChartView extends UI.Widget.VBox {
     // TODO(crbug.com/1172300) Ignored during the jsdoc to ts migration
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     showMemoryGraphSetting;
-    // TODO(crbug.com/1172300) Ignored during the jsdoc to ts migration
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    showWebVitalsSetting;
     networkSplitWidget;
     mainDataProvider;
     mainFlameChart;
@@ -118,36 +48,34 @@ export class TimelineFlameChartView extends UI.Widget.VBox {
     networkFlameChart;
     networkPane;
     splitResizer;
-    webVitals;
-    mainSplitWidget;
     chartSplitWidget;
     countersView;
     detailsSplitWidget;
     detailsView;
     onMainEntrySelected;
     onNetworkEntrySelected;
-    nextExtensionIndex;
     boundRefresh;
-    selectedTrack;
+    #selectedEvents;
     // TODO(crbug.com/1172300) Ignored during the jsdoc to ts migration
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     groupBySetting;
     searchableView;
-    urlToColorCache;
     needsResizeToPreferredHeights;
     selectedSearchResult;
     searchRegex;
+    #traceEngineData;
+    #filmStripModel = null;
     constructor(delegate) {
         super();
         this.element.classList.add('timeline-flamechart');
         this.delegate = delegate;
         this.model = null;
         this.eventListeners = [];
+        this.#traceEngineData = null;
         this.showMemoryGraphSetting = Common.Settings.Settings.instance().createSetting('timelineShowMemory', false);
-        this.showWebVitalsSetting = Common.Settings.Settings.instance().createSetting('timelineWebVitals', false);
         // Create main and network flamecharts.
         this.networkSplitWidget = new UI.SplitWidget.SplitWidget(false, false, 'timelineFlamechartMainView', 150);
-        // Ensure that the network panel & resizer appears above the web vitals / main thread.
+        // Ensure that the network panel & resizer appears above the main thread.
         this.networkSplitWidget.sidebarElement().style.zIndex = '120';
         const mainViewGroupExpansionSetting = Common.Settings.Settings.instance().createSetting('timelineFlamechartMainViewGroupExpansion', {});
         this.mainDataProvider = new TimelineFlameChartDataProvider();
@@ -161,20 +89,13 @@ export class TimelineFlameChartView extends UI.Widget.VBox {
         this.networkFlameChart =
             new PerfUI.FlameChart.FlameChart(this.networkDataProvider, this, this.networkFlameChartGroupExpansionSetting);
         this.networkFlameChart.alwaysShowVerticalScroll();
-        this.networkFlameChart.disableRangeSelection();
         this.networkPane = new UI.Widget.VBox();
         this.networkPane.setMinimumSize(23, 23);
         this.networkFlameChart.show(this.networkPane.element);
         this.splitResizer = this.networkPane.element.createChild('div', 'timeline-flamechart-resizer');
         this.networkSplitWidget.hideDefaultResizer(true);
         this.networkSplitWidget.installResizer(this.splitResizer);
-        this.webVitals = new WebVitalsIntegrator(this);
-        this.mainSplitWidget = new MainSplitWidget(false, false, 'timelineFlamechartMainAndVitalsView', undefined, 120);
-        this.mainSplitWidget.setWebVitals(this.webVitals);
-        this.mainSplitWidget.setMainWidget(this.mainFlameChart);
-        this.mainSplitWidget.setSidebarWidget(this.webVitals);
-        this.toggleWebVitalsLane();
-        this.networkSplitWidget.setMainWidget(this.mainSplitWidget);
+        this.networkSplitWidget.setMainWidget(this.mainFlameChart);
         this.networkSplitWidget.setSidebarWidget(this.networkPane);
         // Create counters chart splitter.
         this.chartSplitWidget = new UI.SplitWidget.SplitWidget(false, true, 'timelineCountersSplitViewState');
@@ -199,27 +120,17 @@ export class TimelineFlameChartView extends UI.Widget.VBox {
         this.networkFlameChart.addEventListener(PerfUI.FlameChart.Events.EntrySelected, this.onNetworkEntrySelected, this);
         this.networkFlameChart.addEventListener(PerfUI.FlameChart.Events.EntryInvoked, this.onNetworkEntrySelected, this);
         this.mainFlameChart.addEventListener(PerfUI.FlameChart.Events.EntryHighlighted, this.onEntryHighlighted, this);
-        this.nextExtensionIndex = 0;
         this.boundRefresh = this.refresh.bind(this);
-        this.selectedTrack = null;
+        this.#selectedEvents = null;
         this.mainDataProvider.setEventColorMapping(TimelineUIUtils.eventColor);
         this.groupBySetting = Common.Settings.Settings.instance().createSetting('timelineTreeGroupBy', AggregatedTimelineTreeView.GroupBy.None);
         this.groupBySetting.addChangeListener(this.updateColorMapper, this);
         this.updateColorMapper();
     }
-    toggleWebVitalsLane() {
-        if (this.showWebVitalsSetting.get()) {
-            this.mainSplitWidget.showBoth();
-            this.mainSplitWidget.setSidebarSize(120);
-            this.mainSplitWidget.setResizable(false);
-            this.mainSplitWidget.hideDefaultResizer(true);
-        }
-        else {
-            this.mainSplitWidget.hideSidebar();
-        }
+    isNetworkTrackShownForTests() {
+        return this.networkSplitWidget.showMode() !== UI.SplitWidget.ShowMode.OnlyMain;
     }
     updateColorMapper() {
-        this.urlToColorCache = new Map();
         if (!this.model) {
             return;
         }
@@ -231,7 +142,6 @@ export class TimelineFlameChartView extends UI.Widget.VBox {
         this.mainFlameChart.setWindowTimes(window.left, window.right, animate);
         this.networkFlameChart.setWindowTimes(window.left, window.right, animate);
         this.networkDataProvider.setWindowTimes(window.left, window.right);
-        this.mainSplitWidget.setWindowTimes(window.left, window.right, Boolean(animate));
         this.updateSearchResults(false, false);
     }
     windowChanged(windowStartTime, windowEndTime, animate) {
@@ -246,40 +156,37 @@ export class TimelineFlameChartView extends UI.Widget.VBox {
         if (flameChart !== this.mainFlameChart) {
             return;
         }
-        const track = group ? this.mainDataProvider.groupTrack(group) : null;
-        this.selectedTrack = track;
+        this.#selectedEvents = group ? this.mainDataProvider.groupTreeEvents(group) : null;
         this.updateTrack();
     }
-    setModel(model) {
+    setModel(model, newTraceEngineData, filmStripModel) {
         if (model === this.model) {
             return;
         }
+        this.#filmStripModel = filmStripModel;
+        this.#traceEngineData = newTraceEngineData;
         Common.EventTarget.removeEventListeners(this.eventListeners);
         this.model = model;
-        this.selectedTrack = null;
-        this.mainDataProvider.setModel(this.model);
-        this.networkDataProvider.setModel(this.model);
+        this.#selectedEvents = null;
+        this.mainDataProvider.setModel(this.model, newTraceEngineData);
+        this.networkDataProvider.setModel(this.model, newTraceEngineData);
         if (this.model) {
             this.eventListeners = [
                 this.model.addEventListener(PerformanceModelEvents.WindowChanged, this.onWindowChanged, this),
-                this.model.addEventListener(PerformanceModelEvents.ExtensionDataAdded, this.appendExtensionData, this),
             ];
             const window = this.model.window();
             this.mainFlameChart.setWindowTimes(window.left, window.right);
             this.networkFlameChart.setWindowTimes(window.left, window.right);
             this.networkDataProvider.setWindowTimes(window.left, window.right);
-            this.mainSplitWidget.setModelAndUpdateBoundaries(model);
             this.updateSearchResults(false, false);
         }
         this.updateColorMapper();
         this.updateTrack();
-        this.nextExtensionIndex = 0;
-        this.appendExtensionData();
         this.refresh();
     }
     updateTrack() {
-        this.countersView.setModel(this.model, this.selectedTrack);
-        this.detailsView.setModel(this.model, this.selectedTrack);
+        this.countersView.setModel(this.model, this.#selectedEvents);
+        this.detailsView.setModel(this.model, this.#traceEngineData, this.#filmStripModel, this.#selectedEvents);
     }
     refresh() {
         if (this.networkDataProvider.isEmpty()) {
@@ -295,19 +202,13 @@ export class TimelineFlameChartView extends UI.Widget.VBox {
         this.networkFlameChart.reset();
         this.updateSearchResults(false, false);
     }
-    appendExtensionData() {
-        if (!this.model) {
-            return;
-        }
-        const extensions = this.model.extensionInfo();
-        while (this.nextExtensionIndex < extensions.length) {
-            this.mainDataProvider.appendExtensionEvents(extensions[this.nextExtensionIndex++]);
-        }
-        this.mainFlameChart.scheduleUpdate();
-    }
     onEntryHighlighted(commonEvent) {
         SDK.OverlayModel.OverlayModel.hideDOMNodeHighlight();
         const entryIndex = commonEvent.data;
+        // TODO(crbug.com/1431166): explore how we can make highlighting agnostic
+        // and take either legacy events, or new trace engine events. Currently if
+        // this highlight comes from a TrackAppender, we create a new legacy event
+        // from the event payload, mainly to satisfy this method.
         const event = this.mainDataProvider.eventByIndex(entryIndex);
         if (!event) {
             return;
@@ -316,8 +217,17 @@ export class TimelineFlameChartView extends UI.Widget.VBox {
         if (!target) {
             return;
         }
-        const timelineData = TimelineModel.TimelineModel.TimelineData.forEvent(event);
-        const backendNodeIds = timelineData.backendNodeIds;
+        let backendNodeIds;
+        // Events for tracks that are migrated to the new engine won't use
+        // TimelineModel.TimelineData.
+        if (event instanceof SDK.TracingModel.Event) {
+            const timelineData = TimelineModel.TimelineModel.EventOnTimelineData.forEvent(event);
+            backendNodeIds = timelineData.backendNodeIds;
+        }
+        else if (TraceEngine.Types.TraceEvents.isTraceEventLayoutShift(event)) {
+            const impactedNodes = event.args.data?.impacted_nodes ?? [];
+            backendNodeIds = impactedNodes.map(node => node.node_id);
+        }
         if (!backendNodeIds) {
             return;
         }
@@ -373,7 +283,8 @@ export class TimelineFlameChartView extends UI.Widget.VBox {
                 this.mainFlameChart.scheduleUpdate();
             }
         }
-        this.delegate.select(dataProvider.createSelection(entryIndex));
+        this.delegate.select(dataProvider
+            .createSelection(entryIndex));
     }
     resizeToPreferredHeights() {
         if (!this.isShowing()) {
@@ -436,7 +347,16 @@ export class TimelineFlameChartView extends UI.Widget.VBox {
         }
         this.selectSearchResult(selectedIndex);
     }
-    searchCanceled() {
+    /**
+     * Returns the indexes of the elements that matched the most recent
+     * query. Elements are indexed by the data provider and correspond
+     * to their position in the data provider entry data array.
+     * Public only for tests.
+     */
+    getSearchResults() {
+        return this.searchResults;
+    }
+    onSearchCanceled() {
         if (typeof this.selectedSearchResult !== 'undefined') {
             this.delegate.select(null);
         }
@@ -445,7 +365,7 @@ export class TimelineFlameChartView extends UI.Widget.VBox {
         delete this.searchRegex;
     }
     performSearch(searchConfig, shouldJump, jumpBackwards) {
-        this.searchRegex = searchConfig.toSearchRegex();
+        this.searchRegex = searchConfig.toSearchRegex().regex;
         this.updateSearchResults(shouldJump, jumpBackwards);
     }
 }

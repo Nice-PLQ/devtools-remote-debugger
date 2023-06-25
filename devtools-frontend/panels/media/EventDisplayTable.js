@@ -8,21 +8,21 @@ import * as UI from '../../ui/legacy/legacy.js';
 import eventDisplayTableStyles from './eventDisplayTable.css.js';
 const UIStrings = {
     /**
-    *@description Text for timestamps of items
-    */
+     *@description Text for timestamps of items
+     */
     timestamp: 'Timestamp',
     /**
-    *@description The column header for event names.
-    */
+     *@description The column header for event names.
+     */
     eventName: 'Event name',
     /**
-    *@description Text for the value of something
-    */
+     *@description Text for the value of something
+     */
     value: 'Value',
     /**
-    *@description The accessible name of a table that displays information about events that occurred
-    * while a video/media player was present on the page.
-    */
+     *@description The accessible name of a table that displays information about events that occurred
+     * while a video/media player was present on the page.
+     */
     eventDisplay: 'Event display',
 };
 const str_ = i18n.i18n.registerUIStrings('panels/media/EventDisplayTable.ts', UIStrings);
@@ -36,7 +36,7 @@ export class EventNode extends DataGrid.DataGrid.DataGridNode {
     createCell(columnId) {
         const cell = this.createTD(columnId);
         const cellData = this.data[columnId];
-        if (columnId === "value" /* Value */) {
+        if (columnId === "value" /* MediaEventColumnKeys.Value */) {
             const enclosed = cell.createChild('div', 'event-display-table-contents-json-wrapper');
             this.expandableElement =
                 new SourceFrame.JSONView.JSONView(new SourceFrame.JSONView.ParsedJSON(cellData, '', ''), true);
@@ -59,14 +59,14 @@ export class PlayerEventsView extends UI.Widget.VBox {
         this.contentElement.classList.add('event-display-table-contents-table-container');
         this.dataGrid = this.createDataGrid([
             {
-                id: "displayTimestamp" /* Timestamp */,
+                id: "displayTimestamp" /* MediaEventColumnKeys.Timestamp */,
                 title: i18nString(UIStrings.timestamp),
                 weight: 1,
                 sortable: false,
             },
-            { id: "event" /* Event */, title: i18nString(UIStrings.eventName), weight: 2, sortable: false },
+            { id: "event" /* MediaEventColumnKeys.Event */, title: i18nString(UIStrings.eventName), weight: 2, sortable: false },
             {
-                id: "value" /* Value */,
+                id: "value" /* MediaEventColumnKeys.Value */,
                 title: i18nString(UIStrings.value),
                 weight: 7,
                 sortable: false,

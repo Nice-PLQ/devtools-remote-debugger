@@ -1,21 +1,43 @@
 import * as Common from '../../../../core/common/common.js';
+import * as Platform from '../../../../core/platform/platform.js';
 import * as TextUtils from '../../../../models/text_utils/text_utils.js';
-import type * as Workspace from '../../../../models/workspace/workspace.js';
+import * as CodeMirror from '../../../../third_party/codemirror.next/codemirror.next.js';
+import * as TextEditor from '../../../components/text_editor/text_editor.js';
 import * as UI from '../../legacy.js';
-import type { SourcesTextEditorDelegate } from './SourcesTextEditor.js';
-import { SourcesTextEditor } from './SourcesTextEditor.js';
-export declare class SourceFrameImpl extends UI.View.SimpleView implements UI.SearchableView.Searchable, UI.SearchableView.Replaceable, SourcesTextEditorDelegate, Transformer {
+export interface SourceFrameOptions {
+    lineNumbers?: boolean;
+    lineWrapping?: boolean;
+}
+export declare const enum Events {
+    EditorUpdate = "EditorUpdate",
+    EditorScroll = "EditorScroll"
+}
+export type EventTypes = {
+    [Events.EditorUpdate]: CodeMirror.ViewUpdate;
+    [Events.EditorScroll]: void;
+};
+declare const SourceFrameImpl_base: (new (...args: any[]) => {
+    "__#13@#events": Common.ObjectWrapper.ObjectWrapper<EventTypes>;
+    addEventListener<T extends keyof EventTypes>(eventType: T, listener: (arg0: Common.EventTarget.EventTargetEvent<EventTypes[T], any>) => void, thisObject?: Object | undefined): Common.EventTarget.EventDescriptor<EventTypes, T>;
+    once<T_1 extends keyof EventTypes>(eventType: T_1): Promise<EventTypes[T_1]>;
+    removeEventListener<T_2 extends keyof EventTypes>(eventType: T_2, listener: (arg0: Common.EventTarget.EventTargetEvent<EventTypes[T_2], any>) => void, thisObject?: Object | undefined): void;
+    hasEventListeners(eventType: keyof EventTypes): boolean;
+    dispatchEventToListeners<T_3 extends keyof EventTypes>(eventType: Platform.TypeScriptUtilities.NoUnion<T_3>, ...eventData: Common.EventTarget.EventPayloadToRestParameters<EventTypes, T_3>): void;
+}) & typeof UI.View.SimpleView;
+export declare class SourceFrameImpl extends SourceFrameImpl_base implements UI.SearchableView.Searchable, UI.SearchableView.Replaceable, Transformer {
+    #private;
+    private readonly options;
     private readonly lazyContent;
     private prettyInternal;
     private rawContent;
-    private formattedContentPromise;
     private formattedMap;
     private readonly prettyToggle;
     private shouldAutoPrettyPrint;
     private readonly progressToolbarItem;
     private textEditorInternal;
-    private prettyCleanGeneration;
-    private cleanGeneration;
+    private baseDoc;
+    private prettyBaseDoc;
+    private displayedSelection;
     private searchConfig;
     private delayedFindSearchMatches;
     private currentSearchResultIndex;
@@ -31,58 +53,69 @@ export declare class SourceFrameImpl extends UI.View.SimpleView implements UI.Se
     private selectionToSet;
     private loadedInternal;
     private contentRequested;
-    private highlighterTypeInternal;
     private wasmDisassemblyInternal;
     contentSet: boolean;
-    constructor(lazyContent: () => Promise<TextUtils.ContentProvider.DeferredContent>, codeMirrorOptions?: UI.TextEditor.Options);
+    constructor(lazyContent: () => Promise<TextUtils.ContentProvider.DeferredContent>, options?: SourceFrameOptions);
+    disposeView(): void;
+    private placeholderEditorState;
+    protected editorConfiguration(doc: string | CodeMirror.Text): CodeMirror.Extension;
+    protected onBlur(): void;
+    protected onFocus(): void;
     get wasmDisassembly(): Common.WasmDisassembly.WasmDisassembly | null;
-    editorLocationToUILocation(lineNumber: number, columnNumber?: number): {
+    editorLocationToUILocation(lineNumber: number, columnNumber: number): {
         lineNumber: number;
-        columnNumber?: number | undefined;
+        columnNumber: number;
+    };
+    editorLocationToUILocation(lineNumber: number): {
+        lineNumber: number;
+        columnNumber: number | undefined;
     };
     uiLocationToEditorLocation(lineNumber: number, columnNumber?: number | undefined): {
         lineNumber: number;
         columnNumber: number;
     };
     setCanPrettyPrint(canPrettyPrint: boolean, autoPrettyPrint?: boolean): void;
+    setEditable(editable: boolean): void;
     private setPretty;
+    private getLineNumberFormatter;
     private updateLineNumberFormatter;
     private updatePrettyPrintState;
     private prettyToRawLocation;
     private rawToPrettyLocation;
-    setEditable(editable: boolean): void;
     hasLoadError(): boolean;
     wasShown(): void;
     willHide(): void;
     toolbarItems(): Promise<UI.Toolbar.ToolbarItem[]>;
     get loaded(): boolean;
-    get textEditor(): SourcesTextEditor;
+    get textEditor(): TextEditor.TextEditor.TextEditor;
     get pretty(): boolean;
+    get contentType(): string;
+    protected getContentType(): string;
     private ensureContentLoaded;
-    private requestFormattedContent;
-    revealPosition(line: number, column?: number, shouldHighlight?: boolean): void;
+    protected setDeferredContent(deferredContentPromise: Promise<TextUtils.ContentProvider.DeferredContent>): Promise<void>;
+    revealPosition(position: {
+        lineNumber: number;
+        columnNumber?: number;
+    } | number, shouldHighlight?: boolean): void;
     private innerRevealPositionIfNeeded;
     private clearPositionToReveal;
     scrollToLine(line: number): void;
     private innerScrollToLineIfNeeded;
-    selection(): TextUtils.TextRange.TextRange;
     setSelection(textRange: TextUtils.TextRange.TextRange): void;
     private innerSetSelectionIfNeeded;
     private wasShownOrLoaded;
-    onTextChanged(_oldRange: TextUtils.TextRange.TextRange, _newRange: TextUtils.TextRange.TextRange): void;
+    onTextChanged(): void;
     isClean(): boolean;
     contentCommitted(): void;
-    private simplifyMimeType;
-    setHighlighterType(highlighterType: string): void;
-    highlighterType(): string;
-    private updateHighlighterType;
-    setContent(content: string | null, loadError: string | null): void;
+    protected getLanguageSupport(content: string | CodeMirror.Text): Promise<CodeMirror.Extension>;
+    updateLanguageMode(content: string): Promise<void>;
+    setContent(content: string | CodeMirror.Text): Promise<void>;
     setSearchableView(view: UI.SearchableView.SearchableView | null): void;
     private doFindSearchMatches;
     performSearch(searchConfig: UI.SearchableView.SearchConfig, shouldJump: boolean, jumpBackwards?: boolean): void;
     private resetCurrentSearchResultIndex;
     private resetSearch;
-    searchCanceled(): void;
+    onSearchCanceled(): void;
     jumpToLastSearchResult(): void;
     private searchResultIndexForCurrentSelection;
     jumpToNextSearchResult(): void;
@@ -93,32 +126,33 @@ export declare class SourceFrameImpl extends UI.View.SimpleView implements UI.Se
     replaceSelectionWith(searchConfig: UI.SearchableView.SearchConfig, replacement: string): void;
     replaceAllWith(searchConfig: UI.SearchableView.SearchConfig, replacement: string): void;
     private collectRegexMatches;
-    populateLineGutterContextMenu(_contextMenu: UI.ContextMenu.ContextMenu, _editorLineNumber: number): Promise<void>;
-    populateTextAreaContextMenu(_contextMenu: UI.ContextMenu.ContextMenu, _editorLineNumber: number, _editorColumnNumber: number): Promise<void>;
     canEditSource(): boolean;
     private updateSourcePosition;
-}
-export interface LineDecorator {
-    decorate(uiSourceCode: Workspace.UISourceCode.UISourceCode, textEditor: SourcesTextEditor, type: string): void;
+    onContextMenu(event: MouseEvent): boolean;
+    protected populateTextAreaContextMenu(_menu: UI.ContextMenu.ContextMenu, _lineNumber: number, _columnNumber: number): void;
+    onLineGutterContextMenu(position: number, event: MouseEvent): boolean;
+    protected populateLineGutterContextMenu(_menu: UI.ContextMenu.ContextMenu, _lineNumber: number): void;
+    focus(): void;
 }
 export interface Transformer {
-    editorLocationToUILocation(lineNumber: number, columnNumber?: number): {
+    editorLocationToUILocation(lineNumber: number, columnNumber: number): {
         lineNumber: number;
-        columnNumber?: number | undefined;
+        columnNumber: number;
+    };
+    editorLocationToUILocation(lineNumber: number): {
+        lineNumber: number;
+        columnNumber: number | undefined;
     };
     uiLocationToEditorLocation(lineNumber: number, columnNumber?: number): {
         lineNumber: number;
         columnNumber: number;
     };
 }
-export declare function registerLineDecorator(registration: LineDecoratorRegistration): void;
-export declare function getRegisteredLineDecorators(): LineDecoratorRegistration[];
 export declare enum DecoratorType {
     PERFORMANCE = "performance",
     MEMORY = "memory",
     COVERAGE = "coverage"
 }
-export interface LineDecoratorRegistration {
-    lineDecorator: () => LineDecorator;
-    decoratorType: DecoratorType;
-}
+export declare const addNonBreakableLines: CodeMirror.StateEffectType<readonly number[]>;
+export declare function isBreakableLine(state: CodeMirror.EditorState, line: CodeMirror.Line): boolean;
+export {};

@@ -28,15 +28,16 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 import * as Common from '../../core/common/common.js';
+import * as Platform from '../../core/platform/platform.js';
 import * as PerfUI from '../../ui/legacy/components/perf_ui/perf_ui.js';
 import type * as SDK from '../../core/sdk/sdk.js';
 import * as UI from '../../ui/legacy/legacy.js';
 export declare class ProfileFlameChartDataProvider implements PerfUI.FlameChart.FlameChartDataProvider {
+    #private;
     readonly colorGeneratorInternal: Common.Color.Generator;
     maxStackDepthInternal: number;
-    timelineData_: PerfUI.FlameChart.TimelineData | null;
+    timelineData_: PerfUI.FlameChart.FlameChartTimelineData | null;
     entryNodes: SDK.ProfileTreeModel.ProfileNode[];
-    font?: string;
     boldFont?: string;
     constructor();
     static colorGenerator(): Common.Color.Generator;
@@ -44,8 +45,8 @@ export declare class ProfileFlameChartDataProvider implements PerfUI.FlameChart.
     totalTime(): number;
     formatValue(value: number, precision?: number): string;
     maxStackDepth(): number;
-    timelineData(): PerfUI.FlameChart.TimelineData | null;
-    calculateTimelineData(): PerfUI.FlameChart.TimelineData;
+    timelineData(): PerfUI.FlameChart.FlameChartTimelineData | null;
+    calculateTimelineData(): PerfUI.FlameChart.FlameChartTimelineData;
     prepareHighlightedEntryInfo(_entryIndex: number): Element | null;
     canJumpToEntry(entryIndex: number): boolean;
     entryTitle(entryIndex: number): string;
@@ -59,12 +60,12 @@ export declare class ProfileFlameChartDataProvider implements PerfUI.FlameChart.
     entryNodesLength(): number;
 }
 declare const CPUProfileFlameChart_base: (new (...args: any[]) => {
-    "__#8@#events": Common.ObjectWrapper.ObjectWrapper<PerfUI.FlameChart.EventTypes>;
-    addEventListener<T extends keyof PerfUI.FlameChart.EventTypes>(eventType: T, listener: (arg0: Common.EventTarget.EventTargetEvent<PerfUI.FlameChart.EventTypes[T]>) => void, thisObject?: Object | undefined): Common.EventTarget.EventDescriptor<PerfUI.FlameChart.EventTypes, T>;
+    "__#13@#events": Common.ObjectWrapper.ObjectWrapper<PerfUI.FlameChart.EventTypes>;
+    addEventListener<T extends keyof PerfUI.FlameChart.EventTypes>(eventType: T, listener: (arg0: Common.EventTarget.EventTargetEvent<PerfUI.FlameChart.EventTypes[T], any>) => void, thisObject?: Object | undefined): Common.EventTarget.EventDescriptor<PerfUI.FlameChart.EventTypes, T>;
     once<T_1 extends keyof PerfUI.FlameChart.EventTypes>(eventType: T_1): Promise<PerfUI.FlameChart.EventTypes[T_1]>;
-    removeEventListener<T_2 extends keyof PerfUI.FlameChart.EventTypes>(eventType: T_2, listener: (arg0: Common.EventTarget.EventTargetEvent<PerfUI.FlameChart.EventTypes[T_2]>) => void, thisObject?: Object | undefined): void;
+    removeEventListener<T_2 extends keyof PerfUI.FlameChart.EventTypes>(eventType: T_2, listener: (arg0: Common.EventTarget.EventTargetEvent<PerfUI.FlameChart.EventTypes[T_2], any>) => void, thisObject?: Object | undefined): void;
     hasEventListeners(eventType: keyof PerfUI.FlameChart.EventTypes): boolean;
-    dispatchEventToListeners<T_3 extends keyof PerfUI.FlameChart.EventTypes>(eventType: import("../../core/platform/typescript-utilities.js").NoUnion<T_3>, ...eventData: Common.EventTarget.EventPayloadToRestParameters<PerfUI.FlameChart.EventTypes, T_3>): void;
+    dispatchEventToListeners<T_3 extends keyof PerfUI.FlameChart.EventTypes>(eventType: Platform.TypeScriptUtilities.NoUnion<T_3>, ...eventData: Common.EventTarget.EventPayloadToRestParameters<PerfUI.FlameChart.EventTypes, T_3>): void;
 }) & typeof UI.Widget.VBox;
 export declare class CPUProfileFlameChart extends CPUProfileFlameChart_base implements UI.SearchableView.Searchable {
     readonly searchableView: UI.SearchableView.SearchableView;
@@ -82,7 +83,7 @@ export declare class CPUProfileFlameChart extends CPUProfileFlameChart_base impl
     onEntryInvoked(event: Common.EventTarget.EventTargetEvent<number>): void;
     update(): void;
     performSearch(searchConfig: UI.SearchableView.SearchConfig, _shouldJump: boolean, jumpBackwards?: boolean): void;
-    searchCanceled(): void;
+    onSearchCanceled(): void;
     jumpToNextSearchResult(): void;
     jumpToPreviousSearchResult(): void;
     supportsCaseSensitiveSearch(): boolean;
@@ -103,12 +104,12 @@ export declare class OverviewCalculator implements PerfUI.TimelineGrid.Calculato
     boundarySpan(): number;
 }
 declare const OverviewPane_base: (new (...args: any[]) => {
-    "__#8@#events": Common.ObjectWrapper.ObjectWrapper<OverviewPaneEventTypes>;
-    addEventListener<T extends OverviewPaneEvents.WindowChanged>(eventType: T, listener: (arg0: Common.EventTarget.EventTargetEvent<OverviewPaneEventTypes[T]>) => void, thisObject?: Object | undefined): Common.EventTarget.EventDescriptor<OverviewPaneEventTypes, T>;
+    "__#13@#events": Common.ObjectWrapper.ObjectWrapper<OverviewPaneEventTypes>;
+    addEventListener<T extends OverviewPaneEvents.WindowChanged>(eventType: T, listener: (arg0: Common.EventTarget.EventTargetEvent<OverviewPaneEventTypes[T], any>) => void, thisObject?: Object | undefined): Common.EventTarget.EventDescriptor<OverviewPaneEventTypes, T>;
     once<T_1 extends OverviewPaneEvents.WindowChanged>(eventType: T_1): Promise<OverviewPaneEventTypes[T_1]>;
-    removeEventListener<T_2 extends OverviewPaneEvents.WindowChanged>(eventType: T_2, listener: (arg0: Common.EventTarget.EventTargetEvent<OverviewPaneEventTypes[T_2]>) => void, thisObject?: Object | undefined): void;
+    removeEventListener<T_2 extends OverviewPaneEvents.WindowChanged>(eventType: T_2, listener: (arg0: Common.EventTarget.EventTargetEvent<OverviewPaneEventTypes[T_2], any>) => void, thisObject?: Object | undefined): void;
     hasEventListeners(eventType: OverviewPaneEvents.WindowChanged): boolean;
-    dispatchEventToListeners<T_3 extends OverviewPaneEvents.WindowChanged>(eventType: import("../../core/platform/typescript-utilities.js").NoUnion<T_3>, ...eventData: Common.EventTarget.EventPayloadToRestParameters<OverviewPaneEventTypes, T_3>): void;
+    dispatchEventToListeners<T_3 extends OverviewPaneEvents.WindowChanged>(eventType: Platform.TypeScriptUtilities.NoUnion<T_3>, ...eventData: Common.EventTarget.EventPayloadToRestParameters<OverviewPaneEventTypes, T_3>): void;
 }) & typeof UI.Widget.VBox;
 export declare class OverviewPane extends OverviewPane_base implements PerfUI.FlameChart.FlameChartDelegate {
     overviewContainer: HTMLElement;
@@ -125,7 +126,7 @@ export declare class OverviewPane extends OverviewPane_base implements PerfUI.Fl
     updateSelectedGroup(_flameChart: PerfUI.FlameChart.FlameChart, _group: PerfUI.FlameChart.Group | null): void;
     selectRange(timeLeft: number, timeRight: number): void;
     onWindowChanged(event: Common.EventTarget.EventTargetEvent<PerfUI.OverviewGrid.WindowChangedWithPositionEvent>): void;
-    timelineData(): PerfUI.FlameChart.TimelineData | null;
+    timelineData(): PerfUI.FlameChart.FlameChartTimelineData | null;
     onResize(): void;
     scheduleUpdate(): void;
     update(): void;
@@ -140,7 +141,7 @@ export interface OverviewPaneWindowChangedEvent {
     windowTimeLeft: number;
     windowTimeRight: number;
 }
-export declare type OverviewPaneEventTypes = {
+export type OverviewPaneEventTypes = {
     [OverviewPaneEvents.WindowChanged]: OverviewPaneWindowChangedEvent;
 };
 export {};

@@ -7,7 +7,6 @@ import { SDKModel } from './SDKModel.js';
 export class HeapProfilerModel extends SDKModel {
     #enabled;
     #heapProfilerAgent;
-    #memoryAgent;
     #runtimeModelInternal;
     #samplingProfilerDepth;
     constructor(target) {
@@ -15,7 +14,6 @@ export class HeapProfilerModel extends SDKModel {
         target.registerHeapProfilerDispatcher(new HeapProfilerDispatcher(this));
         this.#enabled = false;
         this.#heapProfilerAgent = target.heapProfilerAgent();
-        this.#memoryAgent = target.memoryAgent();
         this.#runtimeModelInternal = target.model(RuntimeModel);
         this.#samplingProfilerDepth = 0;
     }

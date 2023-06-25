@@ -1,4 +1,4 @@
-import type { NodeParamConnectionData, NodesConnectionData } from './GraphStyle.js';
+import { type NodeParamConnectionData, type NodesConnectionData } from './GraphStyle.js';
 export declare class EdgeView {
     id: string;
     type: EdgeTypes;

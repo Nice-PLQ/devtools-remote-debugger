@@ -1,4 +1,4 @@
-import type { PlayerEvent } from './MediaModel.js';
+import { type PlayerEvent } from './MediaModel.js';
 import { TickingFlameChart } from './TickingFlameChart.js';
 export declare class PlayerEventsTimeline extends TickingFlameChart {
     private normalizedTimestamp;

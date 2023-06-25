@@ -2,11 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 import { NativeFunctions } from './NativeFunctions.js';
+import * as DOMPinnedProperties from './DOMPinnedProperties.js';
 let javaScriptMetadataInstance;
 export class JavaScriptMetadataImpl {
+    static domPinnedProperties = DOMPinnedProperties;
     uniqueFunctions;
-    instanceMethods;
-    staticMethods;
+    receiverMethods;
     static instance(opts = { forceNew: null }) {
         const { forceNew } = opts;
         if (!javaScriptMetadataInstance || forceNew) {
@@ -16,27 +17,19 @@ export class JavaScriptMetadataImpl {
     }
     constructor() {
         this.uniqueFunctions = new Map();
-        this.instanceMethods = new Map();
-        this.staticMethods = new Map();
+        this.receiverMethods = new Map();
         for (const nativeFunction of NativeFunctions) {
-            if (!nativeFunction.receiver) {
+            if (!nativeFunction.receivers) {
                 this.uniqueFunctions.set(nativeFunction.name, nativeFunction.signatures);
+                continue;
             }
-            else if (nativeFunction.static) {
-                let staticMethod = this.staticMethods.get(nativeFunction.receiver);
-                if (!staticMethod) {
-                    staticMethod = new Map();
-                    this.staticMethods.set(nativeFunction.receiver, staticMethod);
+            for (const receiver of nativeFunction.receivers) {
+                let method = this.receiverMethods.get(receiver);
+                if (!method) {
+                    method = new Map();
+                    this.receiverMethods.set(receiver, method);
                 }
-                staticMethod.set(nativeFunction.name, nativeFunction.signatures);
-            }
-            else {
-                let instanceMethod = this.instanceMethods.get(nativeFunction.receiver);
-                if (!instanceMethod) {
-                    instanceMethod = new Map();
-                    this.instanceMethods.set(nativeFunction.receiver, instanceMethod);
-                }
-                instanceMethod.set(nativeFunction.name, nativeFunction.signatures);
+                method.set(nativeFunction.name, nativeFunction.signatures);
             }
         }
     }
@@ -44,14 +37,14 @@ export class JavaScriptMetadataImpl {
         return this.uniqueFunctions.get(name) || null;
     }
     signaturesForInstanceMethod(name, receiverClassName) {
-        const instanceMethod = this.instanceMethods.get(receiverClassName);
+        const instanceMethod = this.receiverMethods.get(receiverClassName);
         if (!instanceMethod) {
             return null;
         }
         return instanceMethod.get(name) || null;
     }
     signaturesForStaticMethod(name, receiverConstructorName) {
-        const staticMethod = this.staticMethods.get(receiverConstructorName);
+        const staticMethod = this.receiverMethods.get(receiverConstructorName + 'Constructor');
         if (!staticMethod) {
             return null;
         }

@@ -4,16 +4,18 @@
 import * as Common from '../../../../core/common/common.js';
 import * as i18n from '../../../../core/i18n/i18n.js';
 import * as Platform from '../../../../core/platform/platform.js';
+import * as Coordinator from '../../../components/render_coordinator/render_coordinator.js';
 import * as UI from '../../legacy.js';
 import { DataGridImpl, DataGridNode } from './DataGrid.js';
 const UIStrings = {
     /**
-    *@description accessible name for expandible nodes in datagrids
-    */
+     *@description accessible name for expandible nodes in datagrids
+     */
     collapsed: 'collapsed',
 };
 const str_ = i18n.i18n.registerUIStrings('ui/legacy/components/data_grid/ViewportDataGrid.ts', UIStrings);
 const i18nString = i18n.i18n.getLocalizedString.bind(undefined, str_);
+const coordinator = Coordinator.RenderCoordinator.RenderCoordinator.instance();
 export class ViewportDataGrid extends Common.ObjectWrapper.eventMixin(DataGridImpl) {
     onScrollBound;
     visibleNodes;
@@ -22,7 +24,6 @@ export class ViewportDataGrid extends Common.ObjectWrapper.eventMixin(DataGridIm
     lastScrollTop;
     firstVisibleIsStriped;
     isStriped;
-    updateAnimationFrameId;
     constructor(dataGridParameters) {
         super(dataGridParameters);
         this.onScrollBound = this.onScroll.bind(this);
@@ -78,10 +79,7 @@ export class ViewportDataGrid extends Common.ObjectWrapper.eventMixin(DataGridIm
             this.stickToBottom = UI.UIUtils.isScrolledToBottom(this.scrollContainer);
         }
         this.updateIsFromUser = this.updateIsFromUser || Boolean(isFromUser);
-        if (this.updateAnimationFrameId) {
-            return;
-        }
-        this.updateAnimationFrameId = this.element.window().requestAnimationFrame(this.update.bind(this));
+        void coordinator.write(this.update.bind(this));
     }
     // TODO(allada) This should be fixed to never be needed. It is needed right now for network because removing
     // elements happens followed by a scheduleRefresh() which causes white space to be visible, but the waterfall
@@ -132,11 +130,7 @@ export class ViewportDataGrid extends Common.ObjectWrapper.eventMixin(DataGridIm
         return result;
     }
     update() {
-        if (this.updateAnimationFrameId) {
-            this.element.window().cancelAnimationFrame(this.updateAnimationFrameId);
-            delete this.updateAnimationFrameId;
-        }
-        const clientHeight = this.scrollContainer.clientHeight;
+        const clientHeight = this.scrollContainer.clientHeight - this.headerHeightInScroller();
         let scrollTop = this.scrollContainer.scrollTop;
         const currentScrollTop = scrollTop;
         const maxScrollTop = Math.max(0, this.contentHeight() - clientHeight);
@@ -204,12 +198,13 @@ export class ViewportDataGrid extends Common.ObjectWrapper.eventMixin(DataGridIm
         }
         const toY = fromY + node.nodeSelfHeight();
         let scrollTop = this.scrollContainer.scrollTop;
+        const visibleHeight = this.scrollContainer.offsetHeight - this.headerHeightInScroller();
         if (scrollTop > fromY) {
             scrollTop = fromY;
             this.stickToBottom = false;
         }
-        else if (scrollTop + this.scrollContainer.offsetHeight < toY) {
-            scrollTop = toY - this.scrollContainer.offsetHeight;
+        else if (scrollTop + visibleHeight < toY) {
+            scrollTop = toY - visibleHeight;
         }
         this.scrollContainer.scrollTop = scrollTop;
     }

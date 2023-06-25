@@ -1,8 +1,9 @@
 import type * as Protocol from '../../generated/protocol.js';
-import type { DebuggerModel } from './DebuggerModel.js';
-import type { RemoteObject } from './RemoteObject.js';
+import type * as Platform from '../platform/platform.js';
+import { type DebuggerModel } from './DebuggerModel.js';
+import { type RemoteObject } from './RemoteObject.js';
 import { RuntimeModel } from './RuntimeModel.js';
-import type { Target } from './Target.js';
+import { type Target } from './Target.js';
 import { SDKModel } from './SDKModel.js';
 export declare class HeapProfilerModel extends SDKModel<EventTypes> {
     #private;
@@ -38,7 +39,7 @@ export declare enum Events {
  * index, the second number is a total count of objects for the fragment, the third number is
  * a total size of the objects for the fragment.
  */
-export declare type HeapStatsUpdateSamples = number[];
+export type HeapStatsUpdateSamples = number[];
 export interface LastSeenObjectId {
     lastSeenObjectId: number;
     timestamp: number;
@@ -48,7 +49,7 @@ export interface HeapSnapshotProgress {
     total: number;
     finished?: boolean;
 }
-export declare type EventTypes = {
+export type EventTypes = {
     [Events.HeapStatsUpdate]: HeapStatsUpdateSamples;
     [Events.LastSeenObjectId]: LastSeenObjectId;
     [Events.AddHeapSnapshotChunk]: string;
@@ -57,7 +58,7 @@ export declare type EventTypes = {
 };
 export interface NativeProfilerCallFrame {
     functionName: string;
-    url: string;
+    url: Platform.DevToolsPath.UrlString;
     scriptId?: string;
     lineNumber?: number;
     columnNumber?: number;

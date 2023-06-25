@@ -1,4 +1,4 @@
-import type { ListModel } from './ListModel.js';
+import { type ListModel } from './ListModel.js';
 export interface ListDelegate<T> {
     createElementForItem(item: T): Element;
     /**

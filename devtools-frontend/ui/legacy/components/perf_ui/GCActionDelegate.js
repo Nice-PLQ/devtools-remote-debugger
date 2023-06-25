@@ -13,7 +13,7 @@ export class GCActionDelegate {
     }
     handleAction(_context, _actionId) {
         for (const heapProfilerModel of SDK.TargetManager.TargetManager.instance().models(SDK.HeapProfilerModel.HeapProfilerModel)) {
-            heapProfilerModel.collectGarbage();
+            void heapProfilerModel.collectGarbage();
         }
         return true;
     }

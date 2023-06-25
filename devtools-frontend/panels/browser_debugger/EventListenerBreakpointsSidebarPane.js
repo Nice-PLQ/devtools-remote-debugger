@@ -6,10 +6,12 @@ import { CategorizedBreakpointsSidebarPane } from './CategorizedBreakpointsSideb
 let eventListenerBreakpointsSidebarPaneInstance;
 export class EventListenerBreakpointsSidebarPane extends CategorizedBreakpointsSidebarPane {
     constructor() {
-        const categories = SDK.DOMDebuggerModel.DOMDebuggerManager.instance().eventListenerBreakpoints().map(breakpoint => breakpoint.category());
+        let breakpoints = SDK.DOMDebuggerModel.DOMDebuggerManager.instance().eventListenerBreakpoints();
+        const nonDomBreakpoints = SDK.EventBreakpointsModel.EventBreakpointsManager.instance().eventListenerBreakpoints();
+        breakpoints = breakpoints.concat(nonDomBreakpoints);
+        const categories = breakpoints.map(breakpoint => breakpoint.category());
         categories.sort();
-        const breakpoints = SDK.DOMDebuggerModel.DOMDebuggerManager.instance().eventListenerBreakpoints();
-        super(categories, breakpoints, 'sources.eventListenerBreakpoints', "EventListener" /* EventListener */);
+        super(categories, breakpoints, 'sources.eventListenerBreakpoints', "EventListener" /* Protocol.Debugger.PausedEventReason.EventListener */);
     }
     static instance() {
         if (!eventListenerBreakpointsSidebarPaneInstance) {
@@ -18,7 +20,12 @@ export class EventListenerBreakpointsSidebarPane extends CategorizedBreakpointsS
         return eventListenerBreakpointsSidebarPaneInstance;
     }
     getBreakpointFromPausedDetails(details) {
-        return SDK.DOMDebuggerModel.DOMDebuggerManager.instance().resolveEventListenerBreakpoint(details.auxData);
+        const auxData = details.auxData;
+        const domBreakpoint = SDK.DOMDebuggerModel.DOMDebuggerManager.instance().resolveEventListenerBreakpoint(auxData);
+        if (domBreakpoint) {
+            return domBreakpoint;
+        }
+        return SDK.EventBreakpointsModel.EventBreakpointsManager.instance().resolveEventListenerBreakpoint(auxData);
     }
 }
 //# sourceMappingURL=EventListenerBreakpointsSidebarPane.js.map

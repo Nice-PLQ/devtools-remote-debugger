@@ -4,7 +4,7 @@
 import * as ComponentHelpers from '../../../components/helpers/helpers.js';
 import * as LitHtml from '../../../lit-html/lit-html.js';
 import cssAngleStyles from './cssAngle.css.js';
-import { convertAngleUnit, getNewAngleFromEvent, getNextUnit, parseText, roundAngleByUnit } from './CSSAngleUtils.js';
+import { convertAngleUnit, getNewAngleFromEvent, getNextUnit, parseText, roundAngleByUnit, } from './CSSAngleUtils.js';
 import { ValueChangedEvent } from './InlineEditorUtils.js';
 import { CSSAngleEditor } from './CSSAngleEditor.js';
 import { CSSAngleSwatch } from './CSSAngleSwatch.js';
@@ -29,7 +29,7 @@ export class UnitChangedEvent extends Event {
 }
 const DefaultAngle = {
     value: 0,
-    unit: "rad" /* Rad */,
+    unit: "rad" /* AngleUnit.Rad */,
 };
 export class CSSAngle extends HTMLElement {
     static litTagName = LitHtml.literal `devtools-css-angle`;
@@ -45,7 +45,6 @@ export class CSSAngle extends HTMLElement {
     popoverStyleTop = '';
     popoverStyleLeft = '';
     onMinifyingAction = this.minify.bind(this);
-    onAngleUpdate = this.updateAngle.bind(this);
     connectedCallback() {
         this.shadow.adoptedStyleSheets = [cssAngleStyles];
     }
@@ -181,8 +180,7 @@ export class CSSAngle extends HTMLElement {
             .data=${{
             angle: this.angle,
         }}>
-          </${CSSAngleSwatch.litTagName}><slot></slot>
-        </div>
+          </${CSSAngleSwatch.litTagName}><slot></slot></div>
         ${this.popoverOpen ? this.renderPopover() : null}
       </div>
     `, this.shadow, {
@@ -205,7 +203,9 @@ export class CSSAngle extends HTMLElement {
       style=${styleMap({ top: this.popoverStyleTop, left: this.popoverStyleLeft })}
       .data=${{
             angle: this.angle,
-            onAngleUpdate: this.onAngleUpdate,
+            onAngleUpdate: (angle) => {
+                this.updateAngle(angle);
+            },
             background: contextualBackground,
         }}
     ></${CSSAngleEditor.litTagName}>

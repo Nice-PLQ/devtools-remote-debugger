@@ -25,7 +25,7 @@ export var Events;
     Events["IndexingWorked"] = "indexingWorked";
     Events["IndexingDone"] = "indexingDone";
     Events["KeyEventUnhandled"] = "keyEventUnhandled";
-    Events["ReattachMainTarget"] = "reattachMainTarget";
+    Events["ReattachRootTarget"] = "reattachMainTarget";
     Events["ReloadInspectedPage"] = "reloadInspectedPage";
     Events["RevealSourceLine"] = "revealSourceLine";
     Events["SavedURL"] = "savedURL";
@@ -57,7 +57,7 @@ export const EventDescriptors = [
     [Events.IndexingWorked, 'indexingWorked', ['requestId', 'fileSystemPath', 'worked']],
     [Events.IndexingDone, 'indexingDone', ['requestId', 'fileSystemPath']],
     [Events.KeyEventUnhandled, 'keyEventUnhandled', ['event']],
-    [Events.ReattachMainTarget, 'reattachMainTarget', []],
+    [Events.ReattachRootTarget, 'reattachMainTarget', []],
     [Events.ReloadInspectedPage, 'reloadInspectedPage', ['hard']],
     [Events.RevealSourceLine, 'revealSourceLine', ['url', 'lineNumber', 'columnNumber']],
     [Events.SavedURL, 'savedURL', ['url', 'fileSystemPath']],
@@ -78,6 +78,8 @@ export const EventDescriptors = [
 export var EnumeratedHistogram;
 (function (EnumeratedHistogram) {
     EnumeratedHistogram["ActionTaken"] = "DevTools.ActionTaken";
+    EnumeratedHistogram["BreakpointWithConditionAdded"] = "DevTools.BreakpointWithConditionAdded";
+    EnumeratedHistogram["BreakpointEditDialogRevealedFrom"] = "DevTools.BreakpointEditDialogRevealedFrom";
     EnumeratedHistogram["PanelClosed"] = "DevTools.PanelClosed";
     EnumeratedHistogram["PanelShown"] = "DevTools.PanelShown";
     EnumeratedHistogram["SidebarPaneShown"] = "DevTools.SidebarPaneShown";
@@ -87,16 +89,40 @@ export var EnumeratedHistogram;
     EnumeratedHistogram["IssuesPanelOpenedFrom"] = "DevTools.IssuesPanelOpenedFrom";
     EnumeratedHistogram["IssuesPanelResourceOpened"] = "DevTools.IssuesPanelResourceOpened";
     EnumeratedHistogram["KeybindSetSettingChanged"] = "DevTools.KeybindSetSettingChanged";
-    EnumeratedHistogram["DualScreenDeviceEmulated"] = "DevTools.DualScreenDeviceEmulated";
+    EnumeratedHistogram["ElementsSidebarTabShown"] = "DevTools.Elements.SidebarTabShown";
     EnumeratedHistogram["ExperimentEnabledAtLaunch"] = "DevTools.ExperimentEnabledAtLaunch";
     EnumeratedHistogram["ExperimentEnabled"] = "DevTools.ExperimentEnabled";
     EnumeratedHistogram["ExperimentDisabled"] = "DevTools.ExperimentDisabled";
-    EnumeratedHistogram["CssEditorOpened"] = "DevTools.CssEditorOpened";
     EnumeratedHistogram["DeveloperResourceLoaded"] = "DevTools.DeveloperResourceLoaded";
     EnumeratedHistogram["DeveloperResourceScheme"] = "DevTools.DeveloperResourceScheme";
     EnumeratedHistogram["LinearMemoryInspectorRevealedFrom"] = "DevTools.LinearMemoryInspector.RevealedFrom";
     EnumeratedHistogram["LinearMemoryInspectorTarget"] = "DevTools.LinearMemoryInspector.Target";
     EnumeratedHistogram["Language"] = "DevTools.Language";
-    EnumeratedHistogram["ConsoleShowsCorsErrors"] = "DevTools.ConsoleShowsCorsErrors";
+    EnumeratedHistogram["SyncSetting"] = "DevTools.SyncSetting";
+    EnumeratedHistogram["RecordingAssertion"] = "DevTools.RecordingAssertion";
+    EnumeratedHistogram["RecordingCodeToggled"] = "DevTools.RecordingCodeToggled";
+    EnumeratedHistogram["RecordingCopiedToClipboard"] = "DevTools.RecordingCopiedToClipboard";
+    EnumeratedHistogram["RecordingEdited"] = "DevTools.RecordingEdited";
+    EnumeratedHistogram["RecordingExported"] = "DevTools.RecordingExported";
+    EnumeratedHistogram["RecordingReplayFinished"] = "DevTools.RecordingReplayFinished";
+    EnumeratedHistogram["RecordingReplaySpeed"] = "DevTools.RecordingReplaySpeed";
+    EnumeratedHistogram["RecordingReplayStarted"] = "DevTools.RecordingReplayStarted";
+    EnumeratedHistogram["RecordingToggled"] = "DevTools.RecordingToggled";
+    EnumeratedHistogram["SourcesSidebarTabShown"] = "DevTools.Sources.SidebarTabShown";
+    EnumeratedHistogram["SourcesPanelFileDebugged"] = "DevTools.SourcesPanelFileDebugged";
+    EnumeratedHistogram["SourcesPanelFileOpened"] = "DevTools.SourcesPanelFileOpened";
+    EnumeratedHistogram["NetworkPanelResponsePreviewOpened"] = "DevTools.NetworkPanelResponsePreviewOpened";
+    EnumeratedHistogram["StyleTextCopied"] = "DevTools.StyleTextCopied";
+    EnumeratedHistogram["ManifestSectionSelected"] = "DevTools.ManifestSectionSelected";
+    EnumeratedHistogram["CSSHintShown"] = "DevTools.CSSHintShown";
+    EnumeratedHistogram["LighthouseModeRun"] = "DevTools.LighthouseModeRun";
+    EnumeratedHistogram["ColorConvertedFrom"] = "DevTools.ColorConvertedFrom";
+    EnumeratedHistogram["ColorPickerOpenedFrom"] = "DevTools.ColorPickerOpenedFrom";
+    EnumeratedHistogram["CSSPropertyDocumentation"] = "DevTools.CSSPropertyDocumentation";
+    EnumeratedHistogram["InlineScriptParsed"] = "DevTools.InlineScriptParsed";
+    EnumeratedHistogram["VMInlineScriptTypeShown"] = "DevTools.VMInlineScriptShown";
+    EnumeratedHistogram["BreakpointsRestoredFromStorageCount"] = "DevTools.BreakpointsRestoredFromStorageCount";
+    EnumeratedHistogram["SwatchActivated"] = "DevTools.SwatchActivated";
+    EnumeratedHistogram["BadgeActivated"] = "DevTools.BadgeActivated";
 })(EnumeratedHistogram || (EnumeratedHistogram = {}));
 //# sourceMappingURL=InspectorFrontendHostAPI.js.map

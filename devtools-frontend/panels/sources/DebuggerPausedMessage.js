@@ -4,91 +4,92 @@
 import * as Common from '../../core/common/common.js';
 import * as i18n from '../../core/i18n/i18n.js';
 import * as SDK from '../../core/sdk/sdk.js';
+import * as IconButton from '../../ui/components/icon_button/icon_button.js';
 import debuggerPausedMessageStyles from './debuggerPausedMessage.css.js';
 import * as UI from '../../ui/legacy/legacy.js';
 const UIStrings = {
     /**
-    *@description Text in the JavaScript Debugging pane of the Sources pane when a DOM breakpoint is hit
-    *@example {conditional breakpoint} PH1
-    */
+     *@description Text in the JavaScript Debugging pane of the Sources pane when a DOM breakpoint is hit
+     *@example {conditional breakpoint} PH1
+     */
     pausedOnS: 'Paused on {PH1}',
     /**
-    *@description Text in the JavaScript Debugging pane of the Sources pane when a DOM breakpoint is hit because a child is added to the subtree
-    *@example {node} PH1
-    */
+     *@description Text in the JavaScript Debugging pane of the Sources pane when a DOM breakpoint is hit because a child is added to the subtree
+     *@example {node} PH1
+     */
     childSAdded: 'Child {PH1} added',
     /**
-    *@description Text in the JavaScript Debugging pane of the Sources pane when a DOM breakpoint is hit because a descendant is added
-    *@example {node} PH1
-    */
+     *@description Text in the JavaScript Debugging pane of the Sources pane when a DOM breakpoint is hit because a descendant is added
+     *@example {node} PH1
+     */
     descendantSAdded: 'Descendant {PH1} added',
     /**
-    *@description Text in the JavaScript Debugging pane of the Sources pane when a DOM breakpoint is hit because a descendant is removed
-    *@example {node} PH1
-    */
+     *@description Text in the JavaScript Debugging pane of the Sources pane when a DOM breakpoint is hit because a descendant is removed
+     *@example {node} PH1
+     */
     descendantSRemoved: 'Descendant {PH1} removed',
     /**
-    *@description Text in Debugger Paused Message of the Sources panel
-    */
+     *@description Text in Debugger Paused Message of the Sources panel
+     */
     pausedOnEventListener: 'Paused on event listener',
     /**
-    *@description Text in Debugger Paused Message of the Sources panel
-    */
+     *@description Text in Debugger Paused Message of the Sources panel
+     */
     pausedOnXhrOrFetch: 'Paused on XHR or fetch',
     /**
-    *@description Text in Debugger Paused Message of the Sources panel
-    */
+     *@description Text in Debugger Paused Message of the Sources panel
+     */
     pausedOnException: 'Paused on exception',
     /**
-    *@description We pause exactly when the promise rejection is happening, so that the user can see where in the code it comes from.
-    * A Promise is a Web API object (https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise),
-    * that will either be 'fulfilled' or 'rejected' at some unknown time in the future.
-    * The subject of the term is omited but it is "Execution", that is, "Execution was paused on <event>".
-    */
+     *@description We pause exactly when the promise rejection is happening, so that the user can see where in the code it comes from.
+     * A Promise is a Web API object (https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise),
+     * that will either be 'fulfilled' or 'rejected' at some unknown time in the future.
+     * The subject of the term is omited but it is "Execution", that is, "Execution was paused on <event>".
+     */
     pausedOnPromiseRejection: 'Paused on `promise` rejection',
     /**
-    *@description Text in Debugger Paused Message of the Sources panel
-    */
+     *@description Text in Debugger Paused Message of the Sources panel
+     */
     pausedOnAssertion: 'Paused on assertion',
     /**
-    *@description Text in Debugger Paused Message of the Sources panel
-    */
+     *@description Text in Debugger Paused Message of the Sources panel
+     */
     pausedOnDebuggedFunction: 'Paused on debugged function',
     /**
-    *@description Text in Debugger Paused Message of the Sources panel
-    */
+     *@description Text in Debugger Paused Message of the Sources panel
+     */
     pausedBeforePotentialOutofmemory: 'Paused before potential out-of-memory crash',
     /**
-    *@description Text in Debugger Paused Message of the Sources panel
-    */
+     *@description Text in Debugger Paused Message of the Sources panel
+     */
     pausedOnCspViolation: 'Paused on CSP violation',
     /**
-    *@description Text in Debugger Paused Message of the Sources panel specifying cause of break
-    */
+     *@description Text in Debugger Paused Message of the Sources panel specifying cause of break
+     */
     trustedTypeSinkViolation: '`Trusted Type` Sink Violation',
     /**
-    *@description Text in Debugger Paused Message of the Sources panel specifying cause of break
-    */
+     *@description Text in Debugger Paused Message of the Sources panel specifying cause of break
+     */
     trustedTypePolicyViolation: '`Trusted Type` Policy Violation',
     /**
-    *@description Text in Debugger Paused Message of the Sources panel
-    */
+     *@description Text in Debugger Paused Message of the Sources panel
+     */
     pausedOnBreakpoint: 'Paused on breakpoint',
     /**
-    *@description Text in Debugger Paused Message of the Sources panel
-    */
+     *@description Text in Debugger Paused Message of the Sources panel
+     */
     debuggerPaused: 'Debugger paused',
     /**
-    *@description Text in Debugger Paused Message of the Sources panel
-    */
+     *@description Text in Debugger Paused Message of the Sources panel
+     */
     subtreeModifications: 'subtree modifications',
     /**
-    *@description Text in Debugger Paused Message of the Sources panel
-    */
+     *@description Text in Debugger Paused Message of the Sources panel
+     */
     attributeModifications: 'attribute modifications',
     /**
-    *@description Text in Debugger Paused Message of the Sources panel
-    */
+     *@description Text in Debugger Paused Message of the Sources panel
+     */
     nodeRemoval: 'node removal',
 };
 const str_ = i18n.i18n.registerUIStrings('panels/sources/DebuggerPausedMessage.ts', UIStrings);
@@ -124,7 +125,14 @@ export class DebuggerPausedMessage {
             return messageWrapper;
         }
         const mainElement = messageWrapper.createChild('div', 'status-main');
-        mainElement.appendChild(UI.Icon.Icon.create('smallicon-info', 'status-icon'));
+        const mainIcon = new IconButton.Icon.Icon();
+        mainIcon.data = {
+            iconName: 'info-filled',
+            color: 'var(--icon-default)',
+            width: '14px',
+            height: '14px',
+        };
+        mainElement.appendChild(mainIcon);
         const breakpointType = BreakpointTypeNouns.get(data.type);
         mainElement.appendChild(document.createTextNode(i18nString(UIStrings.pausedOnS, { PH1: breakpointType ? breakpointType() : String(null) })));
         const subElement = messageWrapper.createChild('div', 'status-sub monospace');
@@ -156,56 +164,61 @@ export class DebuggerPausedMessage {
             return;
         }
         const status = this.contentElement.createChild('div', 'paused-status');
-        const errorLike = details.reason === "exception" /* Exception */ ||
-            details.reason === "promiseRejection" /* PromiseRejection */ ||
-            details.reason === "assert" /* Assert */ ||
-            details.reason === "OOM" /* OOM */;
+        const errorLike = details.reason === "exception" /* Protocol.Debugger.PausedEventReason.Exception */ ||
+            details.reason === "promiseRejection" /* Protocol.Debugger.PausedEventReason.PromiseRejection */ ||
+            details.reason === "assert" /* Protocol.Debugger.PausedEventReason.Assert */ ||
+            details.reason === "OOM" /* Protocol.Debugger.PausedEventReason.OOM */;
         let messageWrapper;
-        if (details.reason === "DOM" /* DOM */) {
+        if (details.reason === "DOM" /* Protocol.Debugger.PausedEventReason.DOM */) {
             messageWrapper = await DebuggerPausedMessage.createDOMBreakpointHitMessage(details);
         }
-        else if (details.reason === "EventListener" /* EventListener */) {
+        else if (details.reason === "EventListener" /* Protocol.Debugger.PausedEventReason.EventListener */) {
             let eventNameForUI = '';
             if (details.auxData) {
-                eventNameForUI =
-                    SDK.DOMDebuggerModel.DOMDebuggerManager.instance().resolveEventListenerBreakpointTitle(details.auxData);
+                const maybeNonDomEventNameForUI = SDK.EventBreakpointsModel.EventBreakpointsManager.instance().resolveEventListenerBreakpointTitle(details.auxData);
+                if (maybeNonDomEventNameForUI) {
+                    eventNameForUI = maybeNonDomEventNameForUI;
+                }
+                else {
+                    eventNameForUI = SDK.DOMDebuggerModel.DOMDebuggerManager.instance().resolveEventListenerBreakpointTitle(details.auxData);
+                }
             }
             messageWrapper = buildWrapper(i18nString(UIStrings.pausedOnEventListener), eventNameForUI);
         }
-        else if (details.reason === "XHR" /* XHR */) {
+        else if (details.reason === "XHR" /* Protocol.Debugger.PausedEventReason.XHR */) {
             const auxData = details.auxData;
             messageWrapper = buildWrapper(i18nString(UIStrings.pausedOnXhrOrFetch), auxData.url || '');
         }
-        else if (details.reason === "exception" /* Exception */) {
+        else if (details.reason === "exception" /* Protocol.Debugger.PausedEventReason.Exception */) {
             const auxData = details.auxData;
             const description = auxData.description || auxData.value || '';
             const descriptionWithoutStack = DebuggerPausedMessage.descriptionWithoutStack(description);
             messageWrapper = buildWrapper(i18nString(UIStrings.pausedOnException), descriptionWithoutStack, description);
         }
-        else if (details.reason === "promiseRejection" /* PromiseRejection */) {
+        else if (details.reason === "promiseRejection" /* Protocol.Debugger.PausedEventReason.PromiseRejection */) {
             const auxData = details.auxData;
             const description = auxData.description || auxData.value || '';
             const descriptionWithoutStack = DebuggerPausedMessage.descriptionWithoutStack(description);
             messageWrapper =
                 buildWrapper(i18nString(UIStrings.pausedOnPromiseRejection), descriptionWithoutStack, description);
         }
-        else if (details.reason === "assert" /* Assert */) {
+        else if (details.reason === "assert" /* Protocol.Debugger.PausedEventReason.Assert */) {
             messageWrapper = buildWrapper(i18nString(UIStrings.pausedOnAssertion));
         }
-        else if (details.reason === "debugCommand" /* DebugCommand */) {
+        else if (details.reason === "debugCommand" /* Protocol.Debugger.PausedEventReason.DebugCommand */) {
             messageWrapper = buildWrapper(i18nString(UIStrings.pausedOnDebuggedFunction));
         }
-        else if (details.reason === "OOM" /* OOM */) {
+        else if (details.reason === "OOM" /* Protocol.Debugger.PausedEventReason.OOM */) {
             messageWrapper = buildWrapper(i18nString(UIStrings.pausedBeforePotentialOutofmemory));
         }
-        else if (details.reason === "CSPViolation" /* CSPViolation */ && details.auxData &&
+        else if (details.reason === "CSPViolation" /* Protocol.Debugger.PausedEventReason.CSPViolation */ && details.auxData &&
             details.auxData['violationType']) {
             const text = details.auxData['violationType'];
-            if (text === "trustedtype-sink-violation" /* TrustedtypeSinkViolation */) {
+            if (text === "trustedtype-sink-violation" /* Protocol.DOMDebugger.CSPViolationType.TrustedtypeSinkViolation */) {
                 messageWrapper =
                     buildWrapper(i18nString(UIStrings.pausedOnCspViolation), i18nString(UIStrings.trustedTypeSinkViolation));
             }
-            else if (text === "trustedtype-policy-violation" /* TrustedtypePolicyViolation */) {
+            else if (text === "trustedtype-policy-violation" /* Protocol.DOMDebugger.CSPViolationType.TrustedtypePolicyViolation */) {
                 messageWrapper =
                     buildWrapper(i18nString(UIStrings.pausedOnCspViolation), i18nString(UIStrings.trustedTypePolicyViolation));
             }
@@ -226,8 +239,14 @@ export class DebuggerPausedMessage {
         function buildWrapper(mainText, subText, title) {
             const messageWrapper = document.createElement('span');
             const mainElement = messageWrapper.createChild('div', 'status-main');
-            const icon = UI.Icon.Icon.create(errorLike ? 'smallicon-error' : 'smallicon-info', 'status-icon');
-            mainElement.appendChild(icon);
+            const mainIcon = new IconButton.Icon.Icon();
+            mainIcon.data = {
+                iconName: errorLike ? 'cross-circle-filled' : 'info-filled',
+                color: errorLike ? 'var(--icon-error)' : 'var(--icon-default)',
+                width: '14px',
+                height: '14px',
+            };
+            mainElement.appendChild(mainIcon);
             mainElement.appendChild(document.createTextNode(mainText));
             if (subText) {
                 const subElement = messageWrapper.createChild('div', 'status-sub monospace');
@@ -239,8 +258,8 @@ export class DebuggerPausedMessage {
     }
 }
 export const BreakpointTypeNouns = new Map([
-    ["subtree-modified" /* SubtreeModified */, i18nLazyString(UIStrings.subtreeModifications)],
-    ["attribute-modified" /* AttributeModified */, i18nLazyString(UIStrings.attributeModifications)],
-    ["node-removed" /* NodeRemoved */, i18nLazyString(UIStrings.nodeRemoval)],
+    ["subtree-modified" /* Protocol.DOMDebugger.DOMBreakpointType.SubtreeModified */, i18nLazyString(UIStrings.subtreeModifications)],
+    ["attribute-modified" /* Protocol.DOMDebugger.DOMBreakpointType.AttributeModified */, i18nLazyString(UIStrings.attributeModifications)],
+    ["node-removed" /* Protocol.DOMDebugger.DOMBreakpointType.NodeRemoved */, i18nLazyString(UIStrings.nodeRemoval)],
 ]);
 //# sourceMappingURL=DebuggerPausedMessage.js.map

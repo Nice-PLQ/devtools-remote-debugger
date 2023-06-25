@@ -9,36 +9,36 @@ import { PlayerMessagesView } from './PlayerMessagesView.js';
 import { PlayerPropertiesView } from './PlayerPropertiesView.js';
 const UIStrings = {
     /**
-    *@description Title of the 'Properties' tool in the sidebar of the elements tool
-    */
+     *@description Title of the 'Properties' tool in the sidebar of the elements tool
+     */
     properties: 'Properties',
     /**
-    *@description Button text for viewing properties.
-    */
+     *@description Button text for viewing properties.
+     */
     playerProperties: 'Player properties',
     /**
-    *@description Button text for viewing events.
-    */
+     *@description Button text for viewing events.
+     */
     events: 'Events',
     /**
-    *@description Hover text for the Events button.
-    */
+     *@description Hover text for the Events button.
+     */
     playerEvents: 'Player events',
     /**
-    *@description Text in Network Item View of the Network panel
-    */
+     *@description Text in Network Item View of the Network panel
+     */
     messages: 'Messages',
     /**
-    *@description Column header for messages view.
-    */
+     *@description Column header for messages view.
+     */
     playerMessages: 'Player messages',
     /**
-    *@description Title for the timeline tab.
-    */
+     *@description Title for the timeline tab.
+     */
     timeline: 'Timeline',
     /**
-    *@description Hovertext for Timeline tab.
-    */
+     *@description Hovertext for Timeline tab.
+     */
     playerTimeline: 'Player timeline',
 };
 const str_ = i18n.i18n.registerUIStrings('panels/media/PlayerDetailView.ts', UIStrings);
@@ -54,15 +54,16 @@ export class PlayerDetailView extends UI.TabbedPane.TabbedPane {
         this.propertyView = new PlayerPropertiesView();
         this.messageView = new PlayerMessagesView();
         this.timelineView = new PlayerEventsTimeline();
-        this.appendTab("properties" /* Properties */, i18nString(UIStrings.properties), this.propertyView, i18nString(UIStrings.playerProperties));
-        this.appendTab("events" /* Events */, i18nString(UIStrings.events), this.eventView, i18nString(UIStrings.playerEvents));
-        this.appendTab("messages" /* Messages */, i18nString(UIStrings.messages), this.messageView, i18nString(UIStrings.playerMessages));
-        this.appendTab("timeline" /* Timeline */, i18nString(UIStrings.timeline), this.timelineView, i18nString(UIStrings.playerTimeline));
+        this.appendTab("properties" /* PlayerDetailViewTabs.Properties */, i18nString(UIStrings.properties), this.propertyView, i18nString(UIStrings.playerProperties));
+        this.appendTab("events" /* PlayerDetailViewTabs.Events */, i18nString(UIStrings.events), this.eventView, i18nString(UIStrings.playerEvents));
+        this.appendTab("messages" /* PlayerDetailViewTabs.Messages */, i18nString(UIStrings.messages), this.messageView, i18nString(UIStrings.playerMessages));
+        this.appendTab("timeline" /* PlayerDetailViewTabs.Timeline */, i18nString(UIStrings.timeline), this.timelineView, i18nString(UIStrings.playerTimeline));
     }
     onProperty(property) {
         this.propertyView.onProperty(property);
     }
-    onError(_error) {
+    onError(error) {
+        this.messageView.addError(error);
     }
     onMessage(message) {
         this.messageView.addMessage(message);

@@ -3,7 +3,7 @@ export interface DevToolsLocaleData {
     navigatorLanguage: string;
     lookupClosestDevToolsLocale: (locale: string) => string;
 }
-export declare type DevToolsLocaleCreationOptions = {
+export type DevToolsLocaleCreationOptions = {
     create: true;
     data: DevToolsLocaleData;
 } | {
@@ -24,6 +24,7 @@ export declare class DevToolsLocale {
     readonly lookupClosestDevToolsLocale: (locale: string) => string;
     private constructor();
     static instance(opts?: DevToolsLocaleCreationOptions): DevToolsLocale;
+    static removeInstance(): void;
     forceFallbackLocale(): void;
     /**
      * Returns true iff DevTools supports the language of the passed locale.

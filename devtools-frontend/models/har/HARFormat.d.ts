@@ -1,3 +1,5 @@
+import type * as Platform from '../../core/platform/platform.js';
+import type * as Protocol from '../../generated/protocol.js';
 declare class HARBase {
     readonly custom: Map<string, any>;
     constructor(data: any);
@@ -60,7 +62,7 @@ export declare class HAREntry extends HARBase {
 }
 declare class HARRequest extends HARBase {
     method: string;
-    url: string;
+    url: Platform.DevToolsPath.UrlString;
     httpVersion: string;
     cookies: HARCookie[];
     headers: HARHeader[];
@@ -143,11 +145,37 @@ export declare class HARTimings extends HARBase {
     constructor(data: any);
 }
 export declare class HARInitiator extends HARBase {
-    type: string | undefined;
-    url: string | undefined;
-    lineNumber: number | undefined;
+    type: Protocol.Network.InitiatorType;
+    url?: string;
+    lineNumber?: number;
+    requestId?: Protocol.Network.RequestId;
+    stack?: HARStack;
     /**
-     * Based on Initiator defined in browser_protocol.pdl
+     * Based on Protocol.Network.Initiator defined in browser_protocol.pdl
+     */
+    constructor(data: any);
+}
+export declare class HARStack extends HARBase {
+    description?: string;
+    callFrames: HARCallFrame[];
+    parent?: HARStack;
+    parentId?: {
+        id: string;
+        debuggerId?: Protocol.Runtime.UniqueDebuggerId;
+    };
+    /**
+     * Based on Protocol.Runtime.StackTrace defined in browser_protocol.pdl
+     */
+    constructor(data: any);
+}
+export declare class HARCallFrame extends HARBase {
+    functionName: string;
+    scriptId: Protocol.Runtime.ScriptId;
+    url: string;
+    lineNumber: number;
+    columnNumber: number;
+    /**
+     * Based on Protocol.Runtime.CallFrame defined in browser_protocol.pdl
      */
     constructor(data: any);
 }

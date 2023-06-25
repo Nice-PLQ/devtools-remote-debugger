@@ -1,4 +1,4 @@
-import * as Common from '../../core/common/common.js';
+import type * as Common from '../../core/common/common.js';
 export declare class AdvancedApp implements Common.App.App {
     private rootSplitWidget;
     private deviceModeView;

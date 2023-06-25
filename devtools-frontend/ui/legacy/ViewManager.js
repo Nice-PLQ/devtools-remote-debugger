@@ -9,13 +9,14 @@ import { Icon } from './Icon.js';
 import { Events as TabbedPaneEvents, TabbedPane } from './TabbedPane.js';
 import { Toolbar, ToolbarMenuButton } from './Toolbar.js';
 import { createTextChild } from './UIUtils.js';
-import { getRegisteredLocationResolvers, getRegisteredViewExtensions, maybeRemoveViewExtension, registerLocationResolver, registerViewExtension, ViewLocationCategoryValues } from './ViewRegistration.js';
+import { getRegisteredLocationResolvers, getRegisteredViewExtensions, getLocalizedViewLocationCategory, maybeRemoveViewExtension, registerLocationResolver, registerViewExtension, ViewLocationCategory, resetViewRegistration, } from './ViewRegistration.js';
 import { VBox } from './Widget.js';
+import viewContainersStyles from './viewContainers.css.legacy.js';
 const UIStrings = {
     /**
-    *@description Aria label for the tab panel view container
-    *@example {Sensors} PH1
-    */
+     *@description Aria label for the tab panel view container
+     *@example {Sensors} PH1
+     */
     sPanel: '{PH1} panel',
 };
 const str_ = i18n.i18n.registerUIStrings('ui/legacy/ViewManager.ts', UIStrings);
@@ -37,13 +38,13 @@ export class PreRegisteredView {
         return this.viewRegistration.commandPrompt();
     }
     isCloseable() {
-        return this.viewRegistration.persistence === "closeable" /* CLOSEABLE */;
+        return this.viewRegistration.persistence === "closeable" /* ViewPersistence.CLOSEABLE */;
     }
     isPreviewFeature() {
         return Boolean(this.viewRegistration.isPreviewFeature);
     }
     isTransient() {
-        return this.viewRegistration.persistence === "transient" /* TRANSIENT */;
+        return this.viewRegistration.persistence === "transient" /* ViewPersistence.TRANSIENT */;
     }
     viewId() {
         return this.viewRegistration.id;
@@ -67,12 +68,8 @@ export class PreRegisteredView {
     persistence() {
         return this.viewRegistration.persistence;
     }
-    // TODO(crbug.com/1172300) Ignored during the jsdoc to ts migration
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     async toolbarItems() {
         if (this.viewRegistration.hasToolbar) {
-            // TODO(crbug.com/1172300) Ignored during the jsdoc to ts migration
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             return this.widget().then(widget => widget.toolbarItems());
         }
         return [];
@@ -188,7 +185,7 @@ export class ViewManager {
             this.locationOverrideSetting.set(locations);
         }
         // Find new location and show view there
-        this.resolveLocation(locationName).then(location => {
+        void this.resolveLocation(locationName).then(location => {
             if (!location) {
                 throw new Error('Move view: Could not resolve location for view: ' + viewId);
             }
@@ -262,10 +259,10 @@ export class ViewManager {
         throw new Error('Unresolved location: ' + location);
     }
     createTabbedLocation(revealCallback, location, restoreSelection, allowReorder, defaultTab) {
-        return new _TabbedLocation(this, revealCallback, location, restoreSelection, allowReorder, defaultTab);
+        return new TabbedLocation(this, revealCallback, location, restoreSelection, allowReorder, defaultTab);
     }
     createStackLocation(revealCallback, location) {
-        return new _StackLocation(this, revealCallback, location);
+        return new StackLocation(this, revealCallback, location);
     }
     hasViewsForLocation(location) {
         return Boolean(this.viewsForLocation(location).length);
@@ -290,11 +287,9 @@ export class ContainerWidget extends VBox {
         this.view = view;
         this.element.tabIndex = -1;
         ARIAUtils.markAsTabpanel(this.element);
-        ARIAUtils.setAccessibleName(this.element, i18nString(UIStrings.sPanel, { PH1: view.title() }));
+        ARIAUtils.setLabel(this.element, i18nString(UIStrings.sPanel, { PH1: view.title() }));
         this.setDefaultFocusedElement(this.element);
     }
-    // TODO(crbug.com/1172300) Ignored during the jsdoc to ts migration
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     materialize() {
         if (this.materializePromise) {
             return this.materializePromise;
@@ -317,11 +312,11 @@ export class ContainerWidget extends VBox {
                 widget.focus();
             }
         }));
-        this.materializePromise = Promise.all(promises);
+        this.materializePromise = Promise.all(promises).then(() => { });
         return this.materializePromise;
     }
     wasShown() {
-        this.materialize().then(() => {
+        void this.materialize().then(() => {
             const widget = widgetForView.get(this.view);
             if (widget) {
                 widget.show(this.element);
@@ -333,9 +328,7 @@ export class ContainerWidget extends VBox {
         // This method is sniffed in tests.
     }
 }
-// TODO(crbug.com/1172300) Ignored during the jsdoc to ts migration
-// eslint-disable-next-line @typescript-eslint/naming-convention
-export class _ExpandableContainerWidget extends VBox {
+class ExpandableContainerWidget extends VBox {
     titleElement;
     titleExpandIcon;
     view;
@@ -344,15 +337,15 @@ export class _ExpandableContainerWidget extends VBox {
     constructor(view) {
         super(true);
         this.element.classList.add('flex-none');
-        this.registerRequiredCSS('ui/legacy/viewContainers.css');
+        this.registerRequiredCSS(viewContainersStyles);
         this.titleElement = document.createElement('div');
         this.titleElement.classList.add('expandable-view-title');
-        ARIAUtils.markAsButton(this.titleElement);
-        this.titleExpandIcon = Icon.create('smallicon-triangle-right', 'title-expand-icon');
+        ARIAUtils.markAsTreeitem(this.titleElement);
+        this.titleExpandIcon = Icon.create('triangle-right', 'title-expand-icon');
         this.titleElement.appendChild(this.titleExpandIcon);
         const titleText = view.title();
         createTextChild(this.titleElement, titleText);
-        ARIAUtils.setAccessibleName(this.titleElement, titleText);
+        ARIAUtils.setLabel(this.titleElement, titleText);
         ARIAUtils.setExpanded(this.titleElement, false);
         this.titleElement.tabIndex = 0;
         self.onInvokeElement(this.titleElement, this.toggleExpanded.bind(this));
@@ -364,15 +357,13 @@ export class _ExpandableContainerWidget extends VBox {
     }
     wasShown() {
         if (this.widget && this.materializePromise) {
-            this.materializePromise.then(() => {
+            void this.materializePromise.then(() => {
                 if (this.titleElement.classList.contains('expanded') && this.widget) {
                     this.widget.show(this.element);
                 }
             });
         }
     }
-    // TODO(crbug.com/1172300) Ignored during the jsdoc to ts migration
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     materialize() {
         if (this.materializePromise) {
             return this.materializePromise;
@@ -390,18 +381,16 @@ export class _ExpandableContainerWidget extends VBox {
             widgetForView.set(this.view, widget);
             widget.show(this.element);
         }));
-        this.materializePromise = Promise.all(promises);
+        this.materializePromise = Promise.all(promises).then(() => { });
         return this.materializePromise;
     }
-    // TODO(crbug.com/1172300) Ignored during the jsdoc to ts migration
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     expand() {
         if (this.titleElement.classList.contains('expanded')) {
             return this.materialize();
         }
         this.titleElement.classList.add('expanded');
         ARIAUtils.setExpanded(this.titleElement, true);
-        this.titleExpandIcon.setIconType('smallicon-triangle-down');
+        this.titleExpandIcon.setIconType('triangle-down');
         return this.materialize().then(() => {
             if (this.widget) {
                 this.widget.show(this.element);
@@ -414,8 +403,8 @@ export class _ExpandableContainerWidget extends VBox {
         }
         this.titleElement.classList.remove('expanded');
         ARIAUtils.setExpanded(this.titleElement, false);
-        this.titleExpandIcon.setIconType('smallicon-triangle-right');
-        this.materialize().then(() => {
+        this.titleExpandIcon.setIconType('triangle-right');
+        void this.materialize().then(() => {
             if (this.widget) {
                 this.widget.detach();
             }
@@ -429,7 +418,7 @@ export class _ExpandableContainerWidget extends VBox {
             this.collapse();
         }
         else {
-            this.expand();
+            void this.expand();
         }
     }
     onTitleKeyDown(event) {
@@ -442,7 +431,7 @@ export class _ExpandableContainerWidget extends VBox {
         }
         else if (keyEvent.key === 'ArrowRight') {
             if (!this.titleElement.classList.contains('expanded')) {
-                this.expand();
+                void this.expand();
             }
             else if (this.widget) {
                 this.widget.focus();
@@ -476,19 +465,11 @@ class Location {
     }
 }
 const locationForView = new WeakMap();
-// TODO(crbug.com/1172300) Ignored during the jsdoc to ts migration
-// eslint-disable-next-line @typescript-eslint/naming-convention
-export class _TabbedLocation extends Location {
+class TabbedLocation extends Location {
     tabbedPaneInternal;
     allowReorder;
-    // TODO(crbug.com/1172300) Ignored during the jsdoc to ts migration
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     closeableTabSetting;
-    // TODO(crbug.com/1172300) Ignored during the jsdoc to ts migration
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     tabOrderSetting;
-    // TODO(crbug.com/1172300) Ignored during the jsdoc to ts migration
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     lastSelectedTabSetting;
     defaultTab;
     views;
@@ -520,10 +501,10 @@ export class _TabbedLocation extends Location {
     setOrUpdateCloseableTabsSetting() {
         // Update the setting value, we respect the closed state decided by the user
         // and append the new tabs with value of true so they are shown open
-        const tabs = this.closeableTabSetting.get();
-        const newClosable = Object.assign({
+        const newClosable = {
             ...defaultOptionsForTabs,
-        }, tabs);
+            ...this.closeableTabSetting.get(),
+        };
         this.closeableTabSetting.set(newClosable);
     }
     widget() {
@@ -543,11 +524,9 @@ export class _TabbedLocation extends Location {
         if (this.allowReorder) {
             let i = 0;
             const persistedOrders = this.tabOrderSetting.get();
-            // TODO(crbug.com/1172300) Ignored during the jsdoc to ts migration
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             const orders = new Map();
             for (const view of views) {
-                orders.set(view.viewId(), persistedOrders[view.viewId()] || (++i) * _TabbedLocation.orderStep);
+                orders.set(view.viewId(), persistedOrders[view.viewId()] || (++i) * TabbedLocation.orderStep);
             }
             views.sort((a, b) => orders.get(a.viewId()) - orders.get(b.viewId()));
         }
@@ -578,7 +557,7 @@ export class _TabbedLocation extends Location {
                 const view = Array.from(this.views.values()).find(view => view.viewId() === this.defaultTab);
                 if (view) {
                     // defaultTab is indeed part of the views for this tabbed location
-                    this.showView(view);
+                    void this.showView(view);
                 }
             }
         }
@@ -594,7 +573,7 @@ export class _TabbedLocation extends Location {
             if (view.viewId() === 'issues-pane') {
                 contextMenu.defaultSection().appendItem(title, () => {
                     Host.userMetrics.issuesPanelOpenedFrom(Host.UserMetrics.IssueOpener.HamburgerMenu);
-                    this.showView(view, undefined, true);
+                    void this.showView(view, undefined, true);
                 });
                 continue;
             }
@@ -681,14 +660,14 @@ export class _TabbedLocation extends Location {
         }
         const view = this.views.get(tabId);
         if (view) {
-            view.disposeView();
+            void view.disposeView();
         }
     }
     persistTabOrder() {
         const tabIds = this.tabbedPaneInternal.tabIds();
         const tabOrders = {};
         for (let i = 0; i < tabIds.length; i++) {
-            tabOrders[tabIds[i]] = (i + 1) * _TabbedLocation.orderStep;
+            tabOrders[tabIds[i]] = (i + 1) * TabbedLocation.orderStep;
         }
         const oldTabOrder = this.tabOrderSetting.get();
         const oldTabArray = Object.keys(oldTabOrder);
@@ -703,17 +682,19 @@ export class _TabbedLocation extends Location {
         }
         this.tabOrderSetting.set(tabOrders);
     }
+    getCloseableTabSetting() {
+        return this.closeableTabSetting.get();
+    }
     static orderStep = 10; // Keep in sync with descriptors.
 }
-// TODO(crbug.com/1172300) Ignored during the jsdoc to ts migration
-// eslint-disable-next-line @typescript-eslint/naming-convention
-class _StackLocation extends Location {
+class StackLocation extends Location {
     vbox;
     expandableContainers;
     constructor(manager, revealCallback, location) {
         const vbox = new VBox();
         super(manager, vbox, revealCallback);
         this.vbox = vbox;
+        ARIAUtils.markAsTree(vbox.element);
         this.expandableContainers = new Map();
         if (location) {
             this.appendApplicableItems(location);
@@ -728,7 +709,7 @@ class _StackLocation extends Location {
         if (!container) {
             locationForView.set(view, this);
             this.manager.views.set(view.viewId(), view);
-            container = new _ExpandableContainerWidget(view);
+            container = new ExpandableContainerWidget(view);
             let beforeElement = null;
             if (insertBefore) {
                 const beforeContainer = expandableContainerForView.get(insertBefore);
@@ -761,5 +742,5 @@ class _StackLocation extends Location {
         }
     }
 }
-export { getRegisteredViewExtensions, maybeRemoveViewExtension, registerViewExtension, getRegisteredLocationResolvers, registerLocationResolver, ViewLocationCategoryValues, };
+export { getRegisteredViewExtensions, maybeRemoveViewExtension, registerViewExtension, getRegisteredLocationResolvers, registerLocationResolver, ViewLocationCategory, getLocalizedViewLocationCategory, resetViewRegistration, };
 //# sourceMappingURL=ViewManager.js.map

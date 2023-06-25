@@ -1,9 +1,10 @@
 import * as SDK from '../../core/sdk/sdk.js';
 import * as UI from '../../ui/legacy/legacy.js';
-import type { NetworkTimeCalculator } from './NetworkTimeCalculator.js';
+import { type NetworkTimeCalculator } from './NetworkTimeCalculator.js';
 export declare class RequestTimingView extends UI.Widget.VBox {
     private request;
     private calculator;
+    private lastMinimumBoundary;
     private tableElement?;
     constructor(request: SDK.NetworkRequest.NetworkRequest, calculator: NetworkTimeCalculator);
     private static timeRangeTitle;
@@ -15,6 +16,7 @@ export declare class RequestTimingView extends UI.Widget.VBox {
     wasShown(): void;
     willHide(): void;
     private refresh;
+    private boundaryChanged;
 }
 export declare enum RequestTimeRangeNames {
     Push = "push",

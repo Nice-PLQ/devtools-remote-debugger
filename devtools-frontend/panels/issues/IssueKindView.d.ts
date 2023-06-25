@@ -5,11 +5,10 @@ export declare function getGroupIssuesByKindSetting(): Common.Settings.Setting<b
 export declare function issueKindViewSortPriority(a: IssueKindView, b: IssueKindView): number;
 export declare function getClassNameFromKind(kind: IssuesManager.Issue.IssueKind): string;
 export declare class IssueKindView extends UI.TreeOutline.TreeElement {
-    private kind;
-    private issueCount;
+    #private;
     constructor(kind: IssuesManager.Issue.IssueKind);
     getKind(): IssuesManager.Issue.IssueKind;
-    private appendHeader;
+    getHideAllCurrentKindString(): Common.UIString.LocalizedString;
     onattach(): void;
     update(count: number): void;
 }

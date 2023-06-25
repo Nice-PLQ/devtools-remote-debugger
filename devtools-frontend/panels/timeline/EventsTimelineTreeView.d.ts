@@ -2,8 +2,8 @@ import * as Common from '../../core/common/common.js';
 import type * as TimelineModel from '../../models/timeline_model/timeline_model.js';
 import * as DataGrid from '../../ui/legacy/components/data_grid/data_grid.js';
 import * as UI from '../../ui/legacy/legacy.js';
-import type { TimelineModeViewDelegate } from './TimelinePanel.js';
-import { TimelineSelection } from './TimelinePanel.js';
+import { type TimelineModeViewDelegate } from './TimelinePanel.js';
+import { TimelineSelection } from './TimelineSelection.js';
 import { TimelineTreeView } from './TimelineTreeView.js';
 export declare class EventsTimelineTreeView extends TimelineTreeView {
     private readonly filtersControl;
@@ -35,7 +35,7 @@ export declare class Filters extends Common.ObjectWrapper.ObjectWrapper<EventTyp
 declare const enum Events {
     FilterChanged = "FilterChanged"
 }
-declare type EventTypes = {
+type EventTypes = {
     [Events.FilterChanged]: void;
 };
 export {};

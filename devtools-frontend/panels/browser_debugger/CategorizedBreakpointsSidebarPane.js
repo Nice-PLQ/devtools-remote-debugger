@@ -7,8 +7,8 @@ import * as UI from '../../ui/legacy/legacy.js';
 import categorizedBreakpointsSidebarPaneStyles from './categorizedBreakpointsSidebarPane.css.js';
 const UIStrings = {
     /**
-    *@description Screen reader description of a hit breakpoint in the Sources panel
-    */
+     *@description Screen reader description of a hit breakpoint in the Sources panel
+     */
     breakpointHit: 'breakpoint hit',
 };
 const str_ = i18n.i18n.registerUIStrings('panels/browser_debugger/CategorizedBreakpointsSidebarPane.ts', UIStrings);
@@ -56,21 +56,26 @@ export class CategorizedBreakpointsSidebarPane extends UI.Widget.VBox {
     focus() {
         this.#categoriesTreeOutline.forceSelect();
     }
+    handleSpaceKeyEventOnBreakpoint(event, breakpoint) {
+        if (event && event.key === ' ') {
+            if (breakpoint) {
+                breakpoint.checkbox.click();
+            }
+            event.consume(true);
+        }
+    }
     createCategory(name) {
         const labelNode = UI.UIUtils.CheckboxLabel.create(name);
         labelNode.checkboxElement.addEventListener('click', this.categoryCheckboxClicked.bind(this, name), true);
         labelNode.checkboxElement.tabIndex = -1;
         const treeElement = new UI.TreeOutline.TreeElement(labelNode);
         treeElement.listItemElement.addEventListener('keydown', event => {
-            if (event.key === ' ') {
-                const category = this.#categories.get(name);
-                if (category) {
-                    category.checkbox.click();
-                }
-                event.consume(true);
-            }
+            this.handleSpaceKeyEventOnBreakpoint(event, this.#categories.get(name));
         });
-        labelNode.checkboxElement.addEventListener('focus', () => treeElement.listItemElement.focus());
+        labelNode.checkboxElement.addEventListener('keydown', event => {
+            treeElement.listItemElement.focus();
+            this.handleSpaceKeyEventOnBreakpoint(event, this.#categories.get(name));
+        });
         UI.ARIAUtils.setChecked(treeElement.listItemElement, false);
         this.#categoriesTreeOutline.appendChild(treeElement);
         this.#categories.set(name, { element: treeElement, checkbox: labelNode.checkboxElement });
@@ -82,15 +87,12 @@ export class CategorizedBreakpointsSidebarPane extends UI.Widget.VBox {
         labelNode.checkboxElement.tabIndex = -1;
         const treeElement = new UI.TreeOutline.TreeElement(labelNode);
         treeElement.listItemElement.addEventListener('keydown', event => {
-            if (event.key === ' ') {
-                const breakpointToClick = this.#breakpoints.get(breakpoint);
-                if (breakpointToClick) {
-                    breakpointToClick.checkbox.click();
-                }
-                event.consume(true);
-            }
+            this.handleSpaceKeyEventOnBreakpoint(event, this.#breakpoints.get(breakpoint));
         });
-        labelNode.checkboxElement.addEventListener('focus', () => treeElement.listItemElement.focus());
+        labelNode.checkboxElement.addEventListener('keydown', event => {
+            treeElement.listItemElement.focus();
+            this.handleSpaceKeyEventOnBreakpoint(event, this.#breakpoints.get(breakpoint));
+        });
         UI.ARIAUtils.setChecked(treeElement.listItemElement, false);
         treeElement.listItemElement.createChild('div', 'breakpoint-hit-marker');
         const category = this.#categories.get(breakpoint.category());
@@ -119,7 +121,7 @@ export class CategorizedBreakpointsSidebarPane extends UI.Widget.VBox {
         if (!breakpoint) {
             return;
         }
-        UI.ViewManager.ViewManager.instance().showView(this.#viewId);
+        void UI.ViewManager.ViewManager.instance().showView(this.#viewId);
         const category = this.#categories.get(breakpoint.category());
         if (category) {
             category.element.expand();
@@ -139,12 +141,13 @@ export class CategorizedBreakpointsSidebarPane extends UI.Widget.VBox {
         }
         const enabled = item.checkbox.checked;
         UI.ARIAUtils.setChecked(item.element.listItemElement, enabled);
-        for (const breakpoint of this.#breakpoints.keys()) {
+        for (const [breakpoint, treeItem] of this.#breakpoints) {
             if (breakpoint.category() === category) {
                 const matchingBreakpoint = this.#breakpoints.get(breakpoint);
                 if (matchingBreakpoint) {
                     matchingBreakpoint.checkbox.checked = enabled;
                     this.toggleBreakpoint(breakpoint, enabled);
+                    UI.ARIAUtils.setChecked(treeItem.element.listItemElement, enabled);
                 }
             }
         }

@@ -5,18 +5,24 @@ import * as Common from '../common/common.js';
 import * as Platform from '../platform/platform.js';
 import { Type as TargetType } from './Target.js';
 import { Target } from './Target.js';
+import { SDKModel } from './SDKModel.js';
 import * as Root from '../root/root.js';
 import * as Host from '../host/host.js';
+import { assertNotNullOrUndefined } from '../platform/platform.js';
 let targetManagerInstance;
 export class TargetManager extends Common.ObjectWrapper.ObjectWrapper {
     #targetsInternal;
     #observers;
+    /* eslint-disable @typescript-eslint/no-explicit-any */
     #modelListeners;
-    // TODO(crbug.com/1172300) Ignored during the jsdoc to ts migration
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     #modelObservers;
+    #scopedObservers;
+    /* eslint-enable @typescript-eslint/no-explicit-any */
     #isSuspended;
     #browserTargetInternal;
+    #scopeTarget;
+    #defaultScopeSet;
+    #scopeChangeListeners;
     constructor() {
         super();
         this.#targetsInternal = new Set();
@@ -25,6 +31,10 @@ export class TargetManager extends Common.ObjectWrapper.ObjectWrapper {
         this.#modelObservers = new Platform.MapUtilities.Multimap();
         this.#isSuspended = false;
         this.#browserTargetInternal = null;
+        this.#scopeTarget = null;
+        this.#scopedObservers = new WeakSet();
+        this.#defaultScopeSet = false;
+        this.#scopeChangeListeners = new Set();
     }
     static instance({ forceNew } = { forceNew: false }) {
         if (!targetManagerInstance || forceNew) {
@@ -36,6 +46,10 @@ export class TargetManager extends Common.ObjectWrapper.ObjectWrapper {
         targetManagerInstance = undefined;
     }
     onInspectedURLChange(target) {
+        if (target !== this.#scopeTarget) {
+            return;
+        }
+        Host.InspectorFrontendHost.InspectorFrontendHostInstance.inspectedURLChanged(target.inspectedURL() || Platform.DevToolsPath.EmptyUrlString);
         this.dispatchEventToListeners(Events.InspectedURLChanged, target);
     }
     onNameChange(target) {
@@ -62,92 +76,127 @@ export class TargetManager extends Common.ObjectWrapper.ObjectWrapper {
     allTargetsSuspended() {
         return this.#isSuspended;
     }
-    models(modelClass) {
+    models(modelClass, opts) {
         const result = [];
         for (const target of this.#targetsInternal) {
-            const model = target.model(modelClass);
-            if (model) {
-                result.push(model);
+            if (opts?.scoped && !this.isInScope(target)) {
+                continue;
             }
+            const model = target.model(modelClass);
+            if (!model) {
+                continue;
+            }
+            result.push(model);
         }
         return result;
     }
     inspectedURL() {
-        const mainTarget = this.mainTarget();
+        const mainTarget = this.primaryPageTarget();
         return mainTarget ? mainTarget.inspectedURL() : '';
     }
-    observeModels(modelClass, observer) {
-        const models = this.models(modelClass);
+    observeModels(modelClass, observer, opts) {
+        const models = this.models(modelClass, opts);
         this.#modelObservers.set(modelClass, observer);
+        if (opts?.scoped) {
+            this.#scopedObservers.add(observer);
+        }
         for (const model of models) {
             observer.modelAdded(model);
         }
     }
     unobserveModels(modelClass, observer) {
         this.#modelObservers.delete(modelClass, observer);
+        this.#scopedObservers.delete(observer);
     }
-    modelAdded(target, modelClass, model) {
+    modelAdded(target, modelClass, model, inScope) {
         for (const observer of this.#modelObservers.get(modelClass).values()) {
-            observer.modelAdded(model);
+            if (!this.#scopedObservers.has(observer) || inScope) {
+                observer.modelAdded(model);
+            }
         }
     }
-    modelRemoved(target, modelClass, model) {
+    modelRemoved(target, modelClass, model, inScope) {
         for (const observer of this.#modelObservers.get(modelClass).values()) {
-            observer.modelRemoved(model);
+            if (!this.#scopedObservers.has(observer) || inScope) {
+                observer.modelRemoved(model);
+            }
         }
     }
-    addModelListener(modelClass, eventType, listener, thisObject) {
+    addModelListener(modelClass, eventType, listener, thisObject, opts) {
+        const wrappedListener = (event) => {
+            if (!opts?.scoped || this.isInScope(event)) {
+                listener.call(thisObject, event);
+            }
+        };
         for (const model of this.models(modelClass)) {
-            model.addEventListener(eventType, listener, thisObject);
+            model.addEventListener(eventType, wrappedListener);
         }
-        this.#modelListeners.set(eventType, { modelClass: modelClass, thisObject: thisObject, listener: listener });
+        this.#modelListeners.set(eventType, { modelClass, thisObject, listener, wrappedListener });
     }
     removeModelListener(modelClass, eventType, listener, thisObject) {
         if (!this.#modelListeners.has(eventType)) {
             return;
         }
-        for (const model of this.models(modelClass)) {
-            model.removeEventListener(eventType, listener, thisObject);
-        }
+        let wrappedListener = null;
         for (const info of this.#modelListeners.get(eventType)) {
             if (info.modelClass === modelClass && info.listener === listener && info.thisObject === thisObject) {
+                wrappedListener = info.wrappedListener;
                 this.#modelListeners.delete(eventType, info);
             }
         }
+        if (wrappedListener) {
+            for (const model of this.models(modelClass)) {
+                model.removeEventListener(eventType, wrappedListener);
+            }
+        }
     }
-    observeTargets(targetObserver) {
+    observeTargets(targetObserver, opts) {
         if (this.#observers.has(targetObserver)) {
             throw new Error('Observer can only be registered once');
         }
+        if (opts?.scoped) {
+            this.#scopedObservers.add(targetObserver);
+        }
         for (const target of this.#targetsInternal) {
-            targetObserver.targetAdded(target);
+            if (!opts?.scoped || this.isInScope(target)) {
+                targetObserver.targetAdded(target);
+            }
         }
         this.#observers.add(targetObserver);
     }
     unobserveTargets(targetObserver) {
         this.#observers.delete(targetObserver);
+        this.#scopedObservers.delete(targetObserver);
     }
     createTarget(id, name, type, parentTarget, sessionId, waitForDebuggerInPage, connection, targetInfo) {
         const target = new Target(this, id, name, type, parentTarget, sessionId || '', this.#isSuspended, connection || null, targetInfo);
         if (waitForDebuggerInPage) {
-            target.pageAgent().invoke_waitForDebugger();
+            void target.pageAgent().invoke_waitForDebugger();
         }
         target.createModels(new Set(this.#modelObservers.keysArray()));
         this.#targetsInternal.add(target);
+        const inScope = this.isInScope(target);
         // Iterate over a copy. #observers might be modified during iteration.
         for (const observer of [...this.#observers]) {
-            observer.targetAdded(target);
+            if (!this.#scopedObservers.has(observer) || inScope) {
+                observer.targetAdded(target);
+            }
         }
         for (const [modelClass, model] of target.models().entries()) {
-            this.modelAdded(target, modelClass, model);
+            this.modelAdded(target, modelClass, model, inScope);
         }
         for (const key of this.#modelListeners.keysArray()) {
             for (const info of this.#modelListeners.get(key)) {
                 const model = target.model(info.modelClass);
                 if (model) {
-                    model.addEventListener(key, info.listener, info.thisObject);
+                    model.addEventListener(key, info.wrappedListener);
                 }
             }
+        }
+        if ((target === target.outermostTarget() &&
+            (target.type() !== TargetType.Frame || target === this.primaryPageTarget())) &&
+            !this.#defaultScopeSet) {
+            this.setScopeTarget(target);
         }
         return target;
     }
@@ -155,20 +204,24 @@ export class TargetManager extends Common.ObjectWrapper.ObjectWrapper {
         if (!this.#targetsInternal.has(target)) {
             return;
         }
+        const inScope = this.isInScope(target);
         this.#targetsInternal.delete(target);
         for (const modelClass of target.models().keys()) {
             const model = target.models().get(modelClass);
-            this.modelRemoved(target, modelClass, model);
+            assertNotNullOrUndefined(model);
+            this.modelRemoved(target, modelClass, model, inScope);
         }
         // Iterate over a copy. #observers might be modified during iteration.
         for (const observer of [...this.#observers]) {
-            observer.targetRemoved(target);
+            if (!this.#scopedObservers.has(observer) || inScope) {
+                observer.targetRemoved(target);
+            }
         }
         for (const key of this.#modelListeners.keysArray()) {
             for (const info of this.#modelListeners.get(key)) {
                 const model = target.model(info.modelClass);
                 if (model) {
-                    model.removeEventListener(key, info.listener, info.thisObject);
+                    model.removeEventListener(key, info.wrappedListener);
                 }
             }
         }
@@ -180,8 +233,17 @@ export class TargetManager extends Common.ObjectWrapper.ObjectWrapper {
         // TODO(dgozman): add a map #id -> #target.
         return this.targets().find(target => target.id() === id) || null;
     }
-    mainTarget() {
+    rootTarget() {
         return this.#targetsInternal.size ? this.#targetsInternal.values().next().value : null;
+    }
+    primaryPageTarget() {
+        let target = this.rootTarget();
+        if (target?.type() === TargetType.Tab) {
+            target =
+                this.targets().find(t => t.parentTarget() === target && t.type() === TargetType.Frame && !t.targetInfo()?.subtype?.length) ||
+                    null;
+        }
+        return target;
     }
     browserTarget() {
         return this.#browserTargetInternal;
@@ -199,7 +261,7 @@ export class TargetManager extends Common.ObjectWrapper.ObjectWrapper {
         // Do not await for Target.autoAttachRelated to return, as it goes throguh the renderer and we don't want to block early
         // at front-end initialization if a renderer is stuck. The rest of #target discovery and auto-attach process should happen
         // asynchronously upon Target.attachedToTarget.
-        this.#browserTargetInternal.targetAgent().invoke_autoAttachRelated({
+        void this.#browserTargetInternal.targetAgent().invoke_autoAttachRelated({
             targetId,
             waitForDebuggerOnStart: true,
         });
@@ -207,6 +269,83 @@ export class TargetManager extends Common.ObjectWrapper.ObjectWrapper {
     }
     clearAllTargetsForTest() {
         this.#targetsInternal.clear();
+    }
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    isInScope(arg) {
+        if (!arg) {
+            return false;
+        }
+        if (isSDKModelEvent(arg)) {
+            arg = arg.source;
+        }
+        if (arg instanceof SDKModel) {
+            arg = arg.target();
+        }
+        while (arg && arg !== this.#scopeTarget) {
+            arg = arg.parentTarget();
+        }
+        return Boolean(arg) && arg === this.#scopeTarget;
+    }
+    // Sets a root of a scope substree.
+    // TargetManager API invoked with `scoped: true` will behave as if targets
+    // outside of the scope subtree don't exist. Concretely this means that
+    // target observers, model observers and model listeners won't be invoked for targets outside of the
+    // scope tree. This method will invoke targetRemoved and modelRemoved for
+    // objects in the previous scope, as if they disappear and then will invoke
+    // targetAdded and modelAdded as if they just appeared.
+    // Note that scopeTarget could be null, which will effectively prevent scoped
+    // observes from getting any events.
+    setScopeTarget(scopeTarget) {
+        if (scopeTarget === this.#scopeTarget) {
+            return;
+        }
+        for (const target of this.targets()) {
+            if (!this.isInScope(target)) {
+                continue;
+            }
+            for (const modelClass of this.#modelObservers.keysArray()) {
+                const model = target.models().get(modelClass);
+                if (!model) {
+                    continue;
+                }
+                for (const observer of [...this.#modelObservers.get(modelClass)].filter(o => this.#scopedObservers.has(o))) {
+                    observer.modelRemoved(model);
+                }
+            }
+            // Iterate over a copy. #observers might be modified during iteration.
+            for (const observer of [...this.#observers].filter(o => this.#scopedObservers.has(o))) {
+                observer.targetRemoved(target);
+            }
+        }
+        this.#scopeTarget = scopeTarget;
+        for (const target of this.targets()) {
+            if (!this.isInScope(target)) {
+                continue;
+            }
+            for (const observer of [...this.#observers].filter(o => this.#scopedObservers.has(o))) {
+                observer.targetAdded(target);
+            }
+            for (const [modelClass, model] of target.models().entries()) {
+                for (const observer of [...this.#modelObservers.get(modelClass)].filter(o => this.#scopedObservers.has(o))) {
+                    observer.modelAdded(model);
+                }
+            }
+        }
+        for (const scopeChangeListener of this.#scopeChangeListeners) {
+            scopeChangeListener();
+        }
+        if (scopeTarget && scopeTarget.inspectedURL()) {
+            this.onInspectedURLChange(scopeTarget);
+        }
+    }
+    addScopeChangeListener(listener) {
+        this.#scopeChangeListeners.add(listener);
+    }
+    removeScopeChangeListener(listener) {
+        this.#scopeChangeListeners.delete(listener);
+    }
+    scopeTarget() {
+        return this.#scopeTarget;
     }
 }
 // TODO(crbug.com/1167717): Make this a const enum again
@@ -229,5 +368,9 @@ export class SDKModelObserver {
     }
     modelRemoved(_model) {
     }
+}
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function isSDKModelEvent(arg) {
+    return 'source' in arg && arg.source instanceof SDKModel;
 }
 //# sourceMappingURL=TargetManager.js.map

@@ -32,13 +32,13 @@ import * as i18n from '../../core/i18n/i18n.js';
 import * as SDK from '../../core/sdk/sdk.js';
 const UIStrings = {
     /**
-    *@description Message in Database Model of the Application panel
-    */
+     *@description Message in Database Model of the Application panel
+     */
     databaseNoLongerHasExpected: 'Database no longer has expected version.',
     /**
-    *@description Message in Database Model of the Application panel
-    *@example {-197} PH1
-    */
+     *@description Message in Database Model of the Application panel
+     *@example {-197} PH1
+     */
     anUnexpectedErrorSOccurred: 'An unexpected error {PH1} occurred.',
 };
 const str_ = i18n.i18n.registerUIStrings('panels/application/DatabaseModel.ts', UIStrings);
@@ -124,7 +124,7 @@ export class DatabaseModel extends SDK.SDKModel.SDKModel {
         if (this.enabled) {
             return;
         }
-        this.agent.invoke_enable();
+        void this.agent.invoke_enable();
         this.enabled = true;
     }
     disable() {
@@ -133,7 +133,7 @@ export class DatabaseModel extends SDK.SDKModel.SDKModel {
         }
         this.enabled = false;
         this.databasesInternal = [];
-        this.agent.invoke_disable();
+        void this.agent.invoke_disable();
         this.dispatchEventToListeners(Events.DatabasesRemoved);
     }
     databases() {

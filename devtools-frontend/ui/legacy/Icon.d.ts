@@ -5,6 +5,7 @@ export declare class Icon extends HTMLSpanElement {
     constructor();
     static create(iconType?: string, className?: string): Icon;
     setIconType(iconType: string): void;
+    setIconColor(color: string): void;
     private toggleClasses;
     private propertyValue;
 }

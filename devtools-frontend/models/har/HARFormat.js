@@ -1,6 +1,7 @@
 // Copyright 2017 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
+import * as SDK from '../../core/sdk/sdk.js';
 /* eslint-disable @typescript-eslint/no-explicit-any */
 class HARBase {
     custom;
@@ -342,14 +343,64 @@ export class HARInitiator extends HARBase {
     type;
     url;
     lineNumber;
+    requestId;
+    stack;
     /**
-     * Based on Initiator defined in browser_protocol.pdl
+     * Based on Protocol.Network.Initiator defined in browser_protocol.pdl
      */
     constructor(data) {
         super(data);
-        this.type = HARBase.optionalString(data['type']);
+        this.type = (HARBase.optionalString(data['type']) ?? SDK.NetworkRequest.InitiatorType.Other);
         this.url = HARBase.optionalString(data['url']);
         this.lineNumber = HARBase.optionalNumber(data['lineNumber']);
+        this.requestId = HARBase.optionalString(data['requestId']);
+        if (data['stack']) {
+            this.stack = new HARStack(data['stack']);
+        }
+    }
+}
+export class HARStack extends HARBase {
+    description;
+    callFrames;
+    parent;
+    parentId;
+    /**
+     * Based on Protocol.Runtime.StackTrace defined in browser_protocol.pdl
+     */
+    constructor(data) {
+        super(data);
+        this.callFrames = Array.isArray(data.callFrames) ?
+            data.callFrames.map((item) => item ? new HARCallFrame(item) : null).filter(Boolean) :
+            [];
+        if (data['parent']) {
+            this.parent = new HARStack(data['parent']);
+        }
+        this.description = HARBase.optionalString(data['description']);
+        const parentId = data['parentId'];
+        if (parentId) {
+            this.parentId = {
+                id: HARBase.optionalString(parentId['id']) ?? '',
+                debuggerId: HARBase.optionalString(parentId['debuggerId']),
+            };
+        }
+    }
+}
+export class HARCallFrame extends HARBase {
+    functionName;
+    scriptId;
+    url = '';
+    lineNumber = -1;
+    columnNumber = -1;
+    /**
+     * Based on Protocol.Runtime.CallFrame defined in browser_protocol.pdl
+     */
+    constructor(data) {
+        super(data);
+        this.functionName = HARBase.optionalString(data['functionName']) ?? '';
+        this.scriptId = (HARBase.optionalString(data['scriptId']) ?? '');
+        this.url = HARBase.optionalString(data['url']) ?? '';
+        this.lineNumber = HARBase.optionalNumber(data['lineNumber']) ?? -1;
+        this.columnNumber = HARBase.optionalNumber(data['columnNumber']) ?? -1;
     }
 }
 class HARWebSocketMessage extends HARBase {

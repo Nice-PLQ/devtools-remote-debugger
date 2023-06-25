@@ -4,16 +4,17 @@
  * and satisfy TypeScript that the value is present.
  */
 export declare function assertNotNullOrUndefined<T>(val: T): asserts val is NonNullable<T>;
+export declare function assertNever(type: never, message: string): never;
 /**
  * This is useful to check on the type-level that the unhandled cases of
  * a switch are exactly `T` (where T is usually a union type of enum values).
  * @param caseVariable
  */
 export declare function assertUnhandled<T>(_caseVariable: T): T;
-export declare type FieldsThatExtend<Type, Selector> = {
+export type FieldsThatExtend<Type, Selector> = {
     [Key in keyof Type]: Type[Key] extends Selector ? Key : never;
 }[keyof Type];
-export declare type PickFieldsThatExtend<Type, Selector> = Pick<Type, FieldsThatExtend<Type, Selector>>;
+export type PickFieldsThatExtend<Type, Selector> = Pick<Type, FieldsThatExtend<Type, Selector>>;
 /**
  * Turns a Union type (a | b) into an Intersection type (a & b).
  * This is a helper type to implement the "NoUnion" guard.
@@ -34,7 +35,7 @@ export declare type PickFieldsThatExtend<Type, Selector> = Pick<Type, FieldsThat
  * `string & number`. There is no type that fulfills both at the same time. A
  * union of this kind is reduced to `never`.
  */
-declare type IntersectionFromUnion<T> = (T extends any ? (arg: T) => void : never) extends ((arg: infer U) => void) ? U : never;
+type IntersectionFromUnion<T> = (T extends any ? (arg: T) => void : never) extends ((arg: infer U) => void) ? U : never;
 /**
  * When writing generic code it may be desired to disallow Union types from
  * being passed. This type can be used in those cases.
@@ -51,5 +52,5 @@ declare type IntersectionFromUnion<T> = (T extends any ? (arg: T) => void : neve
  * instead of `T extends IntersectionFromUnion<T>`.
  * See: https://www.typescriptlang.org/docs/handbook/2/conditional-types.html
  */
-export declare type NoUnion<T> = [T] extends [IntersectionFromUnion<T>] ? T : never;
+export type NoUnion<T> = [T] extends [IntersectionFromUnion<T>] ? T : never;
 export {};

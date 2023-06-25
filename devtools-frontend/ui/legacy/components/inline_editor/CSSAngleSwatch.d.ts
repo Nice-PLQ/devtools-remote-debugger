@@ -1,4 +1,4 @@
-import type { Angle } from './CSSAngleUtils.js';
+import { type Angle } from './CSSAngleUtils.js';
 export interface CSSAngleSwatchData {
     angle: Angle;
 }

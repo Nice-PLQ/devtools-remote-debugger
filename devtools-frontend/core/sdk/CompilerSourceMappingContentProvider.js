@@ -32,10 +32,10 @@ import * as i18n from '../i18n/i18n.js';
 import { PageResourceLoader } from './PageResourceLoader.js';
 const UIStrings = {
     /**
-    *@description Error message when failing to fetch a resource referenced in a source map
-    *@example {https://example.com/sourcemap.map} PH1
-    *@example {An error occurred} PH2
-    */
+     *@description Error message when failing to fetch a resource referenced in a source map
+     *@example {https://example.com/sourcemap.map} PH1
+     *@example {An error occurred} PH2
+     */
     couldNotLoadContentForSS: 'Could not load content for {PH1} ({PH2})',
 };
 const str_ = i18n.i18n.registerUIStrings('core/sdk/CompilerSourceMappingContentProvider.ts', UIStrings);
@@ -49,15 +49,11 @@ export class CompilerSourceMappingContentProvider {
         this.#contentTypeInternal = contentType;
         this.#initiator = initiator;
     }
-    // TODO(crbug.com/1253323): Cast to RawPathString will be removed when migration to branded types is complete.
     contentURL() {
         return this.#sourceURL;
     }
     contentType() {
         return this.#contentTypeInternal;
-    }
-    async contentEncoded() {
-        return false;
     }
     async requestContent() {
         try {

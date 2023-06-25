@@ -45,7 +45,6 @@ export class Resource {
     #lastModifiedInternal;
     #contentSizeInternal;
     #contentInternal;
-    #contentLoadError;
     #contentEncodedInternal;
     #pendingContentCallbacks;
     #parsedURLInternal;
@@ -122,7 +121,6 @@ export class Resource {
     set isGenerated(val) {
         this.#isGeneratedInternal = val;
     }
-    // TODO(crbug.com/1253323): Cast to RawPathString will be removed when migration to branded types is complete.
     contentURL() {
         return this.#urlInternal;
     }
@@ -133,18 +131,17 @@ export class Resource {
         }
         return this.resourceType();
     }
-    async contentEncoded() {
-        await this.requestContent();
-        return this.#contentEncodedInternal;
-    }
-    requestContent() {
+    async requestContent() {
         if (typeof this.#contentInternal !== 'undefined') {
-            return Promise.resolve({ content: this.#contentInternal, isEncoded: this.#contentEncodedInternal });
+            return {
+                content: this.#contentInternal,
+                isEncoded: this.#contentEncodedInternal,
+            };
         }
         return new Promise(resolve => {
             this.#pendingContentCallbacks.push(resolve);
             if (!this.#requestInternal || this.#requestInternal.finished) {
-                this.innerRequestContent();
+                void this.innerRequestContent();
             }
         });
     }
@@ -172,7 +169,7 @@ export class Resource {
             this.#requestInternal.removeEventListener(Events.FinishedLoading, this.requestFinished, this);
         }
         if (this.#pendingContentCallbacks.length) {
-            this.innerRequestContent();
+            void this.innerRequestContent();
         }
     }
     async innerRequestContent() {
@@ -193,13 +190,11 @@ export class Resource {
             const response = await this.#resourceTreeModel.target().pageAgent().invoke_getResourceContent({ frameId: this.frameId, url: this.url });
             const protocolError = response.getError();
             if (protocolError) {
-                this.#contentLoadError = protocolError;
                 this.#contentInternal = null;
                 loadResult = { content: null, error: protocolError, isEncoded: false };
             }
             else {
                 this.#contentInternal = response.content;
-                this.#contentLoadError = null;
                 loadResult = { content: response.content, isEncoded: response.base64Encoded };
             }
             this.#contentEncodedInternal = response.base64Encoded;

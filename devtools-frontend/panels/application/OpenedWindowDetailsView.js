@@ -5,80 +5,80 @@ import * as Common from '../../core/common/common.js';
 import * as i18n from '../../core/i18n/i18n.js';
 import * as SDK from '../../core/sdk/sdk.js';
 import * as UI from '../../ui/legacy/legacy.js';
-import frameDetailsReportViewStyles from './frameDetailsReportView.css.js';
+import openedWindowDetailsViewStyles from './openedWindowDetailsView.css.js';
 const UIStrings = {
     /**
-    *@description Text in Timeline indicating that input has happened recently
-    */
+     *@description Text in Timeline indicating that input has happened recently
+     */
     yes: 'Yes',
     /**
-    *@description Text in Timeline indicating that input has not happened recently
-    */
+     *@description Text in Timeline indicating that input has not happened recently
+     */
     no: 'No',
     /**
-    *@description Title for a link to the Elements panel
-    */
+     *@description Title for a link to the Elements panel
+     */
     clickToRevealInElementsPanel: 'Click to reveal in Elements panel',
     /**
-    *@description Name of a network resource type
-    */
+     *@description Name of a network resource type
+     */
     document: 'Document',
     /**
-    *@description Text for web URLs
-    */
+     *@description Text for web URLs
+     */
     url: 'URL',
     /**
-    *@description Title of the 'Security' tool
-    */
+     *@description Title of the 'Security' tool
+     */
     security: 'Security',
     /**
-    *@description Label for link to Opener Frame in Detail View for Opened Window
-    */
+     *@description Label for link to Opener Frame in Detail View for Opened Window
+     */
     openerFrame: 'Opener Frame',
     /**
-    *@description Label in opened window's details view whether window has access to its opener
-    */
+     *@description Label in opened window's details view whether window has access to its opener
+     */
     accessToOpener: 'Access to opener',
     /**
-    *@description Description for the 'Access to Opener' field
-    */
+     *@description Description for the 'Access to Opener' field
+     */
     showsWhetherTheOpenedWindowIs: 'Shows whether the opened window is able to access its opener and vice versa',
     /**
-    *@description Text in Frames View of the Application panel
-    */
+     *@description Text in Frames View of the Application panel
+     */
     windowWithoutTitle: 'Window without title',
     /**
-    *@description Label suffix in the Application Panel Frames section for windows which are already closed
-    */
+     *@description Label suffix in the Application Panel Frames section for windows which are already closed
+     */
     closed: 'closed',
     /**
-    *@description Default name for worker
-    */
+     *@description Default name for worker
+     */
     worker: 'worker',
     /**
-    *@description Text that refers to some types
-    */
+     *@description Text that refers to some types
+     */
     type: 'Type',
     /**
-    *@description Section header in the Frame Details view
-    */
+     *@description Section header in the Frame Details view
+     */
     securityIsolation: 'Security & Isolation',
     /**
-    *@description Row title in the Frame Details view
-    */
+     *@description Row title in the Frame Details view
+     */
     crossoriginEmbedderPolicy: 'Cross-Origin Embedder Policy',
     /**
-    *@description Label for worker type: web worker
-    */
+     *@description Label for worker type: web worker
+     */
     webWorker: 'Web Worker',
     /**
-    *@description Text for an unspecified service worker response source
-    */
+     *@description Text for an unspecified service worker response source
+     */
     unknown: 'Unknown',
     /**
-    *@description This label specifies the server endpoints to which the server is reporting errors
-    *and warnings through the Report-to API. Following this label will be the URL of the server.
-    */
+     *@description This label specifies the server endpoints to which the server is reporting errors
+     *and warnings through the Report-to API. Following this label will be the URL of the server.
+     */
     reportingTo: 'reporting to',
 };
 const str_ = i18n.i18n.registerUIStrings('panels/application/OpenedWindowDetailsView.ts', UIStrings);
@@ -93,12 +93,12 @@ function linkifyIcon(iconType, title, eventHandler) {
     span.appendChild(icon);
     span.addEventListener('click', event => {
         event.consume(true);
-        eventHandler();
+        void eventHandler();
     });
     span.addEventListener('keydown', event => {
         if (event.key === 'Enter') {
             event.consume(true);
-            eventHandler();
+            void eventHandler();
         }
     });
     return span;
@@ -118,13 +118,13 @@ async function maybeCreateLinkToElementsPanel(opener) {
     if (!linkTargetDOMNode) {
         return null;
     }
-    const linkElement = linkifyIcon('mediumicon-elements-panel', i18nString(UIStrings.clickToRevealInElementsPanel), () => Common.Revealer.reveal(linkTargetDOMNode));
+    const linkElement = linkifyIcon('code-circle', i18nString(UIStrings.clickToRevealInElementsPanel), () => Common.Revealer.reveal(linkTargetDOMNode));
     const label = document.createElement('span');
     label.textContent = `<${linkTargetDOMNode.nodeName().toLocaleLowerCase()}>`;
     linkElement.insertBefore(label, linkElement.firstChild);
     linkElement.addEventListener('mouseenter', () => {
         if (openerFrame) {
-            openerFrame.highlight();
+            void openerFrame.highlight();
         }
     });
     linkElement.addEventListener('mouseleave', () => {
@@ -153,7 +153,8 @@ export class OpenedWindowDetailsView extends UI.ThrottledWidget.ThrottledWidget 
         this.reportView.show(this.contentElement);
         this.reportView.element.classList.add('frame-details-report-container');
         this.documentSection = this.reportView.appendSection(i18nString(UIStrings.document));
-        this.URLFieldValue = this.documentSection.appendField(i18nString(UIStrings.url));
+        this.URLFieldValue =
+            this.documentSection.appendField(i18nString(UIStrings.url)).createChild('div', 'text-ellipsis');
         this.securitySection = this.reportView.appendSection(i18nString(UIStrings.security));
         this.openerElementField = this.securitySection.appendField(i18nString(UIStrings.openerFrame));
         this.securitySection.setFieldVisible(i18nString(UIStrings.openerFrame), false);
@@ -164,8 +165,9 @@ export class OpenedWindowDetailsView extends UI.ThrottledWidget.ThrottledWidget 
     async doUpdate() {
         this.reportView.setTitle(this.buildTitle());
         this.URLFieldValue.textContent = this.targetInfo.url;
+        this.URLFieldValue.title = this.targetInfo.url;
         this.hasDOMAccessValue.textContent = booleanToYesNo(this.targetInfo.canAccessOpener);
-        this.maybeDisplayOpenerFrame();
+        void this.maybeDisplayOpenerFrame();
     }
     async maybeDisplayOpenerFrame() {
         this.openerElementField.removeChildren();
@@ -192,8 +194,8 @@ export class OpenedWindowDetailsView extends UI.ThrottledWidget.ThrottledWidget 
     }
     wasShown() {
         super.wasShown();
-        this.reportView.registerCSSFiles([frameDetailsReportViewStyles]);
-        this.registerCSSFiles([frameDetailsReportViewStyles]);
+        this.reportView.registerCSSFiles([openedWindowDetailsViewStyles]);
+        this.registerCSSFiles([openedWindowDetailsViewStyles]);
     }
 }
 export class WorkerDetailsView extends UI.ThrottledWidget.ThrottledWidget {
@@ -202,7 +204,6 @@ export class WorkerDetailsView extends UI.ThrottledWidget.ThrottledWidget {
     documentSection;
     // TODO(crbug.com/1172300) Ignored during the jsdoc to ts migration)
     // eslint-disable-next-line @typescript-eslint/naming-convention
-    URLFieldValue;
     isolationSection;
     coepPolicy;
     constructor(targetInfo) {
@@ -215,8 +216,9 @@ export class WorkerDetailsView extends UI.ThrottledWidget.ThrottledWidget {
         this.reportView.show(this.contentElement);
         this.reportView.element.classList.add('frame-details-report-container');
         this.documentSection = this.reportView.appendSection(i18nString(UIStrings.document));
-        this.URLFieldValue = this.documentSection.appendField(i18nString(UIStrings.url));
-        this.URLFieldValue.textContent = this.targetInfo.url;
+        const URLFieldValue = this.documentSection.appendField(i18nString(UIStrings.url)).createChild('div', 'text-ellipsis');
+        URLFieldValue.textContent = this.targetInfo.url;
+        URLFieldValue.title = this.targetInfo.url;
         const workerType = this.documentSection.appendField(i18nString(UIStrings.type));
         workerType.textContent = this.workerTypeToString(this.targetInfo.type);
         this.isolationSection = this.reportView.appendSection(i18nString(UIStrings.securityIsolation));
@@ -242,7 +244,7 @@ export class WorkerDetailsView extends UI.ThrottledWidget.ThrottledWidget {
         if (!info) {
             return;
         }
-        const coepIsEnabled = (value) => value !== "None" /* None */;
+        const coepIsEnabled = (value) => value !== "None" /* Protocol.Network.CrossOriginEmbedderPolicyValue.None */;
         this.fillCrossOriginPolicy(this.coepPolicy, coepIsEnabled, info.coep);
     }
     fillCrossOriginPolicy(field, isEnabled, info) {
@@ -271,8 +273,8 @@ export class WorkerDetailsView extends UI.ThrottledWidget.ThrottledWidget {
     }
     wasShown() {
         super.wasShown();
-        this.reportView.registerCSSFiles([frameDetailsReportViewStyles]);
-        this.registerCSSFiles([frameDetailsReportViewStyles]);
+        this.reportView.registerCSSFiles([openedWindowDetailsViewStyles]);
+        this.registerCSSFiles([openedWindowDetailsViewStyles]);
     }
 }
 //# sourceMappingURL=OpenedWindowDetailsView.js.map

@@ -10,26 +10,13 @@ export interface IssueLinkIconData {
 }
 export declare const extractShortPath: (path: string) => string;
 export declare class IssueLinkIcon extends HTMLElement {
+    #private;
     static readonly litTagName: import("../../lit-html/static.js").Static;
-    private readonly shadow;
-    private issue?;
-    private issueTitle;
-    private issueTitlePromise;
-    private issueId?;
-    private issueResolver?;
-    private additionalOnClickAction?;
-    private reveal;
-    private issueResolvedPromise;
     set data(data: IssueLinkIconData);
-    private fetchIssueTitle;
     connectedCallback(): void;
-    private resolveIssue;
     get data(): IssueLinkIconData;
     iconData(): IconButton.Icon.IconData;
     handleClick(event: MouseEvent): void;
-    private getTooltip;
-    private render;
-    private renderComponent;
 }
 declare global {
     interface HTMLElementTagNameMap {

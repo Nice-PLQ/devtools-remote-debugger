@@ -3,16 +3,25 @@
 // found in the LICENSE file.
 import * as i18n from '../../../core/i18n/i18n.js';
 import * as ComponentHelpers from '../../../ui/components/helpers/helpers.js';
+import * as IconButton from '../../../ui/components/icon_button/icon_button.js';
 import * as Coordinator from '../../../ui/components/render_coordinator/render_coordinator.js';
 import * as LitHtml from '../../../ui/lit-html/lit-html.js';
 import elementsBreadcrumbsStyles from './elementsBreadcrumbs.css.js';
 import { crumbsToRender } from './ElementsBreadcrumbsUtils.js';
-import { NodeText } from './NodeText.js';
+import * as NodeText from '../../../ui/components/node_text/node_text.js';
 const UIStrings = {
     /**
-    * @description Accessible name for DOM tree breadcrumb navigation.
-    */
+     * @description Accessible name for DOM tree breadcrumb navigation.
+     */
     breadcrumbs: 'DOM tree breadcrumbs',
+    /**
+     * @description A label/tooltip for a button that scrolls the breadcrumbs bar to the left to show more entries.
+     */
+    scrollLeft: 'Scroll left',
+    /**
+     * @description A label/tooltip for a button that scrolls the breadcrumbs bar to the right to show more entries.
+     */
+    scrollRight: 'Scroll right',
 };
 const str_ = i18n.i18n.registerUIStrings('panels/elements/components/ElementsBreadcrumbs.ts', UIStrings);
 const i18nString = i18n.i18n.getLocalizedString.bind(undefined, str_);
@@ -27,28 +36,29 @@ export class NodeSelectedEvent extends Event {
 const coordinator = Coordinator.RenderCoordinator.RenderCoordinator.instance();
 export class ElementsBreadcrumbs extends HTMLElement {
     static litTagName = LitHtml.literal `devtools-elements-breadcrumbs`;
-    shadow = this.attachShadow({ mode: 'open' });
-    resizeObserver = new ResizeObserver(() => this.checkForOverflowOnResize());
-    crumbsData = [];
-    selectedDOMNode = null;
-    overflowing = false;
-    userScrollPosition = 'start';
-    isObservingResize = false;
-    userHasManuallyScrolled = false;
+    #shadow = this.attachShadow({ mode: 'open' });
+    #resizeObserver = new ResizeObserver(() => this.#checkForOverflowOnResize());
+    #renderBound = this.#render.bind(this);
+    #crumbsData = [];
+    #selectedDOMNode = null;
+    #overflowing = false;
+    #userScrollPosition = 'start';
+    #isObservingResize = false;
+    #userHasManuallyScrolled = false;
     connectedCallback() {
-        this.shadow.adoptedStyleSheets = [elementsBreadcrumbsStyles];
+        this.#shadow.adoptedStyleSheets = [elementsBreadcrumbsStyles];
     }
     set data(data) {
-        this.selectedDOMNode = data.selectedNode;
-        this.crumbsData = data.crumbs;
-        this.userHasManuallyScrolled = false;
-        this.update();
+        this.#selectedDOMNode = data.selectedNode;
+        this.#crumbsData = data.crumbs;
+        this.#userHasManuallyScrolled = false;
+        void ComponentHelpers.ScheduledRender.scheduleRender(this, this.#renderBound);
     }
     disconnectedCallback() {
-        this.isObservingResize = false;
-        this.resizeObserver.disconnect();
+        this.#isObservingResize = false;
+        this.#resizeObserver.disconnect();
     }
-    onCrumbClick(node) {
+    #onCrumbClick(node) {
         return (event) => {
             event.preventDefault();
             this.dispatchEvent(new NodeSelectedEvent(node));
@@ -61,64 +71,9 @@ export class ElementsBreadcrumbs extends HTMLElement {
      *
      * If either of these are true, we toggle the overflowing state accordingly and trigger a re-render.
      */
-    async checkForOverflowOnResize() {
-        const wrappingElement = this.shadow.querySelector('.crumbs');
-        const crumbs = this.shadow.querySelector('.crumbs-scroll-container');
-        if (!wrappingElement || !crumbs) {
-            return;
-        }
-        const totalContainingWidth = await coordinator.read(() => wrappingElement.clientWidth);
-        const totalCrumbsWidth = await coordinator.read(() => crumbs.clientWidth);
-        if (totalCrumbsWidth >= totalContainingWidth && this.overflowing === false) {
-            this.overflowing = true;
-            this.userScrollPosition = 'start';
-            this.render();
-        }
-        else if (totalCrumbsWidth < totalContainingWidth && this.overflowing === true) {
-            this.overflowing = false;
-            this.userScrollPosition = 'start';
-            this.render();
-        }
-    }
-    async update() {
-        await this.render();
-        this.engageResizeObserver();
-        this.ensureSelectedNodeIsVisible();
-    }
-    onCrumbMouseMove(node) {
-        return () => node.highlightNode();
-    }
-    onCrumbMouseLeave(node) {
-        return () => node.clearHighlight();
-    }
-    onCrumbFocus(node) {
-        return () => node.highlightNode();
-    }
-    onCrumbBlur(node) {
-        return () => node.clearHighlight();
-    }
-    engageResizeObserver() {
-        if (!this.resizeObserver || this.isObservingResize === true) {
-            return;
-        }
-        const crumbs = this.shadow.querySelector('.crumbs');
-        if (!crumbs) {
-            return;
-        }
-        this.resizeObserver.observe(crumbs);
-        this.isObservingResize = true;
-    }
-    /**
-     * This method runs after render and checks if the crumbs are too large for
-     * their container and therefore we need to render the overflow buttons at
-     * either end which the user can use to scroll back and forward through the crumbs.
-     * If it finds that we are overflowing, it sets the instance variable and
-     * triggers a re-render. If we are not overflowing, this method returns and
-     * does nothing.
-     */
-    async checkForOverflow() {
-        const crumbScrollContainer = this.shadow.querySelector('.crumbs-scroll-container');
-        const crumbWindow = this.shadow.querySelector('.crumbs-window');
+    async #checkForOverflowOnResize() {
+        const crumbScrollContainer = this.#shadow.querySelector('.crumbs-scroll-container');
+        const crumbWindow = this.#shadow.querySelector('.crumbs-window');
         if (!crumbScrollContainer || !crumbWindow) {
             return;
         }
@@ -128,25 +83,86 @@ export class ElementsBreadcrumbs extends HTMLElement {
         const scrollContainerWidth = await coordinator.read(() => {
             return crumbScrollContainer.clientWidth;
         });
-        const paddingAllowance = 20;
-        const maxChildWidth = crumbWindowWidth - paddingAllowance;
-        if (scrollContainerWidth < maxChildWidth) {
-            if (this.overflowing) {
-                // We were overflowing, but now we have enough room, so re-render with
-                // overflowing set to false so the overflow buttons get removed.
-                this.overflowing = false;
-                this.render();
+        if (this.#overflowing) {
+            // We currently have overflow buttons.
+            // If the content while displaying buttons still fits, then we can
+            // rerender without overflow.
+            if (scrollContainerWidth < crumbWindowWidth) {
+                this.#overflowing = false;
             }
+        }
+        else {
+            // We currently do not have overflow buttons.
+            // If the content won't fit anymore, then rerender with overflow.
+            if (scrollContainerWidth > crumbWindowWidth) {
+                this.#overflowing = true;
+            }
+        }
+        void this.#ensureSelectedNodeIsVisible();
+        void this.#updateScrollState(crumbWindow);
+    }
+    #onCrumbMouseMove(node) {
+        return () => node.highlightNode();
+    }
+    #onCrumbMouseLeave(node) {
+        return () => node.clearHighlight();
+    }
+    #onCrumbFocus(node) {
+        return () => node.highlightNode();
+    }
+    #onCrumbBlur(node) {
+        return () => node.clearHighlight();
+    }
+    #engageResizeObserver() {
+        if (!this.#resizeObserver || this.#isObservingResize === true) {
             return;
         }
-        // We don't have enough room, so if we are not currently overflowing, mark
-        // as overflowing and re-render to update the UI.
-        if (!this.overflowing) {
-            this.overflowing = true;
-            this.render();
+        const crumbs = this.#shadow.querySelector('.crumbs');
+        if (!crumbs) {
+            return;
+        }
+        this.#resizeObserver.observe(crumbs);
+        this.#isObservingResize = true;
+    }
+    /**
+     * This method runs after render or resize and checks if the crumbs are too large
+     * for their container and therefore we need to render the overflow buttons at
+     * either end which the user can use to scroll back and forward through the crumbs.
+     * If it finds that we are overflowing, it sets the instance variable and
+     * triggers a re-render. If we are not overflowing, this method returns and
+     * does nothing.
+     */
+    async #checkForOverflow() {
+        const crumbScrollContainer = this.#shadow.querySelector('.crumbs-scroll-container');
+        const crumbWindow = this.#shadow.querySelector('.crumbs-window');
+        if (!crumbScrollContainer || !crumbWindow) {
+            return;
+        }
+        const crumbWindowWidth = await coordinator.read(() => {
+            return crumbWindow.clientWidth;
+        });
+        const scrollContainerWidth = await coordinator.read(() => {
+            return crumbScrollContainer.clientWidth;
+        });
+        if (this.#overflowing) {
+            // We currently have overflow buttons.
+            // If the content while displaying buttons still fits, then we can
+            // rerender without overflow.
+            if (scrollContainerWidth < crumbWindowWidth) {
+                this.#overflowing = false;
+                void this.#render();
+            }
+        }
+        else {
+            // We currently do not have overflow buttons.
+            // If the content won't fit anymore, then rerender with overflow.
+            if (scrollContainerWidth > crumbWindowWidth) {
+                this.#overflowing = true;
+                void this.#render();
+            }
         }
     }
-    onCrumbsWindowScroll(event) {
+    #onCrumbsWindowScroll(event) {
         if (!event.target) {
             return;
         }
@@ -156,9 +172,9 @@ export class ElementsBreadcrumbs extends HTMLElement {
          * being an element
          */
         const scrollWindow = event.target;
-        this.updateScrollState(scrollWindow);
+        this.#updateScrollState(scrollWindow);
     }
-    updateScrollState(scrollWindow) {
+    #updateScrollState(scrollWindow) {
         const maxScrollLeft = scrollWindow.scrollWidth - scrollWindow.clientWidth;
         const currentScroll = scrollWindow.scrollLeft;
         /**
@@ -173,20 +189,20 @@ export class ElementsBreadcrumbs extends HTMLElement {
          */
         const scrollBeginningAndEndPadding = 10;
         if (currentScroll < scrollBeginningAndEndPadding) {
-            this.userScrollPosition = 'start';
+            this.#userScrollPosition = 'start';
         }
         else if (currentScroll >= maxScrollLeft - scrollBeginningAndEndPadding) {
-            this.userScrollPosition = 'end';
+            this.#userScrollPosition = 'end';
         }
         else {
-            this.userScrollPosition = 'middle';
+            this.#userScrollPosition = 'middle';
         }
-        this.render();
+        void this.#render();
     }
-    onOverflowClick(direction) {
+    #onOverflowClick(direction) {
         return () => {
-            this.userHasManuallyScrolled = true;
-            const scrollWindow = this.shadow.querySelector('.crumbs-window');
+            this.#userHasManuallyScrolled = true;
+            const scrollWindow = this.#shadow.querySelector('.crumbs-window');
             if (!scrollWindow) {
                 return;
             }
@@ -200,68 +216,79 @@ export class ElementsBreadcrumbs extends HTMLElement {
             });
         };
     }
-    renderOverflowButton(direction, disabled) {
+    #renderOverflowButton(direction, disabled) {
         const buttonStyles = LitHtml.Directives.classMap({
             overflow: true,
             [direction]: true,
-            hidden: this.overflowing === false,
+            hidden: !this.#overflowing,
         });
+        const tooltipString = direction === 'left' ? i18nString(UIStrings.scrollLeft) : i18nString(UIStrings.scrollRight);
+        // clang-format off
         return LitHtml.html `
       <button
         class=${buttonStyles}
-        @click=${this.onOverflowClick(direction)}
+        @click=${this.#onOverflowClick(direction)}
         ?disabled=${disabled}
-        aria-label="Scroll ${direction}"
-      >&hellip;</button>
+        aria-label=${tooltipString}
+        title=${tooltipString}>
+        <${IconButton.Icon.Icon.litTagName} .data=${{
+            iconName: 'triangle-' + direction,
+            color: 'var(--color-text-primary)',
+            width: '12px',
+            height: '10px',
+        }}>
+        </${IconButton.Icon.Icon.litTagName}>
+      </button>
       `;
+        // clang-format on
     }
-    async render() {
-        const crumbs = crumbsToRender(this.crumbsData, this.selectedDOMNode);
-        await coordinator.write('Breadcrumbs render', () => {
-            // Disabled until https://crbug.com/1079231 is fixed.
-            // clang-format off
-            LitHtml.render(LitHtml.html `
-        <nav class="crumbs" aria-label="${i18nString(UIStrings.breadcrumbs)}">
-          ${this.renderOverflowButton('left', this.userScrollPosition === 'start')}
+    #render() {
+        const crumbs = crumbsToRender(this.#crumbsData, this.#selectedDOMNode);
+        // Disabled until https://crbug.com/1079231 is fixed.
+        // clang-format off
+        LitHtml.render(LitHtml.html `
+      <nav class="crumbs" aria-label=${i18nString(UIStrings.breadcrumbs)}>
+        ${this.#renderOverflowButton('left', this.#userScrollPosition === 'start')}
 
-          <div class="crumbs-window" @scroll=${this.onCrumbsWindowScroll}>
-            <ul class="crumbs-scroll-container">
-              ${crumbs.map(crumb => {
-                const crumbClasses = {
-                    crumb: true,
-                    selected: crumb.selected,
-                };
-                // eslint-disable-next-line rulesdir/ban_a_tags_in_lit_html
-                return LitHtml.html `
-                  <li class=${LitHtml.Directives.classMap(crumbClasses)}
-                    data-node-id=${crumb.node.id}
-                    data-crumb="true"
-                  >
-                    <a href="#"
-                      draggable=false
-                      class="crumb-link"
-                      @click=${this.onCrumbClick(crumb.node)}
-                      @mousemove=${this.onCrumbMouseMove(crumb.node)}
-                      @mouseleave=${this.onCrumbMouseLeave(crumb.node)}
-                      @focus=${this.onCrumbFocus(crumb.node)}
-                      @blur=${this.onCrumbBlur(crumb.node)}
-                    ><${NodeText.litTagName} data-node-title=${crumb.title.main} .data=${{
-                    nodeTitle: crumb.title.main,
-                    nodeId: crumb.title.extras.id,
-                    nodeClasses: crumb.title.extras.classes,
-                }}></${NodeText.litTagName}></a>
-                  </li>`;
-            })}
-            </ul>
-          </div>
-          ${this.renderOverflowButton('right', this.userScrollPosition === 'end')}
-        </nav>
-      `, this.shadow, { host: this });
-            // clang-format on
-        });
-        this.checkForOverflow();
+        <div class="crumbs-window" @scroll=${this.#onCrumbsWindowScroll}>
+          <ul class="crumbs-scroll-container">
+            ${crumbs.map(crumb => {
+            const crumbClasses = {
+                crumb: true,
+                selected: crumb.selected,
+            };
+            // eslint-disable-next-line rulesdir/ban_a_tags_in_lit_html
+            return LitHtml.html `
+                <li class=${LitHtml.Directives.classMap(crumbClasses)}
+                  data-node-id=${crumb.node.id}
+                  data-crumb="true"
+                >
+                  <a href="#"
+                    draggable=false
+                    class="crumb-link"
+                    @click=${this.#onCrumbClick(crumb.node)}
+                    @mousemove=${this.#onCrumbMouseMove(crumb.node)}
+                    @mouseleave=${this.#onCrumbMouseLeave(crumb.node)}
+                    @focus=${this.#onCrumbFocus(crumb.node)}
+                    @blur=${this.#onCrumbBlur(crumb.node)}
+                  ><${NodeText.NodeText.NodeText.litTagName} data-node-title=${crumb.title.main} .data=${{
+                nodeTitle: crumb.title.main,
+                nodeId: crumb.title.extras.id,
+                nodeClasses: crumb.title.extras.classes,
+            }}></${NodeText.NodeText.NodeText.litTagName}></a>
+                </li>`;
+        })}
+          </ul>
+        </div>
+        ${this.#renderOverflowButton('right', this.#userScrollPosition === 'end')}
+      </nav>
+    `, this.#shadow, { host: this });
+        // clang-format on
+        void this.#checkForOverflow();
+        this.#engageResizeObserver();
+        void this.#ensureSelectedNodeIsVisible();
     }
-    async ensureSelectedNodeIsVisible() {
+    async #ensureSelectedNodeIsVisible() {
         /*
          * If the user has manually scrolled the crumbs in either direction, we
          * effectively hand control over the scrolling down to them. This is to
@@ -272,15 +299,21 @@ export class ElementsBreadcrumbs extends HTMLElement {
          * tree, we will auto-scroll that element into view, because we'll get new
          * data and hence the flag will be reset.
          */
-        if (!this.selectedDOMNode || !this.shadow || !this.overflowing || this.userHasManuallyScrolled) {
+        if (!this.#selectedDOMNode || !this.#shadow || !this.#overflowing || this.#userHasManuallyScrolled) {
             return;
         }
-        const activeCrumbId = this.selectedDOMNode.id;
-        const activeCrumb = this.shadow.querySelector(`.crumb[data-node-id="${activeCrumbId}"]`);
+        const activeCrumbId = this.#selectedDOMNode.id;
+        const activeCrumb = this.#shadow.querySelector(`.crumb[data-node-id="${activeCrumbId}"]`);
         if (activeCrumb) {
             await coordinator.scroll(() => {
                 activeCrumb.scrollIntoView({
-                    behavior: 'smooth',
+                    // We only want to scroll smoothly when the user is clicking the
+                    // buttons manually. If we are automatically scrolling, we could be
+                    // scrolling a long distance, so just jump there right away. This
+                    // most commonly occurs when the user first opens DevTools on a
+                    // deeply nested element, and the slow scrolling of the breadcrumbs
+                    // is just a distraction and not useful.
+                    behavior: 'auto',
                 });
             });
         }

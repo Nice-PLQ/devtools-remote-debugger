@@ -1,9 +1,10 @@
-import * as TimelineModel from '../../models/timeline_model/timeline_model.js';
+import * as SDK from '../../core/sdk/sdk.js';
 import * as PerfUI from '../../ui/legacy/components/perf_ui/perf_ui.js';
 import * as UI from '../../ui/legacy/legacy.js';
-import type { PerformanceModel } from './PerformanceModel.js';
-import type { TimelineModeViewDelegate } from './TimelinePanel.js';
+import { type PerformanceModel } from './PerformanceModel.js';
+import { type TimelineModeViewDelegate } from './TimelinePanel.js';
 export declare class CountersGraph extends UI.Widget.VBox {
+    #private;
     private readonly delegate;
     private readonly calculator;
     private model;
@@ -17,11 +18,10 @@ export declare class CountersGraph extends UI.Widget.VBox {
     private readonly counterUI;
     private readonly countersByName;
     private readonly gpuMemoryCounter;
-    private track?;
     currentValuesBar?: HTMLElement;
     private markerXPosition?;
     constructor(delegate: TimelineModeViewDelegate);
-    setModel(model: PerformanceModel | null, track: TimelineModel.TimelineModel.Track | null): void;
+    setModel(model: PerformanceModel | null, events: SDK.TracingModel.CompatibleTraceEvent[] | null): void;
     private createCurrentValuesBar;
     private createCounter;
     resizerElement(): Element | null;

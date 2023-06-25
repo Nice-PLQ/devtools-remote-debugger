@@ -31,11 +31,11 @@ export declare class TimelineFrameModel {
     } | null>;
     reset(): void;
     handleBeginFrame(startTime: number, seqId: number): void;
-    handleDroppedFrame(startTime: number, seqId: number): void;
+    handleDroppedFrame(startTime: number, seqId: number, isPartial: boolean): void;
     handleDrawFrame(startTime: number, seqId: number): void;
     handleActivateLayerTree(): void;
     handleRequestMainThreadFrame(): void;
-    handleCompositeLayers(): void;
+    handleCommit(): void;
     handleLayerTreeSnapshot(layerTree: TracingFrameLayerTree): void;
     handleNeedFrameChanged(startTime: number, needsBeginFrame: boolean): void;
     private startFrame;
@@ -71,6 +71,7 @@ export declare class TimelineFrame {
     cpuTime: number;
     idle: boolean;
     dropped: boolean;
+    isPartial: boolean;
     layerTree: TracingFrameLayerTree | null;
     paints: LayerPaintEvent[];
     mainFrameId: number | undefined;
@@ -113,14 +114,16 @@ declare class BeginFrameInfo {
     seqId: number;
     startTime: number;
     isDropped: boolean;
-    constructor(seqId: number, startTime: number, isDropped: boolean);
+    isPartial: boolean;
+    constructor(seqId: number, startTime: number, isDropped: boolean, isPartial: boolean);
 }
 export declare class TimelineFrameBeginFrameQueue {
     private queueFrames;
     private mapFrames;
     constructor();
-    addFrameIfNotExists(seqId: number, startTime: number, isDropped: boolean): void;
+    addFrameIfNotExists(seqId: number, startTime: number, isDropped: boolean, isPartial: boolean): void;
     setDropped(seqId: number, isDropped: boolean): void;
+    setPartial(seqId: number, isPartial: boolean): void;
     processPendingBeginFramesOnDrawFrame(seqId: number): BeginFrameInfo[];
 }
 export {};

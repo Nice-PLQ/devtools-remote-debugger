@@ -1,6 +1,6 @@
 import * as DataGrid from '../../ui/legacy/components/data_grid/data_grid.js';
 import * as UI from '../../ui/legacy/legacy.js';
-import type { PlayerEvent } from './MediaModel.js';
+import { type PlayerEvent } from './MediaModel.js';
 export interface EventDisplayColumnConfig {
     id: string;
     title: string;

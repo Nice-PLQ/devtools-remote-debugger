@@ -3,9 +3,7 @@
 // found in the LICENSE file.
 import * as Common from '../../core/common/common.js';
 import * as Host from '../../core/host/host.js';
-import * as i18n from '../../core/i18n/i18n.js';
 import * as Platform from '../../core/platform/platform.js';
-import * as Root from '../../core/root/root.js';
 import * as SDK from '../../core/sdk/sdk.js';
 import * as Workspace from '../../models/workspace/workspace.js';
 import * as LighthouseReport from '../../third_party/lighthouse/report/report.js';
@@ -13,56 +11,86 @@ import * as Components from '../../ui/legacy/components/utils/utils.js';
 import * as UI from '../../ui/legacy/legacy.js';
 import * as ThemeSupport from '../../ui/legacy/theme_support/theme_support.js';
 import * as Timeline from '../timeline/timeline.js';
-const UIStrings = {
-    /**
-    *@description Label for view trace button when simulated throttling is enabled
-    */
-    viewOriginalTrace: 'View Original Trace',
-    /**
-    *@description Text of the timeline button in Lighthouse Report Renderer
-    */
-    viewTrace: 'View Trace',
-    /**
-    *@description Help text for 'View Trace' button
-    */
-    thePerformanceMetricsAboveAre: 'The performance metrics above are simulated and won\'t match the timings found in this trace. Disable simulated throttling in "Lighthouse Settings" if you want the timings to match.',
-};
-const str_ = i18n.i18n.registerUIStrings('panels/lighthouse/LighthouseReportRenderer.ts', UIStrings);
-const i18nString = i18n.i18n.getLocalizedString.bind(undefined, str_);
 const MaxLengthForLinks = 40;
-export class LighthouseReportRenderer extends LighthouseReport.ReportRenderer {
-    constructor(dom) {
-        super(dom);
-    }
-    static addViewTraceButton(el, reportUIFeatures, artifacts) {
-        if (!artifacts || !artifacts.traces || !artifacts.traces.defaultPass) {
-            return;
+export class LighthouseReportRenderer {
+    static renderLighthouseReport(lhr, artifacts, opts) {
+        let onViewTrace = undefined;
+        if (artifacts) {
+            onViewTrace = async () => {
+                const defaultPassTrace = artifacts.traces.defaultPass;
+                Host.userMetrics.actionTaken(Host.UserMetrics.Action.LighthouseViewTrace);
+                await UI.InspectorView.InspectorView.instance().showPanel('timeline');
+                Timeline.TimelinePanel.TimelinePanel.instance().loadFromEvents(defaultPassTrace.traceEvents);
+            };
         }
-        const simulated = artifacts.settings.throttlingMethod === 'simulate';
-        const container = el.querySelector('.lh-audit-group');
-        if (!container) {
-            return;
+        async function onSaveFileOverride(blob) {
+            const domain = new Common.ParsedURL.ParsedURL(lhr.finalUrl || lhr.finalDisplayedUrl).domain();
+            const sanitizedDomain = domain.replace(/[^a-z0-9.-]+/gi, '_');
+            const timestamp = Platform.DateUtilities.toISO8601Compact(new Date(lhr.fetchTime));
+            const ext = blob.type.match('json') ? '.json' : '.html';
+            const basename = `${sanitizedDomain}-${timestamp}${ext}`;
+            const text = await blob.text();
+            void Workspace.FileManager.FileManager.instance().save(basename, text, true /* forceSaveAs */);
         }
-        const defaultPassTrace = artifacts.traces.defaultPass;
-        const text = simulated ? i18nString(UIStrings.viewOriginalTrace) : i18nString(UIStrings.viewTrace);
-        const timelineButton = reportUIFeatures.addButton({
-            text,
-            onClick: onViewTraceClick,
-        });
-        if (timelineButton) {
-            timelineButton.classList.add('lh-button--trace');
-            if (simulated) {
-                UI.Tooltip.Tooltip.install(timelineButton, i18nString(UIStrings.thePerformanceMetricsAboveAre));
+        async function onPrintOverride(rootEl) {
+            const clonedReport = rootEl.cloneNode(true);
+            const printWindow = window.open('', '_blank', 'channelmode=1,status=1,resizable=1');
+            if (!printWindow) {
+                return;
             }
+            printWindow.document.body.replaceWith(clonedReport);
+            // Linkified nodes are shadow elements, which aren't exposed via `cloneNode`.
+            await LighthouseReportRenderer.linkifyNodeDetails(clonedReport);
+            opts?.beforePrint?.();
+            printWindow.focus();
+            printWindow.print();
+            printWindow.close();
+            opts?.afterPrint?.();
         }
-        async function onViewTraceClick() {
-            Host.userMetrics.actionTaken(Host.UserMetrics.Action.LighthouseViewTrace);
-            await UI.InspectorView.InspectorView.instance().showPanel('timeline');
-            Timeline.TimelinePanel.TimelinePanel.instance().loadFromEvents(defaultPassTrace.traceEvents);
+        function getStandaloneReportHTML() {
+            // @ts-expect-error https://github.com/GoogleChrome/lighthouse/issues/11628
+            return Lighthouse.ReportGenerator.ReportGenerator.generateReportHtml(lhr);
         }
+        const reportEl = LighthouseReport.renderReport(lhr, {
+            // Disable dark mode so we can manually adjust it.
+            disableDarkMode: true,
+            onViewTrace,
+            onSaveFileOverride,
+            onPrintOverride,
+            getStandaloneReportHTML,
+        });
+        reportEl.classList.add('lh-devtools');
+        const updateDarkModeIfNecessary = () => {
+            reportEl.classList.toggle('lh-dark', ThemeSupport.ThemeSupport.instance().themeName() === 'dark');
+        };
+        ThemeSupport.ThemeSupport.instance().addEventListener(ThemeSupport.ThemeChangeEvent.eventName, updateDarkModeIfNecessary);
+        updateDarkModeIfNecessary();
+        // @ts-ignore Expose LHR on DOM for e2e tests
+        reportEl._lighthouseResultForTesting = lhr;
+        // @ts-ignore Expose Artifacts on DOM for e2e tests
+        reportEl._lighthouseArtifactsForTesting = artifacts;
+        // Linkifying requires the target be loaded. Do not block the report
+        // from rendering, as this is just an embellishment and the main target
+        // could take awhile to load.
+        void LighthouseReportRenderer.waitForMainTargetLoad().then(() => {
+            void LighthouseReportRenderer.linkifyNodeDetails(reportEl);
+            void LighthouseReportRenderer.linkifySourceLocationDetails(reportEl);
+        });
+        return reportEl;
+    }
+    static async waitForMainTargetLoad() {
+        const mainTarget = SDK.TargetManager.TargetManager.instance().primaryPageTarget();
+        if (!mainTarget) {
+            return;
+        }
+        const resourceTreeModel = mainTarget.model(SDK.ResourceTreeModel.ResourceTreeModel);
+        if (!resourceTreeModel) {
+            return;
+        }
+        await resourceTreeModel.once(SDK.ResourceTreeModel.Events.Load);
     }
     static async linkifyNodeDetails(el) {
-        const mainTarget = SDK.TargetManager.TargetManager.instance().mainTarget();
+        const mainTarget = SDK.TargetManager.TargetManager.instance().primaryPageTarget();
         if (!mainTarget) {
             return;
         }
@@ -110,93 +138,11 @@ export class LighthouseReportRenderer extends LighthouseReport.ReportRenderer {
                 showColumnNumber: false,
                 inlineFrameIndex: 0,
                 maxLength: MaxLengthForLinks,
-                bypassURLTrimming: undefined,
-                className: undefined,
-                preventClick: undefined,
-                tabStop: undefined,
-                text: undefined,
             });
             UI.Tooltip.Tooltip.install(origHTMLElement, '');
             origHTMLElement.textContent = '';
             origHTMLElement.appendChild(element);
         }
-    }
-    static handleDarkMode(el) {
-        if (ThemeSupport.ThemeSupport.instance().themeName() === 'dark') {
-            el.classList.add('lh-dark');
-        }
-    }
-}
-// @ts-ignore https://github.com/GoogleChrome/lighthouse/issues/11628
-export class LighthouseReportUIFeatures extends LighthouseReport.ReportUIFeatures {
-    beforePrint;
-    afterPrint;
-    constructor(dom) {
-        super(dom);
-        this.beforePrint = null;
-        this.afterPrint = null;
-        this._topbar._print = this._print.bind(this);
-    }
-    setBeforePrint(beforePrint) {
-        this.beforePrint = beforePrint;
-    }
-    setAfterPrint(afterPrint) {
-        this.afterPrint = afterPrint;
-    }
-    /**
-     * Returns the html that recreates this report.
-     */
-    getReportHtml() {
-        this.resetUIState();
-        // @ts-expect-error https://github.com/GoogleChrome/lighthouse/issues/11628
-        return Lighthouse.ReportGenerator.generateReportHtml(this.json);
-    }
-    /**
-     * Downloads a file (blob) using the system dialog prompt.
-     */
-    // This implements the interface ReportUIFeatures from lighthouse
-    // which follows a different naming convention.
-    // eslint-disable-next-line rulesdir/no_underscored_properties, @typescript-eslint/naming-convention
-    async _saveFile(blob) {
-        const domain = new Common.ParsedURL.ParsedURL(this.json.finalUrl).domain();
-        const sanitizedDomain = domain.replace(/[^a-z0-9.-]+/gi, '_');
-        const timestamp = Platform.DateUtilities.toISO8601Compact(new Date(this.json.fetchTime));
-        const ext = blob.type.match('json') ? '.json' : '.html';
-        const basename = `${sanitizedDomain}-${timestamp}${ext}`;
-        const text = await blob.text();
-        Workspace.FileManager.FileManager.instance().save(basename, text, true /* forceSaveAs */);
-    }
-    // This implements the interface ReportUIFeatures from lighthouse
-    // which follows a different naming convention.
-    // eslint-disable-next-line rulesdir/no_underscored_properties, @typescript-eslint/naming-convention
-    async _print() {
-        const document = this.getDocument();
-        const clonedReport = document.querySelector('.lh-root').cloneNode(true);
-        const printWindow = window.open('', '_blank', 'channelmode=1,status=1,resizable=1');
-        if (!printWindow) {
-            return;
-        }
-        const style = printWindow.document.createElement('style');
-        style.textContent = Root.Runtime.cachedResources.get('third_party/lighthouse/report-assets/report.css') || '';
-        printWindow.document.head.appendChild(style);
-        printWindow.document.body.replaceWith(clonedReport);
-        // Linkified nodes are shadow elements, which aren't exposed via `cloneNode`.
-        await LighthouseReportRenderer.linkifyNodeDetails(clonedReport);
-        if (this.beforePrint) {
-            this.beforePrint();
-        }
-        printWindow.focus();
-        printWindow.print();
-        printWindow.close();
-        if (this.afterPrint) {
-            this.afterPrint();
-        }
-    }
-    getDocument() {
-        return this._document;
-    }
-    resetUIState() {
-        this._resetUIState();
     }
 }
 //# sourceMappingURL=LighthouseReportRenderer.js.map

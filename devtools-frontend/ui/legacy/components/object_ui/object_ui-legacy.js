@@ -8,11 +8,6 @@ ObjectUI = ObjectUI || {};
 /** @constructor */
 ObjectUI.CustomPreviewComponent = ObjectUIModule.CustomPreviewComponent.CustomPreviewComponent;
 /** @constructor */
-ObjectUI.JavaScriptAutocomplete = ObjectUIModule.JavaScriptAutocomplete.JavaScriptAutocomplete;
-/** @constructor */
-ObjectUI.JavaScriptAutocompleteConfig = ObjectUIModule.JavaScriptAutocomplete.JavaScriptAutocompleteConfig;
-ObjectUI.javaScriptAutocomplete = ObjectUIModule.javaScriptAutocomplete;
-/** @constructor */
 ObjectUI.JavaScriptREPL = ObjectUIModule.JavaScriptREPL.JavaScriptREPL;
 Object.defineProperty(ObjectUI.JavaScriptREPL, '_MaxLengthForEvaluation', {
     set: ObjectUIModule.JavaScriptREPL.setMaxLengthForEvaluation,

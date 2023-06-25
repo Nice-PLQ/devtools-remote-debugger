@@ -1,5 +1,5 @@
 import * as UI from '../../ui/legacy/legacy.js';
-import type { SearchConfig, SearchResult } from './SearchConfig.js';
+import { type SearchConfig, type SearchResult } from './SearchConfig.js';
 export declare class SearchResultsPane extends UI.Widget.VBox {
     private readonly searchConfig;
     private readonly searchResults;

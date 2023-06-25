@@ -13,40 +13,44 @@ import permissionsPolicySectionStyles from './permissionsPolicySection.css.js';
 import * as Common from '../../../core/common/common.js';
 const UIStrings = {
     /**
-    *@description Label for a button. When clicked more details (for the content this button refers to) will be shown.
-    */
+     *@description Label for a button. When clicked more details (for the content this button refers to) will be shown.
+     */
     showDetails: 'Show details',
     /**
-    *@description Label for a button. When clicked some details (for the content this button refers to) will be hidden.
-    */
+     *@description Label for a button. When clicked some details (for the content this button refers to) will be hidden.
+     */
     hideDetails: 'Hide details',
     /**
-    *@description Label for a list of features which are allowed according to the current Permissions policy
-    *(a mechanism that allows developers to enable/disable browser features and APIs (e.g. camera, geolocation, autoplay))
-    */
+     *@description Label for a list of features which are allowed according to the current Permissions policy
+     *(a mechanism that allows developers to enable/disable browser features and APIs (e.g. camera, geolocation, autoplay))
+     */
     allowedFeatures: 'Allowed Features',
     /**
-    *@description Label for a list of features which are disabled according to the current Permissions policy
-    *(a mechanism that allows developers to enable/disable browser features and APIs (e.g. camera, geolocation, autoplay))
-    */
+     *@description Label for a list of features which are disabled according to the current Permissions policy
+     *(a mechanism that allows developers to enable/disable browser features and APIs (e.g. camera, geolocation, autoplay))
+     */
     disabledFeatures: 'Disabled Features',
     /**
-    *@description Tooltip text for a link to a specific request's headers in the Network panel.
-    */
+     *@description Tooltip text for a link to a specific request's headers in the Network panel.
+     */
     clickToShowHeader: 'Click to reveal the request whose "`Permissions-Policy`" HTTP header disables this feature.',
     /**
-    *@description Tooltip text for a link to a specific iframe in the Elements panel (Iframes can be nested, the link goes
-    *  to the outer-most iframe which blocks a certain feature).
-    */
+     *@description Tooltip text for a link to a specific iframe in the Elements panel (Iframes can be nested, the link goes
+     *  to the outer-most iframe which blocks a certain feature).
+     */
     clickToShowIframe: 'Click to reveal the top-most iframe which does not allow this feature in the elements panel.',
     /**
-    *@description Text describing that a specific feature is blocked by not being included in the iframe's "allow" attribute.
-    */
+     *@description Text describing that a specific feature is blocked by not being included in the iframe's "allow" attribute.
+     */
     disabledByIframe: 'missing in iframe "`allow`" attribute',
     /**
-    *@description Text describing that a specific feature is blocked by a Permissions Policy specified in a request header.
-    */
+     *@description Text describing that a specific feature is blocked by a Permissions Policy specified in a request header.
+     */
     disabledByHeader: 'disabled by "`Permissions-Policy`" header',
+    /**
+     *@description Text describing that a specific feature is blocked by virtue of being inside a fenced frame tree.
+     */
+    disabledByFencedFrame: 'disabled inside a `fencedframe`',
 };
 const str_ = i18n.i18n.registerUIStrings('panels/application/components/PermissionsPolicySection.ts', UIStrings);
 const i18nString = i18n.i18n.getLocalizedString.bind(undefined, str_);
@@ -58,7 +62,7 @@ export function renderIconLink(iconName, title, clickHandler) {
     <button class="link" role="link" tabindex=0 @click=${clickHandler} title=${title}>
       <${IconButton.Icon.Icon.litTagName} .data=${{
         iconName: iconName,
-        color: 'var(--color-primary)',
+        color: 'var(--icon-link)',
         width: '16px',
         height: '16px',
     }}>
@@ -69,21 +73,21 @@ export function renderIconLink(iconName, title, clickHandler) {
 }
 export class PermissionsPolicySection extends HTMLElement {
     static litTagName = LitHtml.literal `devtools-resources-permissions-policy-section`;
-    shadow = this.attachShadow({ mode: 'open' });
-    permissionsPolicySectionData = { policies: [], showDetails: false };
+    #shadow = this.attachShadow({ mode: 'open' });
+    #permissionsPolicySectionData = { policies: [], showDetails: false };
     set data(data) {
-        this.permissionsPolicySectionData = data;
-        this.render();
+        this.#permissionsPolicySectionData = data;
+        void this.#render();
     }
     connectedCallback() {
-        this.shadow.adoptedStyleSheets = [permissionsPolicySectionStyles];
+        this.#shadow.adoptedStyleSheets = [permissionsPolicySectionStyles];
     }
-    toggleShowPermissionsDisallowedDetails() {
-        this.permissionsPolicySectionData.showDetails = !this.permissionsPolicySectionData.showDetails;
-        this.render();
+    #toggleShowPermissionsDisallowedDetails() {
+        this.#permissionsPolicySectionData.showDetails = !this.#permissionsPolicySectionData.showDetails;
+        void this.#render();
     }
-    renderAllowed() {
-        const allowed = this.permissionsPolicySectionData.policies.filter(p => p.allowed).map(p => p.feature).sort();
+    #renderAllowed() {
+        const allowed = this.#permissionsPolicySectionData.policies.filter(p => p.allowed).map(p => p.feature).sort();
         if (!allowed.length) {
             return LitHtml.nothing;
         }
@@ -94,18 +98,18 @@ export class PermissionsPolicySection extends HTMLElement {
       </${ReportView.ReportView.ReportValue.litTagName}>
     `;
     }
-    async renderDisallowed() {
-        const disallowed = this.permissionsPolicySectionData.policies.filter(p => !p.allowed)
+    async #renderDisallowed() {
+        const disallowed = this.#permissionsPolicySectionData.policies.filter(p => !p.allowed)
             .sort((a, b) => a.feature.localeCompare(b.feature));
         if (!disallowed.length) {
             return LitHtml.nothing;
         }
-        if (!this.permissionsPolicySectionData.showDetails) {
+        if (!this.#permissionsPolicySectionData.showDetails) {
             return LitHtml.html `
         <${ReportView.ReportView.ReportKey.litTagName}>${i18nString(UIStrings.disabledFeatures)}</${ReportView.ReportView.ReportKey.litTagName}>
         <${ReportView.ReportView.ReportValue.litTagName}>
           ${disallowed.map(p => p.feature).join(', ')}
-          <button class="link" @click=${() => this.toggleShowPermissionsDisallowedDetails()}>
+          <button class="link" @click=${() => this.#toggleShowPermissionsDisallowedDetails()}>
             ${i18nString(UIStrings.showDetails)}
           </button>
         </${ReportView.ReportView.ReportValue.litTagName}>
@@ -115,14 +119,22 @@ export class PermissionsPolicySection extends HTMLElement {
         const featureRows = await Promise.all(disallowed.map(async (policy) => {
             const frame = policy.locator ? frameManager.getFrame(policy.locator.frameId) : null;
             const blockReason = policy.locator?.blockReason;
-            const linkTargetDOMNode = await (blockReason === "IframeAttribute" /* IframeAttribute */ && frame &&
+            const linkTargetDOMNode = await (blockReason === "IframeAttribute" /* Protocol.Page.PermissionsPolicyBlockReason.IframeAttribute */ && frame &&
                 frame.getOwnerDOMNodeOrDocument());
             const resource = frame && frame.resourceForURL(frame.url);
-            const linkTargetRequest = blockReason === "Header" /* Header */ && resource && resource.request;
-            const blockReasonText = blockReason === "IframeAttribute" /* IframeAttribute */ ?
-                i18nString(UIStrings.disabledByIframe) :
-                blockReason === "Header" /* Header */ ? i18nString(UIStrings.disabledByHeader) :
-                    '';
+            const linkTargetRequest = blockReason === "Header" /* Protocol.Page.PermissionsPolicyBlockReason.Header */ && resource && resource.request;
+            const blockReasonText = (() => {
+                switch (blockReason) {
+                    case "IframeAttribute" /* Protocol.Page.PermissionsPolicyBlockReason.IframeAttribute */:
+                        return i18nString(UIStrings.disabledByIframe);
+                    case "Header" /* Protocol.Page.PermissionsPolicyBlockReason.Header */:
+                        return i18nString(UIStrings.disabledByHeader);
+                    case "InFencedFrameTree" /* Protocol.Page.PermissionsPolicyBlockReason.InFencedFrameTree */:
+                        return i18nString(UIStrings.disabledByFencedFrame);
+                    default:
+                        return '';
+                }
+            })();
             const revealHeader = async () => {
                 if (!linkTargetRequest) {
                     return;
@@ -131,11 +143,17 @@ export class PermissionsPolicySection extends HTMLElement {
                 const requestLocation = NetworkForward.UIRequestLocation.UIRequestLocation.responseHeaderMatch(linkTargetRequest, { name: headerName, value: '' });
                 await Common.Revealer.reveal(requestLocation);
             };
+            // Disabled until https://crbug.com/1079231 is fixed.
+            // clang-format off
             return LitHtml.html `
         <div class="permissions-row">
           <div>
             <${IconButton.Icon.Icon.litTagName} class="allowed-icon"
-              .data=${{ color: '', iconName: 'error_icon', width: '14px' }}>
+              .data=${{
+                color: 'var(--icon-error)',
+                iconName: 'cross-circle',
+                width: '20px', height: '20px',
+            }}>
             </${IconButton.Icon.Icon.litTagName}>
           </div>
           <div class="feature-name text-ellipsis">
@@ -143,36 +161,37 @@ export class PermissionsPolicySection extends HTMLElement {
           </div>
           <div class="block-reason">${blockReasonText}</div>
           <div>
-            ${linkTargetDOMNode ? renderIconLink('elements_panel_icon', i18nString(UIStrings.clickToShowIframe), () => Common.Revealer.reveal(linkTargetDOMNode)) :
+            ${linkTargetDOMNode ? renderIconLink('code-circle', i18nString(UIStrings.clickToShowIframe), () => Common.Revealer.reveal(linkTargetDOMNode)) :
                 LitHtml.nothing}
-            ${linkTargetRequest ? renderIconLink('network_panel_icon', i18nString(UIStrings.clickToShowHeader), revealHeader) :
+            ${linkTargetRequest ? renderIconLink('arrow-up-down-circle', i18nString(UIStrings.clickToShowHeader), revealHeader) :
                 LitHtml.nothing}
           </div>
         </div>
       `;
+            // clang-format on
         }));
         return LitHtml.html `
       <${ReportView.ReportView.ReportKey.litTagName}>${i18nString(UIStrings.disabledFeatures)}</${ReportView.ReportView.ReportKey.litTagName}>
       <${ReportView.ReportView.ReportValue.litTagName} class="policies-list">
         ${featureRows}
         <div class="permissions-row">
-          <button class="link" @click=${() => this.toggleShowPermissionsDisallowedDetails()}>
+          <button class="link" @click=${() => this.#toggleShowPermissionsDisallowedDetails()}>
             ${i18nString(UIStrings.hideDetails)}
           </button>
         </div>
       </${ReportView.ReportView.ReportValue.litTagName}>
     `;
     }
-    async render() {
+    async #render() {
         await coordinator.write('PermissionsPolicySection render', () => {
             // Disabled until https://crbug.com/1079231 is fixed.
             // clang-format off
             LitHtml.render(LitHtml.html `
           <${ReportView.ReportView.ReportSectionHeader.litTagName}>${i18n.i18n.lockedString('Permissions Policy')}</${ReportView.ReportView.ReportSectionHeader.litTagName}>
-          ${this.renderAllowed()}
-          ${LitHtml.Directives.until(this.renderDisallowed(), LitHtml.nothing)}
+          ${this.#renderAllowed()}
+          ${LitHtml.Directives.until(this.#renderDisallowed(), LitHtml.nothing)}
           <${ReportView.ReportView.ReportSectionDivider.litTagName}></${ReportView.ReportView.ReportSectionDivider.litTagName}>
-        `, this.shadow, { host: this });
+        `, this.#shadow, { host: this });
             // clang-format on
         });
     }

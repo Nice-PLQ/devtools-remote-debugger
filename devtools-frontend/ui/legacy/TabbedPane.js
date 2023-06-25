@@ -40,35 +40,36 @@ import { Tooltip } from './Tooltip.js';
 import { installDragHandle, invokeOnceAfterBatchUpdate } from './UIUtils.js';
 import { VBox } from './Widget.js';
 import { ZoomManager } from './ZoomManager.js';
+import tabbedPaneStyles from './tabbedPane.css.legacy.js';
 const UIStrings = {
     /**
-    *@description The aria label for the button to open more tabs at the right tabbed pane in Elements tools
-    */
+     *@description The aria label for the button to open more tabs at the right tabbed pane in Elements tools
+     */
     moreTabs: 'More tabs',
     /**
-    *@description Text in Tabbed Pane
-    *@example {tab} PH1
-    */
+     *@description Text in Tabbed Pane
+     *@example {tab} PH1
+     */
     closeS: 'Close {PH1}',
     /**
-    *@description Text to close something
-    */
+     *@description Text to close something
+     */
     close: 'Close',
     /**
-    *@description Text on a menu option to close other drawers when right click on a drawer title
-    */
+     *@description Text on a menu option to close other drawers when right click on a drawer title
+     */
     closeOthers: 'Close others',
     /**
-    *@description Text on a menu option to close the drawer to the right when right click on a drawer title
-    */
+     *@description Text on a menu option to close the drawer to the right when right click on a drawer title
+     */
     closeTabsToTheRight: 'Close tabs to the right',
     /**
-    *@description Text on a menu option to close all the drawers except Console when right click on a drawer title
-    */
+     *@description Text on a menu option to close all the drawers except Console when right click on a drawer title
+     */
     closeAll: 'Close all',
     /**
-    *@description Indicates that a tab contains a preview feature (i.e., a beta / experimental feature).
-    */
+     *@description Indicates that a tab contains a preview feature (i.e., a beta / experimental feature).
+     */
     previewFeature: 'Preview feature',
 };
 const str_ = i18n.i18n.registerUIStrings('ui/legacy/TabbedPane.ts', UIStrings);
@@ -105,7 +106,7 @@ export class TabbedPane extends Common.ObjectWrapper.eventMixin(VBox) {
     automaticReorder;
     constructor() {
         super(true);
-        this.registerRequiredCSS('ui/legacy/tabbedPane.css');
+        this.registerRequiredCSS(tabbedPaneStyles);
         this.element.classList.add('tabbed-pane');
         this.contentElement.classList.add('tabbed-pane-shadow');
         this.contentElement.tabIndex = -1;
@@ -127,11 +128,11 @@ export class TabbedPane extends Common.ObjectWrapper.eventMixin(VBox) {
         this.triggerDropDownTimeout = null;
         this.dropDownButton = this.createDropDownButton();
         this.currentDevicePixelRatio = window.devicePixelRatio;
-        ZoomManager.instance().addEventListener("ZoomChanged" /* ZoomChanged */, this.zoomChanged, this);
+        ZoomManager.instance().addEventListener("ZoomChanged" /* ZoomManagerEvents.ZoomChanged */, this.zoomChanged, this);
         this.makeTabSlider();
     }
     setAccessibleName(name) {
-        ARIAUtils.setAccessibleName(this.tabsElement, name);
+        ARIAUtils.setLabel(this.tabsElement, name);
     }
     setCurrentTabLocked(locked) {
         this.currentTabLocked = locked;
@@ -208,6 +209,7 @@ export class TabbedPane extends Common.ObjectWrapper.eventMixin(VBox) {
         tab.setDelegate(this.delegate);
         console.assert(!this.tabsById.has(id), `Tabbed pane already contains a tab with id '${id}'`);
         this.tabsById.set(id, tab);
+        tab.tabElement.tabIndex = -1;
         if (index !== undefined) {
             this.tabs.splice(index, 0, tab);
         }
@@ -381,7 +383,7 @@ export class TabbedPane extends Common.ObjectWrapper.eventMixin(VBox) {
         }
         if (tab && tab.title !== tabTitle) {
             tab.title = tabTitle;
-            ARIAUtils.setAccessibleName(tab.tabElement, tabTitle);
+            ARIAUtils.setLabel(tab.tabElement, tabTitle);
             this.updateTabElements();
         }
     }
@@ -522,15 +524,17 @@ export class TabbedPane extends Common.ObjectWrapper.eventMixin(VBox) {
     createDropDownButton() {
         const dropDownContainer = document.createElement('div');
         dropDownContainer.classList.add('tabbed-pane-header-tabs-drop-down-container');
-        const chevronIcon = Icon.create('largeicon-chevron', 'chevron-icon');
+        const chevronIcon = Icon.create('chevron-double-right', 'chevron-icon');
+        const moreTabsString = i18nString(UIStrings.moreTabs);
+        dropDownContainer.title = moreTabsString;
         ARIAUtils.markAsMenuButton(dropDownContainer);
-        ARIAUtils.setAccessibleName(dropDownContainer, i18nString(UIStrings.moreTabs));
+        ARIAUtils.setLabel(dropDownContainer, moreTabsString);
         dropDownContainer.tabIndex = 0;
         dropDownContainer.appendChild(chevronIcon);
         dropDownContainer.addEventListener('click', this.dropDownClicked.bind(this));
         dropDownContainer.addEventListener('keydown', this.dropDownKeydown.bind(this));
         dropDownContainer.addEventListener('mousedown', event => {
-            if (event.which !== 1 || this.triggerDropDownTimeout) {
+            if (event.button !== 0 || this.triggerDropDownTimeout) {
                 return;
             }
             this.triggerDropDownTimeout = window.setTimeout(this.dropDownClicked.bind(this, event), 200);
@@ -539,7 +543,7 @@ export class TabbedPane extends Common.ObjectWrapper.eventMixin(VBox) {
     }
     dropDownClicked(ev) {
         const event = ev;
-        if (event.which !== 1) {
+        if (event.button !== 0) {
             return;
         }
         if (this.triggerDropDownTimeout) {
@@ -563,10 +567,10 @@ export class TabbedPane extends Common.ObjectWrapper.eventMixin(VBox) {
                 menu.defaultSection().appendItem(tab.title, this.dropDownMenuItemSelected.bind(this, tab));
             }
         }
-        menu.show();
+        void menu.show();
     }
     dropDownKeydown(event) {
-        if (isEnterOrSpaceKey(event)) {
+        if (Platform.KeyboardUtilities.isEnterOrSpaceKey(event)) {
             this.dropDownButton.click();
             event.consume(true);
         }
@@ -759,6 +763,7 @@ export class TabbedPane extends Common.ObjectWrapper.eventMixin(VBox) {
     hideTab(tab) {
         tab.tabElement.removeAttribute('tabIndex');
         tab.tabElement.classList.remove('selected');
+        tab.tabElement.tabIndex = -1;
         tab.tabElement.setAttribute('aria-selected', 'false');
         tab.view.detach();
     }
@@ -887,6 +892,9 @@ export class TabbedPaneTab {
         this.titleInternal = title;
         if (this.titleElement) {
             this.titleElement.textContent = title;
+            const closeIconContainer = this.tabElementInternal?.querySelector('.close-button');
+            closeIconContainer?.setAttribute('title', i18nString(UIStrings.closeS, { PH1: title }));
+            closeIconContainer?.setAttribute('aria-label', i18nString(UIStrings.closeS, { PH1: title }));
         }
         delete this.measuredWidth;
     }
@@ -963,7 +971,7 @@ export class TabbedPaneTab {
         tabElement.id = 'tab-' + this.idInternal;
         ARIAUtils.markAsTab(tabElement);
         ARIAUtils.setSelected(tabElement, false);
-        ARIAUtils.setAccessibleName(tabElement, this.title);
+        ARIAUtils.setLabel(tabElement, this.title);
         const titleElement = tabElement.createChild('span', 'tabbed-pane-header-tab-title');
         titleElement.textContent = this.title;
         Tooltip.install(titleElement, this.tooltip || '');
@@ -991,7 +999,7 @@ export class TabbedPaneTab {
             tabElement.addEventListener('mouseup', this.tabMouseUp.bind(this), false);
             tabElement.addEventListener('contextmenu', this.tabContextMenu.bind(this), false);
             if (this.tabbedPane.allowTabReorder) {
-                installDragHandle(tabElement, this.startTabDragging.bind(this), this.tabDragging.bind(this), this.endTabDragging.bind(this), '-webkit-grabbing', 'pointer', 200);
+                installDragHandle(tabElement, this.startTabDragging.bind(this), this.tabDragging.bind(this), this.endTabDragging.bind(this), null, null, 200);
             }
         }
         return tabElement;
@@ -1001,9 +1009,9 @@ export class TabbedPaneTab {
         closeIconContainer.classList.add('close-button', 'tabbed-pane-close-button');
         const closeIcon = new IconButton.Icon.Icon();
         closeIcon.data = {
-            iconName: 'close-icon',
+            iconName: 'cross',
             color: 'var(--tabbed-pane-close-icon-color)',
-            width: '7px',
+            width: '16px',
         };
         closeIconContainer.appendChild(closeIcon);
         closeIconContainer.setAttribute('role', 'button');
@@ -1016,9 +1024,9 @@ export class TabbedPaneTab {
         previewIcon.classList.add('preview-icon');
         const closeIcon = new IconButton.Icon.Icon();
         closeIcon.data = {
-            iconName: 'ic_preview_feature',
+            iconName: 'experiment',
             color: 'var(--override-tabbed-pane-preview-icon-color)',
-            width: '14px',
+            width: '16px',
         };
         previewIcon.appendChild(closeIcon);
         previewIcon.setAttribute('title', i18nString(UIStrings.previewFeature));
@@ -1084,7 +1092,7 @@ export class TabbedPaneTab {
         if (this.delegate) {
             this.delegate.onContextMenu(this.id, contextMenu);
         }
-        contextMenu.show();
+        void contextMenu.show();
     }
     startTabDragging(ev) {
         const event = ev;

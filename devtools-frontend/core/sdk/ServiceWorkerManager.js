@@ -38,58 +38,57 @@ import { SDKModel } from './SDKModel.js';
 import { TargetManager } from './TargetManager.js';
 const UIStrings = {
     /**
-    *@description Service worker running status displayed in the Service Workers view in the Application panel
-    */
+     *@description Service worker running status displayed in the Service Workers view in the Application panel
+     */
     running: 'running',
     /**
-    *@description Service worker running status displayed in the Service Workers view in the Application panel
-    */
+     *@description Service worker running status displayed in the Service Workers view in the Application panel
+     */
     starting: 'starting',
     /**
-    *@description Service worker running status displayed in the Service Workers view in the Application panel
-    */
+     *@description Service worker running status displayed in the Service Workers view in the Application panel
+     */
     stopped: 'stopped',
     /**
-    *@description Service worker running status displayed in the Service Workers view in the Application panel
-    */
+     *@description Service worker running status displayed in the Service Workers view in the Application panel
+     */
     stopping: 'stopping',
     /**
-    *@description Service worker version status displayed in the Threads view of the Debugging side pane in the Sources panel
-    */
+     *@description Service worker version status displayed in the Threads view of the Debugging side pane in the Sources panel
+     */
     activated: 'activated',
     /**
-    *@description Service worker version status displayed in the Threads view of the Debugging side pane in the Sources panel
-    */
+     *@description Service worker version status displayed in the Threads view of the Debugging side pane in the Sources panel
+     */
     activating: 'activating',
     /**
-    *@description Service worker version status displayed in the Threads view of the Debugging side pane in the Sources panel
-    */
+     *@description Service worker version status displayed in the Threads view of the Debugging side pane in the Sources panel
+     */
     installed: 'installed',
     /**
-    *@description Service worker version status displayed in the Threads view of the Debugging side pane in the Sources panel
-    */
+     *@description Service worker version status displayed in the Threads view of the Debugging side pane in the Sources panel
+     */
     installing: 'installing',
     /**
-    *@description Service worker version status displayed in the Threads view of the Debugging side pane in the Sources panel
-    */
+     *@description Service worker version status displayed in the Threads view of the Debugging side pane in the Sources panel
+     */
     new: 'new',
     /**
-    *@description Service worker version status displayed in the Threads view of the Debugging side pane in the Sources panel
-    */
+     *@description Service worker version status displayed in the Threads view of the Debugging side pane in the Sources panel
+     */
     redundant: 'redundant',
     /**
-    *@description Service worker version status displayed in the Threads view of the Debugging side pane in the Sources panel
-    *@example {sw.js} PH1
-    *@example {117} PH2
-    *@example {activated} PH3
-    */
+     *@description Service worker version status displayed in the Threads view of the Debugging side pane in the Sources panel
+     *@example {sw.js} PH1
+     *@example {117} PH2
+     *@example {activated} PH3
+     */
     sSS: '{PH1} #{PH2} ({PH3})',
 };
 const str_ = i18n.i18n.registerUIStrings('core/sdk/ServiceWorkerManager.ts', UIStrings);
 const i18nString = i18n.i18n.getLocalizedString.bind(undefined, str_);
 const i18nLazyString = i18n.i18n.getLazilyComputedLocalizedString.bind(undefined, str_);
 export class ServiceWorkerManager extends SDKModel {
-    #lastAnonymousTargetId;
     #agent;
     #registrationsInternal;
     #enabled;
@@ -98,11 +97,10 @@ export class ServiceWorkerManager extends SDKModel {
     constructor(target) {
         super(target);
         target.registerServiceWorkerDispatcher(new ServiceWorkerDispatcher(this));
-        this.#lastAnonymousTargetId = 0;
         this.#agent = target.serviceWorkerAgent();
         this.#registrationsInternal = new Map();
         this.#enabled = false;
-        this.enable();
+        void this.enable();
         this.#forceUpdateSetting = Common.Settings.Settings.instance().createSetting('serviceWorkerUpdateOnReload', false);
         if (this.#forceUpdateSetting.get()) {
             this.forceUpdateSettingChanged();
@@ -162,9 +160,9 @@ export class ServiceWorkerManager extends SDKModel {
         }
         registration.deleting = true;
         for (const version of registration.versions.values()) {
-            this.stopWorker(version.id);
+            void this.stopWorker(version.id);
         }
-        this.unregister(registration.scopeURL);
+        void this.unregister(registration.scopeURL);
     }
     async updateRegistration(registrationId) {
         const registration = this.#registrationsInternal.get(registrationId);
@@ -264,7 +262,7 @@ export class ServiceWorkerManager extends SDKModel {
     }
     forceUpdateSettingChanged() {
         const forceUpdateOnPageLoad = this.#forceUpdateSetting.get();
-        this.#agent.invoke_setForceUpdateOnPageLoad({ forceUpdateOnPageLoad });
+        void this.#agent.invoke_setForceUpdateOnPageLoad({ forceUpdateOnPageLoad });
     }
 }
 // TODO(crbug.com/1167717): Make this a const enum again
@@ -346,38 +344,38 @@ export class ServiceWorkerVersion {
         return !this.registration.isDeleted && this.isActivated() && this.isStopped();
     }
     isStoppedAndRedundant() {
-        return this.runningStatus === "stopped" /* Stopped */ &&
-            this.status === "redundant" /* Redundant */;
+        return this.runningStatus === "stopped" /* Protocol.ServiceWorker.ServiceWorkerVersionRunningStatus.Stopped */ &&
+            this.status === "redundant" /* Protocol.ServiceWorker.ServiceWorkerVersionStatus.Redundant */;
     }
     isStopped() {
-        return this.runningStatus === "stopped" /* Stopped */;
+        return this.runningStatus === "stopped" /* Protocol.ServiceWorker.ServiceWorkerVersionRunningStatus.Stopped */;
     }
     isStarting() {
-        return this.runningStatus === "starting" /* Starting */;
+        return this.runningStatus === "starting" /* Protocol.ServiceWorker.ServiceWorkerVersionRunningStatus.Starting */;
     }
     isRunning() {
-        return this.runningStatus === "running" /* Running */;
+        return this.runningStatus === "running" /* Protocol.ServiceWorker.ServiceWorkerVersionRunningStatus.Running */;
     }
     isStopping() {
-        return this.runningStatus === "stopping" /* Stopping */;
+        return this.runningStatus === "stopping" /* Protocol.ServiceWorker.ServiceWorkerVersionRunningStatus.Stopping */;
     }
     isNew() {
-        return this.status === "new" /* New */;
+        return this.status === "new" /* Protocol.ServiceWorker.ServiceWorkerVersionStatus.New */;
     }
     isInstalling() {
-        return this.status === "installing" /* Installing */;
+        return this.status === "installing" /* Protocol.ServiceWorker.ServiceWorkerVersionStatus.Installing */;
     }
     isInstalled() {
-        return this.status === "installed" /* Installed */;
+        return this.status === "installed" /* Protocol.ServiceWorker.ServiceWorkerVersionStatus.Installed */;
     }
     isActivating() {
-        return this.status === "activating" /* Activating */;
+        return this.status === "activating" /* Protocol.ServiceWorker.ServiceWorkerVersionStatus.Activating */;
     }
     isActivated() {
-        return this.status === "activated" /* Activated */;
+        return this.status === "activated" /* Protocol.ServiceWorker.ServiceWorkerVersionStatus.Activated */;
     }
     isRedundant() {
-        return this.status === "redundant" /* Redundant */;
+        return this.status === "redundant" /* Protocol.ServiceWorker.ServiceWorkerVersionStatus.Redundant */;
     }
     get status() {
         return this.currentState.status;
@@ -400,18 +398,18 @@ export class ServiceWorkerVersion {
 }
 (function (ServiceWorkerVersion) {
     ServiceWorkerVersion.RunningStatus = {
-        ["running" /* Running */]: i18nLazyString(UIStrings.running),
-        ["starting" /* Starting */]: i18nLazyString(UIStrings.starting),
-        ["stopped" /* Stopped */]: i18nLazyString(UIStrings.stopped),
-        ["stopping" /* Stopping */]: i18nLazyString(UIStrings.stopping),
+        ["running" /* Protocol.ServiceWorker.ServiceWorkerVersionRunningStatus.Running */]: i18nLazyString(UIStrings.running),
+        ["starting" /* Protocol.ServiceWorker.ServiceWorkerVersionRunningStatus.Starting */]: i18nLazyString(UIStrings.starting),
+        ["stopped" /* Protocol.ServiceWorker.ServiceWorkerVersionRunningStatus.Stopped */]: i18nLazyString(UIStrings.stopped),
+        ["stopping" /* Protocol.ServiceWorker.ServiceWorkerVersionRunningStatus.Stopping */]: i18nLazyString(UIStrings.stopping),
     };
     ServiceWorkerVersion.Status = {
-        ["activated" /* Activated */]: i18nLazyString(UIStrings.activated),
-        ["activating" /* Activating */]: i18nLazyString(UIStrings.activating),
-        ["installed" /* Installed */]: i18nLazyString(UIStrings.installed),
-        ["installing" /* Installing */]: i18nLazyString(UIStrings.installing),
-        ["new" /* New */]: i18nLazyString(UIStrings.new),
-        ["redundant" /* Redundant */]: i18nLazyString(UIStrings.redundant),
+        ["activated" /* Protocol.ServiceWorker.ServiceWorkerVersionStatus.Activated */]: i18nLazyString(UIStrings.activated),
+        ["activating" /* Protocol.ServiceWorker.ServiceWorkerVersionStatus.Activating */]: i18nLazyString(UIStrings.activating),
+        ["installed" /* Protocol.ServiceWorker.ServiceWorkerVersionStatus.Installed */]: i18nLazyString(UIStrings.installed),
+        ["installing" /* Protocol.ServiceWorker.ServiceWorkerVersionStatus.Installing */]: i18nLazyString(UIStrings.installing),
+        ["new" /* Protocol.ServiceWorker.ServiceWorkerVersionStatus.New */]: i18nLazyString(UIStrings.new),
+        ["redundant" /* Protocol.ServiceWorker.ServiceWorkerVersionStatus.Redundant */]: i18nLazyString(UIStrings.redundant),
     };
     // TODO(crbug.com/1167717): Make this a const enum again
     // eslint-disable-next-line rulesdir/const_enum

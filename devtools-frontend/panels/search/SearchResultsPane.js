@@ -10,19 +10,19 @@ import * as UI from '../../ui/legacy/legacy.js';
 import searchResultsPaneStyles from './searchResultsPane.css.js';
 const UIStrings = {
     /**
-    *@description Accessibility label for number of matches in each file in search results pane
-    *@example {2} PH1
-    */
+     *@description Accessibility label for number of matches in each file in search results pane
+     *@example {2} PH1
+     */
     matchesCountS: 'Matches Count {PH1}',
     /**
-    *@description Search result label for results in the Search tool
-    *@example {2} PH1
-    */
+     *@description Search result label for results in the Search tool
+     *@example {2} PH1
+     */
     lineS: 'Line {PH1}',
     /**
-    *@description Text in Search Results Pane of the Search tab
-    *@example {2} PH1
-    */
+     *@description Text in Search Results Pane of the Search tab
+     *@example {2} PH1
+     */
     showDMore: 'Show {PH1} more',
 };
 const str_ = i18n.i18n.registerUIStrings('panels/search/SearchResultsPane.ts', UIStrings);
@@ -125,7 +125,7 @@ export class SearchResultsTreeElement extends UI.TreeOutline.TreeElement {
         const matchesCountSpan = document.createElement('span');
         matchesCountSpan.className = 'search-result-matches-count';
         matchesCountSpan.textContent = `${this.searchResult.matchesCount()}`;
-        UI.ARIAUtils.setAccessibleName(matchesCountSpan, i18nString(UIStrings.matchesCountS, { PH1: this.searchResult.matchesCount() }));
+        UI.ARIAUtils.setLabel(matchesCountSpan, i18nString(UIStrings.matchesCountS, { PH1: this.searchResult.matchesCount() }));
         this.listItemElement.appendChild(matchesCountSpan);
         if (this.expanded) {
             this.updateMatchesUI();
@@ -157,10 +157,10 @@ export class SearchResultsTreeElement extends UI.TreeOutline.TreeElement {
             const resultLabel = searchResult.matchLabel(i);
             labelSpan.textContent = resultLabel;
             if (typeof resultLabel === 'number' && !isNaN(resultLabel)) {
-                UI.ARIAUtils.setAccessibleName(labelSpan, i18nString(UIStrings.lineS, { PH1: resultLabel }));
+                UI.ARIAUtils.setLabel(labelSpan, i18nString(UIStrings.lineS, { PH1: resultLabel }));
             }
             else {
-                UI.ARIAUtils.setAccessibleName(labelSpan, resultLabel);
+                UI.ARIAUtils.setLabel(labelSpan, resultLabel);
             }
             anchor.appendChild(labelSpan);
             const contentSpan = this.createContentSpan(lineContent, matchRanges);
@@ -172,7 +172,7 @@ export class SearchResultsTreeElement extends UI.TreeOutline.TreeElement {
             searchMatchElement.listItemElement.addEventListener('keydown', event => {
                 if (event.key === 'Enter') {
                     event.consume(true);
-                    Common.Revealer.reveal(searchResult.matchRevealable(i));
+                    void Common.Revealer.reveal(searchResult.matchRevealable(i));
                 }
             });
             searchMatchElement.tooltip = lineContent;
@@ -201,7 +201,7 @@ export class SearchResultsTreeElement extends UI.TreeOutline.TreeElement {
         const contentSpan = document.createElement('span');
         contentSpan.className = 'search-match-content';
         contentSpan.textContent = lineContent;
-        UI.ARIAUtils.setAccessibleName(contentSpan, `${lineContent} line`);
+        UI.ARIAUtils.setLabel(contentSpan, `${lineContent} line`);
         UI.UIUtils.highlightRangesWithStyleClass(contentSpan, matchRanges, 'highlighted-search-result');
         return contentSpan;
     }

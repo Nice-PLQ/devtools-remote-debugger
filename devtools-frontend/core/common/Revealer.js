@@ -4,32 +4,32 @@
 import * as i18n from '../i18n/i18n.js';
 const UIStrings = {
     /**
-    *@description The UI destination when right clicking an item that can be revealed
-    */
+     *@description The UI destination when right clicking an item that can be revealed
+     */
     elementsPanel: 'Elements panel',
     /**
-    *@description The UI destination when right clicking an item that can be revealed
-    */
+     *@description The UI destination when right clicking an item that can be revealed
+     */
     stylesSidebar: 'styles sidebar',
     /**
-    *@description The UI destination when right clicking an item that can be revealed
-    */
+     *@description The UI destination when right clicking an item that can be revealed
+     */
     changesDrawer: 'Changes drawer',
     /**
-    *@description The UI destination when right clicking an item that can be revealed
-    */
+     *@description The UI destination when right clicking an item that can be revealed
+     */
     issuesView: 'Issues view',
     /**
-    *@description The UI destination when right clicking an item that can be revealed
-    */
+     *@description The UI destination when right clicking an item that can be revealed
+     */
     networkPanel: 'Network panel',
     /**
-    *@description The UI destination when right clicking an item that can be revealed
-    */
+     *@description The UI destination when right clicking an item that can be revealed
+     */
     applicationPanel: 'Application panel',
     /**
-    *@description The UI destination when right clicking an item that can be revealed
-    */
+     *@description The UI destination when right clicking an item that can be revealed
+     */
     sourcesPanel: 'Sources panel',
 };
 const str_ = i18n.i18n.registerUIStrings('core/common/Revealer.ts', UIStrings);
@@ -41,6 +41,9 @@ export let reveal = async function (revealable, omitFocus) {
         return Promise.reject(new Error('Can\'t reveal ' + revealable));
     }
     const revealers = await Promise.all(getApplicableRegisteredRevealers(revealable).map(registration => registration.loadRevealer()));
+    if (!revealers.length) {
+        return Promise.reject(new Error('Can\'t reveal ' + revealable));
+    }
     return reveal(revealers);
     function reveal(revealers) {
         const promises = [];

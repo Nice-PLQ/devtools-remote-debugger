@@ -3,12 +3,13 @@
 // found in the LICENSE file.
 
 import '../../panels/profiler/profiler-legacy.js';
-import '../test_runner/test_runner.js';
+
+import {TestRunner} from '../test_runner/test_runner.js';
 
 /**
  * @fileoverview using private properties isn't a Closure violation in tests.
  */
-self.CPUProfilerTestRunner = self.CPUProfilerTestRunner || {};
+export const CPUProfilerTestRunner = {};
 
 CPUProfilerTestRunner.startProfilerTest = function(callback) {
   TestRunner.addResult('Profiler was enabled.');

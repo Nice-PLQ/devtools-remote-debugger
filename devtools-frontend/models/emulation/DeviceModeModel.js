@@ -7,58 +7,58 @@ import * as i18n from '../../core/i18n/i18n.js';
 import * as Root from '../../core/root/root.js';
 import * as SDK from '../../core/sdk/sdk.js';
 import * as UI from '../../ui/legacy/legacy.js';
-import { Horizontal, HorizontalSpanned, Vertical, VerticalSpanned } from './EmulatedDevices.js';
+import { Horizontal, HorizontalSpanned, Vertical, VerticalSpanned, } from './EmulatedDevices.js';
 const UIStrings = {
     /**
-    * @description Error message shown in the Devices settings pane when the user enters an invalid
-    * width for a custom device.
-    */
+     * @description Error message shown in the Devices settings pane when the user enters an invalid
+     * width for a custom device.
+     */
     widthMustBeANumber: 'Width must be a number.',
     /**
-    * @description Error message shown in the Devices settings pane when the user has entered a width
-    * for a custom device that is too large.
-    * @example {9999} PH1
-    */
+     * @description Error message shown in the Devices settings pane when the user has entered a width
+     * for a custom device that is too large.
+     * @example {9999} PH1
+     */
     widthMustBeLessThanOrEqualToS: 'Width must be less than or equal to {PH1}.',
     /**
-    * @description Error message shown in the Devices settings pane when the user has entered a width
-    * for a custom device that is too small.
-    * @example {50} PH1
-    */
+     * @description Error message shown in the Devices settings pane when the user has entered a width
+     * for a custom device that is too small.
+     * @example {50} PH1
+     */
     widthMustBeGreaterThanOrEqualToS: 'Width must be greater than or equal to {PH1}.',
     /**
-    * @description Error message shown in the Devices settings pane when the user enters an invalid
-    * height for a custom device.
-    */
+     * @description Error message shown in the Devices settings pane when the user enters an invalid
+     * height for a custom device.
+     */
     heightMustBeANumber: 'Height must be a number.',
     /**
-    * @description Error message shown in the Devices settings pane when the user has entered a height
-    * for a custom device that is too large.
-    * @example {9999} PH1
-    */
+     * @description Error message shown in the Devices settings pane when the user has entered a height
+     * for a custom device that is too large.
+     * @example {9999} PH1
+     */
     heightMustBeLessThanOrEqualToS: 'Height must be less than or equal to {PH1}.',
     /**
-    * @description Error message shown in the Devices settings pane when the user has entered a height
-    * for a custom device that is too small.
-    * @example {50} PH1
-    */
+     * @description Error message shown in the Devices settings pane when the user has entered a height
+     * for a custom device that is too small.
+     * @example {50} PH1
+     */
     heightMustBeGreaterThanOrEqualTo: 'Height must be greater than or equal to {PH1}.',
     /**
-    * @description Error message shown in the Devices settings pane when the user enters an invalid
-    * device pixel ratio for a custom device.
-    */
+     * @description Error message shown in the Devices settings pane when the user enters an invalid
+     * device pixel ratio for a custom device.
+     */
     devicePixelRatioMustBeANumberOr: 'Device pixel ratio must be a number or blank.',
     /**
-    * @description Error message shown in the Devices settings pane when the user enters a device
-    * pixel ratio for a custom device that is too large.
-    * @example {10} PH1
-    */
+     * @description Error message shown in the Devices settings pane when the user enters a device
+     * pixel ratio for a custom device that is too large.
+     * @example {10} PH1
+     */
     devicePixelRatioMustBeLessThanOr: 'Device pixel ratio must be less than or equal to {PH1}.',
     /**
-    * @description Error message shown in the Devices settings pane when the user enters a device
-    * pixel ratio for a custom device that is too small.
-    * @example {0} PH1
-    */
+     * @description Error message shown in the Devices settings pane when the user enters a device
+     * pixel ratio for a custom device that is too small.
+     * @example {0} PH1
+     */
     devicePixelRatioMustBeGreater: 'Device pixel ratio must be greater than or equal to {PH1}.',
 };
 const str_ = i18n.i18n.registerUIStrings('models/emulation/DeviceModeModel.ts', UIStrings);
@@ -91,7 +91,6 @@ export class DeviceModeModel extends Common.ObjectWrapper.ObjectWrapper {
     #touchMobile;
     #emulationModel;
     #onModelAvailable;
-    #emulatedPageSize;
     #outlineRectInternal;
     constructor() {
         super();
@@ -104,7 +103,8 @@ export class DeviceModeModel extends Common.ObjectWrapper.ObjectWrapper {
         this.#appliedDeviceScaleFactorInternal = window.devicePixelRatio;
         this.#appliedUserAgentTypeInternal = UA.Desktop;
         this.#experimentDualScreenSupport = Root.Runtime.experiments.isEnabled('dualScreenSupport');
-        this.#webPlatformExperimentalFeaturesEnabledInternal = 'segments' in window.visualViewport;
+        this.#webPlatformExperimentalFeaturesEnabledInternal =
+            window.visualViewport ? 'segments' in window.visualViewport : false;
         this.#scaleSettingInternal = Common.Settings.Settings.instance().createSetting('emulation.deviceScale', 1);
         // We've used to allow zero before.
         if (!this.#scaleSettingInternal.get()) {
@@ -147,8 +147,8 @@ export class DeviceModeModel extends Common.ObjectWrapper.ObjectWrapper {
         this.#onModelAvailable = null;
         SDK.TargetManager.TargetManager.instance().observeModels(SDK.EmulationModel.EmulationModel, this);
     }
-    static instance(opts = { forceNew: null }) {
-        if (!deviceModeModelInstance || opts.forceNew) {
+    static instance(opts) {
+        if (!deviceModeModelInstance || opts?.forceNew) {
             deviceModeModelInstance = new DeviceModeModel();
         }
         return deviceModeModelInstance;
@@ -346,7 +346,8 @@ export class DeviceModeModel extends Common.ObjectWrapper.ObjectWrapper {
         this.#uaSettingInternal.set(UA.Mobile);
     }
     modelAdded(emulationModel) {
-        if (!this.#emulationModel && emulationModel.supportsDeviceEmulation()) {
+        if (emulationModel.target() === SDK.TargetManager.TargetManager.instance().primaryPageTarget() &&
+            emulationModel.supportsDeviceEmulation()) {
             this.#emulationModel = emulationModel;
             if (this.#onModelAvailable) {
                 const callback = this.#onModelAvailable;
@@ -360,7 +361,7 @@ export class DeviceModeModel extends Common.ObjectWrapper.ObjectWrapper {
             }
         }
         else {
-            emulationModel.emulateTouch(this.#touchEnabled, this.#touchMobile);
+            void emulationModel.emulateTouch(this.#touchEnabled, this.#touchMobile);
         }
     }
     modelRemoved(emulationModel) {
@@ -426,11 +427,11 @@ export class DeviceModeModel extends Common.ObjectWrapper.ObjectWrapper {
         switch (this.#modeInternal.orientation) {
             case VerticalSpanned:
             case Vertical:
-                return "portraitPrimary" /* PortraitPrimary */;
+                return "portraitPrimary" /* Protocol.Emulation.ScreenOrientationType.PortraitPrimary */;
             case HorizontalSpanned:
             case Horizontal:
             default:
-                return "landscapePrimary" /* LandscapePrimary */;
+                return "landscapePrimary" /* Protocol.Emulation.ScreenOrientationType.LandscapePrimary */;
         }
     }
     calculateAndEmulate(resetPageScaleFactor) {
@@ -476,15 +477,15 @@ export class DeviceModeModel extends Common.ObjectWrapper.ObjectWrapper {
             const defaultDeviceScaleFactor = mobile ? defaultMobileScaleFactor : 0;
             this.#fitScaleInternal = this.calculateFitScale(this.#widthSetting.get(), this.#heightSetting.get());
             this.#appliedUserAgentTypeInternal = this.#uaSettingInternal.get();
-            this.applyDeviceMetrics(new UI.Geometry.Size(screenWidth, screenHeight), new Insets(0, 0, 0, 0), new Insets(0, 0, 0, 0), this.#scaleSettingInternal.get(), this.#deviceScaleFactorSettingInternal.get() || defaultDeviceScaleFactor, mobile, screenHeight >= screenWidth ? "portraitPrimary" /* PortraitPrimary */ :
-                "landscapePrimary" /* LandscapePrimary */, resetPageScaleFactor);
+            this.applyDeviceMetrics(new UI.Geometry.Size(screenWidth, screenHeight), new Insets(0, 0, 0, 0), new Insets(0, 0, 0, 0), this.#scaleSettingInternal.get(), this.#deviceScaleFactorSettingInternal.get() || defaultDeviceScaleFactor, mobile, screenHeight >= screenWidth ? "portraitPrimary" /* Protocol.Emulation.ScreenOrientationType.PortraitPrimary */ :
+                "landscapePrimary" /* Protocol.Emulation.ScreenOrientationType.LandscapePrimary */, resetPageScaleFactor);
             this.applyUserAgent(mobile ? defaultMobileUserAgent : '', mobile ? defaultMobileUserAgentMetadata : null);
             this.applyTouch(this.#uaSettingInternal.get() === UA.DesktopTouch || this.#uaSettingInternal.get() === UA.Mobile, this.#uaSettingInternal.get() === UA.Mobile);
         }
         if (overlayModel) {
             overlayModel.setShowViewportSizeOnResize(this.#typeInternal === Type.None);
         }
-        this.dispatchEventToListeners("Updated" /* Updated */);
+        this.dispatchEventToListeners("Updated" /* Events.Updated */);
     }
     calculateFitScale(screenWidth, screenHeight, outline, insets) {
         const outlineWidth = outline ? outline.left + outline.right : 0;
@@ -522,10 +523,9 @@ export class DeviceModeModel extends Common.ObjectWrapper.ObjectWrapper {
         screenSize.height = Math.max(1, Math.floor(screenSize.height));
         let pageWidth = screenSize.width - insets.left - insets.right;
         let pageHeight = screenSize.height - insets.top - insets.bottom;
-        this.#emulatedPageSize = new UI.Geometry.Size(pageWidth, pageHeight);
         const positionX = insets.left;
         const positionY = insets.top;
-        const screenOrientationAngle = screenOrientation === "landscapePrimary" /* LandscapePrimary */ ? 90 : 0;
+        const screenOrientationAngle = screenOrientation === "landscapePrimary" /* Protocol.Emulation.ScreenOrientationType.LandscapePrimary */ ? 90 : 0;
         this.#appliedDeviceSizeInternal = screenSize;
         this.#appliedDeviceScaleFactorInternal = deviceScaleFactor || window.devicePixelRatio;
         this.#screenRectInternal = new Rect(Math.max(0, (this.#availableSize.width - screenSize.width * scale) / 2), outline.top * scale, screenSize.width * scale, screenSize.height * scale);
@@ -552,7 +552,7 @@ export class DeviceModeModel extends Common.ObjectWrapper.ObjectWrapper {
             return;
         }
         if (resetPageScaleFactor) {
-            this.#emulationModel.resetPageScaleFactor();
+            void this.#emulationModel.resetPageScaleFactor();
         }
         if (pageWidth || pageHeight || mobile || deviceScaleFactor || scale !== 1 || screenOrientation ||
             forceMetricsOverride) {
@@ -577,10 +577,10 @@ export class DeviceModeModel extends Common.ObjectWrapper.ObjectWrapper {
             if (screenOrientation) {
                 metrics.screenOrientation = { type: screenOrientation, angle: screenOrientationAngle };
             }
-            this.#emulationModel.emulateDevice(metrics);
+            void this.#emulationModel.emulateDevice(metrics);
         }
         else {
-            this.#emulationModel.emulateDevice(null);
+            void this.#emulationModel.emulateDevice(null);
         }
     }
     exitHingeMode() {
@@ -600,21 +600,21 @@ export class DeviceModeModel extends Common.ObjectWrapper.ObjectWrapper {
         if (!screenCaptureModel) {
             return null;
         }
+        let screenshotMode;
+        if (clip) {
+            screenshotMode = "fromClip" /* SDK.ScreenCaptureModel.ScreenshotMode.FROM_CLIP */;
+        }
+        else if (fullSize) {
+            screenshotMode = "fullpage" /* SDK.ScreenCaptureModel.ScreenshotMode.FULLPAGE */;
+        }
+        else {
+            screenshotMode = "fromViewport" /* SDK.ScreenCaptureModel.ScreenshotMode.FROM_VIEWPORT */;
+        }
         const overlayModel = this.#emulationModel ? this.#emulationModel.overlayModel() : null;
         if (overlayModel) {
             overlayModel.setShowViewportSizeOnResize(false);
         }
-        // Define the right clipping area for fullsize screenshots.
-        if (fullSize) {
-            const metrics = await screenCaptureModel.fetchLayoutMetrics();
-            if (!metrics) {
-                return null;
-            }
-            // Cap the height to not hit the GPU limit.
-            const contentHeight = Math.min((1 << 14), metrics.contentHeight);
-            clip = { x: 0, y: 0, width: Math.floor(metrics.contentWidth), height: Math.floor(contentHeight), scale: 1 };
-        }
-        const screenshot = await screenCaptureModel.captureScreenshot("png" /* Png */, 100, clip);
+        const screenshot = await screenCaptureModel.captureScreenshot("png" /* Protocol.Page.CaptureScreenshotRequestFormat.Png */, 100, screenshotMode, clip);
         const deviceMetrics = {
             width: 0,
             height: 0,
@@ -647,7 +647,7 @@ export class DeviceModeModel extends Common.ObjectWrapper.ObjectWrapper {
         this.#touchEnabled = touchEnabled;
         this.#touchMobile = mobile;
         for (const emulationModel of SDK.TargetManager.TargetManager.instance().models(SDK.EmulationModel.EmulationModel)) {
-            emulationModel.emulateTouch(touchEnabled, mobile);
+            void emulationModel.emulateTouch(touchEnabled, mobile);
         }
     }
     showHingeIfApplicable(overlayModel) {
@@ -667,11 +667,11 @@ export class DeviceModeModel extends Common.ObjectWrapper.ObjectWrapper {
         switch (this.#modeInternal.orientation) {
             case VerticalSpanned:
             case Vertical:
-                return "vertical" /* Vertical */;
+                return "vertical" /* Protocol.Emulation.DisplayFeatureOrientation.Vertical */;
             case HorizontalSpanned:
             case Horizontal:
             default:
-                return "horizontal" /* Horizontal */;
+                return "horizontal" /* Protocol.Emulation.DisplayFeatureOrientation.Horizontal */;
         }
     }
     getDisplayFeature() {

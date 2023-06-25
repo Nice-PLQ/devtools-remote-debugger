@@ -3,6 +3,7 @@ export default {
   CSS: ['enable', 'getStyleSheetText', 'getMatchedStylesForNode', 'getComputedStyleForNode'],
   Debugger: ['enable', 'getScriptSource'],
   DOMStorage: ['getDOMStorageItems', 'removeDOMStorageItem', 'clear', 'setDOMStorageItem'],
+  Storage: ['getStorageKeyForFrame'],
   DOM: [
     'enable', 'getDocument', 'removeNode', 'requestChildNodes', 'requestNode', 'getOuterHTML',
     'setOuterHTML', 'setAttributesAsText', 'setInspectedNode', 'pushNodesByBackendIdsToFrontend'

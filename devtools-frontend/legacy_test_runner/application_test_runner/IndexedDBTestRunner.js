@@ -2,12 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+import {ConsoleTestRunner} from '../console_test_runner/console_test_runner.js';
+
 /**
  * @fileoverview using private properties isn't a Closure violation in tests.
  */
 self.ApplicationTestRunner = self.ApplicationTestRunner || {};
 
-ApplicationTestRunner.dumpIndexedDBTree = function() {
+ApplicationTestRunner.dumpIndexedDBTree = async function() {
   TestRunner.addResult('Dumping IndexedDB tree:');
   const indexedDBTreeElement = UI.panels.resources.sidebar.indexedDBListTreeElement;
 
@@ -42,7 +44,7 @@ ApplicationTestRunner.dumpIndexedDBTree = function() {
   }
 };
 
-ApplicationTestRunner.dumpObjectStores = function() {
+ApplicationTestRunner.dumpObjectStores = async function() {
   TestRunner.addResult('Dumping ObjectStore data:');
   const idbDatabaseTreeElement = UI.panels.resources.sidebar.indexedDBListTreeElement.idbDatabaseTreeElements[0];
   for (let i = 0; i < idbDatabaseTreeElement.childCount(); ++i) {
@@ -144,8 +146,10 @@ ApplicationTestRunner.addIDBValue = function(frameId, databaseName, objectStoreN
 };
 
 ApplicationTestRunner.createIndexedDBModel = function() {
-  const indexedDBModel =
-      new Resources.IndexedDBModel(self.SDK.targetManager.mainTarget(), TestRunner.securityOriginManager);
+  const target = self.SDK.targetManager.primaryPageTarget();
+  const storageBucketModel = target.model(SDK.StorageBucketsModel);
+  storageBucketModel.enable();
+  const indexedDBModel = target.model(Resources.IndexedDBModel);
   indexedDBModel.enable();
   return indexedDBModel;
 };

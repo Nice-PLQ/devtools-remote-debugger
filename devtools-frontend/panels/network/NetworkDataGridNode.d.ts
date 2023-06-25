@@ -4,7 +4,7 @@ import * as NetworkForward from '../../panels/network/forward/forward.js';
 import * as DataGrid from '../../ui/legacy/components/data_grid/data_grid.js';
 import * as Components from '../../ui/legacy/components/utils/utils.js';
 import * as UI from '../../ui/legacy/legacy.js';
-import type { NetworkTimeCalculator } from './NetworkTimeCalculator.js';
+import { type NetworkTimeCalculator } from './NetworkTimeCalculator.js';
 export declare enum Events {
     RequestSelected = "RequestSelected",
     RequestActivated = "RequestActivated"
@@ -14,7 +14,7 @@ export interface RequestActivatedEvent {
     takeFocus?: boolean;
     tab?: NetworkForward.UIRequestLocation.UIRequestTabs;
 }
-export declare type EventTypes = {
+export type EventTypes = {
     [Events.RequestSelected]: SDK.NetworkRequest.NetworkRequest;
     [Events.RequestActivated]: RequestActivatedEvent;
 };
@@ -83,6 +83,7 @@ export declare const _backgroundColors: {
     [x: string]: string;
 };
 export declare class NetworkRequestNode extends NetworkNode {
+    #private;
     private nameCell;
     private initiatorCell;
     private requestInternal;
@@ -128,6 +129,7 @@ export declare class NetworkRequestNode extends NetworkNode {
     isFailed(): boolean;
     private renderPrimaryCell;
     private renderStatusCell;
+    private renderProtocolCell;
     private renderInitiatorCell;
     private renderAddressSpaceCell;
     private renderSizeCell;

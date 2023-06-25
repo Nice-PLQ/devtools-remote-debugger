@@ -6,12 +6,12 @@ import * as i18n from '../../core/i18n/i18n.js';
 import * as UI from '../../ui/legacy/legacy.js';
 const UIStrings = {
     /**
-    *@description Title of combo box in audits report selector
-    */
+     *@description Title of combo box in audits report selector
+     */
     reports: 'Reports',
     /**
-    *@description New report item label in Lighthouse Report Selector
-    */
+     *@description New report item label in Lighthouse Report Selector
+     */
     newReport: '(new report)',
 };
 const str_ = i18n.i18n.registerUIStrings('panels/lighthouse/LighthouseReportSelector.ts', UIStrings);
@@ -92,7 +92,11 @@ export class Item {
         this.lighthouseResult = lighthouseResult;
         this.renderReport = renderReport;
         this.showLandingCallback = showLandingCallback;
-        const url = new Common.ParsedURL.ParsedURL(lighthouseResult.finalUrl);
+        // In Lighthouse 10.0, `finalUrl` is not provided on snapshot or timespan reports.
+        // `finalDisplayedUrl` is the new preferred URL to use for cosmetic identification.
+        // TODO: Remove the `finalUrl` backport once Lighthouse 10.0 is rolled into DevTools.
+        const finalDisplayedUrl = lighthouseResult.finalDisplayedUrl || lighthouseResult.finalUrl || '';
+        const url = new Common.ParsedURL.ParsedURL(finalDisplayedUrl);
         const timestamp = lighthouseResult.fetchTime;
         this.element = document.createElement('option');
         this.element.label = `${new Date(timestamp).toLocaleTimeString()} - ${url.domain()}`;

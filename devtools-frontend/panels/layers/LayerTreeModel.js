@@ -45,7 +45,7 @@ export class LayerTreeModel extends SDK.SDKModel.SDKModel {
             target.model(SDK.PaintProfiler.PaintProfilerModel);
         const resourceTreeModel = target.model(SDK.ResourceTreeModel.ResourceTreeModel);
         if (resourceTreeModel) {
-            resourceTreeModel.addEventListener(SDK.ResourceTreeModel.Events.MainFrameNavigated, this.onMainFrameNavigated, this);
+            resourceTreeModel.addEventListener(SDK.ResourceTreeModel.Events.PrimaryPageChanged, this.onPrimaryPageChanged, this);
         }
         this.layerTreeInternal = null;
         this.throttler = new Common.Throttler.Throttler(20);
@@ -62,7 +62,7 @@ export class LayerTreeModel extends SDK.SDKModel.SDKModel {
             return;
         }
         this.enabled = true;
-        this.forceEnable();
+        void this.forceEnable();
     }
     async forceEnable() {
         this.lastPaintRectByLayerId = new Map();
@@ -78,7 +78,7 @@ export class LayerTreeModel extends SDK.SDKModel.SDKModel {
         if (!this.enabled) {
             return;
         }
-        this.throttler.schedule(this.innerSetLayers.bind(this, layers));
+        void this.throttler.schedule(this.innerSetLayers.bind(this, layers));
     }
     async innerSetLayers(layers) {
         const layerTree = this.layerTreeInternal;
@@ -112,10 +112,10 @@ export class LayerTreeModel extends SDK.SDKModel.SDKModel {
         layer.didPaint(clipRect);
         this.dispatchEventToListeners(Events.LayerPainted, layer);
     }
-    onMainFrameNavigated() {
+    onPrimaryPageChanged() {
         this.layerTreeInternal = null;
         if (this.enabled) {
-            this.forceEnable();
+            void this.forceEnable();
         }
     }
 }
@@ -294,6 +294,10 @@ export class AgentLayer {
     stickyPositionConstraint() {
         return this.stickyPositionConstraintInternal || null;
     }
+    async requestCompositingReasons() {
+        const reasons = await this.layerTreeModel.layerTreeAgent.invoke_compositingReasons({ layerId: this.id() });
+        return reasons.compositingReasons || [];
+    }
     async requestCompositingReasonIds() {
         const reasons = await this.layerTreeModel.layerTreeAgent.invoke_compositingReasons({ layerId: this.id() });
         return reasons.compositingReasonIds || [];
@@ -373,7 +377,7 @@ class LayerTreeDispatcher {
         this.layerTreeModel = layerTreeModel;
     }
     layerTreeDidChange({ layers }) {
-        this.layerTreeModel.layerTreeChanged(layers || null);
+        void this.layerTreeModel.layerTreeChanged(layers || null);
     }
     layerPainted({ layerId, clip }) {
         this.layerTreeModel.layerPainted(layerId, clip);

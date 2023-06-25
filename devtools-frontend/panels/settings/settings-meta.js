@@ -40,12 +40,12 @@ const UIStrings = {
      */
     showIgnoreList: 'Show Ignore List',
     /**
-    *@description Name of the Settings view
-    */
+     *@description Name of the Settings view
+     */
     settings: 'Settings',
     /**
      *@description Text for the documentation of something
-    */
+     */
     documentation: 'Documentation',
 };
 const str_ = i18n.i18n.registerUIStrings('panels/settings/settings-meta.ts', UIStrings);
@@ -58,7 +58,7 @@ async function loadSettingsModule() {
     return loadedSettingsModule;
 }
 UI.ViewManager.registerViewExtension({
-    location: "settings-view" /* SETTINGS_VIEW */,
+    location: "settings-view" /* UI.ViewManager.ViewLocationValues.SETTINGS_VIEW */,
     id: 'preferences',
     title: i18nLazyString(UIStrings.preferences),
     commandPrompt: i18nLazyString(UIStrings.showPreferences),
@@ -69,7 +69,7 @@ UI.ViewManager.registerViewExtension({
     },
 });
 UI.ViewManager.registerViewExtension({
-    location: "settings-view" /* SETTINGS_VIEW */,
+    location: "settings-view" /* UI.ViewManager.ViewLocationValues.SETTINGS_VIEW */,
     id: 'experiments',
     title: i18nLazyString(UIStrings.experiments),
     commandPrompt: i18nLazyString(UIStrings.showExperiments),
@@ -81,7 +81,7 @@ UI.ViewManager.registerViewExtension({
     },
 });
 UI.ViewManager.registerViewExtension({
-    location: "settings-view" /* SETTINGS_VIEW */,
+    location: "settings-view" /* UI.ViewManager.ViewLocationValues.SETTINGS_VIEW */,
     id: 'blackbox',
     title: i18nLazyString(UIStrings.ignoreList),
     commandPrompt: i18nLazyString(UIStrings.showIgnoreList),
@@ -92,7 +92,7 @@ UI.ViewManager.registerViewExtension({
     },
 });
 UI.ViewManager.registerViewExtension({
-    location: "settings-view" /* SETTINGS_VIEW */,
+    location: "settings-view" /* UI.ViewManager.ViewLocationValues.SETTINGS_VIEW */,
     id: 'keybinds',
     title: i18nLazyString(UIStrings.shortcuts),
     commandPrompt: i18nLazyString(UIStrings.showShortcuts),
@@ -110,29 +110,29 @@ UI.ActionRegistration.registerActionExtension({
         const Settings = await loadSettingsModule();
         return Settings.SettingsScreen.ActionDelegate.instance();
     },
-    iconClass: "largeicon-settings-gear" /* LARGEICON_SETTINGS_GEAR */,
+    iconClass: "gear" /* UI.ActionRegistration.IconClass.LARGEICON_SETTINGS_GEAR */,
     bindings: [
         {
             shortcut: 'F1',
             keybindSets: [
-                "devToolsDefault" /* DEVTOOLS_DEFAULT */,
+                "devToolsDefault" /* UI.ActionRegistration.KeybindSet.DEVTOOLS_DEFAULT */,
             ],
         },
         {
             shortcut: 'Shift+?',
         },
         {
-            platform: "windows,linux" /* WindowsLinux */,
+            platform: "windows,linux" /* UI.ActionRegistration.Platforms.WindowsLinux */,
             shortcut: 'Ctrl+,',
             keybindSets: [
-                "vsCode" /* VS_CODE */,
+                "vsCode" /* UI.ActionRegistration.KeybindSet.VS_CODE */,
             ],
         },
         {
-            platform: "mac" /* Mac */,
+            platform: "mac" /* UI.ActionRegistration.Platforms.Mac */,
             shortcut: 'Meta+,',
             keybindSets: [
-                "vsCode" /* VS_CODE */,
+                "vsCode" /* UI.ActionRegistration.KeybindSet.VS_CODE */,
             ],
         },
     ],
@@ -156,24 +156,24 @@ UI.ActionRegistration.registerActionExtension({
     },
     bindings: [
         {
-            platform: "windows,linux" /* WindowsLinux */,
+            platform: "windows,linux" /* UI.ActionRegistration.Platforms.WindowsLinux */,
             shortcut: 'Ctrl+K Ctrl+S',
             keybindSets: [
-                "vsCode" /* VS_CODE */,
+                "vsCode" /* UI.ActionRegistration.KeybindSet.VS_CODE */,
             ],
         },
         {
-            platform: "mac" /* Mac */,
+            platform: "mac" /* UI.ActionRegistration.Platforms.Mac */,
             shortcut: 'Meta+K Meta+S',
             keybindSets: [
-                "vsCode" /* VS_CODE */,
+                "vsCode" /* UI.ActionRegistration.KeybindSet.VS_CODE */,
             ],
         },
     ],
 });
 UI.ViewManager.registerLocationResolver({
-    name: "settings-view" /* SETTINGS_VIEW */,
-    category: UI.ViewManager.ViewLocationCategoryValues.SETTINGS,
+    name: "settings-view" /* UI.ViewManager.ViewLocationValues.SETTINGS_VIEW */,
+    category: UI.ViewManager.ViewLocationCategory.SETTINGS,
     async loadResolver() {
         const Settings = await loadSettingsModule();
         return Settings.SettingsScreen.SettingsScreen.instance();
@@ -183,6 +183,7 @@ Common.Revealer.registerRevealer({
     contextTypes() {
         return [
             Common.Settings.Setting,
+            Root.Runtime.Experiment,
         ];
     },
     async loadRevealer() {

@@ -108,20 +108,20 @@ export class ShortcutRegistry {
         return undefined;
     }
     handleShortcut(event, handlers) {
-        this.handleKey(KeyboardShortcut.makeKeyFromEvent(event), event.key, event, handlers);
+        void this.handleKey(KeyboardShortcut.makeKeyFromEvent(event), event.key, event, handlers);
     }
     actionHasDefaultShortcut(actionId) {
         return this.devToolsDefaultShortcutActions.has(actionId);
     }
-    addShortcutListener(element, handlers) {
+    getShortcutListener(handlers) {
+        const shortcuts = Object.keys(handlers).flatMap(action => [...this.actionToShortcut.get(action)]);
         // We only want keys for these specific actions to get handled this
         // way; all others should be allowed to bubble up.
         const allowlistKeyMap = new ShortcutTreeNode(0, 0);
-        const shortcuts = Object.keys(handlers).flatMap(action => [...this.actionToShortcut.get(action)]);
         shortcuts.forEach(shortcut => {
             allowlistKeyMap.addKeyMapping(shortcut.descriptors.map(descriptor => descriptor.key), shortcut.action);
         });
-        const listener = (event) => {
+        return (event) => {
             const key = KeyboardShortcut.makeKeyFromEvent(event);
             const keyMap = this.activePrefixKey ? allowlistKeyMap.getNode(this.activePrefixKey.key()) : allowlistKeyMap;
             if (!keyMap) {
@@ -131,6 +131,9 @@ export class ShortcutRegistry {
                 this.handleShortcut(event, handlers);
             }
         };
+    }
+    addShortcutListener(element, handlers) {
+        const listener = this.getShortcutListener(handlers);
         element.addEventListener('keydown', listener);
         return listener;
     }
@@ -324,7 +327,7 @@ export class ShortcutRegistry {
                         this.registerShortcut(new KeyboardShortcut(shortcutDescriptors, actionId, Type.DefaultShortcut));
                     }
                     else {
-                        if (keybindSets.includes("devToolsDefault" /* DEVTOOLS_DEFAULT */)) {
+                        if (keybindSets.includes("devToolsDefault" /* KeybindSet.DEVTOOLS_DEFAULT */)) {
                             this.devToolsDefaultShortcutActions.add(actionId);
                         }
                         this.registerShortcut(new KeyboardShortcut(shortcutDescriptors, actionId, Type.KeybindSetShortcut, new Set(keybindSets)));

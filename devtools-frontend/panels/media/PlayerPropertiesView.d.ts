@@ -1,8 +1,8 @@
 import * as Platform from '../../core/platform/platform.js';
 import * as UI from '../../ui/legacy/legacy.js';
 import type * as Protocol from '../../generated/protocol.js';
-declare type TabData = {
-    [x: string]: string;
+type TabData = {
+    [x: string]: string | object;
 };
 export declare const enum PlayerPropertyKeys {
     Resolution = "kResolution",
@@ -10,7 +10,7 @@ export declare const enum PlayerPropertyKeys {
     Bitrate = "kBitrate",
     MaxDuration = "kMaxDuration",
     StartTime = "kStartTime",
-    IsVideoEncrypted = "kIsVideoEncrypted",
+    IsCdmAttached = "kIsCdmAttached",
     IsStreaming = "kIsStreaming",
     FrameUrl = "kFrameUrl",
     FrameTitle = "kFrameTitle",
@@ -40,6 +40,8 @@ export declare class PropertyRenderer extends UI.Widget.VBox {
     constructor(title: Platform.UIString.LocalizedString);
     updateData(propname: string, propvalue: string): void;
     protected updateDataInternal(propname: string, propvalue: string | null): void;
+    protected unsetNestedContents(): void;
+    changeNestedContents(value: object): void;
     changeContents(value: string | null): void;
 }
 export declare class FormattedPropertyRenderer extends PropertyRenderer {
@@ -49,6 +51,9 @@ export declare class FormattedPropertyRenderer extends PropertyRenderer {
 }
 export declare class DefaultPropertyRenderer extends PropertyRenderer {
     constructor(title: Platform.UIString.LocalizedString, defaultText: string);
+}
+export declare class NestedPropertyRenderer extends PropertyRenderer {
+    constructor(title: Platform.UIString.LocalizedString, content: object);
 }
 export declare class DimensionPropertyRenderer extends PropertyRenderer {
     private width;

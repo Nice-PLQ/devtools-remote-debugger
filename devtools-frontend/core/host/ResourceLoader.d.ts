@@ -12,7 +12,7 @@ export declare let load: (url: string, headers: {
     [x: string]: string;
 } | null, callback: (arg0: boolean, arg1: {
     [x: string]: string;
-}, arg2: string, arg3: LoadErrorDescription) => void) => void;
+}, arg2: string, arg3: LoadErrorDescription) => void, allowRemoteFilePaths: boolean) => void;
 export declare function setLoadForTest(newLoad: (arg0: string, arg1: {
     [x: string]: string;
 } | null, arg2: (arg0: boolean, arg1: {
@@ -23,4 +23,4 @@ export declare const loadAsStream: (url: string, headers: {
     [x: string]: string;
 } | null, stream: Common.StringOutputStream.OutputStream, callback?: ((arg0: boolean, arg1: {
     [x: string]: string;
-}, arg2: LoadErrorDescription) => void) | undefined) => void;
+}, arg2: LoadErrorDescription) => void) | undefined, allowRemoteFilePaths?: boolean) => void;

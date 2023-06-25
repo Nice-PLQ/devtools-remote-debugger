@@ -1,9 +1,6 @@
 // Copyright 2020 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
-/**
- * Combine the two given colors according to alpha blending.
- */
 export function blendColors(fgRGBA, bgRGBA) {
     const alpha = fgRGBA[3];
     return [
@@ -13,11 +10,10 @@ export function blendColors(fgRGBA, bgRGBA) {
         alpha + (bgRGBA[3] * (1 - alpha)),
     ];
 }
-export function rgbaToHsla([r, g, b, a]) {
+function rgbToHue([r, g, b]) {
     const max = Math.max(r, g, b);
     const min = Math.min(r, g, b);
     const diff = max - min;
-    const sum = max + min;
     let h;
     if (min === max) {
         h = 0;
@@ -31,6 +27,18 @@ export function rgbaToHsla([r, g, b, a]) {
     else {
         h = (1 / 6 * (r - g) / diff) + 2 / 3;
     }
+    return h;
+}
+export function rgbToHsl(rgb) {
+    const [h, s, l] = rgbaToHsla([...rgb, undefined]);
+    return [h, s, l];
+}
+export function rgbaToHsla([r, g, b, a]) {
+    const max = Math.max(r, g, b);
+    const min = Math.min(r, g, b);
+    const diff = max - min;
+    const sum = max + min;
+    const h = rgbToHue([r, g, b]);
     const l = 0.5 * sum;
     let s;
     if (l === 0) {
@@ -47,10 +55,20 @@ export function rgbaToHsla([r, g, b, a]) {
     }
     return [h, s, l, a];
 }
+export function rgbToHwb(rgb) {
+    const [h, w, b] = rgbaToHwba([...rgb, undefined]);
+    return [h, w, b];
+}
+export function rgbaToHwba([r, g, b, a]) {
+    const h = rgbToHue([r, g, b]);
+    const max = Math.max(r, g, b);
+    const min = Math.min(r, g, b);
+    return [h, min, 1 - max, a];
+}
 /**
-* Calculate the luminance of this color using the WCAG algorithm.
-* See http://www.w3.org/TR/2008/REC-WCAG20-20081211/#relativeluminancedef
-*/
+ * Calculate the luminance of this color using the WCAG algorithm.
+ * See http://www.w3.org/TR/2008/REC-WCAG20-20081211/#relativeluminancedef
+ */
 export function luminance([rSRGB, gSRGB, bSRGB]) {
     const r = rSRGB <= 0.03928 ? rSRGB / 12.92 : Math.pow(((rSRGB + 0.055) / 1.055), 2.4);
     const g = gSRGB <= 0.03928 ? gSRGB / 12.92 : Math.pow(((gSRGB + 0.055) / 1.055), 2.4);
@@ -72,23 +90,21 @@ export function contrastRatio(fgRGBA, bgRGBA) {
 // Constants for basic APCA version.
 // See https://github.com/Myndex/SAPC-APCA
 const mainTRC = 2.4;
-const normBgExp = 0.55;
-const normFgExp = 0.58;
-const revBgExp = 0.62;
-const revFgExp = 0.57;
-const blkThrs = 0.03;
-const blkClmp = 1.45;
-const scaleBoW = 1.25;
-const scaleWoB = 1.25;
+const normBgExp = 0.56;
+const normFgExp = 0.57;
+const revBgExp = 0.65;
+const revFgExp = 0.62;
+const blkThrs = 0.022;
+const blkClmp = 1.414;
+const scaleBoW = 1.14;
+const scaleWoB = 1.14;
+const loConOffset = 0.027;
+const loClip = 0.1;
 const deltaLuminanceMin = 0.0005;
-const loConThresh = 0.078;
-const loConFactor = 12.82051282051282;
-const loConOffset = 0.06;
-const loClip = 0.001;
 /**
-* Calculate relative luminance of a color.
-* See https://github.com/Myndex/SAPC-APCA
-*/
+ * Calculate relative luminance of a color.
+ * See https://github.com/Myndex/SAPC-APCA
+ */
 export function luminanceAPCA([rSRGB, gSRGB, bSRGB]) {
     const r = Math.pow(rSRGB, mainTRC);
     const g = Math.pow(gSRGB, mainTRC);
@@ -114,18 +130,14 @@ export function contrastRatioByLuminanceAPCA(fgLuminance, bgLuminance) {
         return 0;
     }
     let result = 0;
-    if (bgLuminance >= fgLuminance) { // Black text on white.
+    if (bgLuminance > fgLuminance) { // Black text on white.
         result = (Math.pow(bgLuminance, normBgExp) - Math.pow(fgLuminance, normFgExp)) * scaleBoW;
-        result = result < loClip ?
-            0 :
-            (result < loConThresh ? result - result * loConFactor * loConOffset : result - loConOffset);
+        result = result < loClip ? 0 : result - loConOffset;
     }
     else {
         // White text on black.
         result = (Math.pow(bgLuminance, revBgExp) - Math.pow(fgLuminance, revFgExp)) * scaleWoB;
-        result = result > -loClip ?
-            0 :
-            (result > -loConThresh ? result - result * loConFactor * loConOffset : result + loConOffset);
+        result = result > -loClip ? 0 : result + loConOffset;
     }
     return result * 100;
 }
@@ -188,9 +200,9 @@ export function getAPCAThreshold(fontSize, fontWeight) {
     return null;
 }
 export function isLargeFont(fontSize, fontWeight) {
-    const boldWeights = ['bold', 'bolder', '600', '700', '800', '900'];
+    const boldWeights = ['bold', 'bolder'];
     const fontSizePx = parseFloat(fontSize.replace('px', ''));
-    const isBold = (boldWeights.indexOf(fontWeight) !== -1);
+    const isBold = isNaN(Number(fontWeight)) ? boldWeights.includes(fontWeight) : Number(fontWeight) >= 600;
     const fontSizePt = fontSizePx * 72 / 96;
     if (isBold) {
         return fontSizePt >= 14;

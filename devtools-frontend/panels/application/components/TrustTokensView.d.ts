@@ -6,29 +6,20 @@ interface TrustTokensDeleteButtonData {
     deleteClickHandler: (issuerOrigin: string) => void;
 }
 declare class TrustTokensDeleteButton extends HTMLElement {
+    #private;
     static readonly litTagName: import("../../../ui/lit-html/static.js").Static;
-    private readonly shadow;
-    private issuer;
-    private deleteClickHandler;
     connectedCallback(): void;
     set data(data: TrustTokensDeleteButtonData);
-    private render;
 }
 export interface TrustTokensViewData {
     tokens: Protocol.Storage.TrustTokens[];
     deleteClickHandler: (issuerOrigin: string) => void;
 }
 export declare class TrustTokensView extends HTMLElement {
+    #private;
     static readonly litTagName: import("../../../ui/lit-html/static.js").Static;
-    private readonly shadow;
-    private tokens;
-    private deleteClickHandler;
     connectedCallback(): void;
     set data(data: TrustTokensViewData);
-    private render;
-    private renderGridOrNoDataMessage;
-    private buildRowsFromTokens;
-    private deleteButtonRendererForDataGridCell;
 }
 declare global {
     interface HTMLElementTagNameMap {

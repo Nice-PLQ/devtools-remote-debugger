@@ -1,4 +1,4 @@
-import type { Suggestion } from './SuggestBox.js';
+import { type Suggestion } from './SuggestBox.js';
 export declare class FilterSuggestionBuilder {
     private readonly keys;
     private readonly valueSorter;

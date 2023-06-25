@@ -4,18 +4,17 @@ import * as DataGrid from '../../ui/legacy/components/data_grid/data_grid.js';
 import * as Components from '../../ui/legacy/components/utils/utils.js';
 import type * as SDK from '../../core/sdk/sdk.js';
 import * as UI from '../../ui/legacy/legacy.js';
-import type { HeapSnapshotGridNode } from './HeapSnapshotGridNodes.js';
-import { HeapSnapshotRetainingObjectNode, HeapSnapshotObjectNode } from './HeapSnapshotGridNodes.js';
-import type { HeapSnapshotProxy } from './HeapSnapshotProxy.js';
-import type { HeapProfileHeader } from './HeapSnapshotView.js';
-import type { DataDisplayDelegate } from './ProfileHeader.js';
+import { HeapSnapshotRetainingObjectNode, HeapSnapshotObjectNode, type HeapSnapshotGridNode } from './HeapSnapshotGridNodes.js';
+import { type HeapSnapshotProxy } from './HeapSnapshotProxy.js';
+import { type HeapProfileHeader } from './HeapSnapshotView.js';
+import { type DataDisplayDelegate } from './ProfileHeader.js';
 declare class HeapSnapshotSortableDataGridBase extends DataGrid.DataGrid.DataGridImpl<HeapSnapshotGridNode> {
 }
 declare const HeapSnapshotSortableDataGrid_base: (new (...args: any[]) => {
-    "__#8@#events": Common.ObjectWrapper.ObjectWrapper<EventTypes>;
-    addEventListener<T extends keyof EventTypes>(eventType: T, listener: (arg0: Common.EventTarget.EventTargetEvent<EventTypes[T]>) => void, thisObject?: Object | undefined): Common.EventTarget.EventDescriptor<EventTypes, T>;
+    "__#13@#events": Common.ObjectWrapper.ObjectWrapper<EventTypes>;
+    addEventListener<T extends keyof EventTypes>(eventType: T, listener: (arg0: Common.EventTarget.EventTargetEvent<EventTypes[T], any>) => void, thisObject?: Object | undefined): Common.EventTarget.EventDescriptor<EventTypes, T>;
     once<T_1 extends keyof EventTypes>(eventType: T_1): Promise<EventTypes[T_1]>;
-    removeEventListener<T_2 extends keyof EventTypes>(eventType: T_2, listener: (arg0: Common.EventTarget.EventTargetEvent<EventTypes[T_2]>) => void, thisObject?: Object | undefined): void;
+    removeEventListener<T_2 extends keyof EventTypes>(eventType: T_2, listener: (arg0: Common.EventTarget.EventTargetEvent<EventTypes[T_2], any>) => void, thisObject?: Object | undefined): void;
     hasEventListeners(eventType: keyof EventTypes): boolean;
     dispatchEventToListeners<T_3 extends keyof EventTypes>(eventType: import("../../core/platform/typescript-utilities.js").NoUnion<T_3>, ...eventData: Common.EventTarget.EventPayloadToRestParameters<EventTypes, T_3>): void;
 }) & typeof HeapSnapshotSortableDataGridBase;
@@ -66,7 +65,7 @@ export declare enum HeapSnapshotSortableDataGridEvents {
     SortingComplete = "SortingComplete",
     ExpandRetainersComplete = "ExpandRetainersComplete"
 }
-export declare type EventTypes = {
+export type EventTypes = {
     [HeapSnapshotSortableDataGridEvents.ContentShown]: HeapSnapshotSortableDataGrid;
     [HeapSnapshotSortableDataGridEvents.SortingComplete]: void;
     [HeapSnapshotSortableDataGridEvents.ExpandRetainersComplete]: void;

@@ -42,30 +42,31 @@ import { ToolbarButton } from './Toolbar.js';
 import { ViewManager } from './ViewManager.js';
 import { VBox, WidgetFocusRestorer } from './Widget.js';
 import * as ARIAUtils from './ARIAUtils.js';
+import inspectorViewTabbedPaneStyles from './inspectorViewTabbedPane.css.legacy.js';
 const UIStrings = {
     /**
-    *@description Title of more tabs button in inspector view
-    */
+     *@description Title of more tabs button in inspector view
+     */
     moreTools: 'More Tools',
     /**
-    *@description Text that appears when hovor over the close button on the drawer view
-    */
+     *@description Text that appears when hovor over the close button on the drawer view
+     */
     closeDrawer: 'Close drawer',
     /**
-    *@description The aria label for main tabbed pane that contains Panels
-    */
+     *@description The aria label for main tabbed pane that contains Panels
+     */
     panels: 'Panels',
     /**
-    *@description Title of an action that reloads the DevTools
-    */
+     *@description Title of an action that reloads the DevTools
+     */
     reloadDevtools: 'Reload DevTools',
     /**
-    *@description Text for context menu action to move a tab to the main panel
-    */
+     *@description Text for context menu action to move a tab to the main panel
+     */
     moveToTop: 'Move to top',
     /**
-    *@description Text for context menu action to move a tab to the drawer
-    */
+     *@description Text for context menu action to move a tab to the drawer
+     */
     moveToBottom: 'Move to bottom',
     /**
      * @description Text shown in a prompt to the user when DevTools is started and the
@@ -88,17 +89,34 @@ const UIStrings = {
      */
     setToSpecificLanguage: 'Switch DevTools to {PH1}',
     /**
-    *@description The aria label for main toolbar
-    */
+     *@description The aria label for main toolbar
+     */
     mainToolbar: 'Main toolbar',
     /**
-    *@description The aria label for the drawer.
-    */
+     *@description The aria label for the drawer.
+     */
     drawer: 'Tool drawer',
+    /**
+     *@description The aria label for the drawer shown.
+     */
+    drawerShown: 'Drawer shown',
+    /**
+     *@description The aria label for the drawer hidden.
+     */
+    drawerHidden: 'Drawer hidden',
+    /**
+     * @description Request for the user to select a local file system folder for DevTools
+     * to store local overrides in.
+     */
+    selectOverrideFolder: 'Select a folder to store override files in.',
+    /**
+     *@description Label for a button which opens a file picker.
+     */
+    selectFolder: 'Select folder',
 };
 const str_ = i18n.i18n.registerUIStrings('ui/legacy/InspectorView.ts', UIStrings);
 const i18nString = i18n.i18n.getLocalizedString.bind(undefined, str_);
-let inspectorViewInstance;
+let inspectorViewInstance = null;
 export class InspectorView extends VBox {
     drawerSplitWidget;
     tabDelegate;
@@ -112,6 +130,7 @@ export class InspectorView extends VBox {
     focusRestorer;
     ownerSplitWidget;
     reloadRequiredInfobar;
+    #selectOverrideFolderInfobar;
     constructor() {
         super();
         GlassPane.setContainer(this.element);
@@ -130,13 +149,13 @@ export class InspectorView extends VBox {
         this.drawerTabbedPane = this.drawerTabbedLocation.tabbedPane();
         this.drawerTabbedPane.setMinimumSize(0, 27);
         this.drawerTabbedPane.element.classList.add('drawer-tabbed-pane');
-        const closeDrawerButton = new ToolbarButton(i18nString(UIStrings.closeDrawer), 'largeicon-delete');
+        const closeDrawerButton = new ToolbarButton(i18nString(UIStrings.closeDrawer), 'cross');
         closeDrawerButton.addEventListener(ToolbarButton.Events.Click, this.closeDrawer, this);
         this.drawerTabbedPane.addEventListener(TabbedPaneEvents.TabSelected, this.tabSelected, this);
         this.drawerTabbedPane.setTabDelegate(this.tabDelegate);
         const drawerElement = this.drawerTabbedPane.element;
         ARIAUtils.markAsComplementary(drawerElement);
-        ARIAUtils.setAccessibleName(drawerElement, i18nString(UIStrings.drawer));
+        ARIAUtils.setLabel(drawerElement, i18nString(UIStrings.drawer));
         this.drawerSplitWidget.installResizer(this.drawerTabbedPane.headerElement());
         this.drawerSplitWidget.setSidebarWidget(this.drawerTabbedPane);
         this.drawerTabbedPane.rightToolbar().appendToolbarItem(closeDrawerButton);
@@ -144,13 +163,19 @@ export class InspectorView extends VBox {
         this.tabbedLocation = ViewManager.instance().createTabbedLocation(Host.InspectorFrontendHost.InspectorFrontendHostInstance.bringToFront.bind(Host.InspectorFrontendHost.InspectorFrontendHostInstance), 'panel', true, true, Root.Runtime.Runtime.queryParam('panel'));
         this.tabbedPane = this.tabbedLocation.tabbedPane();
         this.tabbedPane.element.classList.add('main-tabbed-pane');
-        this.tabbedPane.registerRequiredCSS('ui/legacy/inspectorViewTabbedPane.css');
+        // The 'Inspect element' and 'Device mode' buttons in the tabs toolbar takes longer to load than
+        // the tabs themselves, so a space equal to the buttons' total width is preemptively allocated
+        // to prevent to prevent a shift in the tab layout. Note that when DevTools cannot be docked,
+        // the Device mode button is not added and so the allocated space is smaller.
+        const allocatedSpace = Root.Runtime.Runtime.queryParam(Root.Runtime.ConditionName.CAN_DOCK) ? '69px' : '41px';
+        this.tabbedPane.leftToolbar().element.style.minWidth = allocatedSpace;
+        this.tabbedPane.registerRequiredCSS(inspectorViewTabbedPaneStyles);
         this.tabbedPane.addEventListener(TabbedPaneEvents.TabSelected, this.tabSelected, this);
         this.tabbedPane.setAccessibleName(i18nString(UIStrings.panels));
         this.tabbedPane.setTabDelegate(this.tabDelegate);
         const mainHeaderElement = this.tabbedPane.headerElement();
         ARIAUtils.markAsNavigation(mainHeaderElement);
-        ARIAUtils.setAccessibleName(mainHeaderElement, i18nString(UIStrings.mainToolbar));
+        ARIAUtils.setLabel(mainHeaderElement, i18nString(UIStrings.mainToolbar));
         // Store the initial selected panel for use in launch histograms
         Host.userMetrics.setLaunchPanel(this.tabbedPane.selectedTabId);
         if (Host.InspectorFrontendHost.isUnderTest()) {
@@ -160,7 +185,7 @@ export class InspectorView extends VBox {
         this.keyDownBound = this.keyDown.bind(this);
         Host.InspectorFrontendHost.InspectorFrontendHostInstance.events.addEventListener(Host.InspectorFrontendHostAPI.Events.ShowPanel, showPanel.bind(this));
         function showPanel({ data: panelName }) {
-            this.showPanel(panelName);
+            void this.showPanel(panelName);
         }
         if (shouldShowLocaleInfobar()) {
             const infobar = createLocaleInfobar();
@@ -174,6 +199,12 @@ export class InspectorView extends VBox {
             inspectorViewInstance = new InspectorView();
         }
         return inspectorViewInstance;
+    }
+    static maybeGetInspectorViewInstance() {
+        return inspectorViewInstance;
+    }
+    static removeInstance() {
+        inspectorViewInstance = null;
     }
     wasShown() {
         this.element.ownerDocument.addEventListener('keydown', this.keyDownBound, false);
@@ -205,7 +236,7 @@ export class InspectorView extends VBox {
         if (!view) {
             throw new Error(`Expected view for panel '${panelName}'`);
         }
-        return /** @type {!Promise.<!Panel>} */ view.widget();
+        return view.widget();
     }
     onSuspendStateChanged(allTargetsSuspended) {
         this.currentPanelLocked = allTargetsSuspended;
@@ -257,6 +288,7 @@ export class InspectorView extends VBox {
             this.focusRestorer = null;
         }
         this.emitDrawerChangeEvent(true);
+        ARIAUtils.alert(i18nString(UIStrings.drawerShown));
     }
     drawerVisible() {
         return this.drawerTabbedPane.isShowing();
@@ -270,6 +302,7 @@ export class InspectorView extends VBox {
         }
         this.drawerSplitWidget.hideSidebar(true);
         this.emitDrawerChangeEvent(false);
+        ARIAUtils.alert(i18nString(UIStrings.drawerHidden));
     }
     setDrawerMinimized(minimized) {
         this.drawerSplitWidget.setSidebarMinimized(minimized);
@@ -302,7 +335,7 @@ export class InspectorView extends VBox {
                 const panelName = this.tabbedPane.tabIds()[panelIndex];
                 if (panelName) {
                     if (!Dialog.hasInstance() && !this.currentPanelLocked) {
-                        this.showPanel(panelName);
+                        void this.showPanel(panelName);
                     }
                     event.consume(true);
                 }
@@ -356,6 +389,24 @@ export class InspectorView extends VBox {
             });
         }
     }
+    displaySelectOverrideFolderInfobar(callback) {
+        if (!this.#selectOverrideFolderInfobar) {
+            const infobar = new Infobar(InfobarType.Info, i18nString(UIStrings.selectOverrideFolder), [
+                {
+                    text: i18nString(UIStrings.selectFolder),
+                    highlight: true,
+                    delegate: () => callback(),
+                    dismiss: true,
+                },
+            ]);
+            infobar.setParentView(this);
+            this.attachInfobar(infobar);
+            this.#selectOverrideFolderInfobar = infobar;
+            infobar.setCloseCallback(() => {
+                this.#selectOverrideFolderInfobar = undefined;
+            });
+        }
+    }
     createInfoBarDiv() {
         if (!this.infoBarDiv) {
             this.infoBarDiv = document.createElement('div');
@@ -389,9 +440,8 @@ function shouldShowLocaleInfobar() {
 function createLocaleInfobar() {
     const devtoolsLocale = i18n.DevToolsLocale.DevToolsLocale.instance();
     const closestSupportedLocale = devtoolsLocale.lookupClosestDevToolsLocale(navigator.language);
-    // @ts-ignore TODO(crbug.com/1163928) Wait for Intl support.
     const locale = new Intl.Locale(closestSupportedLocale);
-    const closestSupportedLanguageInCurrentLocale = new Intl.DisplayNames([devtoolsLocale.locale], { type: 'language' }).of(locale.language);
+    const closestSupportedLanguageInCurrentLocale = new Intl.DisplayNames([devtoolsLocale.locale], { type: 'language' }).of(locale.language || 'en') || 'English';
     const languageSetting = Common.Settings.Settings.instance().moduleSetting('language');
     return new Infobar(InfobarType.Info, i18nString(UIStrings.devToolsLanguageMissmatch, { PH1: closestSupportedLanguageInCurrentLocale }), [
         {
@@ -417,7 +467,7 @@ function createLocaleInfobar() {
     ], getDisableLocaleInfoBarSetting());
 }
 function reloadDevTools() {
-    if (DockController.instance().canDock() && DockController.instance().dockSide() === "undocked" /* UNDOCKED */) {
+    if (DockController.instance().canDock() && DockController.instance().dockSide() === "undocked" /* DockState.UNDOCKED */) {
         Host.InspectorFrontendHost.InspectorFrontendHostInstance.setIsDocked(true, function () { });
     }
     Host.InspectorFrontendHost.InspectorFrontendHostInstance.reattach(() => window.location.reload());

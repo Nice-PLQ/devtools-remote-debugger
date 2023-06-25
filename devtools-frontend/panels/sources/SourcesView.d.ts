@@ -2,18 +2,20 @@ import * as Common from '../../core/common/common.js';
 import * as Platform from '../../core/platform/platform.js';
 import * as Workspace from '../../models/workspace/workspace.js';
 import * as UI from '../../ui/legacy/legacy.js';
-import type { TabbedEditorContainerDelegate } from './TabbedEditorContainer.js';
-import { TabbedEditorContainer } from './TabbedEditorContainer.js';
+import { TabbedEditorContainer, type TabbedEditorContainerDelegate } from './TabbedEditorContainer.js';
 import { UISourceCodeFrame } from './UISourceCodeFrame.js';
 declare const SourcesView_base: (new (...args: any[]) => {
-    "__#8@#events": Common.ObjectWrapper.ObjectWrapper<EventTypes>;
-    addEventListener<T extends keyof EventTypes>(eventType: T, listener: (arg0: Common.EventTarget.EventTargetEvent<EventTypes[T]>) => void, thisObject?: Object | undefined): Common.EventTarget.EventDescriptor<EventTypes, T>;
+    "__#13@#events": Common.ObjectWrapper.ObjectWrapper<EventTypes>; /**
+     *@description Text to run commands
+     */
+    addEventListener<T extends keyof EventTypes>(eventType: T, listener: (arg0: Common.EventTarget.EventTargetEvent<EventTypes[T], any>) => void, thisObject?: Object | undefined): Common.EventTarget.EventDescriptor<EventTypes, T>;
     once<T_1 extends keyof EventTypes>(eventType: T_1): Promise<EventTypes[T_1]>;
-    removeEventListener<T_2 extends keyof EventTypes>(eventType: T_2, listener: (arg0: Common.EventTarget.EventTargetEvent<EventTypes[T_2]>) => void, thisObject?: Object | undefined): void;
+    removeEventListener<T_2 extends keyof EventTypes>(eventType: T_2, listener: (arg0: Common.EventTarget.EventTargetEvent<EventTypes[T_2], any>) => void, thisObject?: Object | undefined): void;
     hasEventListeners(eventType: keyof EventTypes): boolean;
     dispatchEventToListeners<T_3 extends keyof EventTypes>(eventType: Platform.TypeScriptUtilities.NoUnion<T_3>, ...eventData: Common.EventTarget.EventPayloadToRestParameters<EventTypes, T_3>): void;
 }) & typeof UI.Widget.VBox;
 export declare class SourcesView extends SourcesView_base implements TabbedEditorContainerDelegate, UI.SearchableView.Searchable, UI.SearchableView.Replaceable {
+    #private;
     private placeholderOptionArray;
     private selectedIndex;
     private readonly searchableViewInternal;
@@ -53,8 +55,12 @@ export declare class SourcesView extends SourcesView_base implements TabbedEdito
     private removeUISourceCodes;
     private projectRemoved;
     private updateScriptViewToolbarItems;
-    showSourceLocation(uiSourceCode: Workspace.UISourceCode.UISourceCode, lineNumber?: number, columnNumber?: number, omitFocus?: boolean, omitHighlight?: boolean): void;
+    showSourceLocation(uiSourceCode: Workspace.UISourceCode.UISourceCode, location?: {
+        lineNumber: number;
+        columnNumber?: number;
+    } | number, omitFocus?: boolean, omitHighlight?: boolean): void;
     private createSourceView;
+    getSourceView(uiSourceCode: Workspace.UISourceCode.UISourceCode): UI.Widget.Widget | undefined;
     private getOrCreateSourceView;
     recycleUISourceCodeFrame(sourceFrame: UISourceCodeFrame, uiSourceCode: Workspace.UISourceCode.UISourceCode): void;
     viewForFile(uiSourceCode: Workspace.UISourceCode.UISourceCode): UI.Widget.Widget;
@@ -63,7 +69,7 @@ export declare class SourcesView extends SourcesView_base implements TabbedEdito
     private editorSelected;
     private removeToolbarChangedListener;
     private updateToolbarChangedListener;
-    searchCanceled(): void;
+    onSearchCanceled(): void;
     performSearch(searchConfig: UI.SearchableView.SearchConfig, shouldJump: boolean, jumpBackwards?: boolean): void;
     jumpToNextSearchResult(): void;
     jumpToPreviousSearchResult(): void;
@@ -86,13 +92,10 @@ export interface EditorClosedEvent {
     uiSourceCode: Workspace.UISourceCode.UISourceCode;
     wasSelected: boolean;
 }
-export declare type EventTypes = {
+export type EventTypes = {
     [Events.EditorClosed]: EditorClosedEvent;
     [Events.EditorSelected]: Workspace.UISourceCode.UISourceCode;
 };
-/**
- * @interface
- */
 export interface EditorAction {
     getOrCreateButton(sourcesView: SourcesView): UI.Toolbar.ToolbarButton;
 }

@@ -1,5 +1,5 @@
 import { DataGridNode } from './DataGrid.js';
-declare type ShowMoreDataGridNodeCallback = (arg0: number, arg1: number) => Promise<void>;
+type ShowMoreDataGridNodeCallback = (arg0: number, arg1: number) => Promise<void>;
 export declare class ShowMoreDataGridNode extends DataGridNode<ShowMoreDataGridNode> {
     private readonly callback;
     private startPosition;

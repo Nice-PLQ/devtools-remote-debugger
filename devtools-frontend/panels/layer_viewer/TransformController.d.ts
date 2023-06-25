@@ -44,7 +44,7 @@ export declare class TransformController extends Common.ObjectWrapper.ObjectWrap
 export declare enum Events {
     TransformChanged = "TransformChanged"
 }
-export declare type EventTypes = {
+export type EventTypes = {
     [Events.TransformChanged]: void;
 };
 export declare const enum Modes {

@@ -3,9 +3,16 @@
 // found in the LICENSE file.
 import * as i18n from '../../core/i18n/i18n.js';
 import { Dialog } from './Dialog.js';
-import { createTextButton, formatLocalized } from './UIUtils.js';
+import remoteDebuggingTerminatedScreenStyles from './remoteDebuggingTerminatedScreen.css.legacy.js';
+import { createTextButton } from './UIUtils.js';
 import { VBox } from './Widget.js';
 const UIStrings = {
+    /**
+     * @description Text in a dialog box in DevTools stating why remote debugging has been terminated.
+     * "Remote debugging" here means that DevTools on a PC is inspecting a website running on an actual mobile device
+     * (see https://developer.chrome.com/docs/devtools/remote-debugging/).
+     */
+    debuggingConnectionWasClosed: 'Debugging connection was closed. Reason: ',
     /**
      * @description Text in a dialog box showing how to reconnect to DevTools when remote debugging has been terminated.
      * "Remote debugging" here means that DevTools on a PC is inspecting a website running on an actual mobile device
@@ -26,18 +33,19 @@ const i18nString = i18n.i18n.getLocalizedString.bind(undefined, str_);
 export class RemoteDebuggingTerminatedScreen extends VBox {
     constructor(reason) {
         super(true);
-        this.registerRequiredCSS('ui/legacy/remoteDebuggingTerminatedScreen.css');
+        this.registerRequiredCSS(remoteDebuggingTerminatedScreenStyles);
         const message = this.contentElement.createChild('div', 'message');
-        const reasonElement = message.createChild('span', 'reason');
+        const span = message.createChild('span');
+        span.append(i18nString(UIStrings.debuggingConnectionWasClosed));
+        const reasonElement = span.createChild('span', 'reason');
         reasonElement.textContent = reason;
-        message.appendChild(formatLocalized('Debugging connection was closed. Reason: %s', [reasonElement]));
         this.contentElement.createChild('div', 'message').textContent = i18nString(UIStrings.reconnectWhenReadyByReopening);
         const button = createTextButton(i18nString(UIStrings.reconnectDevtools), () => window.location.reload());
         this.contentElement.createChild('div', 'button').appendChild(button);
     }
     static show(reason) {
         const dialog = new Dialog();
-        dialog.setSizeBehavior("MeasureContent" /* MeasureContent */);
+        dialog.setSizeBehavior("MeasureContent" /* SizeBehavior.MeasureContent */);
         dialog.addCloseButton();
         dialog.setDimmed(true);
         new RemoteDebuggingTerminatedScreen(reason).show(dialog.contentElement);

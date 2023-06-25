@@ -4,12 +4,15 @@ export declare class DraggingFinishedEvent extends Event {
 }
 export interface CSSLengthData {
     lengthText: string;
+    overloaded: boolean;
 }
 export declare class CSSLength extends HTMLElement {
+    #private;
     static readonly litTagName: import("../../../lit-html/static.js").Static;
     private readonly shadow;
     private readonly onDraggingValue;
     private length;
+    private overloaded;
     private isEditingSlot;
     private isDraggingValue;
     private currentMouseClientX;

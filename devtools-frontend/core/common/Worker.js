@@ -44,7 +44,7 @@ export class WorkerWrapper {
         return new WorkerWrapper(url);
     }
     postMessage(message) {
-        this.#workerPromise.then(worker => {
+        void this.#workerPromise.then(worker => {
             if (!this.#disposed) {
                 worker.postMessage(message);
             }
@@ -52,18 +52,18 @@ export class WorkerWrapper {
     }
     dispose() {
         this.#disposed = true;
-        this.#workerPromise.then(worker => worker.terminate());
+        void this.#workerPromise.then(worker => worker.terminate());
     }
     terminate() {
         this.dispose();
     }
     set onmessage(listener) {
-        this.#workerPromise.then(worker => {
+        void this.#workerPromise.then(worker => {
             worker.onmessage = listener;
         });
     }
     set onerror(listener) {
-        this.#workerPromise.then(worker => {
+        void this.#workerPromise.then(worker => {
             worker.onerror = listener;
         });
     }

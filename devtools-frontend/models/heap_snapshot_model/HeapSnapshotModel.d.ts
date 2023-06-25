@@ -144,7 +144,10 @@ export declare class SearchConfig {
     shouldJump: boolean;
     jumpBackward: boolean;
     constructor(query: string, caseSensitive: boolean, isRegex: boolean, shouldJump: boolean, jumpBackward: boolean);
-    toSearchRegex(_global?: boolean): RegExp;
+    toSearchRegex(_global?: boolean): {
+        regex: RegExp;
+        fromQuery: boolean;
+    };
 }
 export declare class Samples {
     timestamps: number[];

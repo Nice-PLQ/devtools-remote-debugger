@@ -33,7 +33,7 @@ class PlayerDataCollection {
         return { 'properties': this.properties, 'messages': this.messages, 'events': this.events, 'errors': this.errors };
     }
 }
-class PlayerDataDownloadManager {
+export class PlayerDataDownloadManager {
     playerDataCollection;
     constructor() {
         this.playerDataCollection = new Map();
@@ -86,19 +86,18 @@ export class MainView extends UI.Panel.PanelWithSidebar {
     deletedPlayers;
     downloadStore;
     sidebar;
-    constructor() {
+    constructor(downloadStore) {
         super('Media');
         this.detailPanels = new Map();
         this.deletedPlayers = new Set();
-        this.downloadStore = new PlayerDataDownloadManager();
+        this.downloadStore = downloadStore;
         this.sidebar = new PlayerListView(this);
         this.sidebar.show(this.panelSidebarElement());
-        SDK.TargetManager.TargetManager.instance().observeModels(MediaModel, this);
+        SDK.TargetManager.TargetManager.instance().observeModels(MediaModel, this, { scoped: true });
     }
-    static instance(opts = { forceNew: null }) {
-        const { forceNew } = opts;
-        if (!mainViewInstance || forceNew) {
-            mainViewInstance = new MainView();
+    static instance(opts) {
+        if (!mainViewInstance || opts?.forceNew) {
+            mainViewInstance = new MainView(opts?.downloadStore || new PlayerDataDownloadManager());
         }
         return mainViewInstance;
     }
@@ -114,12 +113,12 @@ export class MainView extends UI.Panel.PanelWithSidebar {
     }
     wasShown() {
         super.wasShown();
-        for (const model of SDK.TargetManager.TargetManager.instance().models(MediaModel)) {
+        for (const model of SDK.TargetManager.TargetManager.instance().models(MediaModel, { scoped: true })) {
             this.addEventListeners(model);
         }
     }
     willHide() {
-        for (const model of SDK.TargetManager.TargetManager.instance().models(MediaModel)) {
+        for (const model of SDK.TargetManager.TargetManager.instance().models(MediaModel, { scoped: true })) {
             this.removeEventListeners(model);
         }
     }
@@ -133,18 +132,18 @@ export class MainView extends UI.Panel.PanelWithSidebar {
     }
     addEventListeners(mediaModel) {
         mediaModel.ensureEnabled();
-        mediaModel.addEventListener("PlayerPropertiesChanged" /* PlayerPropertiesChanged */, this.propertiesChanged, this);
-        mediaModel.addEventListener("PlayerEventsAdded" /* PlayerEventsAdded */, this.eventsAdded, this);
-        mediaModel.addEventListener("PlayerMessagesLogged" /* PlayerMessagesLogged */, this.messagesLogged, this);
-        mediaModel.addEventListener("PlayerErrorsRaised" /* PlayerErrorsRaised */, this.errorsRaised, this);
-        mediaModel.addEventListener("PlayersCreated" /* PlayersCreated */, this.playersCreated, this);
+        mediaModel.addEventListener("PlayerPropertiesChanged" /* Events.PlayerPropertiesChanged */, this.propertiesChanged, this);
+        mediaModel.addEventListener("PlayerEventsAdded" /* Events.PlayerEventsAdded */, this.eventsAdded, this);
+        mediaModel.addEventListener("PlayerMessagesLogged" /* Events.PlayerMessagesLogged */, this.messagesLogged, this);
+        mediaModel.addEventListener("PlayerErrorsRaised" /* Events.PlayerErrorsRaised */, this.errorsRaised, this);
+        mediaModel.addEventListener("PlayersCreated" /* Events.PlayersCreated */, this.playersCreated, this);
     }
     removeEventListeners(mediaModel) {
-        mediaModel.removeEventListener("PlayerPropertiesChanged" /* PlayerPropertiesChanged */, this.propertiesChanged, this);
-        mediaModel.removeEventListener("PlayerEventsAdded" /* PlayerEventsAdded */, this.eventsAdded, this);
-        mediaModel.removeEventListener("PlayerMessagesLogged" /* PlayerMessagesLogged */, this.messagesLogged, this);
-        mediaModel.removeEventListener("PlayerErrorsRaised" /* PlayerErrorsRaised */, this.errorsRaised, this);
-        mediaModel.removeEventListener("PlayersCreated" /* PlayersCreated */, this.playersCreated, this);
+        mediaModel.removeEventListener("PlayerPropertiesChanged" /* Events.PlayerPropertiesChanged */, this.propertiesChanged, this);
+        mediaModel.removeEventListener("PlayerEventsAdded" /* Events.PlayerEventsAdded */, this.eventsAdded, this);
+        mediaModel.removeEventListener("PlayerMessagesLogged" /* Events.PlayerMessagesLogged */, this.messagesLogged, this);
+        mediaModel.removeEventListener("PlayerErrorsRaised" /* Events.PlayerErrorsRaised */, this.errorsRaised, this);
+        mediaModel.removeEventListener("PlayersCreated" /* Events.PlayersCreated */, this.playersCreated, this);
     }
     onPlayerCreated(playerID) {
         this.sidebar.addMediaElementItem(playerID);

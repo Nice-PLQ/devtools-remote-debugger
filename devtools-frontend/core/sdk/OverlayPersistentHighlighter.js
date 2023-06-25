@@ -50,10 +50,10 @@ export class OverlayPersistentHighlighter {
         this.resetOverlay();
     }
     buildGridHighlightConfig(nodeId) {
-        const mainColor = this.colorOfGrid(nodeId);
-        const background = mainColor.setAlpha(0.1);
-        const gapBackground = mainColor.setAlpha(0.3);
-        const gapHatch = mainColor.setAlpha(0.8);
+        const mainColor = this.colorOfGrid(nodeId).asLegacyColor();
+        const background = mainColor.setAlpha(0.1).asLegacyColor();
+        const gapBackground = mainColor.setAlpha(0.3).asLegacyColor();
+        const gapHatch = mainColor.setAlpha(0.8).asLegacyColor();
         const showGridExtensionLines = this.#extendGridLinesSetting.get();
         const showPositiveLineNumbers = this.#showGridLineLabelsSetting.get() === 'lineNumbers';
         const showNegativeLineNumbers = showPositiveLineNumbers;
@@ -80,11 +80,11 @@ export class OverlayPersistentHighlighter {
         };
     }
     buildFlexContainerHighlightConfig(nodeId) {
-        const mainColor = this.colorOfFlex(nodeId);
+        const mainColor = this.colorOfFlex(nodeId).asLegacyColor();
         return {
-            containerBorder: { color: mainColor.toProtocolRGBA(), pattern: "dashed" /* Dashed */ },
-            itemSeparator: { color: mainColor.toProtocolRGBA(), pattern: "dotted" /* Dotted */ },
-            lineSeparator: { color: mainColor.toProtocolRGBA(), pattern: "dashed" /* Dashed */ },
+            containerBorder: { color: mainColor.toProtocolRGBA(), pattern: "dashed" /* Protocol.Overlay.LineStylePattern.Dashed */ },
+            itemSeparator: { color: mainColor.toProtocolRGBA(), pattern: "dotted" /* Protocol.Overlay.LineStylePattern.Dotted */ },
+            lineSeparator: { color: mainColor.toProtocolRGBA(), pattern: "dashed" /* Protocol.Overlay.LineStylePattern.Dashed */ },
             mainDistributedSpace: { hatchColor: mainColor.toProtocolRGBA() },
             crossDistributedSpace: { hatchColor: mainColor.toProtocolRGBA() },
         };
@@ -93,7 +93,7 @@ export class OverlayPersistentHighlighter {
         return {
             snapAreaBorder: {
                 color: Common.Color.PageHighlight.GridBorder.toProtocolRGBA(),
-                pattern: "dashed" /* Dashed */,
+                pattern: "dashed" /* Protocol.Overlay.LineStylePattern.Dashed */,
             },
             snapportBorder: { color: Common.Color.PageHighlight.GridBorder.toProtocolRGBA() },
             scrollMarginColor: Common.Color.PageHighlight.Margin.toProtocolRGBA(),
@@ -178,11 +178,11 @@ export class OverlayPersistentHighlighter {
         return {
             containerBorder: {
                 color: Common.Color.PageHighlight.LayoutLine.toProtocolRGBA(),
-                pattern: "dashed" /* Dashed */,
+                pattern: "dashed" /* Protocol.Overlay.LineStylePattern.Dashed */,
             },
             descendantBorder: {
                 color: Common.Color.PageHighlight.LayoutLine.toProtocolRGBA(),
-                pattern: "dashed" /* Dashed */,
+                pattern: "dashed" /* Protocol.Overlay.LineStylePattern.Dashed */,
             },
         };
     }

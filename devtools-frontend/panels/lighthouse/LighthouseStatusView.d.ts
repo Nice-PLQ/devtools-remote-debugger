@@ -1,7 +1,7 @@
 import * as Common from '../../core/common/common.js';
-import type { LighthouseController } from './LighthouseController.js';
+import { type LighthousePanel } from './LighthousePanel.js';
 export declare class StatusView {
-    private readonly controller;
+    private readonly panel;
     private statusView;
     private statusHeader;
     private progressWrapper;
@@ -12,10 +12,9 @@ export declare class StatusView {
     private textChangedAt;
     private fastFactsQueued;
     private currentPhase;
-    private scheduledTextChangeTimeout;
     private scheduledFastFactTimeout;
     private readonly dialog;
-    constructor(controller: LighthouseController);
+    constructor(panel: LighthousePanel);
     private render;
     private reset;
     show(dialogRenderElement: Element): void;
@@ -30,7 +29,6 @@ export declare class StatusView {
     private scheduleFastFactCheck;
     private updateFastFactIfNecessary;
     private commitTextChange;
-    private scheduleTextChange;
     renderBugReport(err: Error): void;
     renderText(statusHeader: string, text: string): void;
     toggleCancelButton(show: boolean): void;
@@ -42,6 +40,6 @@ export interface StatusPhase {
     id: string;
     progressBarClass: string;
     message: () => Common.UIString.LocalizedString;
-    statusMessagePrefix: string;
+    statusMessageRegex: RegExp;
 }
 export declare const StatusPhases: StatusPhase[];

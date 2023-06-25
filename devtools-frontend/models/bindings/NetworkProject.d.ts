@@ -16,7 +16,7 @@ export interface FrameAttributionEvent {
     uiSourceCode: Workspace.UISourceCode.UISourceCode;
     frame: SDK.ResourceTreeModel.ResourceTreeFrame;
 }
-export declare type EventTypes = {
+export type EventTypes = {
     [Events.FrameAttributionAdded]: FrameAttributionEvent;
     [Events.FrameAttributionRemoved]: FrameAttributionEvent;
 };

@@ -1,5 +1,5 @@
 import * as Acorn from '../../third_party/acorn/acorn.js';
-export declare type TokenOrComment = Acorn.Token | Acorn.Comment;
+export type TokenOrComment = Acorn.Token | Acorn.Comment;
 /**
  * The tokenizer in Acorn does not allow you to peek into the next token.
  * We use the peekToken method to determine when to stop formatting a
@@ -26,21 +26,13 @@ export declare type TokenOrComment = Acorn.Token | Acorn.Comment;
  * out whether the next token should be the preceding comment or not.
  */
 export declare class AcornTokenizer {
-    private readonly content;
-    private readonly comments;
-    private tokenizer;
-    private textCursor;
-    private tokenLineStartInternal;
-    private tokenLineEndInternal;
-    private tokenColumnStartInternal;
-    private bufferedToken?;
+    #private;
     constructor(content: string);
     static punctuator(token: Acorn.Token, values?: string): boolean;
     static keyword(token: Acorn.Token, keyword?: string): boolean;
     static identifier(token: TokenOrComment, identifier?: string): boolean;
     static lineComment(token: TokenOrComment): boolean;
     static blockComment(token: TokenOrComment): boolean;
-    private nextTokenInternal;
     nextToken(): TokenOrComment | null;
     peekToken(): TokenOrComment | null;
     tokenLineStart(): number;

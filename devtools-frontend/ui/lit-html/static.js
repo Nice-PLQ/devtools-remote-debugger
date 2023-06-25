@@ -1,7 +1,7 @@
 // Copyright 2021 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
-import * as LitHtml from '../../third_party/lit-html/lit-html.js';
+import * as Lit from '../../third_party/lit/lit.js';
 export function flattenTemplate(strings, ...values) {
     const valueMap = [];
     const newStrings = [];
@@ -37,7 +37,7 @@ export function html(strings, ...values) {
     if (values.some(value => isStaticLiteral(value))) {
         return htmlWithStatics(strings, ...values);
     }
-    return LitHtml.html(strings, ...values);
+    return Lit.html(strings, ...values);
 }
 export function literal(value) {
     return {
@@ -60,7 +60,7 @@ function htmlWithStatics(strings, ...values) {
             return existing.valueMap[index];
         });
         // Pass through to Lit.
-        return LitHtml.html(existing.strings, ...filteredValues);
+        return Lit.html(existing.strings, ...filteredValues);
     }
     flattenedTemplates.set(strings, flattenTemplate(strings, ...values));
     return htmlWithStatics(strings, ...values);

@@ -5,18 +5,11 @@ import * as FrontendHelpers from '../../../../../test/unittests/front_end/helper
 import * as Elements from '../../../../panels/elements/components/components.js';
 await FrontendHelpers.initializeGlobalVars();
 const component = new Elements.ComputedStyleProperty.ComputedStyleProperty();
-const propertyName = document.createElement('span');
-propertyName.textContent = 'display';
-propertyName.slot = 'property-name';
-component.appendChild(propertyName);
-const propertyValue = document.createElement('span');
-propertyValue.textContent = 'block';
-propertyValue.slot = 'property-value';
-component.appendChild(propertyValue);
 document.getElementById('container')?.appendChild(component);
-component.data = {
-    inherited: true,
-    traceable: false,
-    onNavigateToSource: () => { },
-};
+component.innerHTML = `
+<span slot="name">display</span>
+<span slot="value">block</span>
+  `;
+component.traceable = false;
+component.inherited = true;
 //# sourceMappingURL=basic.js.map

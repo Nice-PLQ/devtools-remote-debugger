@@ -163,7 +163,7 @@ export class StubConnection {
         this.#onDisconnect = onDisconnect;
     }
     sendRawMessage(message) {
-        setTimeout(this.respondWithError.bind(this, message), 0);
+        window.setTimeout(this.respondWithError.bind(this, message), 0);
     }
     respondWithError(message) {
         const messageObject = JSON.parse(message);
@@ -223,26 +223,26 @@ export class ParallelConnection {
         this.onMessage = null;
     }
 }
-export async function initMainConnection(createMainTarget, websocketConnectionLost) {
+export async function initMainConnection(createRootTarget, websocketConnectionLost) {
     ProtocolClient.InspectorBackend.Connection.setFactory(createMainConnection.bind(null, websocketConnectionLost));
-    await createMainTarget();
+    await createRootTarget();
     Host.InspectorFrontendHost.InspectorFrontendHostInstance.connectionReady();
-    Host.InspectorFrontendHost.InspectorFrontendHostInstance.events.addEventListener(Host.InspectorFrontendHostAPI.Events.ReattachMainTarget, () => {
-        const target = TargetManager.instance().mainTarget();
+    Host.InspectorFrontendHost.InspectorFrontendHostInstance.events.addEventListener(Host.InspectorFrontendHostAPI.Events.ReattachRootTarget, () => {
+        const target = TargetManager.instance().rootTarget();
         if (target) {
             const router = target.router();
             if (router) {
-                router.connection().disconnect();
+                void router.connection().disconnect();
             }
         }
-        createMainTarget();
+        void createRootTarget();
     });
 }
 function createMainConnection(websocketConnectionLost) {
     const wsParam = Root.Runtime.Runtime.queryParam('ws');
     const wssParam = Root.Runtime.Runtime.queryParam('wss');
     if (wsParam || wssParam) {
-        const ws = wsParam ? `ws://${wsParam}` : `wss://${wssParam}`;
+        const ws = (wsParam ? `ws://${wsParam}` : `wss://${wssParam}`);
         return new WebSocketConnection(ws, websocketConnectionLost);
     }
     if (Host.InspectorFrontendHost.InspectorFrontendHostInstance.isHostedMode()) {

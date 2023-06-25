@@ -10,20 +10,20 @@ import { NetworkPersistenceManager } from './NetworkPersistenceManager.js';
 import { PersistenceImpl } from './PersistenceImpl.js';
 const UIStrings = {
     /**
-    *@description Text to save content as a specific file type
-    */
+     *@description Text to save content as a specific file type
+     */
     saveAs: 'Save as...',
     /**
-    *@description Context menu item for saving an image
-    */
+     *@description Context menu item for saving an image
+     */
     saveImage: 'Save image',
     /**
-    *@description A context menu item in the Persistence Actions of the Workspace settings in Settings
-    */
+     *@description A context menu item in the Persistence Actions of the Workspace settings in Settings
+     */
     saveForOverrides: 'Save for overrides',
     /**
-    *@description A context menu item in the Persistence Actions of the Workspace settings in Settings
-    */
+     *@description A context menu item in the Persistence Actions of the Workspace settings in Settings
+     */
     openInContainingFolder: 'Open in containing folder',
 };
 const str_ = i18n.i18n.registerUIStrings('models/persistence/PersistenceActions.ts', UIStrings);
@@ -43,12 +43,13 @@ export class ContextMenuProvider {
             if (contentProvider instanceof Workspace.UISourceCode.UISourceCode) {
                 contentProvider.commitWorkingCopy();
             }
-            let content = (await contentProvider.requestContent()).content || '';
-            if (await contentProvider.contentEncoded()) {
-                content = window.atob(content);
+            const content = await contentProvider.requestContent();
+            let decodedContent = content.content || '';
+            if (content.isEncoded) {
+                decodedContent = window.atob(decodedContent);
             }
             const url = contentProvider.contentURL();
-            Workspace.FileManager.FileManager.instance().save(url, content, true);
+            void Workspace.FileManager.FileManager.instance().save(url, decodedContent, true);
             Workspace.FileManager.FileManager.instance().close(url);
         }
         async function saveImage() {
@@ -70,14 +71,14 @@ export class ContextMenuProvider {
         if (uiSourceCode && NetworkPersistenceManager.instance().canSaveUISourceCodeForOverrides(uiSourceCode)) {
             contextMenu.saveSection().appendItem(i18nString(UIStrings.saveForOverrides), () => {
                 uiSourceCode.commitWorkingCopy();
-                NetworkPersistenceManager.instance().saveUISourceCodeForOverrides(uiSourceCode);
-                Common.Revealer.reveal(uiSourceCode);
+                void NetworkPersistenceManager.instance().saveUISourceCodeForOverrides(uiSourceCode);
+                void Common.Revealer.reveal(uiSourceCode);
             });
         }
         const binding = uiSourceCode && PersistenceImpl.instance().binding(uiSourceCode);
         const fileURL = binding ? binding.fileSystem.contentURL() : contentProvider.contentURL();
         if (fileURL.startsWith('file://')) {
-            const path = Common.ParsedURL.ParsedURL.capFilePrefix(fileURL, Host.Platform.isWin());
+            const path = Common.ParsedURL.ParsedURL.urlToRawPathString(fileURL, Host.Platform.isWin());
             contextMenu.revealSection().appendItem(i18nString(UIStrings.openInContainingFolder), () => Host.InspectorFrontendHost.InspectorFrontendHostInstance.showItemInFolder(path));
         }
     }

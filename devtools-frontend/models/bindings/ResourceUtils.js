@@ -55,8 +55,7 @@ export function displayNameForURL(url) {
     if (uiSourceCode) {
         return uiSourceCode.displayName();
     }
-    const mainTarget = SDK.TargetManager.TargetManager.instance().mainTarget();
-    const inspectedURL = mainTarget && mainTarget.inspectedURL();
+    const inspectedURL = SDK.TargetManager.TargetManager.instance().inspectedURL();
     if (!inspectedURL) {
         return Platform.StringUtilities.trimURL(url, '');
     }

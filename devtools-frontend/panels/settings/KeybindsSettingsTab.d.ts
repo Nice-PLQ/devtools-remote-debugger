@@ -54,4 +54,4 @@ export declare class ShortcutListItem {
     onEscapeKeyPressed(event: Event): void;
     private validateInputs;
 }
-export declare type KeybindsItem = string | UI.ActionRegistration.Action;
+export type KeybindsItem = UI.ActionRegistration.ActionCategory | UI.ActionRegistration.Action;

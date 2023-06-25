@@ -1,9 +1,8 @@
 import type * as ProtocolProxyApi from '../../generated/protocol-proxy-api.js';
 import * as Protocol from '../../generated/protocol.js';
-import type { DOMNode } from './DOMModel.js';
-import { DeferredDOMNode, DOMModel } from './DOMModel.js';
-import type { RemoteObject } from './RemoteObject.js';
-import type { Target } from './Target.js';
+import { DeferredDOMNode, DOMModel, type DOMNode } from './DOMModel.js';
+import { type RemoteObject } from './RemoteObject.js';
+import { type Target } from './Target.js';
 import { SDKModel } from './SDKModel.js';
 export interface HighlightColor {
     r: number;
@@ -38,8 +37,8 @@ export declare class OverlayModel extends SDKModel<EventTypes> implements Protoc
     static highlightRect(rect: HighlightRect): void;
     static clearHighlight(): void;
     getDOMModel(): DOMModel;
-    highlightRect({ x, y, width, height, color, outlineColor }: HighlightRect): Promise<any>;
-    clearHighlight(): Promise<any>;
+    highlightRect({ x, y, width, height, color, outlineColor }: HighlightRect): Promise<Protocol.ProtocolResponseWithError>;
+    clearHighlight(): Promise<Protocol.ProtocolResponseWithError>;
     private wireAgentToSettings;
     suspendModel(): Promise<void>;
     resumeModel(): Promise<void>;
@@ -99,7 +98,7 @@ export interface ChangedNodeId {
     nodeId: number;
     enabled: boolean;
 }
-export declare type EventTypes = {
+export type EventTypes = {
     [Events.InspectModeWillBeToggled]: OverlayModel;
     [Events.ExitedInspectMode]: void;
     [Events.HighlightNodeRequested]: DOMNode;
@@ -131,6 +130,6 @@ export interface HighlightObjectData {
     object: RemoteObject;
     selectorList?: string;
 }
-export declare type HighlightData = HighlightNodeData | HighlightDeferredNode | HighlightObjectData | {
+export type HighlightData = HighlightNodeData | HighlightDeferredNode | HighlightObjectData | {
     clear: boolean;
 };

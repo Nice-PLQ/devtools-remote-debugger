@@ -11,41 +11,41 @@ import * as UI from '../../ui/legacy/legacy.js';
 import liveHeapProfileStyles from './liveHeapProfile.css.js';
 const UIStrings = {
     /**
-    *@description Text for a heap profile type
-    */
+     *@description Text for a heap profile type
+     */
     jsHeap: 'JS Heap',
     /**
-    *@description Text in Live Heap Profile View of a profiler tool
-    */
+     *@description Text in Live Heap Profile View of a profiler tool
+     */
     allocatedJsHeapSizeCurrentlyIn: 'Allocated JS heap size currently in use',
     /**
-    *@description Text in Live Heap Profile View of a profiler tool
-    */
+     *@description Text in Live Heap Profile View of a profiler tool
+     */
     vms: 'VMs',
     /**
-    *@description Text in Live Heap Profile View of a profiler tool
-    */
+     *@description Text in Live Heap Profile View of a profiler tool
+     */
     numberOfVmsSharingTheSameScript: 'Number of VMs sharing the same script source',
     /**
-    *@description Text in Live Heap Profile View of a profiler tool
-    */
+     *@description Text in Live Heap Profile View of a profiler tool
+     */
     scriptUrl: 'Script URL',
     /**
-    *@description Text in Live Heap Profile View of a profiler tool
-    */
+     *@description Text in Live Heap Profile View of a profiler tool
+     */
     urlOfTheScriptSource: 'URL of the script source',
     /**
-    *@description Data grid name for Heap Profile data grids
-    */
+     *@description Data grid name for Heap Profile data grids
+     */
     heapProfile: 'Heap Profile',
     /**
-    *@description Text in Live Heap Profile View of a profiler tool
-    *@example {1} PH1
-    */
+     *@description Text in Live Heap Profile View of a profiler tool
+     *@example {1} PH1
+     */
     anonymousScriptS: '(Anonymous Script {PH1})',
     /**
-    *@description A unit
-    */
+     *@description A unit
+     */
     kb: 'kB',
 };
 const str_ = i18n.i18n.registerUIStrings('panels/profiler/LiveHeapProfileView.ts', UIStrings);
@@ -70,7 +70,7 @@ export class LiveHeapProfileView extends UI.Widget.VBox {
             UI.Toolbar.Toolbar.createActionButton(this.toggleRecordAction);
         this.toggleRecordButton.setToggled(this.setting.get());
         toolbar.appendToolbarItem(this.toggleRecordButton);
-        const mainTarget = SDK.TargetManager.TargetManager.instance().mainTarget();
+        const mainTarget = SDK.TargetManager.TargetManager.instance().primaryPageTarget();
         if (mainTarget && mainTarget.model(SDK.ResourceTreeModel.ResourceTreeModel)) {
             const startWithReloadAction = UI.ActionRegistry.ActionRegistry.instance().action('live-heap-profile.start-with-reload');
             this.startWithReloadButton = UI.Toolbar.Toolbar.createActionButton(startWithReloadAction);
@@ -157,7 +157,7 @@ export class LiveHeapProfileView extends UI.Widget.VBox {
     }
     wasShown() {
         super.wasShown();
-        this.poll();
+        void this.poll();
         this.registerCSSFiles([liveHeapProfileStyles]);
         this.setting.addChangeListener(this.settingChanged, this);
     }
@@ -183,7 +183,7 @@ export class LiveHeapProfileView extends UI.Widget.VBox {
                 return;
             }
             this.update(isolates, profiles);
-            await new Promise(r => setTimeout(r, 3000));
+            await new Promise(r => window.setTimeout(r, 3000));
         } while (this.currentPollId === pollId);
     }
     update(isolates, profiles) {
@@ -261,7 +261,7 @@ export class LiveHeapProfileView extends UI.Widget.VBox {
         }
         const sourceCode = Workspace.Workspace.WorkspaceImpl.instance().uiSourceCodeForURL(node.url);
         if (sourceCode) {
-            Common.Revealer.reveal(sourceCode);
+            void Common.Revealer.reveal(sourceCode);
         }
     }
     sortingChanged() {
@@ -284,7 +284,7 @@ export class LiveHeapProfileView extends UI.Widget.VBox {
             this.startRecording(false);
         }
         else {
-            this.stopRecording();
+            void this.stopRecording();
         }
     }
     startRecording(reload) {
@@ -292,7 +292,7 @@ export class LiveHeapProfileView extends UI.Widget.VBox {
         if (!reload) {
             return;
         }
-        const mainTarget = SDK.TargetManager.TargetManager.instance().mainTarget();
+        const mainTarget = SDK.TargetManager.TargetManager.instance().primaryPageTarget();
         if (!mainTarget) {
             return;
         }
@@ -350,7 +350,7 @@ export class ActionDelegate {
         return profilerActionDelegateInstance;
     }
     handleAction(_context, actionId) {
-        (async () => {
+        void (async () => {
             const profileViewId = 'live_heap_profile';
             await UI.ViewManager.ViewManager.instance().showView(profileViewId);
             const view = UI.ViewManager.ViewManager.instance().view(profileViewId);

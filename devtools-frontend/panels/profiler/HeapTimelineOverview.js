@@ -172,14 +172,14 @@ export class HeapTimelineOverview extends Common.ObjectWrapper.eventMixin(UI.Wid
     }
     onWindowChanged() {
         if (!this.updateGridTimerId) {
-            this.updateGridTimerId = setTimeout(this.updateGrid.bind(this), 10);
+            this.updateGridTimerId = window.setTimeout(this.updateGrid.bind(this), 10);
         }
     }
     scheduleUpdate() {
         if (this.updateTimerId) {
             return;
         }
-        this.updateTimerId = setTimeout(this.update.bind(this), 10);
+        this.updateTimerId = window.setTimeout(this.update.bind(this), 10);
     }
     updateBoundaries() {
         this.windowLeft = this.overviewGrid.windowLeft();
@@ -212,12 +212,12 @@ export class HeapTimelineOverview extends Common.ObjectWrapper.eventMixin(UI.Wid
         const minIndex = Platform.ArrayUtilities.lowerBound(timestamps, timeLeft, Platform.ArrayUtilities.DEFAULT_COMPARATOR);
         const maxIndex = Platform.ArrayUtilities.upperBound(timestamps, timeRight, Platform.ArrayUtilities.DEFAULT_COMPARATOR);
         let size = 0;
-        for (let i = minIndex; i <= maxIndex; ++i) {
+        for (let i = minIndex; i < maxIndex; ++i) {
             size += sizes[i];
         }
         const minId = minIndex > 0 ? ids[minIndex - 1] : 0;
         const maxId = maxIndex < ids.length ? ids[maxIndex] : Infinity;
-        this.dispatchEventToListeners("IdsRangeChanged" /* IdsRangeChanged */, { minId, maxId, size });
+        this.dispatchEventToListeners("IdsRangeChanged" /* Events.IdsRangeChanged */, { minId, maxId, size });
     }
 }
 export class SmoothScale {

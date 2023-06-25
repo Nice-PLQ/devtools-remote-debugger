@@ -13,7 +13,7 @@ export declare const enum Events {
     PlayerErrorsRaised = "PlayerErrorsRaised",
     PlayersCreated = "PlayersCreated"
 }
-export declare type EventTypes = {
+export type EventTypes = {
     [Events.PlayerPropertiesChanged]: Protocol.Media.PlayerPropertiesChangedEvent;
     [Events.PlayerEventsAdded]: Protocol.Media.PlayerEventsAddedEvent;
     [Events.PlayerMessagesLogged]: Protocol.Media.PlayerMessagesLoggedEvent;

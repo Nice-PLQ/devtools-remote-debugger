@@ -1,6 +1,6 @@
 import * as UI from '../../ui/legacy/legacy.js';
 import type * as Protocol from '../../generated/protocol.js';
-import type { InspectedPagePlaceholder } from './InspectedPagePlaceholder.js';
+import { type InspectedPagePlaceholder } from './InspectedPagePlaceholder.js';
 export declare class DeviceModeWrapper extends UI.Widget.VBox {
     private readonly inspectedPagePlaceholder;
     private deviceModeView;

@@ -15,15 +15,11 @@ export class StaticContentProvider {
         const lazyContent = () => Promise.resolve({ content, isEncoded: false });
         return new StaticContentProvider(contentURL, contentType, lazyContent);
     }
-    // TODO(crbug.com/1253323): Cast to PawPathString will be removed when migration to branded types is complete.
     contentURL() {
         return this.contentURLInternal;
     }
     contentType() {
         return this.contentTypeInternal;
-    }
-    contentEncoded() {
-        return Promise.resolve(false);
     }
     requestContent() {
         return this.lazyContent();

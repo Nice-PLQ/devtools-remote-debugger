@@ -10,24 +10,24 @@ import { Events, IsolatedFileSystemManager } from './IsolatedFileSystemManager.j
 import { NetworkPersistenceManager } from './NetworkPersistenceManager.js';
 const UIStrings = {
     /**
-    *@description Text of a DOM element in Workspace Settings Tab of the Workspace settings in Settings
-    */
+     *@description Text of a DOM element in Workspace Settings Tab of the Workspace settings in Settings
+     */
     workspace: 'Workspace',
     /**
-    *@description Text of a DOM element in Workspace Settings Tab of the Workspace settings in Settings
-    */
+     *@description Text of a DOM element in Workspace Settings Tab of the Workspace settings in Settings
+     */
     mappingsAreInferredAutomatically: 'Mappings are inferred automatically.',
     /**
-    *@description Text of the add button in Workspace Settings Tab of the Workspace settings in Settings
-    */
+     *@description Text of the add button in Workspace Settings Tab of the Workspace settings in Settings
+     */
     addFolder: 'Add folder…',
     /**
-    *@description Label element text content in Workspace Settings Tab of the Workspace settings in Settings
-    */
+     *@description Label element text content in Workspace Settings Tab of the Workspace settings in Settings
+     */
     folderExcludePattern: 'Folder exclude pattern',
     /**
-    *@description Label for an item to remove something
-    */
+     *@description Label for an item to remove something
+     */
     remove: 'Remove',
 };
 const str_ = i18n.i18n.registerUIStrings('models/persistence/WorkspaceSettingsTab.ts', UIStrings);
@@ -81,7 +81,6 @@ export class WorkspaceSettingsTab extends UI.Widget.VBox {
         const inputElement = UI.UIUtils.createInput('', 'text');
         UI.ARIAUtils.bindLabelToControl(labelElement, inputElement);
         p.appendChild(inputElement);
-        inputElement.style.width = '270px';
         const folderExcludeSetting = IsolatedFileSystemManager.instance().workspaceFolderExcludePatternSetting();
         const setValue = UI.UIUtils.bindInput(inputElement, folderExcludeSetting.set.bind(folderExcludeSetting), regexValidator, false);
         folderExcludeSetting.addChangeListener(() => setValue.call(null, folderExcludeSetting.get()));
@@ -131,7 +130,7 @@ export class WorkspaceSettingsTab extends UI.Widget.VBox {
         path.textContent = fileSystemPath;
         UI.Tooltip.Tooltip.install(path, fileSystemPath);
         const toolbar = new UI.Toolbar.Toolbar('');
-        const button = new UI.Toolbar.ToolbarButton(i18nString(UIStrings.remove), 'largeicon-delete');
+        const button = new UI.Toolbar.ToolbarButton(i18nString(UIStrings.remove), 'cross');
         button.addEventListener(UI.Toolbar.ToolbarButton.Events.Click, this.removeFileSystemClicked.bind(this, fileSystem));
         toolbar.appendToolbarItem(button);
         header.appendChild(toolbar.element);
@@ -141,7 +140,7 @@ export class WorkspaceSettingsTab extends UI.Widget.VBox {
         IsolatedFileSystemManager.instance().removeFileSystem(fileSystem);
     }
     addFileSystemClicked() {
-        IsolatedFileSystemManager.instance().addFileSystem();
+        void IsolatedFileSystemManager.instance().addFileSystem();
     }
     fileSystemAdded(fileSystem) {
         this.addItem(fileSystem);

@@ -50,8 +50,6 @@ SDK.ConsoleMessage.FrontendMessageSource = SDKModule.ConsoleModel.FrontendMessag
 /** @constructor */
 SDK.Cookie = SDKModule.Cookie.Cookie;
 /** @constructor */
-SDK.CookieReference = SDKModule.Cookie.CookieReference;
-/** @constructor */
 SDK.CookieParser = SDKModule.CookieParser.CookieParser;
 /** @constructor */
 SDK.DOMDebuggerModel = SDKModule.DOMDebuggerModel.DOMDebuggerModel;
@@ -79,6 +77,8 @@ SDK.DebuggerModel.Location = SDKModule.DebuggerModel.Location;
 SDK.DebuggerModel.CallFrame = SDKModule.DebuggerModel.CallFrame;
 /** @constructor */
 SDK.DebuggerPausedDetails = SDKModule.DebuggerModel.DebuggerPausedDetails;
+/** @constructor */
+SDK.FilmStripModel = SDKModule.FilmStripModel.FilmStripModel;
 /** @constructor */
 SDK.HeapProfilerModel = SDKModule.HeapProfilerModel.HeapProfilerModel;
 /** @constructor */
@@ -131,6 +131,10 @@ SDK.ExecutionContext = SDKModule.RuntimeModel.ExecutionContext;
 SDK.Script = SDKModule.Script.Script;
 /** @constructor */
 SDK.SecurityOriginManager = SDKModule.SecurityOriginManager.SecurityOriginManager;
+/** @constructor */
+SDK.StorageBucketsModel = SDKModule.StorageBucketsModel.StorageBucketsModel;
+/** @constructor */
+SDK.StorageKeyManager = SDKModule.StorageKeyManager.StorageKeyManager;
 /** @enum {symbol} */
 SDK.SecurityOriginManager.Events = SDKModule.SecurityOriginManager.Events;
 /** @constructor */
@@ -139,8 +143,6 @@ SDK.ServiceWorkerCacheModel = SDKModule.ServiceWorkerCacheModel.ServiceWorkerCac
 SDK.ServiceWorkerManager = SDKModule.ServiceWorkerManager.ServiceWorkerManager;
 /** @interface */
 SDK.SourceMap = SDKModule.SourceMap.SourceMap;
-/** @constructor */
-SDK.TextSourceMap = SDKModule.SourceMap.TextSourceMap;
 /** @constructor */
 SDK.SourceMapManager = SDKModule.SourceMapManager.SourceMapManager;
 SDK.SourceMapManager.Events = SDKModule.SourceMapManager.Events;

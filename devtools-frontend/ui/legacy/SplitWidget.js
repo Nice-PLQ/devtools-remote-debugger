@@ -29,11 +29,13 @@
  */
 import * as Common from '../../core/common/common.js';
 import * as Platform from '../../core/platform/platform.js';
+import * as ARIAUtils from './ARIAUtils.js';
 import { Constraints } from './Geometry.js';
 import { Events as ResizerWidgetEvents, SimpleResizerWidget } from './ResizerWidget.js';
 import { ToolbarButton } from './Toolbar.js';
 import { Widget } from './Widget.js';
 import { ZoomManager } from './ZoomManager.js';
+import splitWidgetStyles from './splitWidget.css.legacy.js';
 export class SplitWidget extends Common.ObjectWrapper.eventMixin(Widget) {
     sidebarElementInternal;
     mainElement;
@@ -55,6 +57,8 @@ export class SplitWidget extends Common.ObjectWrapper.eventMixin(Widget) {
     animationCallback;
     showSidebarButtonTitle;
     hideSidebarButtonTitle;
+    shownSidebarString;
+    hiddenSidebarString;
     showHideSidebarButton;
     isVerticalInternal;
     sidebarMinimized;
@@ -70,7 +74,7 @@ export class SplitWidget extends Common.ObjectWrapper.eventMixin(Widget) {
     constructor(isVertical, secondIsSidebar, settingName, defaultSidebarWidth, defaultSidebarHeight, constraintsInDip) {
         super(true);
         this.element.classList.add('split-widget');
-        this.registerRequiredCSS('ui/legacy/splitWidget.css');
+        this.registerRequiredCSS(splitWidgetStyles);
         this.contentElement.classList.add('shadow-split-widget');
         this.sidebarElementInternal =
             this.contentElement.createChild('div', 'shadow-split-widget-contents shadow-split-widget-sidebar vbox');
@@ -89,8 +93,7 @@ export class SplitWidget extends Common.ObjectWrapper.eventMixin(Widget) {
         this.defaultSidebarHeight = defaultSidebarHeight || this.defaultSidebarWidth;
         this.constraintsInDip = Boolean(constraintsInDip);
         this.resizeStartSizeDIP = 0;
-        this.setting =
-            settingName ? Common.Settings.Settings.instance().createSetting(settingName, /** @type {*} */ ({})) : null;
+        this.setting = settingName ? Common.Settings.Settings.instance().createSetting(settingName, {}) : null;
         this.totalSizeCSS = 0;
         this.totalSizeOtherDimensionCSS = 0;
         this.mainWidgetInternal = null;
@@ -99,6 +102,8 @@ export class SplitWidget extends Common.ObjectWrapper.eventMixin(Widget) {
         this.animationCallback = null;
         this.showSidebarButtonTitle = Common.UIString.LocalizedEmptyString;
         this.hideSidebarButtonTitle = Common.UIString.LocalizedEmptyString;
+        this.shownSidebarString = Common.UIString.LocalizedEmptyString;
+        this.hiddenSidebarString = Common.UIString.LocalizedEmptyString;
         this.showHideSidebarButton = null;
         this.isVerticalInternal = false;
         this.sidebarMinimized = false;
@@ -194,7 +199,7 @@ export class SplitWidget extends Common.ObjectWrapper.eventMixin(Widget) {
         return this.sidebarWidgetInternal;
     }
     sidebarElement() {
-        return /** @type {!HTMLElement} */ this.sidebarElementInternal;
+        return this.sidebarElementInternal;
     }
     childWasDetached(widget) {
         if (this.detaching) {
@@ -459,6 +464,7 @@ export class SplitWidget extends Common.ObjectWrapper.eventMixin(Widget) {
         // This order of things is important.
         // 1. Resize main element early and force layout.
         this.contentElement.style.setProperty(animatedMarginPropertyName, marginFrom);
+        this.contentElement.style.setProperty('overflow', 'hidden');
         if (!reverse) {
             suppressUnused(this.mainElement.offsetWidth);
             suppressUnused(this.sidebarElementInternal.offsetWidth);
@@ -503,6 +509,7 @@ export class SplitWidget extends Common.ObjectWrapper.eventMixin(Widget) {
         this.contentElement.style.removeProperty('margin-bottom');
         this.contentElement.style.removeProperty('margin-left');
         this.contentElement.style.removeProperty('transition');
+        this.contentElement.style.removeProperty('overflow');
         if (this.animationFrameHandle) {
             this.contentElement.window().cancelAnimationFrame(this.animationFrameHandle);
             this.animationFrameHandle = 0;
@@ -569,10 +576,10 @@ export class SplitWidget extends Common.ObjectWrapper.eventMixin(Widget) {
     }
     wasShown() {
         this.forceUpdateLayout();
-        ZoomManager.instance().addEventListener("ZoomChanged" /* ZoomChanged */, this.onZoomChanged, this);
+        ZoomManager.instance().addEventListener("ZoomChanged" /* ZoomManagerEvents.ZoomChanged */, this.onZoomChanged, this);
     }
     willHide() {
-        ZoomManager.instance().removeEventListener("ZoomChanged" /* ZoomChanged */, this.onZoomChanged, this);
+        ZoomManager.instance().removeEventListener("ZoomChanged" /* ZoomManagerEvents.ZoomChanged */, this.onZoomChanged, this);
     }
     onResize() {
         this.updateLayout();
@@ -621,6 +628,7 @@ export class SplitWidget extends Common.ObjectWrapper.eventMixin(Widget) {
         this.resizeStartSizeDIP = 0;
     }
     hideDefaultResizer(noSplitter) {
+        this.resizerElementInternal.classList.toggle('hidden', Boolean(noSplitter));
         this.uninstallResizer(this.resizerElementInternal);
         this.sidebarElementInternal.classList.toggle('no-default-splitter', Boolean(noSplitter));
     }
@@ -708,21 +716,28 @@ export class SplitWidget extends Common.ObjectWrapper.eventMixin(Widget) {
     onZoomChanged() {
         this.forceUpdateLayout();
     }
-    createShowHideSidebarButton(showTitle, hideTitle) {
+    createShowHideSidebarButton(showTitle, hideTitle, shownString, hiddenString) {
         this.showSidebarButtonTitle = showTitle;
         this.hideSidebarButtonTitle = hideTitle;
+        this.shownSidebarString = shownString;
+        this.hiddenSidebarString = hiddenString;
         this.showHideSidebarButton = new ToolbarButton('', '');
         this.showHideSidebarButton.addEventListener(ToolbarButton.Events.Click, buttonClicked, this);
         this.updateShowHideSidebarButton();
         function buttonClicked() {
-            if (this.showModeInternal !== ShowMode.Both) {
-                this.showBoth(true);
-            }
-            else {
-                this.hideSidebar(true);
-            }
+            this.toggleSidebar();
         }
         return this.showHideSidebarButton;
+    }
+    toggleSidebar() {
+        if (this.showModeInternal !== ShowMode.Both) {
+            this.showBoth(true);
+            ARIAUtils.alert(this.shownSidebarString);
+        }
+        else {
+            this.hideSidebar(true);
+            ARIAUtils.alert(this.hiddenSidebarString);
+        }
     }
     updateShowHideSidebarButton() {
         if (!this.showHideSidebarButton) {
@@ -731,14 +746,12 @@ export class SplitWidget extends Common.ObjectWrapper.eventMixin(Widget) {
         const sidebarHidden = this.showModeInternal === ShowMode.OnlyMain;
         let glyph = '';
         if (sidebarHidden) {
-            glyph = this.isVertical() ?
-                (this.isSidebarSecond() ? 'largeicon-show-right-sidebar' : 'largeicon-show-left-sidebar') :
-                (this.isSidebarSecond() ? 'largeicon-show-bottom-sidebar' : 'largeicon-show-top-sidebar');
+            glyph = this.isVertical() ? (this.isSidebarSecond() ? 'right-panel-open' : 'left-panel-open') :
+                (this.isSidebarSecond() ? 'bottom-panel-open' : 'top-panel-open');
         }
         else {
-            glyph = this.isVertical() ?
-                (this.isSidebarSecond() ? 'largeicon-hide-right-sidebar' : 'largeicon-hide-left-sidebar') :
-                (this.isSidebarSecond() ? 'largeicon-hide-bottom-sidebar' : 'largeicon-hide-top-sidebar');
+            glyph = this.isVertical() ? (this.isSidebarSecond() ? 'right-panel-close' : 'left-panel-close') :
+                (this.isSidebarSecond() ? 'bottom-panel-close' : 'top-panel-close');
         }
         this.showHideSidebarButton.setGlyph(glyph);
         this.showHideSidebarButton.setTitle(sidebarHidden ? this.showSidebarButtonTitle : this.hideSidebarButtonTitle);

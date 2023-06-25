@@ -6,130 +6,131 @@ import * as i18n from '../../core/i18n/i18n.js';
 import * as DataGrid from '../../ui/legacy/components/data_grid/data_grid.js';
 import * as Components from '../../ui/legacy/components/utils/utils.js';
 import * as UI from '../../ui/legacy/legacy.js';
+import * as ThemeSupport from '../../ui/legacy/theme_support/theme_support.js';
 import { NetworkRequestNode } from './NetworkDataGridNode.js';
 import { NetworkManageCustomHeadersView } from './NetworkManageCustomHeadersView.js';
 import { NetworkWaterfallColumn } from './NetworkWaterfallColumn.js';
 import { RequestInitiatorView } from './RequestInitiatorView.js';
 const UIStrings = {
     /**
-    *@description Data grid name for Network Log data grids
-    */
+     *@description Data grid name for Network Log data grids
+     */
     networkLog: 'Network Log',
     /**
-    *@description Inner element text content in Network Log View Columns of the Network panel
-    */
+     *@description Inner element text content in Network Log View Columns of the Network panel
+     */
     waterfall: 'Waterfall',
     /**
-    *@description A context menu item in the Network Log View Columns of the Network panel
-    */
+     *@description A context menu item in the Network Log View Columns of the Network panel
+     */
     responseHeaders: 'Response Headers',
     /**
-    *@description Text in Network Log View Columns of the Network panel
-    */
+     *@description Text in Network Log View Columns of the Network panel
+     */
     manageHeaderColumns: 'Manage Header Columns…',
     /**
-    *@description Text for the start time of an activity
-    */
+     *@description Text for the start time of an activity
+     */
     startTime: 'Start Time',
     /**
-    *@description Text in Network Log View Columns of the Network panel
-    */
+     *@description Text in Network Log View Columns of the Network panel
+     */
     responseTime: 'Response Time',
     /**
-    *@description Text in Network Log View Columns of the Network panel
-    */
+     *@description Text in Network Log View Columns of the Network panel
+     */
     endTime: 'End Time',
     /**
-    *@description Text in Network Log View Columns of the Network panel
-    */
+     *@description Text in Network Log View Columns of the Network panel
+     */
     totalDuration: 'Total Duration',
     /**
-    *@description Text for the latency of a task
-    */
+     *@description Text for the latency of a task
+     */
     latency: 'Latency',
     /**
-    *@description Text for the name of something
-    */
+     *@description Text for the name of something
+     */
     name: 'Name',
     /**
-    *@description Text that refers to a file path
-    */
+     *@description Text that refers to a file path
+     */
     path: 'Path',
     /**
-    *@description Text in Timeline UIUtils of the Performance panel
-    */
+     *@description Text in Timeline UIUtils of the Performance panel
+     */
     url: 'Url',
     /**
-    *@description Text for one or a group of functions
-    */
+     *@description Text for one or a group of functions
+     */
     method: 'Method',
     /**
-    *@description Text for the status of something
-    */
+     *@description Text for the status of something
+     */
     status: 'Status',
     /**
-    *@description Generic label for any text
-    */
+     *@description Generic label for any text
+     */
     text: 'Text',
     /**
-    *@description Text for security or network protocol
-    */
+     *@description Text for security or network protocol
+     */
     protocol: 'Protocol',
     /**
-    *@description Text in Network Log View Columns of the Network panel
-    */
+     *@description Text in Network Log View Columns of the Network panel
+     */
     scheme: 'Scheme',
     /**
-    *@description Text for the domain of a website
-    */
+     *@description Text for the domain of a website
+     */
     domain: 'Domain',
     /**
-    *@description Text in Network Log View Columns of the Network panel
-    */
+     *@description Text in Network Log View Columns of the Network panel
+     */
     remoteAddress: 'Remote Address',
     /**
-    *@description Text that refers to some types
-    */
+     *@description Text that refers to some types
+     */
     type: 'Type',
     /**
-    *@description Text for the initiator of something
-    */
+     *@description Text for the initiator of something
+     */
     initiator: 'Initiator',
     /**
-    *@description Column header in the Network log view of the Network panel
-    */
+     *@description Column header in the Network log view of the Network panel
+     */
     initiatorAddressSpace: 'Initiator Address Space',
     /**
-    *@description Text for web cookies
-    */
+     *@description Text for web cookies
+     */
     cookies: 'Cookies',
     /**
-    *@description Text in Network Log View Columns of the Network panel
-    */
+     *@description Text in Network Log View Columns of the Network panel
+     */
     setCookies: 'Set Cookies',
     /**
-    *@description Text for the size of something
-    */
+     *@description Text for the size of something
+     */
     size: 'Size',
     /**
-    *@description Text in Network Log View Columns of the Network panel
-    */
+     *@description Text in Network Log View Columns of the Network panel
+     */
     content: 'Content',
     /**
-    *@description Text that refers to the time
-    */
+     *@description Text that refers to the time
+     */
     time: 'Time',
     /**
-    *@description Text to show the priority of an item
-    */
+     *@description Text to show the priority of an item
+     */
     priority: 'Priority',
     /**
-    *@description Text in Network Log View Columns of the Network panel
-    */
+     *@description Text in Network Log View Columns of the Network panel
+     */
     connectionId: 'Connection ID',
     /**
-    *@description Text in Network Log View Columns of the Network panel
-    */
+     *@description Text in Network Log View Columns of the Network panel
+     */
     remoteAddressSpace: 'Remote Address Space',
 };
 const str_ = i18n.i18n.registerUIStrings('panels/network/NetworkLogViewColumns.ts', UIStrings);
@@ -179,10 +180,13 @@ export class NetworkLogViewColumns {
         this.lastWheelTime = 0;
         this.setupDataGrid();
         this.setupWaterfall();
+        ThemeSupport.ThemeSupport.instance().addEventListener(ThemeSupport.ThemeChangeEvent.eventName, () => {
+            this.scheduleRefresh();
+        });
     }
     static convertToDataGridDescriptor(columnConfig) {
         const title = columnConfig.title instanceof Function ? columnConfig.title() : columnConfig.title;
-        return /** @type {!DataGrid.DataGrid.ColumnDescriptor} */ {
+        return {
             id: columnConfig.id,
             title,
             sortable: columnConfig.sortable,
@@ -286,7 +290,7 @@ export class NetworkLogViewColumns {
             }
             const contextMenu = new UI.ContextMenu.ContextMenu(event);
             this.networkLogView.handleContextMenuForRequest(contextMenu, request);
-            contextMenu.show();
+            void contextMenu.show();
         }
     }
     onMouseWheel(shouldConsume, ev) {
@@ -322,7 +326,8 @@ export class NetworkLogViewColumns {
         if (!this.waterfallColumn.isShowing()) {
             return;
         }
-        this.waterfallScrollerContent.style.height = this.dataGridScroller.scrollHeight + 'px';
+        this.waterfallScrollerContent.style.height =
+            this.dataGridScroller.scrollHeight - this.dataGridInternal.headerHeight() + 'px';
         this.updateScrollerWidthIfNeeded();
         this.dataGridScroller.scrollTop = this.waterfallScroller.scrollTop;
     }
@@ -402,10 +407,10 @@ export class NetworkLogViewColumns {
         this.waterfallRequestsAreStale = true;
         if (columnId === 'waterfall') {
             if (this.dataGridInternal.sortOrder() === DataGrid.DataGrid.Order.Ascending) {
-                this.waterfallColumnSortIcon.setIconType('smallicon-triangle-up');
+                this.waterfallColumnSortIcon.setIconType('triangle-up');
             }
             else {
-                this.waterfallColumnSortIcon.setIconType('smallicon-triangle-down');
+                this.waterfallColumnSortIcon.setIconType('triangle-down');
             }
             const sortFunction = NetworkRequestNode.RequestPropertyComparator.bind(null, this.activeWaterfallSortId);
             this.dataGridInternal.sortNodes(sortFunction, !this.dataGridInternal.isSortOrderAscending());
@@ -584,7 +589,7 @@ export class NetworkLogViewColumns {
         const manageCustomHeaders = new NetworkManageCustomHeadersView(customHeaders, headerTitle => Boolean(this.addCustomHeader(headerTitle)), this.changeCustomHeader.bind(this), this.removeCustomHeader.bind(this));
         const dialog = new UI.Dialog.Dialog();
         manageCustomHeaders.show(dialog.contentElement);
-        dialog.setSizeBehavior("MeasureContent" /* MeasureContent */);
+        dialog.setSizeBehavior("MeasureContent" /* UI.GlassPane.SizeBehavior.MeasureContent */);
         // @ts-ignore
         // TypeScript somehow tries to appy the `WidgetElement` class to the
         // `Document` type of the (Document|Element) union. WidgetElement inherits
@@ -668,7 +673,7 @@ export class NetworkLogViewColumns {
             box: anchor.boxInWindow(),
             show: async (popover) => {
                 this.popupLinkifier.setLiveLocationUpdateCallback(() => {
-                    popover.setSizeBehavior("MeasureContent" /* MeasureContent */);
+                    popover.setSizeBehavior("MeasureContent" /* UI.GlassPane.SizeBehavior.MeasureContent */);
                 });
                 const content = RequestInitiatorView.createStackTracePreview(request, this.popupLinkifier, false);
                 if (!content) {

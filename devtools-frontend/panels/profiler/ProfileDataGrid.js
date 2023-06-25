@@ -26,22 +26,24 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 import * as i18n from '../../core/i18n/i18n.js';
+import * as Platform from '../../core/platform/platform.js';
+import * as IconButton from '../../ui/components/icon_button/icon_button.js';
 import * as DataGrid from '../../ui/legacy/components/data_grid/data_grid.js';
 import * as UI from '../../ui/legacy/legacy.js';
 const UIStrings = {
     /**
-    * @description This message is presented as a tooltip when developers investigate the performance
-    * of a page. The tooltip alerts developers that some parts of code in execution were not optimized
-    * (made to run faster) and that associated timing information must be considered with this in
-    * mind. The placeholder text is the reason the code was not optimized.
-    * @example {Optimized too many times} PH1
-    */
+     * @description This message is presented as a tooltip when developers investigate the performance
+     * of a page. The tooltip alerts developers that some parts of code in execution were not optimized
+     * (made to run faster) and that associated timing information must be considered with this in
+     * mind. The placeholder text is the reason the code was not optimized.
+     * @example {Optimized too many times} PH1
+     */
     notOptimizedS: 'Not optimized: {PH1}',
     /**
-    *@description Generic text with two placeholders separated by a comma
-    *@example {1 613 680} PH1
-    *@example {44 %} PH2
-    */
+     *@description Generic text with two placeholders separated by a comma
+     *@example {1 613 680} PH1
+     *@example {44 %} PH2
+     */
     genericTextTwoPlaceholders: '{PH1}, {PH2}',
 };
 const str_ = i18n.i18n.registerUIStrings('panels/profiler/ProfileDataGrid.ts', UIStrings);
@@ -166,7 +168,9 @@ export class ProfileDataGridNode extends DataGrid.DataGrid.DataGridNode {
                 cell.classList.toggle('highlight', this.searchMatchedFunctionColumn);
                 if (this.deoptReason) {
                     cell.classList.add('not-optimized');
-                    const warningIcon = UI.Icon.Icon.create('smallicon-warning', 'profile-warn-marker');
+                    const warningIcon = new IconButton.Icon.Icon();
+                    warningIcon.data = { iconName: 'warning-filled', color: 'var(--icon-warning)', width: '14px', height: '14px' };
+                    warningIcon.classList.add('profile-warn-marker');
                     UI.Tooltip.Tooltip.install(warningIcon, i18nString(UIStrings.notOptimizedS, { PH1: this.deoptReason }));
                     cell.appendChild(warningIcon);
                 }
@@ -405,7 +409,7 @@ export class ProfileDataGridTree {
         if (!isNaN(queryNumber) && !(greaterThan || lessThan)) {
             equalTo = true;
         }
-        const matcher = createPlainTextSearchRegex(query, 'i');
+        const matcher = Platform.StringUtilities.createPlainTextSearchRegex(query, 'i');
         function matchesQuery(profileDataGridNode) {
             profileDataGridNode.searchMatchedSelfColumn = false;
             profileDataGridNode.searchMatchedTotalColumn = false;
@@ -476,7 +480,7 @@ export class ProfileDataGridTree {
         return matchesQuery;
     }
     performSearch(searchConfig, shouldJump, jumpBackwards) {
-        this.searchCanceled();
+        this.onSearchCanceled();
         const matchesQuery = this.matchFunction(searchConfig);
         if (!matchesQuery) {
             return;
@@ -497,7 +501,7 @@ export class ProfileDataGridTree {
         this.searchableView.updateSearchMatchesCount(this.searchResults.length);
         this.searchableView.updateCurrentMatchIndex(this.searchResultIndex);
     }
-    searchCanceled() {
+    onSearchCanceled() {
         if (this.searchResults) {
             for (let i = 0; i < this.searchResults.length; ++i) {
                 const profileNode = this.searchResults[i].profileNode;

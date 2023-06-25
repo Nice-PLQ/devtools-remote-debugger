@@ -1,7 +1,6 @@
 import * as UI from '../../ui/legacy/legacy.js';
 export declare class HiddenIssuesRow extends UI.TreeOutline.TreeElement {
-    private numHiddenAggregatedIssues;
+    #private;
     constructor();
-    private appendHeader;
     update(count: number): void;
 }

@@ -1,8 +1,7 @@
 import * as Common from '../../core/common/common.js';
-import type { ActionDelegate } from './ActionRegistration.js';
-import type { Context } from './Context.js';
-import type { Provider, ToolbarItem } from './Toolbar.js';
-import { ToolbarButton } from './Toolbar.js';
+import { type ActionDelegate } from './ActionRegistration.js';
+import { type Context } from './Context.js';
+import { ToolbarButton, type Provider, type ToolbarItem } from './Toolbar.js';
 export declare class DockController extends Common.ObjectWrapper.ObjectWrapper<EventTypes> {
     private canDockInternal;
     readonly closeButton: ToolbarButton;
@@ -24,6 +23,7 @@ export declare class DockController extends Common.ObjectWrapper.ObjectWrapper<E
     setDockSide(dockSide: DockState): void;
     private setIsDockedResponse;
     toggleDockSide(): void;
+    announceDockLocation(): void;
 }
 export declare const enum DockState {
     BOTTOM = "bottom",
@@ -40,7 +40,7 @@ export interface ChangeEvent {
     from: DockState | undefined;
     to: DockState;
 }
-export declare type EventTypes = {
+export type EventTypes = {
     [Events.BeforeDockSideChanged]: ChangeEvent;
     [Events.DockSideChanged]: ChangeEvent;
     [Events.AfterDockSideChanged]: ChangeEvent;

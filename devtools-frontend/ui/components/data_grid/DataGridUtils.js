@@ -67,7 +67,7 @@ export function handleArrowKeyNavigation(options) {
     const { key, currentFocusedCell, columns, rows } = options;
     const [selectedColIndex, selectedRowIndex] = currentFocusedCell;
     switch (key) {
-        case "ArrowLeft" /* LEFT */: {
+        case "ArrowLeft" /* Platform.KeyboardUtilities.ArrowKey.LEFT */: {
             const firstVisibleColumnIndex = columns.findIndex(c => c.visible);
             if (selectedColIndex === firstVisibleColumnIndex) {
                 // User is as far left as they can go, so don't move them.
@@ -87,7 +87,7 @@ export function handleArrowKeyNavigation(options) {
             }
             return [nextColIndex, selectedRowIndex];
         }
-        case "ArrowRight" /* RIGHT */: {
+        case "ArrowRight" /* Platform.KeyboardUtilities.ArrowKey.RIGHT */: {
             // Set the next index to first be the column we are already on, and then
             // iterate through all columns to our right, breaking the loop if we
             // find one that's not hidden. If we don't find one, we'll stay where we
@@ -102,7 +102,7 @@ export function handleArrowKeyNavigation(options) {
             }
             return [nextColIndex, selectedRowIndex];
         }
-        case "ArrowUp" /* UP */: {
+        case "ArrowUp" /* Platform.KeyboardUtilities.ArrowKey.UP */: {
             const columnsSortable = columns.some(col => col.sortable === true);
             const minRowIndex = columnsSortable ? 0 : 1;
             if (selectedRowIndex === minRowIndex) {
@@ -127,7 +127,7 @@ export function handleArrowKeyNavigation(options) {
             }
             return [selectedColIndex, rowIndexToMoveTo];
         }
-        case "ArrowDown" /* DOWN */: {
+        case "ArrowDown" /* Platform.KeyboardUtilities.ArrowKey.DOWN */: {
             if (selectedRowIndex === 0) {
                 // The user is on the column header. So find the first visible body row and take them there!
                 const firstVisibleBodyRowIndex = rows.findIndex(row => !row.hidden);
@@ -159,4 +159,5 @@ export const calculateFirstFocusableCell = (options) => {
     const focusableColIndex = columns.findIndex(col => col.visible);
     return [focusableColIndex, focusableRowIndex];
 };
+export const getCellTitleFromCellContent = (text) => text.length < 25 ? text : text.substr(0, 20) + '\u2026';
 //# sourceMappingURL=DataGridUtils.js.map

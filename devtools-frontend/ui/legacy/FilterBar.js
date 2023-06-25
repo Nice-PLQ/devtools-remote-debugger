@@ -30,32 +30,34 @@
 import * as Common from '../../core/common/common.js';
 import * as Host from '../../core/host/host.js';
 import * as i18n from '../../core/i18n/i18n.js';
+import * as Platform from '../../core/platform/platform.js';
+import * as IconButton from '../components/icon_button/icon_button.js';
 import * as ARIAUtils from './ARIAUtils.js';
-import { Icon } from './Icon.js';
 import { KeyboardShortcut, Modifiers } from './KeyboardShortcut.js';
 import { bindCheckbox } from './SettingsUI.js';
 import { Events, TextPrompt } from './TextPrompt.js';
+import filterStyles from './filter.css.legacy.js';
 import { ToolbarSettingToggle } from './Toolbar.js';
 import { Tooltip } from './Tooltip.js';
 import { CheckboxLabel, createTextChild } from './UIUtils.js';
 import { HBox } from './Widget.js';
 const UIStrings = {
     /**
-    *@description Text to filter result items
-    */
+     *@description Text to filter result items
+     */
     filter: 'Filter',
     /**
-    *@description Text that appears when hover over the filter bar in the Network tool
-    */
+     *@description Text that appears when hover over the filter bar in the Network tool
+     */
     egSmalldUrlacomb: 'e.g. `/small[\d]+/ url:a.com/b`',
     /**
-    *@description Text that appears when hover over the All button in the Network tool
-    *@example {Ctrl + } PH1
-    */
+     *@description Text that appears when hover over the All button in the Network tool
+     *@example {Ctrl + } PH1
+     */
     sclickToSelectMultipleTypes: '{PH1}Click to select multiple types',
     /**
-    *@description Text for everything
-    */
+     *@description Text for everything
+     */
     allStrings: 'All',
     /**
      * @description Hover text for button to clear the filter that is applied
@@ -73,13 +75,13 @@ export class FilterBar extends Common.ObjectWrapper.eventMixin(HBox) {
     showingWidget;
     constructor(name, visibleByDefault) {
         super();
-        this.registerRequiredCSS('ui/legacy/filter.css');
+        this.registerRequiredCSS(filterStyles);
         this.enabled = true;
         this.element.classList.add('filter-bar');
         this.stateSetting =
             Common.Settings.Settings.instance().createSetting('filterBar-' + name + '-toggled', Boolean(visibleByDefault));
         this.filterButtonInternal =
-            new ToolbarSettingToggle(this.stateSetting, 'largeicon-filter', i18nString(UIStrings.filter));
+            new ToolbarSettingToggle(this.stateSetting, 'filter', i18nString(UIStrings.filter), 'filter-filled');
         this.filters = [];
         this.updateFilterBar();
         this.stateSetting.addChangeListener(this.updateFilterBar.bind(this));
@@ -90,7 +92,7 @@ export class FilterBar extends Common.ObjectWrapper.eventMixin(HBox) {
     addFilter(filter) {
         this.filters.push(filter);
         this.element.appendChild(filter.element());
-        filter.addEventListener("FilterChanged" /* FilterChanged */, this.filterChanged, this);
+        filter.addEventListener("FilterChanged" /* FilterUIEvents.FilterChanged */, this.filterChanged, this);
         this.updateFilterButton();
     }
     setEnabled(enabled) {
@@ -107,7 +109,7 @@ export class FilterBar extends Common.ObjectWrapper.eventMixin(HBox) {
     }
     filterChanged() {
         this.updateFilterButton();
-        this.dispatchEventToListeners("Changed" /* Changed */);
+        this.dispatchEventToListeners("Changed" /* FilterBarEvents.Changed */);
     }
     wasShown() {
         super.wasShown();
@@ -176,7 +178,10 @@ export class TextFilterUI extends Common.ObjectWrapper.ObjectWrapper {
         this.suggestionProvider = null;
         const clearButton = container.createChild('div', 'filter-input-clear-button');
         Tooltip.install(clearButton, i18nString(UIStrings.clearFilter));
-        clearButton.appendChild(Icon.create('mediumicon-gray-cross-active', 'filter-cancel-button'));
+        const clearIcon = new IconButton.Icon.Icon();
+        clearIcon.data = { color: 'var(--icon-default)', width: '16px', height: '16px', iconName: 'cross-circle-filled' };
+        clearIcon.classList.add('filter-cancel-button');
+        clearButton.appendChild(clearIcon);
         clearButton.addEventListener('click', () => {
             this.clear();
             this.focus();
@@ -210,7 +215,7 @@ export class TextFilterUI extends Common.ObjectWrapper.ObjectWrapper {
         this.suggestionProvider = suggestionProvider;
     }
     valueChanged() {
-        this.dispatchEventToListeners("FilterChanged" /* FilterChanged */);
+        this.dispatchEventToListeners("FilterChanged" /* FilterUIEvents.FilterChanged */);
         this.updateEmptyStyles();
     }
     updateEmptyStyles() {
@@ -287,7 +292,7 @@ export class NamedBitSetFilterUI extends Common.ObjectWrapper.ObjectWrapper {
             element.classList.toggle('selected', active);
             ARIAUtils.setSelected(element, active);
         }
-        this.dispatchEventToListeners("FilterChanged" /* FilterChanged */);
+        this.dispatchEventToListeners("FilterChanged" /* FilterUIEvents.FilterChanged */);
     }
     addBit(name, label, title) {
         const typeFilterElement = this.filtersElement.createChild('span', name);
@@ -333,7 +338,7 @@ export class NamedBitSetFilterUI extends Common.ObjectWrapper.ObjectWrapper {
                 event.consume(true);
             }
         }
-        else if (isEnterOrSpaceKey(event)) {
+        else if (Platform.KeyboardUtilities.isEnterOrSpaceKey(event)) {
             this.onTypeFilterClicked(event);
         }
     }
@@ -416,11 +421,7 @@ export class CheckboxFilterUI extends Common.ObjectWrapper.ObjectWrapper {
         return this.label;
     }
     fireUpdated() {
-        this.dispatchEventToListeners("FilterChanged" /* FilterChanged */);
-    }
-    setColor(backgroundColor, borderColor) {
-        this.label.backgroundColor = backgroundColor;
-        this.label.borderColor = borderColor;
+        this.dispatchEventToListeners("FilterChanged" /* FilterUIEvents.FilterChanged */);
     }
 }
 //# sourceMappingURL=FilterBar.js.map

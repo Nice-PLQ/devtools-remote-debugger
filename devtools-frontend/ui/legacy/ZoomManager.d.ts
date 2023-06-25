@@ -22,6 +22,6 @@ export interface ZoomChangedEvent {
     from: number;
     to: number;
 }
-export declare type EventTypes = {
+export type EventTypes = {
     [Events.ZoomChanged]: ZoomChangedEvent;
 };

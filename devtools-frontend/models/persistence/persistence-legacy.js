@@ -32,8 +32,6 @@ Persistence.Persistence._NodeShebang = PersistenceModule.Persistence.NodeShebang
 Persistence.Persistence._NodePrefix = PersistenceModule.Persistence.NodePrefix;
 Persistence.Persistence._NodeSuffix = PersistenceModule.Persistence.NodeSuffix;
 /** @constructor */
-Persistence.PathEncoder = PersistenceModule.Persistence.PathEncoder;
-/** @constructor */
 Persistence.PersistenceBinding = PersistenceModule.Persistence.PersistenceBinding;
 /** @constructor */
 Persistence.PersistenceUtils = PersistenceModule.PersistenceUtils.PersistenceUtils;

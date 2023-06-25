@@ -1,16 +1,16 @@
 import * as TextUtils from '../../models/text_utils/text_utils.js';
 import * as Common from '../common/common.js';
-import type * as Platform from '../platform/platform.js';
+import * as Platform from '../platform/platform.js';
 import type * as Protocol from '../../generated/protocol.js';
-import type { CSSModel } from './CSSModel.js';
+import { type CSSModel } from './CSSModel.js';
 import { DeferredDOMNode } from './DOMModel.js';
-import type { FrameAssociated } from './FrameAssociated.js';
-import type { PageResourceLoadInitiator } from './PageResourceLoader.js';
+import { type FrameAssociated } from './FrameAssociated.js';
+import { type PageResourceLoadInitiator } from './PageResourceLoader.js';
 export declare class CSSStyleSheetHeader implements TextUtils.ContentProvider.ContentProvider, FrameAssociated {
     #private;
     id: Protocol.CSS.StyleSheetId;
     frameId: Protocol.Page.FrameId;
-    sourceURL: string;
+    sourceURL: Platform.DevToolsPath.UrlString;
     hasSourceURL: boolean;
     origin: Protocol.CSS.StyleSheetOrigin;
     title: string;
@@ -24,15 +24,18 @@ export declare class CSSStyleSheetHeader implements TextUtils.ContentProvider.Co
     endColumn: number;
     contentLength: number;
     ownerNode: DeferredDOMNode | undefined;
-    sourceMapURL: string | undefined;
+    sourceMapURL: Platform.DevToolsPath.UrlString | undefined;
+    readonly loadingFailed: boolean;
     constructor(cssModel: CSSModel, payload: Protocol.CSS.CSSStyleSheetHeader);
     originalContentProvider(): TextUtils.ContentProvider.ContentProvider;
-    setSourceMapURL(sourceMapURL?: string): void;
+    setSourceMapURL(sourceMapURL?: Platform.DevToolsPath.UrlString): void;
     cssModel(): CSSModel;
     isAnonymousInlineStyleSheet(): boolean;
     isConstructedByNew(): boolean;
-    resourceURL(): string;
+    resourceURL(): Platform.DevToolsPath.UrlString;
+    private getFrameURLPath;
     private viaInspectorResourceURL;
+    private dynamicStyleURL;
     lineNumberInSource(lineNumberInStyleSheet: number): number;
     columnNumberInSource(lineNumberInStyleSheet: number, columnNumberInStyleSheet: number): number | undefined;
     /**
@@ -40,9 +43,8 @@ export declare class CSSStyleSheetHeader implements TextUtils.ContentProvider.Co
      * position's columnNumber is consistent with line endings.
      */
     containsLocation(lineNumber: number, columnNumber: number): boolean;
-    contentURL(): Platform.DevToolsPath.RawPathString;
+    contentURL(): Platform.DevToolsPath.UrlString;
     contentType(): Common.ResourceType.ResourceType;
-    contentEncoded(): Promise<boolean>;
     requestContent(): Promise<TextUtils.ContentProvider.DeferredContent>;
     searchInContent(query: string, caseSensitive: boolean, isRegex: boolean): Promise<TextUtils.ContentProvider.SearchMatch[]>;
     isViaInspector(): boolean;

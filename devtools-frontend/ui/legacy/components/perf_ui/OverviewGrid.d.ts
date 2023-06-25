@@ -1,5 +1,5 @@
 import * as Common from '../../../../core/common/common.js';
-import type { Calculator } from './TimelineGrid.js';
+import { type Calculator } from './TimelineGrid.js';
 export declare class OverviewGrid {
     element: HTMLDivElement;
     private readonly grid;
@@ -76,7 +76,7 @@ export interface WindowChangedWithPositionEvent {
     rawStartValue: number;
     rawEndValue: number;
 }
-export declare type EventTypes = {
+export type EventTypes = {
     [Events.WindowChanged]: void;
     [Events.WindowChangedWithPosition]: WindowChangedWithPositionEvent;
 };

@@ -2,9 +2,34 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 import * as Common from '../../core/common/common.js';
+import * as i18n from '../../core/i18n/i18n.js';
 import * as Platform from '../../core/platform/platform.js';
 import * as SDK from '../../core/sdk/sdk.js';
 import * as Workspace from '../workspace/workspace.js';
+const UIStrings = {
+    /**
+     *@description Text to stop preventing the debugger from stepping into library code
+     */
+    removeFromIgnoreList: 'Remove from ignore list',
+    /**
+     *@description Text for scripts that should not be stepped into when debugging
+     */
+    addScriptToIgnoreList: 'Add script to ignore list',
+    /**
+     *@description Text for directories whose scripts should not be stepped into when debugging
+     */
+    addDirectoryToIgnoreList: 'Add directory to ignore list',
+    /**
+     *@description A context menu item in the Call Stack Sidebar Pane of the Sources panel
+     */
+    addAllContentScriptsToIgnoreList: 'Add all extension scripts to ignore list',
+    /**
+     *@description A context menu item in the Call Stack Sidebar Pane of the Sources panel
+     */
+    addAllThirdPartyScriptsToIgnoreList: 'Add all third-party scripts to ignore list',
+};
+const str_ = i18n.i18n.registerUIStrings('models/bindings/IgnoreListManager.ts', UIStrings);
+const i18nString = i18n.i18n.getLocalizedString.bind(undefined, str_);
 let ignoreListManagerInstance;
 export class IgnoreListManager {
     #debuggerWorkspaceBinding;
@@ -19,6 +44,12 @@ export class IgnoreListManager {
         Common.Settings.Settings.instance()
             .moduleSetting('skipContentScripts')
             .addChangeListener(this.patternChanged.bind(this));
+        Common.Settings.Settings.instance()
+            .moduleSetting('automaticallyIgnoreListKnownThirdPartyScripts')
+            .addChangeListener(this.patternChanged.bind(this));
+        Common.Settings.Settings.instance()
+            .moduleSetting('enableIgnoreListing')
+            .addChangeListener(this.patternChanged.bind(this));
         this.#listeners = new Set();
         this.#isIgnoreListedURLCache = new Map();
         SDK.TargetManager.TargetManager.instance().observeModels(SDK.DebuggerModel.DebuggerModel, this);
@@ -27,11 +58,14 @@ export class IgnoreListManager {
         const { forceNew, debuggerWorkspaceBinding } = opts;
         if (!ignoreListManagerInstance || forceNew) {
             if (!debuggerWorkspaceBinding) {
-                throw new Error(`Unable to create settings: targetManager, workspace, and debuggerWorkspaceBinding must be provided: ${new Error().stack}`);
+                throw new Error(`Unable to create settings: debuggerWorkspaceBinding must be provided: ${new Error().stack}`);
             }
             ignoreListManagerInstance = new IgnoreListManager(debuggerWorkspaceBinding);
         }
         return ignoreListManagerInstance;
+    }
+    static removeInstance() {
+        ignoreListManagerInstance = undefined;
     }
     addChangeListener(listener) {
         this.#listeners.add(listener);
@@ -40,7 +74,7 @@ export class IgnoreListManager {
         this.#listeners.delete(listener);
     }
     modelAdded(debuggerModel) {
-        this.setIgnoreListPatterns(debuggerModel);
+        void this.setIgnoreListPatterns(debuggerModel);
         const sourceMapManager = debuggerModel.sourceMapManager();
         sourceMapManager.addEventListener(SDK.SourceMapManager.Events.SourceMapAttached, this.sourceMapAttached, this);
         sourceMapManager.addEventListener(SDK.SourceMapManager.Events.SourceMapDetached, this.sourceMapDetached, this);
@@ -57,10 +91,10 @@ export class IgnoreListManager {
         }
     }
     getSkipStackFramesPatternSetting() {
-        return /** @type {!Common.Settings.RegExpSetting} */ Common.Settings.Settings.instance().moduleSetting('skipStackFramesPattern');
+        return Common.Settings.Settings.instance().moduleSetting('skipStackFramesPattern');
     }
     setIgnoreListPatterns(debuggerModel) {
-        const regexPatterns = this.getSkipStackFramesPatternSetting().getAsArray();
+        const regexPatterns = this.enableIgnoreListing ? this.getSkipStackFramesPatternSetting().getAsArray() : [];
         const patterns = [];
         for (const item of regexPatterns) {
             if (!item.disabled && item.pattern) {
@@ -69,21 +103,34 @@ export class IgnoreListManager {
         }
         return debuggerModel.setBlackboxPatterns(patterns);
     }
-    isIgnoreListedUISourceCode(uiSourceCode) {
+    getGeneralRulesForUISourceCode(uiSourceCode) {
         const projectType = uiSourceCode.project().type();
         const isContentScript = projectType === Workspace.Workspace.projectTypes.ContentScripts;
-        if (isContentScript && Common.Settings.Settings.instance().moduleSetting('skipContentScripts').get()) {
+        const isKnownThirdParty = uiSourceCode.isKnownThirdParty();
+        return { isContentScript, isKnownThirdParty };
+    }
+    isUserOrSourceMapIgnoreListedUISourceCode(uiSourceCode) {
+        if (uiSourceCode.isUnconditionallyIgnoreListed()) {
             return true;
         }
         const url = this.uiSourceCodeURL(uiSourceCode);
-        return url ? this.isIgnoreListedURL(url) : false;
+        return this.isUserIgnoreListedURL(url, this.getGeneralRulesForUISourceCode(uiSourceCode));
     }
-    isIgnoreListedURL(url, isContentScript) {
+    isUserIgnoreListedURL(url, options) {
+        if (!this.enableIgnoreListing) {
+            return false;
+        }
+        if (options?.isContentScript && this.skipContentScripts) {
+            return true;
+        }
+        if (options?.isKnownThirdParty && this.automaticallyIgnoreListKnownThirdPartyScripts) {
+            return true;
+        }
+        if (!url) {
+            return false;
+        }
         if (this.#isIgnoreListedURLCache.has(url)) {
             return Boolean(this.#isIgnoreListedURLCache.get(url));
-        }
-        if (isContentScript && Common.Settings.Settings.instance().moduleSetting('skipContentScripts').get()) {
-            return true;
         }
         const regex = this.getSkipStackFramesPatternSetting().asRegExp();
         const isIgnoreListed = (regex && regex.test(url)) || false;
@@ -93,16 +140,18 @@ export class IgnoreListManager {
     sourceMapAttached(event) {
         const script = event.data.client;
         const sourceMap = event.data.sourceMap;
-        this.updateScriptRanges(script, sourceMap);
+        void this.updateScriptRanges(script, sourceMap);
     }
     sourceMapDetached(event) {
         const script = event.data.client;
-        this.updateScriptRanges(script, null);
+        void this.updateScriptRanges(script, undefined);
     }
     async updateScriptRanges(script, sourceMap) {
         let hasIgnoreListedMappings = false;
-        if (!IgnoreListManager.instance().isIgnoreListedURL(script.sourceURL, script.isContentScript())) {
-            hasIgnoreListedMappings = sourceMap ? sourceMap.sourceURLs().some(url => this.isIgnoreListedURL(url)) : false;
+        if (!IgnoreListManager.instance().isUserIgnoreListedURL(script.sourceURL, { isContentScript: script.isContentScript() })) {
+            hasIgnoreListedMappings =
+                sourceMap?.sourceURLs().some(url => this.isUserIgnoreListedURL(url, { isKnownThirdParty: sourceMap.hasIgnoreListHint(url) })) ??
+                    false;
         }
         if (!hasIgnoreListedMappings) {
             if (scriptToRange.get(script) && await script.setBlackboxedRanges([])) {
@@ -114,26 +163,14 @@ export class IgnoreListManager {
         if (!sourceMap) {
             return;
         }
-        const mappings = sourceMap.mappings();
-        const newRanges = [];
-        if (mappings.length > 0) {
-            let currentIgnoreListed = false;
-            if (mappings[0].lineNumber !== 0 || mappings[0].columnNumber !== 0) {
-                newRanges.push({ lineNumber: 0, columnNumber: 0 });
-                currentIgnoreListed = true;
-            }
-            for (const mapping of mappings) {
-                if (mapping.sourceURL && currentIgnoreListed !== this.isIgnoreListedURL(mapping.sourceURL)) {
-                    newRanges.push({ lineNumber: mapping.lineNumber, columnNumber: mapping.columnNumber });
-                    currentIgnoreListed = !currentIgnoreListed;
-                }
-            }
-        }
+        const newRanges = sourceMap
+            .findRanges(srcURL => this.isUserIgnoreListedURL(srcURL, { isKnownThirdParty: sourceMap.hasIgnoreListHint(srcURL) }), { isStartMatching: true })
+            .flatMap(range => [range.start, range.end]);
         const oldRanges = scriptToRange.get(script) || [];
         if (!isEqual(oldRanges, newRanges) && await script.setBlackboxedRanges(newRanges)) {
             scriptToRange.set(script, newRanges);
         }
-        this.#debuggerWorkspaceBinding.updateLocations(script);
+        void this.#debuggerWorkspaceBinding.updateLocations(script);
         function isEqual(rangesA, rangesB) {
             if (rangesA.length !== rangesB.length) {
                 return false;
@@ -160,38 +197,75 @@ export class IgnoreListManager {
         }
     }
     unIgnoreListUISourceCode(uiSourceCode) {
-        const url = this.uiSourceCodeURL(uiSourceCode);
-        if (url) {
-            this.unIgnoreListURL(url);
-        }
+        this.unIgnoreListURL(this.uiSourceCodeURL(uiSourceCode), this.getGeneralRulesForUISourceCode(uiSourceCode));
+    }
+    get enableIgnoreListing() {
+        return Common.Settings.Settings.instance().moduleSetting('enableIgnoreListing').get();
+    }
+    set enableIgnoreListing(value) {
+        Common.Settings.Settings.instance().moduleSetting('enableIgnoreListing').set(value);
+    }
+    get skipContentScripts() {
+        return this.enableIgnoreListing && Common.Settings.Settings.instance().moduleSetting('skipContentScripts').get();
+    }
+    get automaticallyIgnoreListKnownThirdPartyScripts() {
+        return this.enableIgnoreListing &&
+            Common.Settings.Settings.instance().moduleSetting('automaticallyIgnoreListKnownThirdPartyScripts').get();
     }
     ignoreListContentScripts() {
+        if (!this.enableIgnoreListing) {
+            this.enableIgnoreListing = true;
+        }
         Common.Settings.Settings.instance().moduleSetting('skipContentScripts').set(true);
     }
     unIgnoreListContentScripts() {
         Common.Settings.Settings.instance().moduleSetting('skipContentScripts').set(false);
     }
+    ignoreListThirdParty() {
+        if (!this.enableIgnoreListing) {
+            this.enableIgnoreListing = true;
+        }
+        Common.Settings.Settings.instance().moduleSetting('automaticallyIgnoreListKnownThirdPartyScripts').set(true);
+    }
+    unIgnoreListThirdParty() {
+        Common.Settings.Settings.instance().moduleSetting('automaticallyIgnoreListKnownThirdPartyScripts').set(false);
+    }
     ignoreListURL(url) {
-        const regexPatterns = this.getSkipStackFramesPatternSetting().getAsArray();
         const regexValue = this.urlToRegExpString(url);
         if (!regexValue) {
             return;
         }
+        this.ignoreListRegex(regexValue, url);
+    }
+    ignoreListRegex(regexValue, disabledForUrl) {
+        const regexPatterns = this.getSkipStackFramesPatternSetting().getAsArray();
         let found = false;
         for (let i = 0; i < regexPatterns.length; ++i) {
             const item = regexPatterns[i];
-            if (item.pattern === regexValue) {
+            if (item.pattern === regexValue || (disabledForUrl && item.disabledForUrl === disabledForUrl)) {
                 item.disabled = false;
+                item.disabledForUrl = undefined;
                 found = true;
-                break;
             }
         }
         if (!found) {
-            regexPatterns.push({ pattern: regexValue, disabled: undefined });
+            regexPatterns.push({ pattern: regexValue, disabled: false });
+        }
+        if (!this.enableIgnoreListing) {
+            this.enableIgnoreListing = true;
         }
         this.getSkipStackFramesPatternSetting().setAsArray(regexPatterns);
     }
-    unIgnoreListURL(url) {
+    unIgnoreListURL(url, options) {
+        if (options?.isContentScript) {
+            this.unIgnoreListContentScripts();
+        }
+        if (options?.isKnownThirdParty) {
+            this.unIgnoreListThirdParty();
+        }
+        if (!url) {
+            return;
+        }
         let regexPatterns = this.getSkipStackFramesPatternSetting().getAsArray();
         const regexValue = IgnoreListManager.instance().urlToRegExpString(url);
         if (!regexValue) {
@@ -209,12 +283,24 @@ export class IgnoreListManager {
                 const regex = new RegExp(item.pattern);
                 if (regex.test(url)) {
                     item.disabled = true;
+                    item.disabledForUrl = url;
                 }
             }
             catch (e) {
             }
         }
         this.getSkipStackFramesPatternSetting().setAsArray(regexPatterns);
+    }
+    removeIgnoreListPattern(regexValue) {
+        let regexPatterns = this.getSkipStackFramesPatternSetting().getAsArray();
+        regexPatterns = regexPatterns.filter(function (item) {
+            return item.pattern !== regexValue;
+        });
+        this.getSkipStackFramesPatternSetting().setAsArray(regexPatterns);
+    }
+    ignoreListHasPattern(regexValue, enabledOnly) {
+        const regexPatterns = this.getSkipStackFramesPatternSetting().getAsArray();
+        return regexPatterns.some(item => !(enabledOnly && item.disabled) && item.pattern === regexValue);
     }
     async patternChanged() {
         this.#isIgnoreListedURLCache.clear();
@@ -267,6 +353,74 @@ export class IgnoreListManager {
             prefix += '.*';
         }
         return prefix + Platform.StringUtilities.escapeForRegExp(name) + (url.endsWith(name) ? '$' : '\\b');
+    }
+    getIgnoreListURLContextMenuItems(uiSourceCode) {
+        if (uiSourceCode.project().type() === Workspace.Workspace.projectTypes.FileSystem) {
+            return [];
+        }
+        const menuItems = [];
+        const canIgnoreList = this.canIgnoreListUISourceCode(uiSourceCode);
+        const isIgnoreListed = this.isUserOrSourceMapIgnoreListedUISourceCode(uiSourceCode);
+        const { isContentScript, isKnownThirdParty } = this.getGeneralRulesForUISourceCode(uiSourceCode);
+        if (isIgnoreListed) {
+            if (canIgnoreList || isContentScript || isKnownThirdParty) {
+                menuItems.push({
+                    text: i18nString(UIStrings.removeFromIgnoreList),
+                    callback: this.unIgnoreListUISourceCode.bind(this, uiSourceCode),
+                });
+            }
+        }
+        else {
+            if (canIgnoreList) {
+                menuItems.push({
+                    text: i18nString(UIStrings.addScriptToIgnoreList),
+                    callback: this.ignoreListUISourceCode.bind(this, uiSourceCode),
+                });
+            }
+            menuItems.push(...this.getIgnoreListGeneralContextMenuItems({ isContentScript, isKnownThirdParty }));
+        }
+        return menuItems;
+    }
+    getIgnoreListGeneralContextMenuItems(options) {
+        const menuItems = [];
+        if (options?.isContentScript) {
+            menuItems.push({
+                text: i18nString(UIStrings.addAllContentScriptsToIgnoreList),
+                callback: this.ignoreListContentScripts.bind(this),
+            });
+        }
+        if (options?.isKnownThirdParty) {
+            menuItems.push({
+                text: i18nString(UIStrings.addAllThirdPartyScriptsToIgnoreList),
+                callback: this.ignoreListThirdParty.bind(this),
+            });
+        }
+        return menuItems;
+    }
+    getIgnoreListFolderContextMenuItems(url, options) {
+        const menuItems = [];
+        const regexValue = '^' + Platform.StringUtilities.escapeForRegExp(url) + '/';
+        if (this.ignoreListHasPattern(regexValue, true)) {
+            menuItems.push({
+                text: i18nString(UIStrings.removeFromIgnoreList),
+                callback: this.removeIgnoreListPattern.bind(this, regexValue),
+            });
+        }
+        else if (this.isUserIgnoreListedURL(url, options)) {
+            // This specific url isn't on the ignore list, but there are rules that match it.
+            menuItems.push({
+                text: i18nString(UIStrings.removeFromIgnoreList),
+                callback: this.unIgnoreListURL.bind(this, url, options),
+            });
+        }
+        else {
+            menuItems.push({
+                text: i18nString(UIStrings.addDirectoryToIgnoreList),
+                callback: this.ignoreListRegex.bind(this, regexValue),
+            });
+            menuItems.push(...this.getIgnoreListGeneralContextMenuItems(options));
+        }
+        return menuItems;
     }
 }
 const scriptToRange = new WeakMap();

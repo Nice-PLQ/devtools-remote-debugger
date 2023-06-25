@@ -4,19 +4,19 @@
 import * as Common from '../../core/common/common.js';
 import { IssuesManager } from './IssuesManager.js';
 /**
-  * A class that facilitates resolving an issueId to an issue. See `ResolverBase` for more info.
-  */
+ * A class that facilitates resolving an issueId to an issue. See `ResolverBase` for more info.
+ */
 export class IssueResolver extends Common.ResolverBase.ResolverBase {
-    issuesListener = null;
-    issuesManager;
+    #issuesListener = null;
+    #issuesManager;
     constructor(issuesManager = IssuesManager.instance()) {
         super();
-        this.issuesManager = issuesManager;
+        this.#issuesManager = issuesManager;
     }
     getForId(id) {
-        return this.issuesManager.getIssueById(id) || null;
+        return this.#issuesManager.getIssueById(id) || null;
     }
-    onIssueAdded(event) {
+    #onIssueAdded(event) {
         const { issue } = event.data;
         const id = issue.getIssueId();
         if (id) {
@@ -24,17 +24,18 @@ export class IssueResolver extends Common.ResolverBase.ResolverBase {
         }
     }
     startListening() {
-        if (this.issuesListener) {
+        if (this.#issuesListener) {
             return;
         }
-        this.issuesListener = this.issuesManager.addEventListener("IssueAdded" /* IssueAdded */, this.onIssueAdded, this);
+        this.#issuesListener =
+            this.#issuesManager.addEventListener("IssueAdded" /* IssueManagerEvents.IssueAdded */, this.#onIssueAdded, this);
     }
     stopListening() {
-        if (!this.issuesListener) {
+        if (!this.#issuesListener) {
             return;
         }
-        Common.EventTarget.removeEventListeners([this.issuesListener]);
-        this.issuesListener = null;
+        Common.EventTarget.removeEventListeners([this.#issuesListener]);
+        this.#issuesListener = null;
     }
 }
 //# sourceMappingURL=IssueResolver.js.map

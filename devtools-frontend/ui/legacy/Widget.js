@@ -27,8 +27,10 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 import * as DOMExtension from '../../core/dom_extension/dom_extension.js';
+import * as Platform from '../../core/platform/platform.js';
 import * as Helpers from '../components/helpers/helpers.js';
 import { Constraints, Size } from './Geometry.js';
+import * as ThemeSupport from './theme_support/theme_support.js';
 import * as Utils from './utils/utils.js';
 import { XWidget } from './XWidget.js';
 export class WidgetElement extends HTMLDivElement {
@@ -406,10 +408,10 @@ export class Widget {
     }
     registerRequiredCSS(cssFile) {
         if (this.isWebComponent) {
-            Utils.appendStyle(this.shadowRoot, cssFile);
+            ThemeSupport.ThemeSupport.instance().appendStyle(this.shadowRoot, cssFile);
         }
         else {
-            Utils.appendStyle(this.element, cssFile);
+            ThemeSupport.ThemeSupport.instance().appendStyle(this.element, cssFile);
         }
     }
     registerCSSFiles(cssFiles) {
@@ -589,7 +591,7 @@ export class WidgetFocusRestorer {
     previous;
     constructor(widget) {
         this.widget = widget;
-        this.previous = widget.element.ownerDocument.deepActiveElement();
+        this.previous = Platform.DOMUtilities.deepActiveElement(widget.element.ownerDocument);
         widget.focus();
     }
     restore() {

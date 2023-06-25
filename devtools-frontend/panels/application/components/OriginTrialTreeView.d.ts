@@ -5,39 +5,29 @@ export interface BadgeData {
     style: 'error' | 'success' | 'secondary';
 }
 export declare class Badge extends HTMLElement {
+    #private;
     static readonly litTagName: import("../../../ui/lit-html/static.js").Static;
-    private readonly shadow;
-    private adorner;
     set data(data: BadgeData);
     connectedCallback(): void;
-    private render;
 }
-declare type TreeNode<DataType> = TreeOutline.TreeOutlineUtils.TreeNode<DataType>;
-export declare type OriginTrialTreeNodeData = Protocol.Page.OriginTrial | Protocol.Page.OriginTrialTokenWithStatus | string;
+type TreeNode<DataType> = TreeOutline.TreeOutlineUtils.TreeNode<DataType>;
+export type OriginTrialTreeNodeData = Protocol.Page.OriginTrial | Protocol.Page.OriginTrialTokenWithStatus | string;
 export interface OriginTrialTokenRowsData {
     node: TreeNode<OriginTrialTreeNodeData>;
 }
 export declare class OriginTrialTokenRows extends HTMLElement {
+    #private;
     static readonly litTagName: import("../../../ui/lit-html/static.js").Static;
-    private readonly shadow;
-    private tokenWithStatus;
-    private parsedTokenDetails;
-    private dateFormatter;
     set data(data: OriginTrialTokenRowsData);
     connectedCallback(): void;
-    private renderTokenField;
-    private setTokenFields;
-    private render;
 }
 export interface OriginTrialTreeViewData {
     trials: Protocol.Page.OriginTrial[];
 }
 export declare class OriginTrialTreeView extends HTMLElement {
+    #private;
     static readonly litTagName: import("../../../ui/lit-html/static.js").Static;
-    private readonly shadow;
     set data(data: OriginTrialTreeViewData);
-    connectedCallback(): void;
-    private render;
 }
 declare global {
     interface HTMLElementTagNameMap {

@@ -1,5 +1,6 @@
 import * as UI from '../../ui/legacy/legacy.js';
 export declare class ScopeChainSidebarPane extends UI.Widget.VBox implements UI.ContextFlavorListener.ContextFlavorListener {
+    #private;
     private readonly treeOutline;
     private readonly expandController;
     private readonly linkifier;
@@ -8,6 +9,9 @@ export declare class ScopeChainSidebarPane extends UI.Widget.VBox implements UI.
     static instance(): ScopeChainSidebarPane;
     flavorChanged(_object: Object | null): void;
     focus(): void;
+    private sourceMapAttached;
+    private setScopeSourceMapSubscription;
+    private debugInfoAttached;
     private update;
     private createScopeSectionTreeElement;
     private extraPropertiesForScope;
@@ -18,7 +22,6 @@ export declare class OpenLinearMemoryInspector extends UI.Widget.VBox implements
     static instance(opts?: {
         forceNew: boolean | null;
     }): OpenLinearMemoryInspector;
-    private isMemoryObjectProperty;
     appendApplicableItems(event: Event, contextMenu: UI.ContextMenu.ContextMenu, target: Object): void;
     private openMemoryInspector;
 }

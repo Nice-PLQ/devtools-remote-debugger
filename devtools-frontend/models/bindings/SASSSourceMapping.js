@@ -29,6 +29,7 @@
  */
 import * as Common from '../../core/common/common.js';
 import * as SDK from '../../core/sdk/sdk.js';
+import * as TextUtils from '../text_utils/text_utils.js';
 import * as Workspace from '../workspace/workspace.js';
 import { ContentProviderBasedProject } from './ContentProviderBasedProject.js';
 import { CSSWorkspaceBinding } from './CSSWorkspaceBinding.js';
@@ -58,7 +59,7 @@ export class SASSSourceMapping {
         for (const sourceURL of sourceMap.sourceURLs()) {
             let binding = bindings.get(sourceURL);
             if (!binding) {
-                binding = new Binding(project, sourceURL);
+                binding = new Binding(project, sourceURL, header.createPageResourceLoadInitiator());
                 bindings.set(sourceURL, binding);
             }
             binding.addSourceMap(sourceMap, header.frameId);
@@ -119,11 +120,19 @@ export class SASSSourceMapping {
         const locations = [];
         for (const sourceMap of binding.getReferringSourceMaps()) {
             const entries = sourceMap.findReverseEntries(uiSourceCode.url(), lineNumber, columnNumber);
-            for (const header of this.#sourceMapManager.clientsForSourceMap(sourceMap)) {
+            const header = this.#sourceMapManager.clientForSourceMap(sourceMap);
+            if (header) {
                 locations.push(...entries.map(entry => new SDK.CSSModel.CSSLocation(header, entry.lineNumber, entry.columnNumber)));
             }
         }
         return locations;
+    }
+    static uiSourceOrigin(uiSourceCode) {
+        const binding = uiSourceCodeToBinding.get(uiSourceCode);
+        if (binding) {
+            return binding.getReferringSourceMaps().map(sourceMap => sourceMap.compiledURL());
+        }
+        return [];
     }
     dispose() {
         Common.EventTarget.removeEventListeners(this.#eventListeners);
@@ -134,28 +143,32 @@ const uiSourceCodeToBinding = new WeakMap();
 class Binding {
     #project;
     #url;
+    #initiator;
     referringSourceMaps;
-    #activeSourceMap;
     uiSourceCode;
-    constructor(project, url) {
+    constructor(project, url, initiator) {
         this.#project = project;
         this.#url = url;
+        this.#initiator = initiator;
         this.referringSourceMaps = [];
         this.uiSourceCode = null;
     }
     recreateUISourceCodeIfNeeded(frameId) {
         const sourceMap = this.referringSourceMaps[this.referringSourceMaps.length - 1];
-        const contentProvider = sourceMap.sourceContentProvider(this.#url, Common.ResourceType.resourceTypes.SourceMapStyleSheet);
-        const newUISourceCode = this.#project.createUISourceCode(this.#url, contentProvider.contentType());
-        uiSourceCodeToBinding.set(newUISourceCode, this);
-        const mimeType = Common.ResourceType.ResourceType.mimeFromURL(this.#url) || contentProvider.contentType().canonicalMimeType();
+        const contentType = Common.ResourceType.resourceTypes.SourceMapStyleSheet;
         const embeddedContent = sourceMap.embeddedContentByURL(this.#url);
+        const contentProvider = embeddedContent !== null ?
+            TextUtils.StaticContentProvider.StaticContentProvider.fromString(this.#url, contentType, embeddedContent) :
+            new SDK.CompilerSourceMappingContentProvider.CompilerSourceMappingContentProvider(this.#url, contentType, this.#initiator);
+        const newUISourceCode = this.#project.createUISourceCode(this.#url, contentType);
+        uiSourceCodeToBinding.set(newUISourceCode, this);
+        const mimeType = Common.ResourceType.ResourceType.mimeFromURL(this.#url) || contentType.canonicalMimeType();
         const metadata = typeof embeddedContent === 'string' ?
             new Workspace.UISourceCode.UISourceCodeMetadata(null, embeddedContent.length) :
             null;
         if (this.uiSourceCode) {
             NetworkProject.cloneInitialFrameAttribution(this.uiSourceCode, newUISourceCode);
-            this.#project.removeFile(this.uiSourceCode.url());
+            this.#project.removeUISourceCode(this.uiSourceCode.url());
         }
         else {
             NetworkProject.setInitialFrameAttribution(newUISourceCode, frameId);
@@ -178,7 +191,7 @@ class Binding {
             this.referringSourceMaps.splice(lastIndex, 1);
         }
         if (!this.referringSourceMaps.length) {
-            this.#project.removeFile(uiSourceCode.url());
+            this.#project.removeUISourceCode(uiSourceCode.url());
             this.uiSourceCode = null;
         }
         else {

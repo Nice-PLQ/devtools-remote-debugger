@@ -1,4 +1,4 @@
-import '../../third_party/lighthouse/report-assets/report-generator.js';
+import '../../third_party/lighthouse/report-assets/report-generator.mjs';
 import * as LighthouseController from './LighthouseController.js';
 import * as LighthousePanel from './LighthousePanel.js';
 import * as LighthouseProtocolService from './LighthouseProtocolService.js';

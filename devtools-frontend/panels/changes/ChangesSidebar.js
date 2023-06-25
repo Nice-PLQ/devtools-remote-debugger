@@ -6,14 +6,15 @@ import * as i18n from '../../core/i18n/i18n.js';
 import * as Platform from '../../core/platform/platform.js';
 import * as Workspace from '../../models/workspace/workspace.js';
 import * as WorkspaceDiff from '../../models/workspace_diff/workspace_diff.js';
+import * as IconButton from '../../ui/components/icon_button/icon_button.js';
 import * as UI from '../../ui/legacy/legacy.js';
 import * as Snippets from '../snippets/snippets.js';
 import changesSidebarStyles from './changesSidebar.css.js';
 const UIStrings = {
     /**
-    *@description Name of an item from source map
-    *@example {compile.html} PH1
-    */
+     *@description Name of an item from source map
+     *@example {compile.html} PH1
+     */
     sFromSourceMap: '{PH1} (from source map)',
 };
 const str_ = i18n.i18n.registerUIStrings('panels/changes/ChangesSidebar.ts', UIStrings);
@@ -33,7 +34,7 @@ export class ChangesSidebar extends Common.ObjectWrapper.eventMixin(UI.Widget.Wi
         this.treeElements = new Map();
         this.workspaceDiff = workspaceDiff;
         this.workspaceDiff.modifiedUISourceCodes().forEach(this.addUISourceCode.bind(this));
-        this.workspaceDiff.addEventListener("ModifiedStatusChanged" /* ModifiedStatusChanged */, this.uiSourceCodeMofiedStatusChanged, this);
+        this.workspaceDiff.addEventListener("ModifiedStatusChanged" /* WorkspaceDiff.WorkspaceDiff.Events.ModifiedStatusChanged */, this.uiSourceCodeMofiedStatusChanged, this);
     }
     selectUISourceCode(uiSourceCode, omitFocus) {
         const treeElement = this.treeElements.get(uiSourceCode);
@@ -47,7 +48,7 @@ export class ChangesSidebar extends Common.ObjectWrapper.eventMixin(UI.Widget.Wi
         return this.treeoutline.selectedTreeElement ? this.treeoutline.selectedTreeElement.uiSourceCode : null;
     }
     selectionChanged() {
-        this.dispatchEventToListeners("SelectedUISourceCodeChanged" /* SelectedUISourceCodeChanged */);
+        this.dispatchEventToListeners("SelectedUISourceCodeChanged" /* Events.SelectedUISourceCodeChanged */);
     }
     uiSourceCodeMofiedStatusChanged(event) {
         if (event.data.isModified) {
@@ -100,11 +101,17 @@ export class UISourceCodeTreeElement extends UI.TreeOutline.TreeElement {
         this.uiSourceCode = uiSourceCode;
         this.listItemElement.classList.add('navigator-' + uiSourceCode.contentType().name() + '-tree-item');
         UI.ARIAUtils.markAsTab(this.listItemElement);
-        let iconType = 'largeicon-navigator-file';
+        let iconName = 'document';
         if (Snippets.ScriptSnippetFileSystem.isSnippetsUISourceCode(this.uiSourceCode)) {
-            iconType = 'largeicon-navigator-snippet';
+            iconName = 'snippet';
         }
-        const defaultIcon = UI.Icon.Icon.create(iconType, 'icon');
+        const defaultIcon = new IconButton.Icon.Icon();
+        defaultIcon.data = {
+            iconName,
+            color: 'var(--icon-file-default)',
+            width: '20px',
+            height: '20px',
+        };
         this.setLeadingIcons([defaultIcon]);
         this.eventListeners = [
             uiSourceCode.addEventListener(Workspace.UISourceCode.Events.TitleChanged, this.updateTitle, this),

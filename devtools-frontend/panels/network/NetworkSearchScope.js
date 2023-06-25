@@ -2,12 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 import * as i18n from '../../core/i18n/i18n.js';
+import * as Platform from '../../core/platform/platform.js';
 import * as Logs from '../../models/logs/logs.js';
 import * as NetworkForward from '../../panels/network/forward/forward.js';
 const UIStrings = {
     /**
-    *@description Text for web URLs
-    */
+     *@description Text for web URLs
+     */
     url: 'URL',
 };
 const str_ = i18n.i18n.registerUIStrings('panels/network/NetworkSearchScope.ts', UIStrings);
@@ -73,11 +74,11 @@ export class NetworkSearchScope {
         }
         function stringMatchesQuery(string) {
             const flags = searchConfig.ignoreCase() ? 'i' : '';
-            const regExps = searchConfig.queries().map(query => new RegExp(query, flags));
+            const regExps = searchConfig.queries().map(query => new RegExp(Platform.StringUtilities.escapeForRegExp(query), flags));
             let pos = 0;
             for (const regExp of regExps) {
                 const match = string.substr(pos).match(regExp);
-                if (!match || !match.index) {
+                if (!match || match.index === undefined) {
                     return false;
                 }
                 pos += match.index + match[0].length;

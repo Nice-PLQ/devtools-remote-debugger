@@ -1,5 +1,5 @@
 import * as Common from '../../../../core/common/common.js';
-import type { ContrastInfo } from './ContrastInfo.js';
+import { type ContrastInfo } from './ContrastInfo.js';
 export declare class ContrastDetails extends Common.ObjectWrapper.ObjectWrapper<EventTypes> {
     private contrastInfo;
     private readonly elementInternal;
@@ -27,7 +27,7 @@ export declare class ContrastDetails extends Common.ObjectWrapper.ObjectWrapper<
     private bgColorPickerButton;
     private readonly bgColorPickedBound;
     private readonly bgColorSwatch;
-    constructor(contrastInfo: ContrastInfo, contentElement: Element, toggleMainColorPickerCallback: (arg0?: boolean | undefined, arg1?: Common.EventTarget.EventTargetEvent<unknown> | undefined) => void, expandedChangedCallback: () => void, colorSelectedCallback: (arg0: Common.Color.Color) => void);
+    constructor(contrastInfo: ContrastInfo, contentElement: Element, toggleMainColorPickerCallback: (arg0?: boolean | undefined, arg1?: Common.EventTarget.EventTargetEvent<unknown> | undefined) => void, expandedChangedCallback: () => void, colorSelectedCallback: (arg0: Common.Color.Legacy) => void);
     private showNoContrastInfoAvailableMessage;
     private hideNoContrastInfoAvailableMessage;
     private computeSuggestedColor;
@@ -51,7 +51,7 @@ export declare class ContrastDetails extends Common.ObjectWrapper.ObjectWrapper<
 export declare const enum Events {
     BackgroundColorPickerWillBeToggled = "BackgroundColorPickerWillBeToggled"
 }
-export declare type EventTypes = {
+export type EventTypes = {
     [Events.BackgroundColorPickerWillBeToggled]: boolean;
 };
 export declare class Swatch {
@@ -60,5 +60,5 @@ export declare class Swatch {
     private swatchInnerElement;
     private textPreview;
     constructor(parentElement: Element);
-    setColors(fgColor: Common.Color.Color, bgColor: Common.Color.Color): void;
+    setColors(fgColor: Common.Color.Legacy, bgColor: Common.Color.Legacy): void;
 }

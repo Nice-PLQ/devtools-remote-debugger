@@ -36,8 +36,11 @@ import * as i18n from '../../core/i18n/i18n.js';
 import * as Platform from '../../core/platform/platform.js';
 import * as SDK from '../../core/sdk/sdk.js';
 import * as TextUtils from '../../models/text_utils/text_utils.js';
+import * as CodeMirror from '../../third_party/codemirror.next/codemirror.next.js';
 import * as Adorners from '../../ui/components/adorners/adorners.js';
 import * as CodeHighlighter from '../../ui/components/code_highlighter/code_highlighter.js';
+import * as IconButton from '../../ui/components/icon_button/icon_button.js';
+import * as TextEditor from '../../ui/components/text_editor/text_editor.js';
 import * as Components from '../../ui/legacy/components/utils/utils.js';
 import * as UI from '../../ui/legacy/legacy.js';
 import * as Emulation from '../emulation/emulation.js';
@@ -49,162 +52,155 @@ import { ImagePreviewPopover } from './ImagePreviewPopover.js';
 import { getRegisteredDecorators } from './MarkerDecorator.js';
 const UIStrings = {
     /**
-    *@description Title for Ad adorner. This iframe is marked as advertisement frame.
-    */
+     *@description Title for Ad adorner. This iframe is marked as advertisement frame.
+     */
     thisFrameWasIdentifiedAsAnAd: 'This frame was identified as an ad frame',
     /**
-    *@description A context menu item in the Elements panel. Force is used as a verb, indicating intention to make the state change.
-    */
+     *@description A context menu item in the Elements panel. Force is used as a verb, indicating intention to make the state change.
+     */
     forceState: 'Force state',
     /**
-    *@description Hint element title in Elements Tree Element of the Elements panel
-    *@example {0} PH1
-    */
+     *@description Hint element title in Elements Tree Element of the Elements panel
+     *@example {0} PH1
+     */
     useSInTheConsoleToReferToThis: 'Use {PH1} in the console to refer to this element.',
     /**
-    *@description A context menu item in the Elements Tree Element of the Elements panel
-    */
+     *@description A context menu item in the Elements Tree Element of the Elements panel
+     */
     addAttribute: 'Add attribute',
     /**
-    *@description Text to modify the attribute of an item
-    */
+     *@description Text to modify the attribute of an item
+     */
     editAttribute: 'Edit attribute',
     /**
-    *@description Text to focus on something
-    */
+     *@description Text to focus on something
+     */
     focus: 'Focus',
     /**
-    *@description Text to scroll the displayed content into view
-    */
+     *@description Text to scroll the displayed content into view
+     */
     scrollIntoView: 'Scroll into view',
     /**
-    *@description Text to enter Isolation Mode, a mode with focus on a single element and interactive resizing
-    */
-    enterIsolationMode: 'Enter Isolation Mode',
-    /**
-    *@description Text to exit Isolation Mode, a mode with focus on a single element and interactive resizing
-    */
-    exitIsolationMode: 'Exit Isolation Mode',
-    /**
-    *@description A context menu item in the Elements Tree Element of the Elements panel
-    */
+     *@description A context menu item in the Elements Tree Element of the Elements panel
+     */
     editText: 'Edit text',
     /**
-    *@description A context menu item in the Elements Tree Element of the Elements panel
-    */
+     *@description A context menu item in the Elements Tree Element of the Elements panel
+     */
     editAsHtml: 'Edit as HTML',
     /**
-    *@description Text to cut an element, cut should be used as a verb
-    */
+     *@description Text to cut an element, cut should be used as a verb
+     */
     cut: 'Cut',
     /**
-    *@description Text for copying, copy should be used as a verb
-    */
+     *@description Text for copying, copy should be used as a verb
+     */
     copy: 'Copy',
     /**
-    *@description Text to paste an element, paste should be used as a verb
-    */
+     *@description Text to paste an element, paste should be used as a verb
+     */
     paste: 'Paste',
     /**
-    *@description Text in Elements Tree Element of the Elements panel, copy should be used as a verb
-    */
+     *@description Text in Elements Tree Element of the Elements panel, copy should be used as a verb
+     */
     copyOuterhtml: 'Copy outerHTML',
     /**
-    *@description Text in Elements Tree Element of the Elements panel, copy should be used as a verb
-    */
+     *@description Text in Elements Tree Element of the Elements panel, copy should be used as a verb
+     */
     copySelector: 'Copy `selector`',
     /**
-    *@description Text in Elements Tree Element of the Elements panel
-    */
+     *@description Text in Elements Tree Element of the Elements panel
+     */
     copyJsPath: 'Copy JS path',
     /**
-    *@description Text in Elements Tree Element of the Elements panel, copy should be used as a verb
-    */
+     *@description Text in Elements Tree Element of the Elements panel, copy should be used as a verb
+     */
     copyStyles: 'Copy styles',
     /**
-    *@description Text in Elements Tree Element of the Elements panel, copy should be used as a verb
-    */
+     *@description Text in Elements Tree Element of the Elements panel, copy should be used as a verb
+     */
     copyXpath: 'Copy XPath',
     /**
-    *@description Text in Elements Tree Element of the Elements panel, copy should be used as a verb
-    */
+     *@description Text in Elements Tree Element of the Elements panel, copy should be used as a verb
+     */
     copyFullXpath: 'Copy full XPath',
     /**
-    *@description Text in Elements Tree Element of the Elements panel, copy should be used as a verb
-    */
+     *@description Text in Elements Tree Element of the Elements panel, copy should be used as a verb
+     */
     copyElement: 'Copy element',
     /**
-    *@description A context menu item in the Elements Tree Element of the Elements panel
-    */
+     *@description A context menu item in the Elements Tree Element of the Elements panel
+     */
     duplicateElement: 'Duplicate element',
     /**
-    *@description Text to hide an element
-    */
+     *@description Text to hide an element
+     */
     hideElement: 'Hide element',
     /**
-    *@description A context menu item in the Elements Tree Element of the Elements panel
-    */
+     *@description A context menu item in the Elements Tree Element of the Elements panel
+     */
     deleteElement: 'Delete element',
     /**
-    *@description Text to expand something recursively
-    */
+     *@description Text to expand something recursively
+     */
     expandRecursively: 'Expand recursively',
     /**
-    *@description Text to collapse children of a parent group
-    */
+     *@description Text to collapse children of a parent group
+     */
     collapseChildren: 'Collapse children',
     /**
-    *@description Title of an action in the emulation tool to capture node screenshot
-    */
+     *@description Title of an action in the emulation tool to capture node screenshot
+     */
     captureNodeScreenshot: 'Capture node screenshot',
     /**
-    *@description Title of a context menu item. When clicked DevTools goes to the Application panel and shows this specific iframe's details
-    */
+     *@description Title of a context menu item. When clicked DevTools goes to the Application panel and shows this specific iframe's details
+     */
     showFrameDetails: 'Show `iframe` details',
     /**
-    *@description Text in Elements Tree Element of the Elements panel
-    */
+     *@description Text in Elements Tree Element of the Elements panel
+     */
     valueIsTooLargeToEdit: '<value is too large to edit>',
     /**
-    *@description Element text content in Elements Tree Element of the Elements panel
-    */
+     *@description Element text content in Elements Tree Element of the Elements panel
+     */
     children: 'Children:',
     /**
-    *@description ARIA label for Elements Tree adorners
-    */
+     *@description ARIA label for Elements Tree adorners
+     */
     enableGridMode: 'Enable grid mode',
     /**
-    *@description ARIA label for Elements Tree adorners
-    */
+     *@description ARIA label for Elements Tree adorners
+     */
     disableGridMode: 'Disable grid mode',
     /**
-    *@description Label of the adorner for flex elements in the Elements panel
-    */
+     *@description Label of the adorner for flex elements in the Elements panel
+     */
     enableFlexMode: 'Enable flex mode',
     /**
-    *@description Label of the adorner for flex elements in the Elements panel
-    */
+     *@description Label of the adorner for flex elements in the Elements panel
+     */
     disableFlexMode: 'Disable flex mode',
     /**
-    *@description Label of an adorner in the Elements panel. When clicked, it enables
-    * the overlay showing CSS scroll snapping for the current element.
-    */
+     *@description Label of an adorner in the Elements panel. When clicked, it enables
+     * the overlay showing CSS scroll snapping for the current element.
+     */
     enableScrollSnap: 'Enable scroll-snap overlay',
     /**
-    *@description Label of an adorner in the Elements panel. When clicked, it disables
-    * the overlay showing CSS scroll snapping for the current element.
-    */
+     *@description Label of an adorner in the Elements panel. When clicked, it disables
+     * the overlay showing CSS scroll snapping for the current element.
+     */
     disableScrollSnap: 'Disable scroll-snap overlay',
 };
 const str_ = i18n.i18n.registerUIStrings('panels/elements/ElementsTreeElement.ts', UIStrings);
 const i18nString = i18n.i18n.getLocalizedString.bind(undefined, str_);
+function isOpeningTag(context) {
+    return context.tagType === "OPENING_TAG" /* TagType.OPENING */;
+}
 export class ElementsTreeElement extends UI.TreeOutline.TreeElement {
     nodeInternal;
     treeOutline;
     gutterContainer;
     decorationsElement;
-    isClosingTagInternal;
-    canAddAttributes;
     searchQuery;
     expandedChildrenLimitInternal;
     decorationsThrottler;
@@ -212,35 +208,32 @@ export class ElementsTreeElement extends UI.TreeOutline.TreeElement {
     hoveredInternal;
     editing;
     highlightResult;
-    adornerContainer;
-    // TODO(crbug.com/1172300) Ignored during the jsdoc to ts migration
-    // @ts-expect-error
-    adorners;
-    // TODO(crbug.com/1172300) Ignored during the jsdoc to ts migration
-    // @ts-expect-error
-    styleAdorners;
-    // TODO(crbug.com/1172300) Ignored during the jsdoc to ts migration
-    // @ts-expect-error
-    adornersThrottler;
     htmlEditElement;
     expandAllButtonElement;
     searchHighlightsVisible;
     selectionElement;
     hintElement;
+    contentElement;
+    #elementIssues = new Map();
+    #nodeElementToIssue = new Map();
+    tagTypeContext;
     constructor(node, isClosingTag) {
         // The title will be updated in onattach.
         super();
         this.nodeInternal = node;
         this.treeOutline = null;
-        this.gutterContainer = this.listItemElement.createChild('div', 'gutter-container');
+        this.contentElement = this.listItemElement.createChild('div');
+        this.gutterContainer = this.contentElement.createChild('div', 'gutter-container');
         this.gutterContainer.addEventListener('click', this.showContextMenu.bind(this));
-        const gutterMenuIcon = UI.Icon.Icon.create('largeicon-menu', 'gutter-menu-icon');
-        this.gutterContainer.appendChild(gutterMenuIcon);
+        const gutterMenuIcon = new IconButton.Icon.Icon();
+        gutterMenuIcon.data = {
+            color: 'var(--icon-default)',
+            iconName: 'dots-horizontal',
+            height: '16px',
+            width: '16px',
+        };
+        this.gutterContainer.append(gutterMenuIcon);
         this.decorationsElement = this.gutterContainer.createChild('div', 'hidden');
-        this.isClosingTagInternal = isClosingTag;
-        if (this.nodeInternal.nodeType() === Node.ELEMENT_NODE && !isClosingTag) {
-            this.canAddAttributes = true;
-        }
         this.searchQuery = null;
         this.expandedChildrenLimitInternal = InitialChildrenLimit;
         this.decorationsThrottler = new Common.Throttler.Throttler(100);
@@ -248,12 +241,19 @@ export class ElementsTreeElement extends UI.TreeOutline.TreeElement {
         this.hoveredInternal = false;
         this.editing = null;
         this.highlightResult = [];
-        if (!isClosingTag) {
-            this.adornerContainer = this.listItemElement.createChild('div', 'adorner-container hidden');
-            this.adorners = [];
-            this.styleAdorners = [];
-            this.adornersThrottler = new Common.Throttler.Throttler(100);
-            this.updateStyleAdorners();
+        if (isClosingTag) {
+            this.tagTypeContext = { tagType: "CLOSING_TAG" /* TagType.CLOSING */ };
+        }
+        else {
+            this.tagTypeContext = {
+                tagType: "OPENING_TAG" /* TagType.OPENING */,
+                adornerContainer: this.contentElement.createChild('div', 'adorner-container hidden'),
+                adorners: [],
+                styleAdorners: [],
+                adornersThrottler: new Common.Throttler.Throttler(100),
+                canAddAttributes: this.nodeInternal.nodeType() === Node.ELEMENT_NODE,
+            };
+            void this.updateStyleAdorners();
             if (node.isAdFrameNode()) {
                 const config = ElementsComponents.AdornerManager.getRegisteredAdorner(ElementsComponents.AdornerManager.RegisteredAdorners.AD);
                 const adorner = this.adorn(config);
@@ -307,7 +307,7 @@ export class ElementsTreeElement extends UI.TreeOutline.TreeElement {
         }
     }
     isClosingTag() {
-        return Boolean(this.isClosingTagInternal);
+        return !isOpeningTag(this.tagTypeContext);
     }
     node() {
         return this.nodeInternal;
@@ -369,34 +369,86 @@ export class ElementsTreeElement extends UI.TreeOutline.TreeElement {
             }
         }
     }
+    addIssue(newIssue) {
+        if (this.#elementIssues.has(newIssue.primaryKey())) {
+            return;
+        }
+        this.#elementIssues.set(newIssue.primaryKey(), newIssue);
+        this.#applyIssueStyleAndTooltip(newIssue);
+    }
+    #applyIssueStyleAndTooltip(issue) {
+        const issueDetails = issue.details();
+        if (issueDetails.violatingNodeAttribute) {
+            this.#highlightViolatingAttr(issueDetails.violatingNodeAttribute, issue);
+        }
+        else {
+            this.#highlightTagAsViolating(issue);
+        }
+    }
+    get issuesByNodeElement() {
+        return this.#nodeElementToIssue;
+    }
+    #highlightViolatingAttr(name, issue) {
+        const tag = this.listItemElement.getElementsByClassName('webkit-html-tag')[0];
+        const attributes = tag.getElementsByClassName('webkit-html-attribute');
+        for (const attribute of attributes) {
+            if (attribute.getElementsByClassName('webkit-html-attribute-name')[0].textContent === name) {
+                const attributeElement = attribute.getElementsByClassName('webkit-html-attribute-name')[0];
+                attributeElement.classList.add('violating-element');
+                this.#nodeElementToIssue.set(attributeElement, issue);
+            }
+        }
+    }
+    #highlightTagAsViolating(issue) {
+        const tagElement = this.listItemElement.getElementsByClassName('webkit-html-tag-name')[0];
+        tagElement.classList.add('violating-element');
+        this.#nodeElementToIssue.set(tagElement, issue);
+    }
     expandedChildrenLimit() {
         return this.expandedChildrenLimitInternal;
     }
     setExpandedChildrenLimit(expandedChildrenLimit) {
         this.expandedChildrenLimitInternal = expandedChildrenLimit;
     }
+    createSlotLink(nodeShortcut) {
+        if (!isOpeningTag(this.tagTypeContext)) {
+            return;
+        }
+        if (nodeShortcut) {
+            const config = ElementsComponents.AdornerManager.getRegisteredAdorner(ElementsComponents.AdornerManager.RegisteredAdorners.SLOT);
+            this.tagTypeContext.slot = this.adornSlot(config, this.tagTypeContext);
+            const deferredNode = nodeShortcut.deferredNode;
+            this.tagTypeContext.slot.addEventListener('click', () => {
+                Host.userMetrics.badgeActivated(6 /* Host.UserMetrics.BadgeType.SLOT */);
+                deferredNode.resolve(node => {
+                    void Common.Revealer.reveal(node);
+                });
+            });
+            this.tagTypeContext.slot.addEventListener('mousedown', e => e.consume(), false);
+        }
+    }
     createSelection() {
-        const listItemElement = this.listItemElement;
-        if (!listItemElement) {
+        const contentElement = this.contentElement;
+        if (!contentElement) {
             return;
         }
         if (!this.selectionElement) {
             this.selectionElement = document.createElement('div');
             this.selectionElement.className = 'selection fill';
             this.selectionElement.style.setProperty('margin-left', (-this.computeLeftIndent()) + 'px');
-            listItemElement.insertBefore(this.selectionElement, listItemElement.firstChild);
+            contentElement.prepend(this.selectionElement);
         }
     }
     createHint() {
-        if (this.listItemElement && !this.hintElement) {
-            this.hintElement = this.listItemElement.createChild('span', 'selected-hint');
+        if (this.contentElement && !this.hintElement) {
+            this.hintElement = this.contentElement.createChild('span', 'selected-hint');
             const selectedElementCommand = '$0';
             UI.Tooltip.Tooltip.install(this.hintElement, i18nString(UIStrings.useSInTheConsoleToReferToThis, { PH1: selectedElementCommand }));
             UI.ARIAUtils.markAsHidden(this.hintElement);
         }
     }
     onbind() {
-        if (this.treeOutline && !this.isClosingTagInternal) {
+        if (this.treeOutline && !this.isClosingTag()) {
             this.treeOutline.treeElementByNode.set(this.nodeInternal, this);
         }
     }
@@ -426,13 +478,13 @@ export class ElementsTreeElement extends UI.TreeOutline.TreeElement {
         await super.expandRecursively(Number.MAX_VALUE);
     }
     onexpand() {
-        if (this.isClosingTagInternal) {
+        if (this.isClosingTag()) {
             return;
         }
         this.updateTitle();
     }
     oncollapse() {
-        if (this.isClosingTagInternal) {
+        if (this.isClosingTag()) {
             return;
         }
         this.updateTitle();
@@ -487,7 +539,7 @@ export class ElementsTreeElement extends UI.TreeOutline.TreeElement {
         }
     }
     ondblclick(event) {
-        if (this.editing || this.isClosingTagInternal) {
+        if (this.editing || this.isClosingTag()) {
             return false;
         }
         if (this.startEditingTarget(event.target)) {
@@ -547,7 +599,7 @@ export class ElementsTreeElement extends UI.TreeOutline.TreeElement {
     }
     populateTagContextMenu(contextMenu, event) {
         // Add attribute-related actions.
-        const treeElement = this.isClosingTagInternal && this.treeOutline ? this.treeOutline.findTreeElement(this.nodeInternal) : this;
+        const treeElement = this.isClosingTag() && this.treeOutline ? this.treeOutline.findTreeElement(this.nodeInternal) : this;
         if (!treeElement) {
             return;
         }
@@ -564,17 +616,6 @@ export class ElementsTreeElement extends UI.TreeOutline.TreeElement {
         contextMenu.viewSection().appendItem(i18nString(UIStrings.focus), async () => {
             await this.nodeInternal.focus();
         });
-        const overlayModel = this.nodeInternal.domModel().overlayModel();
-        if (overlayModel.isHighlightedIsolatedElementInPersistentOverlay(this.nodeInternal.id)) {
-            contextMenu.viewSection().appendItem(i18nString(UIStrings.exitIsolationMode), () => {
-                overlayModel.hideIsolatedElementInPersistentOverlay(this.nodeInternal.id);
-            });
-        }
-        else {
-            contextMenu.viewSection().appendItem(i18nString(UIStrings.enterIsolationMode), () => {
-                overlayModel.highlightIsolatedElementInPersistentOverlay(this.nodeInternal.id);
-            });
-        }
     }
     populateScrollIntoView(contextMenu) {
         contextMenu.viewSection().appendItem(i18nString(UIStrings.scrollIntoView), () => this.nodeInternal.scrollIntoView());
@@ -590,8 +631,6 @@ export class ElementsTreeElement extends UI.TreeOutline.TreeElement {
         const isEditable = this.hasEditableNode();
         // clang-format off
         if (isEditable && !this.editing) {
-            // Eagerly load CodeMirror to avoid a delay when opening the "Edit as HTML" editor when the user actually clicks on it
-            import('../../ui/components/text_editor/text_editor.js');
             contextMenu.editSection().appendItem(i18nString(UIStrings.editAsHtml), this.editAsHTML.bind(this));
         }
         // clang-format on
@@ -644,7 +683,7 @@ export class ElementsTreeElement extends UI.TreeOutline.TreeElement {
                 const frameOwnerFrameId = this.nodeInternal.frameOwnerFrameId();
                 if (frameOwnerFrameId) {
                     const frame = SDK.FrameManager.FrameManager.instance().getFrame(frameOwnerFrameId);
-                    Common.Revealer.reveal(frame);
+                    void Common.Revealer.reveal(frame);
                 }
             });
         }
@@ -654,7 +693,7 @@ export class ElementsTreeElement extends UI.TreeOutline.TreeElement {
             return;
         }
         const listItem = this.listItemElement;
-        if (this.canAddAttributes) {
+        if (isOpeningTag(this.tagTypeContext) && this.tagTypeContext.canAddAttributes) {
             const attribute = listItem.getElementsByClassName('webkit-html-attribute')[0];
             if (attribute) {
                 return this.startEditingAttribute(attribute, attribute.getElementsByClassName('webkit-html-attribute-value')[0]);
@@ -723,7 +762,9 @@ export class ElementsTreeElement extends UI.TreeOutline.TreeElement {
                 removeZeroWidthSpaceRecursive(child);
             }
         }
-        const attributeValue = attributeName && attributeValueElement ? this.nodeInternal.getAttribute(attributeName) : undefined;
+        const attributeValue = attributeName && attributeValueElement ?
+            this.nodeInternal.getAttribute(attributeName)?.replaceAll('"', '&quot;') :
+            undefined;
         if (attributeValue !== undefined) {
             attributeValueElement.setTextContentTruncatedIfNeeded(attributeValue, i18nString(UIStrings.valueIsTooLargeToEdit));
         }
@@ -852,15 +893,12 @@ export class ElementsTreeElement extends UI.TreeOutline.TreeElement {
             this.childrenListElement.style.display = 'none';
         }
         // Append editor.
-        this.listItemElement.appendChild(this.htmlEditElement);
+        this.listItemElement.append(this.htmlEditElement);
         this.htmlEditElement.addEventListener('keydown', event => {
             if (event.key === 'Escape') {
                 event.consume(true);
             }
         });
-        const TextEditor = await import('../../ui/components/text_editor/text_editor.js');
-        const CodeMirror = await import('../../third_party/codemirror.next/codemirror.next.js');
-        const { html } = await CodeMirror.html();
         const editor = new TextEditor.TextEditor.TextEditor(CodeMirror.EditorState.create({
             doc: initialValue,
             extensions: [
@@ -881,9 +919,10 @@ export class ElementsTreeElement extends UI.TreeOutline.TreeElement {
                     },
                 ]),
                 TextEditor.Config.baseConfiguration(initialValue),
-                TextEditor.Config.autocompletion,
-                html(),
-                TextEditor.Config.domWordWrap,
+                TextEditor.Config.closeBrackets,
+                TextEditor.Config.autocompletion.instance(),
+                CodeMirror.html.html(),
+                TextEditor.Config.domWordWrap.instance(),
                 CodeMirror.EditorView.theme({
                     '&.cm-editor': { maxHeight: '300px' },
                     '.cm-scroller': { overflowY: 'auto' },
@@ -1111,15 +1150,18 @@ export class ElementsTreeElement extends UI.TreeOutline.TreeElement {
                     this.childrenListElement.classList.add('shadow-root-depth-' + depth);
                 }
             }
-            const highlightElement = document.createElement('span');
-            highlightElement.className = 'highlight';
-            highlightElement.appendChild(nodeInfo);
+            this.contentElement.removeChildren();
+            const highlightElement = this.contentElement.createChild('span', 'highlight');
+            highlightElement.append(nodeInfo);
             // fixme: make it clear that `this.title = x` is a setter with significant side effects
-            this.title = highlightElement;
+            this.title = this.contentElement;
             this.updateDecorations();
-            this.listItemElement.insertBefore(this.gutterContainer, this.listItemElement.firstChild);
-            if (!this.isClosingTagInternal && this.adornerContainer) {
-                this.listItemElement.appendChild(this.adornerContainer);
+            this.contentElement.prepend(this.gutterContainer);
+            if (isOpeningTag(this.tagTypeContext)) {
+                this.contentElement.append(this.tagTypeContext.adornerContainer);
+                if (this.tagTypeContext.slot) {
+                    this.contentElement.append(this.tagTypeContext.slot);
+                }
             }
             this.highlightResult = [];
             delete this.selectionElement;
@@ -1127,6 +1169,10 @@ export class ElementsTreeElement extends UI.TreeOutline.TreeElement {
             if (this.selected) {
                 this.createSelection();
                 this.createHint();
+            }
+            // If there is an issue with this node, make sure to update it.
+            for (const issue of this.#elementIssues.values()) {
+                this.#applyIssueStyleAndTooltip(issue);
             }
         }
         this.highlightSearchResultsInternal();
@@ -1139,17 +1185,19 @@ export class ElementsTreeElement extends UI.TreeOutline.TreeElement {
             treeElement = treeElement.parent;
         }
         /** Keep it in sync with elementsTreeOutline.css **/
-        return 12 * (depth - 2) + (this.isExpandable() ? 1 : 12);
+        return 12 * (depth - 2) + (this.isExpandable() && this.isCollapsible() ? 1 : 12);
     }
     updateDecorations() {
-        this.gutterContainer.style.left = (-this.computeLeftIndent()) + 'px';
+        const indent = this.computeLeftIndent();
+        this.gutterContainer.style.left = (-indent) + 'px';
+        this.listItemElement.style.setProperty('--indent', indent + 'px');
         if (this.isClosingTag()) {
             return;
         }
         if (this.nodeInternal.nodeType() !== Node.ELEMENT_NODE) {
             return;
         }
-        this.decorationsThrottler.schedule(this.updateDecorationsInternal.bind(this));
+        void this.decorationsThrottler.schedule(this.updateDecorationsInternal.bind(this));
     }
     updateDecorationsInternal() {
         if (!this.treeOutline) {
@@ -1186,7 +1234,7 @@ export class ElementsTreeElement extends UI.TreeOutline.TreeElement {
             this.decorationsElement.removeChildren();
             this.decorationsElement.classList.add('hidden');
             this.gutterContainer.classList.toggle('has-decorations', Boolean(decorations.length || descendantDecorations.length));
-            UI.ARIAUtils.setAccessibleName(this.decorationsElement, '');
+            UI.ARIAUtils.setLabel(this.decorationsElement, '');
             if (!decorations.length && !descendantDecorations.length) {
                 return;
             }
@@ -1217,7 +1265,7 @@ export class ElementsTreeElement extends UI.TreeOutline.TreeElement {
                 processColors.call(this, descendantColors, 'elements-gutter-decoration elements-has-decorated-children');
             }
             UI.Tooltip.Tooltip.install(this.decorationsElement, titles.textContent);
-            UI.ARIAUtils.setAccessibleName(this.decorationsElement, titles.textContent || '');
+            UI.ARIAUtils.setLabel(this.decorationsElement, titles.textContent || '');
             function processColors(colors, className) {
                 for (const color of colors) {
                     const child = this.decorationsElement.createChild('div', className);
@@ -1240,14 +1288,17 @@ export class ElementsTreeElement extends UI.TreeOutline.TreeElement {
         function setValueWithEntities(element, value) {
             const result = this.convertWhitespaceToEntities(value);
             highlightCount = result.entityRanges.length;
-            value = result.text.replace(closingPunctuationRegex, (match, replaceOffset) => {
-                while (highlightIndex < highlightCount && result.entityRanges[highlightIndex].offset < replaceOffset) {
+            value = result.text
+                .replace(closingPunctuationRegex, (match, replaceOffset) => {
+                while (highlightIndex < highlightCount &&
+                    result.entityRanges[highlightIndex].offset < replaceOffset) {
                     result.entityRanges[highlightIndex].offset += additionalHighlightOffset;
                     ++highlightIndex;
                 }
                 additionalHighlightOffset += 1;
                 return match + '\u200B';
-            });
+            })
+                .replaceAll('"', '&quot;');
             while (highlightIndex < highlightCount) {
                 result.entityRanges[highlightIndex].offset += additionalHighlightOffset;
                 ++highlightIndex;
@@ -1282,19 +1333,15 @@ export class ElementsTreeElement extends UI.TreeOutline.TreeElement {
                 Components.Linkifier.Linkifier.linkifyURL(rewrittenHref, {
                     text: value,
                     preventClick: true,
-                    className: undefined,
-                    lineNumber: undefined,
-                    columnNumber: undefined,
                     showColumnNumber: false,
                     inlineFrameIndex: 0,
-                    maxLength: undefined,
-                    tabStop: undefined,
-                    bypassURLTrimming: undefined,
                 });
             return ImagePreviewPopover.setImageUrl(link, rewrittenHref);
         }
         const nodeName = node ? node.nodeName().toLowerCase() : '';
-        if (nodeName && (name === 'src' || name === 'href')) {
+        // If the href/src attribute has a value, attempt to link it.
+        // There's no point trying to link it if the value is empty (e.g. <a href=''>).
+        if (nodeName && (name === 'src' || name === 'href') && value) {
             attrValueElement.appendChild(linkifyValue.call(this, value));
         }
         else if ((nodeName === 'img' || nodeName === 'source') && name === 'srcset') {
@@ -1398,7 +1445,7 @@ export class ElementsTreeElement extends UI.TreeOutline.TreeElement {
         UI.UIUtils.createTextChild(tagElement, '>');
         UI.UIUtils.createTextChild(parentElement, '\u200B');
         if (tagElement.textContent) {
-            UI.ARIAUtils.setAccessibleName(tagElement, tagElement.textContent);
+            UI.ARIAUtils.setLabel(tagElement, tagElement.textContent);
         }
     }
     convertWhitespaceToEntities(text) {
@@ -1433,21 +1480,35 @@ export class ElementsTreeElement extends UI.TreeOutline.TreeElement {
                 this.buildAttributeDOM(titleDOM, node.name, node.value, updateRecord, true);
                 break;
             case Node.ELEMENT_NODE: {
-                const pseudoType = node.pseudoType();
-                if (pseudoType) {
-                    this.buildPseudoElementDOM(titleDOM, pseudoType);
+                let pseudoElementName = node.pseudoType();
+                if (pseudoElementName) {
+                    const pseudoIdentifier = node.pseudoIdentifier();
+                    if (pseudoIdentifier) {
+                        pseudoElementName += `(${pseudoIdentifier})`;
+                    }
+                    this.buildPseudoElementDOM(titleDOM, pseudoElementName);
                     break;
                 }
                 const tagName = node.nodeNameInCorrectCase();
-                if (this.isClosingTagInternal) {
+                if (this.isClosingTag()) {
                     this.buildTagDOM(titleDOM, tagName, true, true, updateRecord);
                     break;
                 }
                 this.buildTagDOM(titleDOM, tagName, false, false, updateRecord);
                 if (this.isExpandable()) {
                     if (!this.expanded) {
-                        const textNodeElement = titleDOM.createChild('span', 'webkit-html-text-node bogus');
-                        textNodeElement.textContent = '…';
+                        const expandButton = new ElementsComponents.ElementsTreeExpandButton.ElementsTreeExpandButton();
+                        expandButton.data = {
+                            clickHandler: () => this.expand(),
+                        };
+                        titleDOM.appendChild(expandButton);
+                        // This hidden span with … is for blink layout tests.
+                        // The method dumpElementsTree(front_end/legacy_test_runner/elements_test_runner/ElementsTestRunner.js)
+                        // dumps … to identify expandable element.
+                        const hidden = document.createElement('span');
+                        hidden.textContent = '…';
+                        hidden.style.fontSize = '0';
+                        titleDOM.appendChild(hidden);
                         UI.UIUtils.createTextChild(titleDOM, '\u200B');
                         this.buildTagDOM(titleDOM, tagName, true, false, updateRecord);
                     }
@@ -1482,13 +1543,13 @@ export class ElementsTreeElement extends UI.TreeOutline.TreeElement {
                     const newNode = titleDOM.createChild('span', 'webkit-html-text-node webkit-html-js-node');
                     const text = node.nodeValue();
                     newNode.textContent = text.replace(/^[\n\r]+|\s+$/g, '');
-                    CodeHighlighter.CodeHighlighter.highlightNode(newNode, 'text/javascript').then(updateSearchHighlight);
+                    void CodeHighlighter.CodeHighlighter.highlightNode(newNode, 'text/javascript').then(updateSearchHighlight);
                 }
                 else if (node.parentNode && node.parentNode.nodeName().toLowerCase() === 'style') {
                     const newNode = titleDOM.createChild('span', 'webkit-html-text-node webkit-html-css-node');
                     const text = node.nodeValue();
                     newNode.textContent = text.replace(/^[\n\r]+|\s+$/g, '');
-                    CodeHighlighter.CodeHighlighter.highlightNode(newNode, 'text/css').then(updateSearchHighlight);
+                    void CodeHighlighter.CodeHighlighter.highlightNode(newNode, 'text/css').then(updateSearchHighlight);
                 }
                 else {
                     UI.UIUtils.createTextChild(titleDOM, '"');
@@ -1553,10 +1614,8 @@ export class ElementsTreeElement extends UI.TreeOutline.TreeElement {
         if (!this.nodeInternal.parentNode || this.nodeInternal.parentNode.nodeType() === Node.DOCUMENT_NODE) {
             return;
         }
-        this.nodeInternal.removeNode();
+        void this.nodeInternal.removeNode();
     }
-    // TODO(crbug.com/1172300) Ignored during the jsdoc to ts migration
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     toggleEditAsHTML(callback, startEditing) {
         if (this.editing && this.htmlEditElement) {
             this.editing.commit();
@@ -1581,7 +1640,7 @@ export class ElementsTreeElement extends UI.TreeOutline.TreeElement {
             }
         }
         const node = this.nodeInternal;
-        node.getOuterHTML().then(this.startEditingAsHTML.bind(this, commitChange, disposeCallback));
+        void node.getOuterHTML().then(this.startEditingAsHTML.bind(this, commitChange, disposeCallback));
     }
     copyCSSPath() {
         Host.InspectorFrontendHost.InspectorFrontendHostInstance.copyText(cssPath(this.nodeInternal, true));
@@ -1629,7 +1688,7 @@ export class ElementsTreeElement extends UI.TreeOutline.TreeElement {
         }
         this.hideSearchHighlight();
         const text = this.listItemElement.textContent || '';
-        const regexObject = createPlainTextSearchRegex(this.searchQuery, 'gi');
+        const regexObject = Platform.StringUtilities.createPlainTextSearchRegex(this.searchQuery, 'gi');
         let match = regexObject.exec(text);
         const matchRanges = [];
         while (match) {
@@ -1645,7 +1704,7 @@ export class ElementsTreeElement extends UI.TreeOutline.TreeElement {
     }
     editAsHTML() {
         const promise = Common.Revealer.reveal(this.node());
-        promise.then(() => {
+        void promise.then(() => {
             const action = UI.ActionRegistry.ActionRegistry.instance().action('elements.edit-as-html');
             if (!action) {
                 return;
@@ -1654,48 +1713,74 @@ export class ElementsTreeElement extends UI.TreeOutline.TreeElement {
         });
     }
     // TODO: add unit tests for adorner-related methods after component and TypeScript works are done
-    adorn({ name }) {
-        const adornerContent = document.createElement('span');
-        adornerContent.textContent = name;
+    adorn({ name }, content) {
+        let adornerContent = content;
+        if (!adornerContent) {
+            adornerContent = document.createElement('span');
+            adornerContent.textContent = name;
+        }
         const adorner = new Adorners.Adorner.Adorner();
         adorner.data = {
             name,
             content: adornerContent,
         };
-        this.adorners.push(adorner);
-        ElementsPanel.instance().registerAdorner(adorner);
-        this.updateAdorners();
+        if (isOpeningTag(this.tagTypeContext)) {
+            this.tagTypeContext.adorners.push(adorner);
+            ElementsPanel.instance().registerAdorner(adorner);
+            this.updateAdorners(this.tagTypeContext);
+        }
         return adorner;
     }
-    removeAdorner(adornerToRemove) {
-        const adorners = this.adorners;
+    adornSlot({ name }, context) {
+        const linkIcon = new IconButton.Icon.Icon();
+        linkIcon.data = { iconName: 'select-element', color: 'var(--icon-default)', width: '14px', height: '14px' };
+        const slotText = document.createElement('span');
+        slotText.textContent = name;
+        const adornerContent = document.createElement('span');
+        adornerContent.append(linkIcon);
+        adornerContent.append(slotText);
+        adornerContent.classList.add('adorner-with-icon');
+        const adorner = new Adorners.Adorner.Adorner();
+        adorner.data = {
+            name,
+            content: adornerContent,
+        };
+        context.adorners.push(adorner);
+        ElementsPanel.instance().registerAdorner(adorner);
+        this.updateAdorners(context);
+        return adorner;
+    }
+    removeAdorner(adornerToRemove, context) {
+        const adorners = context.adorners;
         ElementsPanel.instance().deregisterAdorner(adornerToRemove);
         adornerToRemove.remove();
         for (let i = 0; i < adorners.length; ++i) {
             if (adorners[i] === adornerToRemove) {
                 adorners.splice(i, 1);
-                this.updateAdorners();
+                this.updateAdorners(context);
                 return;
             }
         }
     }
     removeAllAdorners() {
-        for (const adorner of this.adorners) {
-            ElementsPanel.instance().deregisterAdorner(adorner);
-            adorner.remove();
+        if (isOpeningTag(this.tagTypeContext)) {
+            for (const adorner of this.tagTypeContext.adorners) {
+                ElementsPanel.instance().deregisterAdorner(adorner);
+                adorner.remove();
+            }
+            this.tagTypeContext.adorners = [];
+            this.updateAdorners(this.tagTypeContext);
         }
-        this.adorners = [];
-        this.updateAdorners();
     }
-    updateAdorners() {
-        this.adornersThrottler.schedule(this.updateAdornersInternal.bind(this));
+    updateAdorners(context) {
+        void context.adornersThrottler.schedule(this.updateAdornersInternal.bind(null, context));
     }
-    updateAdornersInternal() {
-        const adornerContainer = this.adornerContainer;
+    updateAdornersInternal(context) {
+        const adornerContainer = context.adornerContainer;
         if (!adornerContainer) {
             return Promise.resolve();
         }
-        const adorners = this.adorners;
+        const adorners = context.adorners;
         if (adorners.length === 0) {
             adornerContainer.classList.add('hidden');
             return Promise.resolve();
@@ -1709,7 +1794,7 @@ export class ElementsTreeElement extends UI.TreeOutline.TreeElement {
         return Promise.resolve();
     }
     async updateStyleAdorners() {
-        if (this.isClosingTagInternal) {
+        if (!isOpeningTag(this.tagTypeContext)) {
             return;
         }
         const node = this.node();
@@ -1718,50 +1803,51 @@ export class ElementsTreeElement extends UI.TreeOutline.TreeElement {
             node.nodeType() === Node.TEXT_NODE || nodeId === undefined) {
             return;
         }
-        const styles = await node.domModel().cssModel().computedStylePromise(nodeId);
-        for (const styleAdorner of this.styleAdorners) {
-            this.removeAdorner(styleAdorner);
+        const styles = await node.domModel().cssModel().getComputedStyle(nodeId);
+        for (const styleAdorner of this.tagTypeContext.styleAdorners) {
+            this.removeAdorner(styleAdorner, this.tagTypeContext);
         }
-        this.styleAdorners = [];
+        this.tagTypeContext.styleAdorners = [];
         if (!styles) {
             return;
         }
         const display = styles.get('display');
         const isGrid = display === 'grid' || display === 'inline-grid';
         const isFlex = display === 'flex' || display === 'inline-flex';
+        const isSubgrid = (isGrid &&
+            (styles.get('grid-template-columns')?.startsWith('subgrid') ||
+                styles.get('grid-template-rows')?.startsWith('subgrid'))) ??
+            false;
         const containerType = styles.get('container-type');
         const contain = styles.get('contain');
-        const isContainer = SDK.CSSContainerQuery.getQueryAxis(`${containerType} ${contain}`) !== "" /* None */;
-        const appendAdorner = (adorner) => {
-            if (adorner) {
-                this.styleAdorners.push(adorner);
-            }
-        };
+        const isContainer = SDK.CSSContainerQuery.getQueryAxis(`${containerType} ${contain}`) !== "" /* SDK.CSSContainerQuery.QueryAxis.None */;
         if (isGrid) {
-            appendAdorner(this.createGridAdorner());
+            this.pushGridAdorner(this.tagTypeContext, isSubgrid);
         }
         if (isFlex) {
-            appendAdorner(this.createFlexAdorner());
+            this.pushFlexAdorner(this.tagTypeContext);
         }
         if (styles.get('scroll-snap-type') && styles.get('scroll-snap-type') !== 'none') {
-            appendAdorner(this.createScrollSnapAdorner());
+            this.pushScrollSnapAdorner(this.tagTypeContext);
         }
         if (isContainer) {
-            appendAdorner(this.createContainerAdorner());
+            this.pushContainerAdorner(this.tagTypeContext);
         }
     }
-    createGridAdorner() {
+    pushGridAdorner(context, isSubgrid) {
         const node = this.node();
         const nodeId = node.id;
         if (!nodeId) {
-            return null;
+            return;
         }
-        const config = ElementsComponents.AdornerManager.getRegisteredAdorner(ElementsComponents.AdornerManager.RegisteredAdorners.GRID);
+        const config = ElementsComponents.AdornerManager.getRegisteredAdorner(isSubgrid ? ElementsComponents.AdornerManager.RegisteredAdorners.SUBGRID :
+            ElementsComponents.AdornerManager.RegisteredAdorners.GRID);
         const adorner = this.adorn(config);
         adorner.classList.add('grid');
         const onClick = (() => {
             if (adorner.isActive()) {
                 node.domModel().overlayModel().highlightGridInPersistentOverlay(nodeId);
+                Host.userMetrics.badgeActivated(isSubgrid ? 1 /* Host.UserMetrics.BadgeType.SUBGRID */ : 0 /* Host.UserMetrics.BadgeType.GRID */);
             }
             else {
                 node.domModel().overlayModel().hideGridInPersistentOverlay(nodeId);
@@ -1780,13 +1866,13 @@ export class ElementsTreeElement extends UI.TreeOutline.TreeElement {
             }
             adorner.toggle(enabled);
         });
-        return adorner;
+        context.styleAdorners.push(adorner);
     }
-    createScrollSnapAdorner() {
+    pushScrollSnapAdorner(context) {
         const node = this.node();
         const nodeId = node.id;
         if (!nodeId) {
-            return null;
+            return;
         }
         const config = ElementsComponents.AdornerManager.getRegisteredAdorner(ElementsComponents.AdornerManager.RegisteredAdorners.SCROLL_SNAP);
         const adorner = this.adorn(config);
@@ -1795,6 +1881,7 @@ export class ElementsTreeElement extends UI.TreeOutline.TreeElement {
             const model = node.domModel().overlayModel();
             if (adorner.isActive()) {
                 model.highlightScrollSnapInPersistentOverlay(nodeId);
+                Host.userMetrics.badgeActivated(4 /* Host.UserMetrics.BadgeType.SCROLL_SNAP */);
             }
             else {
                 model.hideScrollSnapInPersistentOverlay(nodeId);
@@ -1813,13 +1900,13 @@ export class ElementsTreeElement extends UI.TreeOutline.TreeElement {
             }
             adorner.toggle(enabled);
         });
-        return adorner;
+        context.styleAdorners.push(adorner);
     }
-    createFlexAdorner() {
+    pushFlexAdorner(context) {
         const node = this.node();
         const nodeId = node.id;
         if (!nodeId) {
-            return null;
+            return;
         }
         const config = ElementsComponents.AdornerManager.getRegisteredAdorner(ElementsComponents.AdornerManager.RegisteredAdorners.FLEX);
         const adorner = this.adorn(config);
@@ -1828,6 +1915,7 @@ export class ElementsTreeElement extends UI.TreeOutline.TreeElement {
             const model = node.domModel().overlayModel();
             if (adorner.isActive()) {
                 model.highlightFlexContainerInPersistentOverlay(nodeId);
+                Host.userMetrics.badgeActivated(2 /* Host.UserMetrics.BadgeType.FLEX */);
             }
             else {
                 model.hideFlexContainerInPersistentOverlay(nodeId);
@@ -1846,13 +1934,13 @@ export class ElementsTreeElement extends UI.TreeOutline.TreeElement {
             }
             adorner.toggle(enabled);
         });
-        return adorner;
+        context.styleAdorners.push(adorner);
     }
-    createContainerAdorner() {
+    pushContainerAdorner(context) {
         const node = this.node();
         const nodeId = node.id;
         if (!nodeId) {
-            return null;
+            return;
         }
         const config = ElementsComponents.AdornerManager.getRegisteredAdorner(ElementsComponents.AdornerManager.RegisteredAdorners.CONTAINER);
         const adorner = this.adorn(config);
@@ -1861,6 +1949,7 @@ export class ElementsTreeElement extends UI.TreeOutline.TreeElement {
             const model = node.domModel().overlayModel();
             if (adorner.isActive()) {
                 model.highlightContainerQueryInPersistentOverlay(nodeId);
+                Host.userMetrics.badgeActivated(5 /* Host.UserMetrics.BadgeType.CONTAINER */);
             }
             else {
                 model.hideContainerQueryInPersistentOverlay(nodeId);
@@ -1879,7 +1968,7 @@ export class ElementsTreeElement extends UI.TreeOutline.TreeElement {
             }
             adorner.toggle(enabled);
         });
-        return adorner;
+        context.styleAdorners.push(adorner);
     }
 }
 export const InitialChildrenLimit = 500;

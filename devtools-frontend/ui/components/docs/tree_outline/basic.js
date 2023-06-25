@@ -25,9 +25,9 @@ component.addEventListener('treenodemouseout', (event) => {
 });
 document.getElementById('container')?.appendChild(component);
 document.getElementById('recursively-expand')?.addEventListener('click', () => {
-    component.expandRecursively();
+    void component.expandRecursively();
 });
 document.getElementById('expand-to-belgrave-house')?.addEventListener('click', () => {
-    component.expandToAndSelectTreeNode(belgraveHouse);
+    void component.expandToAndSelectTreeNode(belgraveHouse);
 });
 //# sourceMappingURL=basic.js.map

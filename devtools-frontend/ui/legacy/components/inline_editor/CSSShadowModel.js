@@ -20,8 +20,8 @@ export class CSSShadowModel {
         this.offsetYInternal = CSSLength.zero();
         this.blurRadiusInternal = CSSLength.zero();
         this.spreadRadiusInternal = CSSLength.zero();
-        this.colorInternal = Common.Color.Color.parse('black');
-        this.format = ["X" /* OffsetX */, "Y" /* OffsetY */];
+        this.colorInternal = Common.Color.parse('black');
+        this.format = ["X" /* Part.OffsetX */, "Y" /* Part.OffsetY */];
         this.important = false;
     }
     static parseTextShadow(text) {
@@ -67,19 +67,19 @@ export class CSSShadowModel {
                     nextPartAllowed = false;
                     if (result.regexIndex === 0) {
                         shadow.important = true;
-                        shadow.format.push("M" /* Important */);
+                        shadow.format.push("M" /* Part.Important */);
                     }
                     else if (result.regexIndex === 1) {
                         shadow.insetInternal = true;
-                        shadow.format.push("I" /* Inset */);
+                        shadow.format.push("I" /* Part.Inset */);
                     }
                     else if (result.regexIndex === 2) {
-                        const color = Common.Color.Color.parse(result.value);
+                        const color = Common.Color.parse(result.value);
                         if (!color) {
                             return [];
                         }
                         shadow.colorInternal = color;
-                        shadow.format.push("C" /* Color */);
+                        shadow.format.push("C" /* Part.Color */);
                     }
                     else if (result.regexIndex === 3) {
                         const length = CSSLength.parse(result.value);
@@ -87,30 +87,30 @@ export class CSSShadowModel {
                             return [];
                         }
                         const previousPart = shadow.format.length > 0 ? shadow.format[shadow.format.length - 1] : '';
-                        if (previousPart === "X" /* OffsetX */) {
+                        if (previousPart === "X" /* Part.OffsetX */) {
                             shadow.offsetYInternal = length;
-                            shadow.format.push("Y" /* OffsetY */);
+                            shadow.format.push("Y" /* Part.OffsetY */);
                         }
-                        else if (previousPart === "Y" /* OffsetY */) {
+                        else if (previousPart === "Y" /* Part.OffsetY */) {
                             shadow.blurRadiusInternal = length;
-                            shadow.format.push("B" /* BlurRadius */);
+                            shadow.format.push("B" /* Part.BlurRadius */);
                         }
-                        else if (previousPart === "B" /* BlurRadius */) {
+                        else if (previousPart === "B" /* Part.BlurRadius */) {
                             shadow.spreadRadiusInternal = length;
-                            shadow.format.push("S" /* SpreadRadius */);
+                            shadow.format.push("S" /* Part.SpreadRadius */);
                         }
                         else {
                             shadow.offsetXInternal = length;
-                            shadow.format.push("X" /* OffsetX */);
+                            shadow.format.push("X" /* Part.OffsetX */);
                         }
                     }
                 }
             }
-            if (invalidCount(shadow, "X" /* OffsetX */, 1, 1) || invalidCount(shadow, "Y" /* OffsetY */, 1, 1) ||
-                invalidCount(shadow, "C" /* Color */, 0, 1) || invalidCount(shadow, "B" /* BlurRadius */, 0, 1) ||
-                invalidCount(shadow, "I" /* Inset */, 0, isBoxShadow ? 1 : 0) ||
-                invalidCount(shadow, "S" /* SpreadRadius */, 0, isBoxShadow ? 1 : 0) ||
-                invalidCount(shadow, "M" /* Important */, 0, 1)) {
+            if (invalidCount(shadow, "X" /* Part.OffsetX */, 1, 1) || invalidCount(shadow, "Y" /* Part.OffsetY */, 1, 1) ||
+                invalidCount(shadow, "C" /* Part.Color */, 0, 1) || invalidCount(shadow, "B" /* Part.BlurRadius */, 0, 1) ||
+                invalidCount(shadow, "I" /* Part.Inset */, 0, isBoxShadow ? 1 : 0) ||
+                invalidCount(shadow, "S" /* Part.SpreadRadius */, 0, isBoxShadow ? 1 : 0) ||
+                invalidCount(shadow, "M" /* Part.Important */, 0, 1)) {
                 return [];
             }
             shadows.push(shadow);
@@ -128,8 +128,8 @@ export class CSSShadowModel {
     }
     setInset(inset) {
         this.insetInternal = inset;
-        if (this.format.indexOf("I" /* Inset */) === -1) {
-            this.format.unshift("I" /* Inset */);
+        if (this.format.indexOf("I" /* Part.Inset */) === -1) {
+            this.format.unshift("I" /* Part.Inset */);
         }
     }
     setOffsetX(offsetX) {
@@ -140,23 +140,23 @@ export class CSSShadowModel {
     }
     setBlurRadius(blurRadius) {
         this.blurRadiusInternal = blurRadius;
-        if (this.format.indexOf("B" /* BlurRadius */) === -1) {
-            const yIndex = this.format.indexOf("Y" /* OffsetY */);
-            this.format.splice(yIndex + 1, 0, "B" /* BlurRadius */);
+        if (this.format.indexOf("B" /* Part.BlurRadius */) === -1) {
+            const yIndex = this.format.indexOf("Y" /* Part.OffsetY */);
+            this.format.splice(yIndex + 1, 0, "B" /* Part.BlurRadius */);
         }
     }
     setSpreadRadius(spreadRadius) {
         this.spreadRadiusInternal = spreadRadius;
-        if (this.format.indexOf("S" /* SpreadRadius */) === -1) {
+        if (this.format.indexOf("S" /* Part.SpreadRadius */) === -1) {
             this.setBlurRadius(this.blurRadiusInternal);
-            const blurIndex = this.format.indexOf("B" /* BlurRadius */);
-            this.format.splice(blurIndex + 1, 0, "S" /* SpreadRadius */);
+            const blurIndex = this.format.indexOf("B" /* Part.BlurRadius */);
+            this.format.splice(blurIndex + 1, 0, "S" /* Part.SpreadRadius */);
         }
     }
     setColor(color) {
         this.colorInternal = color;
-        if (this.format.indexOf("C" /* Color */) === -1) {
-            this.format.push("C" /* Color */);
+        if (this.format.indexOf("C" /* Part.Color */) === -1) {
+            this.format.push("C" /* Part.Color */);
         }
     }
     isBoxShadow() {
@@ -184,25 +184,25 @@ export class CSSShadowModel {
         const parts = [];
         for (let i = 0; i < this.format.length; i++) {
             const part = this.format[i];
-            if (part === "I" /* Inset */ && this.insetInternal) {
+            if (part === "I" /* Part.Inset */ && this.insetInternal) {
                 parts.push('inset');
             }
-            else if (part === "X" /* OffsetX */) {
+            else if (part === "X" /* Part.OffsetX */) {
                 parts.push(this.offsetXInternal.asCSSText());
             }
-            else if (part === "Y" /* OffsetY */) {
+            else if (part === "Y" /* Part.OffsetY */) {
                 parts.push(this.offsetYInternal.asCSSText());
             }
-            else if (part === "B" /* BlurRadius */) {
+            else if (part === "B" /* Part.BlurRadius */) {
                 parts.push(this.blurRadiusInternal.asCSSText());
             }
-            else if (part === "S" /* SpreadRadius */) {
+            else if (part === "S" /* Part.SpreadRadius */) {
                 parts.push(this.spreadRadiusInternal.asCSSText());
             }
-            else if (part === "C" /* Color */) {
-                parts.push(this.colorInternal.asString(this.colorInternal.format()));
+            else if (part === "C" /* Part.Color */) {
+                parts.push(this.colorInternal.getAuthoredText() ?? this.colorInternal.asString());
             }
-            else if (part === "M" /* Important */ && this.important) {
+            else if (part === "M" /* Part.Important */ && this.important) {
                 parts.push('!important');
             }
         }

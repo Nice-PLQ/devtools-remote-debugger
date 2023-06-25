@@ -59,7 +59,7 @@ export class TimelinePaintProfilerView extends UI.SplitWidget.SplitWidget {
         this.event = event;
         this.updateWhenVisible();
         if (this.event.name === TimelineModel.TimelineModel.RecordType.Paint) {
-            return Boolean(TimelineModel.TimelineModel.TimelineData.forEvent(event).picture);
+            return Boolean(TimelineModel.TimelineModel.EventOnTimelineData.forEvent(event).picture);
         }
         if (this.event.name === TimelineModel.TimelineModel.RecordType.RasterTask) {
             return this.frameModel.hasRasterTile(this.event);
@@ -76,20 +76,22 @@ export class TimelinePaintProfilerView extends UI.SplitWidget.SplitWidget {
     }
     update() {
         this.logTreeView.setCommandLog([]);
-        this.paintProfilerView.setSnapshotAndLog(null, [], null);
+        void this.paintProfilerView.setSnapshotAndLog(null, [], null);
         let snapshotPromise;
         if (this.pendingSnapshot) {
             snapshotPromise = Promise.resolve({ rect: null, snapshot: this.pendingSnapshot });
         }
-        else if (this.event && this.event.name === TimelineModel.TimelineModel.RecordType.Paint) {
-            const picture = TimelineModel.TimelineModel.TimelineData.forEvent(this.event).picture;
-            snapshotPromise =
-                picture.objectPromise()
-                    .then(data => 
-                // TODO(crbug.com/1172300) Ignored during the jsdoc to ts migration
-                // @ts-expect-error
-                this.paintProfilerModel.loadSnapshot(data['skp64']))
-                    .then(snapshot => snapshot && { rect: null, snapshot: snapshot });
+        else if (this.event && this.event.name === TimelineModel.TimelineModel.RecordType.Paint && this.paintProfilerModel) {
+            // When we process events (TimelineModel#processEvent) and find a
+            // snapshot event, we look for the last paint that occurred and link the
+            // snapshot to that paint event. That is why here if the event is a Paint
+            // event, we look to see if it has had a matching picture event set for
+            // it.
+            const picture = TimelineModel.TimelineModel.EventOnTimelineData.forEvent(this.event).picture;
+            const snapshotData = picture.getSnapshot();
+            snapshotPromise = this.paintProfilerModel.loadSnapshot(snapshotData['skp64']).then(snapshot => {
+                return snapshot && { rect: null, snapshot: snapshot };
+            });
         }
         else if (this.event && this.event.name === TimelineModel.TimelineModel.RecordType.RasterTask) {
             snapshotPromise = this.frameModel.rasterTilePromise(this.event);
@@ -98,7 +100,7 @@ export class TimelinePaintProfilerView extends UI.SplitWidget.SplitWidget {
             console.assert(false, 'Unexpected event type or no snapshot');
             return;
         }
-        snapshotPromise.then(snapshotWithRect => {
+        void snapshotPromise.then(snapshotWithRect => {
             this.releaseSnapshot();
             if (!snapshotWithRect) {
                 this.imageView.showImage();
@@ -107,11 +109,11 @@ export class TimelinePaintProfilerView extends UI.SplitWidget.SplitWidget {
             const snapshot = snapshotWithRect.snapshot;
             this.lastLoadedSnapshot = snapshot;
             this.imageView.setMask(snapshotWithRect.rect);
-            snapshot.commandLog().then(log => onCommandLogDone.call(this, snapshot, snapshotWithRect.rect, log || []));
+            void snapshot.commandLog().then(log => onCommandLogDone.call(this, snapshot, snapshotWithRect.rect, log || []));
         });
         function onCommandLogDone(snapshot, clipRect, log) {
             this.logTreeView.setCommandLog(log || []);
-            this.paintProfilerView.setSnapshotAndLog(snapshot, log || [], clipRect);
+            void this.paintProfilerView.setSnapshotAndLog(snapshot, log || [], clipRect);
         }
     }
     releaseSnapshot() {

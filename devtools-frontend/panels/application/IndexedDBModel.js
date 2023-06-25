@@ -29,24 +29,25 @@
  */
 import * as Common from '../../core/common/common.js';
 import * as SDK from '../../core/sdk/sdk.js';
+const DEFAULT_BUCKET = ''; // Empty string is not a valid bucket name
 export class IndexedDBModel extends SDK.SDKModel.SDKModel {
-    securityOriginManager;
+    storageBucketModel;
     indexedDBAgent;
     storageAgent;
     databasesInternal;
-    databaseNamesBySecurityOrigin;
-    originsUpdated;
+    databaseNamesByStorageKeyAndBucket;
+    updatedStorageBuckets;
     throttler;
     enabled;
     constructor(target) {
         super(target);
         target.registerStorageDispatcher(this);
-        this.securityOriginManager = target.model(SDK.SecurityOriginManager.SecurityOriginManager);
+        this.storageBucketModel = target.model(SDK.StorageBucketsModel.StorageBucketsModel);
         this.indexedDBAgent = target.indexedDBAgent();
         this.storageAgent = target.storageAgent();
         this.databasesInternal = new Map();
-        this.databaseNamesBySecurityOrigin = {};
-        this.originsUpdated = new Set();
+        this.databaseNamesByStorageKeyAndBucket = new Map();
+        this.updatedStorageBuckets = new Set();
         this.throttler = new Common.Throttler.Throttler(1000);
     }
     // TODO(crbug.com/1172300) Ignored during the jsdoc to ts migration)
@@ -59,20 +60,20 @@ export class IndexedDBModel extends SDK.SDKModel.SDKModel {
         switch (typeof (idbKey)) {
             case 'number':
                 key = {
-                    type: "number" /* Number */,
+                    type: "number" /* Protocol.IndexedDB.KeyType.Number */,
                     number: idbKey,
                 };
                 break;
             case 'string':
                 key = {
-                    type: "string" /* String */,
+                    type: "string" /* Protocol.IndexedDB.KeyType.String */,
                     string: idbKey,
                 };
                 break;
             case 'object':
                 if (idbKey instanceof Date) {
                     key = {
-                        type: "date" /* Date */,
+                        type: "date" /* Protocol.IndexedDB.KeyType.Date */,
                         date: idbKey.getTime(),
                     };
                 }
@@ -85,7 +86,7 @@ export class IndexedDBModel extends SDK.SDKModel.SDKModel {
                         }
                     }
                     key = {
-                        type: "array" /* Array */,
+                        type: "array" /* Protocol.IndexedDB.KeyType.Array */,
                         array,
                     };
                 }
@@ -109,13 +110,13 @@ export class IndexedDBModel extends SDK.SDKModel.SDKModel {
     static idbKeyPathFromKeyPath(keyPath) {
         let idbKeyPath;
         switch (keyPath.type) {
-            case "null" /* Null */:
+            case "null" /* Protocol.IndexedDB.KeyPathType.Null */:
                 idbKeyPath = null;
                 break;
-            case "string" /* String */:
+            case "string" /* Protocol.IndexedDB.KeyPathType.String */:
                 idbKeyPath = keyPath.string;
                 break;
-            case "array" /* Array */:
+            case "array" /* Protocol.IndexedDB.KeyPathType.Array */:
                 idbKeyPath = keyPath.array;
                 break;
         }
@@ -134,124 +135,155 @@ export class IndexedDBModel extends SDK.SDKModel.SDKModel {
         if (this.enabled) {
             return;
         }
-        this.indexedDBAgent.invoke_enable();
-        if (this.securityOriginManager) {
-            this.securityOriginManager.addEventListener(SDK.SecurityOriginManager.Events.SecurityOriginAdded, this.securityOriginAdded, this);
-            this.securityOriginManager.addEventListener(SDK.SecurityOriginManager.Events.SecurityOriginRemoved, this.securityOriginRemoved, this);
-            for (const securityOrigin of this.securityOriginManager.securityOrigins()) {
-                this.addOrigin(securityOrigin);
+        void this.indexedDBAgent.invoke_enable();
+        if (this.storageBucketModel) {
+            this.storageBucketModel.addEventListener("BucketAdded" /* SDK.StorageBucketsModel.Events.BucketAdded */, this.storageBucketAdded, this);
+            this.storageBucketModel.addEventListener("BucketRemoved" /* SDK.StorageBucketsModel.Events.BucketRemoved */, this.storageBucketRemoved, this);
+            for (const { bucket } of this.storageBucketModel.getBuckets()) {
+                this.addStorageBucket(bucket);
             }
         }
         this.enabled = true;
     }
-    clearForOrigin(origin) {
-        if (!this.enabled || !this.databaseNamesBySecurityOrigin[origin]) {
+    clearForStorageKey(storageKey) {
+        if (!this.enabled || !this.databaseNamesByStorageKeyAndBucket.has(storageKey)) {
             return;
         }
-        this.removeOrigin(origin);
-        this.addOrigin(origin);
+        for (const [storageBucketName] of this.databaseNamesByStorageKeyAndBucket.get(storageKey) || []) {
+            const storageBucket = this.storageBucketModel?.getBucketByName(storageKey, storageBucketName ?? undefined)?.bucket;
+            if (storageBucket) {
+                this.removeStorageBucket(storageBucket);
+            }
+        }
+        this.databaseNamesByStorageKeyAndBucket.delete(storageKey);
+        const bucketInfos = this.storageBucketModel?.getBucketsForStorageKey(storageKey) || [];
+        for (const { bucket } of bucketInfos) {
+            this.addStorageBucket(bucket);
+        }
     }
     async deleteDatabase(databaseId) {
         if (!this.enabled) {
             return;
         }
-        await this.indexedDBAgent.invoke_deleteDatabase({ securityOrigin: databaseId.securityOrigin, databaseName: databaseId.name });
-        this.loadDatabaseNames(databaseId.securityOrigin);
+        await this.indexedDBAgent.invoke_deleteDatabase({ storageBucket: databaseId.storageBucket, databaseName: databaseId.name });
+        void this.loadDatabaseNamesByStorageBucket(databaseId.storageBucket);
     }
     async refreshDatabaseNames() {
-        for (const securityOrigin in this.databaseNamesBySecurityOrigin) {
-            await this.loadDatabaseNames(securityOrigin);
+        for (const [storageKey] of this.databaseNamesByStorageKeyAndBucket) {
+            const storageBucketNames = this.databaseNamesByStorageKeyAndBucket.get(storageKey)?.keys() || [];
+            for (const storageBucketName of storageBucketNames) {
+                const storageBucket = this.storageBucketModel?.getBucketByName(storageKey, storageBucketName ?? undefined)?.bucket;
+                if (storageBucket) {
+                    await this.loadDatabaseNamesByStorageBucket(storageBucket);
+                }
+            }
         }
         this.dispatchEventToListeners(Events.DatabaseNamesRefreshed);
     }
     refreshDatabase(databaseId) {
-        this.loadDatabase(databaseId, true);
+        void this.loadDatabase(databaseId, true);
     }
     async clearObjectStore(databaseId, objectStoreName) {
-        await this.indexedDBAgent.invoke_clearObjectStore({ securityOrigin: databaseId.securityOrigin, databaseName: databaseId.name, objectStoreName });
+        await this.indexedDBAgent.invoke_clearObjectStore({ storageBucket: databaseId.storageBucket, databaseName: databaseId.name, objectStoreName });
     }
     async deleteEntries(databaseId, objectStoreName, idbKeyRange) {
         const keyRange = IndexedDBModel.keyRangeFromIDBKeyRange(idbKeyRange);
-        await this.indexedDBAgent.invoke_deleteObjectStoreEntries({ securityOrigin: databaseId.securityOrigin, databaseName: databaseId.name, objectStoreName, keyRange });
+        await this.indexedDBAgent.invoke_deleteObjectStoreEntries({ storageBucket: databaseId.storageBucket, databaseName: databaseId.name, objectStoreName, keyRange });
     }
-    securityOriginAdded(event) {
-        this.addOrigin(event.data);
+    storageBucketAdded({ data: { bucketInfo: { bucket } } }) {
+        this.addStorageBucket(bucket);
     }
-    securityOriginRemoved(event) {
-        this.removeOrigin(event.data);
+    storageBucketRemoved({ data: { bucketInfo: { bucket } } }) {
+        this.removeStorageBucket(bucket);
     }
-    addOrigin(securityOrigin) {
-        console.assert(!this.databaseNamesBySecurityOrigin[securityOrigin]);
-        this.databaseNamesBySecurityOrigin[securityOrigin] = [];
-        this.loadDatabaseNames(securityOrigin);
-        if (this.isValidSecurityOrigin(securityOrigin)) {
-            this.storageAgent.invoke_trackIndexedDBForOrigin({ origin: securityOrigin });
+    addStorageBucket(storageBucket) {
+        const { storageKey } = storageBucket;
+        if (!this.databaseNamesByStorageKeyAndBucket.has(storageKey)) {
+            this.databaseNamesByStorageKeyAndBucket.set(storageKey, new Map());
+            void this.storageAgent.invoke_trackIndexedDBForStorageKey({ storageKey });
+        }
+        const storageKeyBuckets = this.databaseNamesByStorageKeyAndBucket.get(storageKey) || new Map();
+        console.assert(!storageKeyBuckets.has(storageBucket.name ?? DEFAULT_BUCKET));
+        storageKeyBuckets.set(storageBucket.name ?? DEFAULT_BUCKET, new Set());
+        void this.loadDatabaseNamesByStorageBucket(storageBucket);
+    }
+    removeStorageBucket(storageBucket) {
+        const { storageKey } = storageBucket;
+        console.assert(this.databaseNamesByStorageKeyAndBucket.has(storageKey));
+        const storageKeyBuckets = this.databaseNamesByStorageKeyAndBucket.get(storageKey) || new Map();
+        console.assert(storageKeyBuckets.has(storageBucket.name ?? DEFAULT_BUCKET));
+        const databaseIds = storageKeyBuckets.get(storageBucket.name ?? DEFAULT_BUCKET) || new Map();
+        for (const databaseId of databaseIds) {
+            this.databaseRemovedForStorageBucket(databaseId);
+        }
+        storageKeyBuckets.delete(storageBucket.name ?? DEFAULT_BUCKET);
+        if (storageKeyBuckets.size === 0) {
+            this.databaseNamesByStorageKeyAndBucket.delete(storageKey);
+            void this.storageAgent.invoke_untrackIndexedDBForStorageKey({ storageKey });
         }
     }
-    removeOrigin(securityOrigin) {
-        console.assert(Boolean(this.databaseNamesBySecurityOrigin[securityOrigin]));
-        for (let i = 0; i < this.databaseNamesBySecurityOrigin[securityOrigin].length; ++i) {
-            this.databaseRemoved(securityOrigin, this.databaseNamesBySecurityOrigin[securityOrigin][i]);
+    updateStorageKeyDatabaseNames(storageBucket, databaseNames) {
+        const storageKeyBuckets = this.databaseNamesByStorageKeyAndBucket.get(storageBucket.storageKey);
+        if (storageKeyBuckets === undefined) {
+            return;
         }
-        delete this.databaseNamesBySecurityOrigin[securityOrigin];
-        if (this.isValidSecurityOrigin(securityOrigin)) {
-            this.storageAgent.invoke_untrackIndexedDBForOrigin({ origin: securityOrigin });
-        }
-    }
-    isValidSecurityOrigin(securityOrigin) {
-        const parsedURL = Common.ParsedURL.ParsedURL.fromString(securityOrigin);
-        return parsedURL !== null && parsedURL.scheme.startsWith('http');
-    }
-    updateOriginDatabaseNames(securityOrigin, databaseNames) {
-        const newDatabaseNames = new Set(databaseNames);
-        const oldDatabaseNames = new Set(this.databaseNamesBySecurityOrigin[securityOrigin]);
-        this.databaseNamesBySecurityOrigin[securityOrigin] = databaseNames;
-        for (const databaseName of oldDatabaseNames) {
-            if (!newDatabaseNames.has(databaseName)) {
-                this.databaseRemoved(securityOrigin, databaseName);
+        const newDatabases = new Set(databaseNames.map(databaseName => new DatabaseId(storageBucket, databaseName)));
+        const oldDatabases = new Set(storageKeyBuckets.get(storageBucket.name ?? DEFAULT_BUCKET));
+        storageKeyBuckets.set(storageBucket.name ?? DEFAULT_BUCKET, newDatabases);
+        for (const database of oldDatabases) {
+            if (!database.inSet(newDatabases)) {
+                this.databaseRemovedForStorageBucket(database);
             }
         }
-        for (const databaseName of newDatabaseNames) {
-            if (!oldDatabaseNames.has(databaseName)) {
-                this.databaseAdded(securityOrigin, databaseName);
+        for (const database of newDatabases) {
+            if (!database.inSet(oldDatabases)) {
+                this.databaseAddedForStorageBucket(database);
             }
         }
     }
     databases() {
         const result = [];
-        for (const securityOrigin in this.databaseNamesBySecurityOrigin) {
-            const databaseNames = this.databaseNamesBySecurityOrigin[securityOrigin];
-            for (let i = 0; i < databaseNames.length; ++i) {
-                result.push(new DatabaseId(securityOrigin, databaseNames[i]));
+        for (const [, buckets] of this.databaseNamesByStorageKeyAndBucket) {
+            for (const [, databases] of buckets) {
+                for (const database of databases) {
+                    result.push(database);
+                }
             }
         }
         return result;
     }
-    databaseAdded(securityOrigin, databaseName) {
-        const databaseId = new DatabaseId(securityOrigin, databaseName);
+    databaseAddedForStorageBucket(databaseId) {
         this.dispatchEventToListeners(Events.DatabaseAdded, { model: this, databaseId: databaseId });
     }
-    databaseRemoved(securityOrigin, databaseName) {
-        const databaseId = new DatabaseId(securityOrigin, databaseName);
+    databaseRemovedForStorageBucket(databaseId) {
         this.dispatchEventToListeners(Events.DatabaseRemoved, { model: this, databaseId: databaseId });
     }
-    async loadDatabaseNames(securityOrigin) {
-        const { databaseNames } = await this.indexedDBAgent.invoke_requestDatabaseNames({ securityOrigin });
+    async loadDatabaseNamesByStorageBucket(storageBucket) {
+        const { storageKey } = storageBucket;
+        const { databaseNames } = await this.indexedDBAgent.invoke_requestDatabaseNames({ storageBucket });
         if (!databaseNames) {
             return [];
         }
-        if (!this.databaseNamesBySecurityOrigin[securityOrigin]) {
+        if (!this.databaseNamesByStorageKeyAndBucket.has(storageKey)) {
             return [];
         }
-        this.updateOriginDatabaseNames(securityOrigin, databaseNames);
+        const storageKeyBuckets = this.databaseNamesByStorageKeyAndBucket.get(storageKey) || new Map();
+        if (!storageKeyBuckets.has(storageBucket.name ?? DEFAULT_BUCKET)) {
+            return [];
+        }
+        this.updateStorageKeyDatabaseNames(storageBucket, databaseNames);
         return databaseNames;
     }
     async loadDatabase(databaseId, entriesUpdated) {
-        const { databaseWithObjectStores } = await this.indexedDBAgent.invoke_requestDatabase({ securityOrigin: databaseId.securityOrigin, databaseName: databaseId.name });
-        if (!databaseWithObjectStores) {
+        const databaseWithObjectStores = (await this.indexedDBAgent.invoke_requestDatabase({
+            storageBucket: databaseId.storageBucket,
+            databaseName: databaseId.name,
+        })).databaseWithObjectStores;
+        if (!this.databaseNamesByStorageKeyAndBucket.get(databaseId.storageBucket.storageKey)
+            ?.has(databaseId.storageBucket.name ?? DEFAULT_BUCKET)) {
             return;
         }
-        if (!this.databaseNamesBySecurityOrigin[databaseId.securityOrigin]) {
+        if (!databaseWithObjectStores) {
             return;
         }
         const databaseModel = new Database(databaseId, databaseWithObjectStores.version);
@@ -270,15 +302,16 @@ export class IndexedDBModel extends SDK.SDKModel.SDKModel {
         this.dispatchEventToListeners(Events.DatabaseLoaded, { model: this, database: databaseModel, entriesUpdated: entriesUpdated });
     }
     loadObjectStoreData(databaseId, objectStoreName, idbKeyRange, skipCount, pageSize, callback) {
-        this.requestData(databaseId, databaseId.name, objectStoreName, '', idbKeyRange, skipCount, pageSize, callback);
+        void this.requestData(databaseId, databaseId.name, objectStoreName, '', idbKeyRange, skipCount, pageSize, callback);
     }
     loadIndexData(databaseId, objectStoreName, indexName, idbKeyRange, skipCount, pageSize, callback) {
-        this.requestData(databaseId, databaseId.name, objectStoreName, indexName, idbKeyRange, skipCount, pageSize, callback);
+        void this.requestData(databaseId, databaseId.name, objectStoreName, indexName, idbKeyRange, skipCount, pageSize, callback);
     }
     async requestData(databaseId, databaseName, objectStoreName, indexName, idbKeyRange, skipCount, pageSize, callback) {
         const keyRange = idbKeyRange ? IndexedDBModel.keyRangeFromIDBKeyRange(idbKeyRange) : undefined;
+        const runtimeModel = this.target().model(SDK.RuntimeModel.RuntimeModel);
         const response = await this.indexedDBAgent.invoke_requestData({
-            securityOrigin: databaseId.securityOrigin,
+            storageBucket: databaseId.storageBucket,
             databaseName,
             objectStoreName,
             indexName,
@@ -286,58 +319,75 @@ export class IndexedDBModel extends SDK.SDKModel.SDKModel {
             pageSize,
             keyRange,
         });
-        if (response.getError()) {
-            console.error('IndexedDBAgent error: ' + response.getError());
+        if (!runtimeModel ||
+            !this.databaseNamesByStorageKeyAndBucket.get(databaseId.storageBucket.storageKey)
+                ?.has(databaseId.storageBucket.name ?? DEFAULT_BUCKET)) {
             return;
         }
-        const runtimeModel = this.target().model(SDK.RuntimeModel.RuntimeModel);
-        if (!runtimeModel || !this.databaseNamesBySecurityOrigin[databaseId.securityOrigin]) {
+        if (response.getError()) {
+            console.error('IndexedDBAgent error: ' + response.getError());
             return;
         }
         const dataEntries = response.objectStoreDataEntries;
         const entries = [];
         for (const dataEntry of dataEntries) {
-            const key = runtimeModel.createRemoteObject(dataEntry.key);
-            const primaryKey = runtimeModel.createRemoteObject(dataEntry.primaryKey);
-            const value = runtimeModel.createRemoteObject(dataEntry.value);
+            const key = runtimeModel?.createRemoteObject(dataEntry.key);
+            const primaryKey = runtimeModel?.createRemoteObject(dataEntry.primaryKey);
+            const value = runtimeModel?.createRemoteObject(dataEntry.value);
+            if (!key || !primaryKey || !value) {
+                return;
+            }
             entries.push(new Entry(key, primaryKey, value));
         }
         callback(entries, response.hasMore);
     }
     async getMetadata(databaseId, objectStore) {
-        const databaseOrigin = databaseId.securityOrigin;
         const databaseName = databaseId.name;
         const objectStoreName = objectStore.name;
-        const response = await this.indexedDBAgent.invoke_getMetadata({ securityOrigin: databaseOrigin, databaseName, objectStoreName });
+        const response = await this.indexedDBAgent.invoke_getMetadata({ storageBucket: databaseId.storageBucket, databaseName, objectStoreName });
         if (response.getError()) {
             console.error('IndexedDBAgent error: ' + response.getError());
             return null;
         }
         return { entriesCount: response.entriesCount, keyGeneratorValue: response.keyGeneratorValue };
     }
-    async refreshDatabaseList(securityOrigin) {
-        const databaseNames = await this.loadDatabaseNames(securityOrigin);
+    async refreshDatabaseListForStorageBucket(storageBucket) {
+        const databaseNames = await this.loadDatabaseNamesByStorageBucket(storageBucket);
         for (const databaseName of databaseNames) {
-            this.loadDatabase(new DatabaseId(securityOrigin, databaseName), false);
+            void this.loadDatabase(new DatabaseId(storageBucket, databaseName), false);
         }
     }
-    indexedDBListUpdated({ origin: securityOrigin }) {
-        this.originsUpdated.add(securityOrigin);
-        this.throttler.schedule(() => {
-            const promises = Array.from(this.originsUpdated, securityOrigin => {
-                this.refreshDatabaseList(securityOrigin);
+    indexedDBListUpdated({ storageKey, bucketId }) {
+        const storageBucket = this.storageBucketModel?.getBucketById(bucketId)?.bucket;
+        if (storageKey && storageBucket) {
+            this.updatedStorageBuckets.add(storageBucket);
+            void this.throttler.schedule(() => {
+                const promises = Array.from(this.updatedStorageBuckets, storageBucket => {
+                    void this.refreshDatabaseListForStorageBucket(storageBucket);
+                });
+                this.updatedStorageBuckets.clear();
+                return Promise.all(promises);
             });
-            this.originsUpdated.clear();
-            return Promise.all(promises);
-        });
+        }
     }
-    indexedDBContentUpdated({ origin: securityOrigin, databaseName, objectStoreName }) {
-        const databaseId = new DatabaseId(securityOrigin, databaseName);
-        this.dispatchEventToListeners(Events.IndexedDBContentUpdated, { databaseId: databaseId, objectStoreName: objectStoreName, model: this });
+    indexedDBContentUpdated({ bucketId, databaseName, objectStoreName }) {
+        const storageBucket = this.storageBucketModel?.getBucketById(bucketId)?.bucket;
+        if (storageBucket) {
+            const databaseId = new DatabaseId(storageBucket, databaseName);
+            this.dispatchEventToListeners(Events.IndexedDBContentUpdated, { databaseId: databaseId, objectStoreName: objectStoreName, model: this });
+        }
     }
     cacheStorageListUpdated(_event) {
     }
     cacheStorageContentUpdated(_event) {
+    }
+    interestGroupAccessed(_event) {
+    }
+    sharedStorageAccessed(_event) {
+    }
+    storageBucketCreatedOrUpdated(_event) {
+    }
+    storageBucketDeleted(_event) {
     }
 }
 SDK.SDKModel.SDKModel.register(IndexedDBModel, { capabilities: SDK.Target.Capability.Storage, autostart: false });
@@ -362,14 +412,23 @@ export class Entry {
     }
 }
 export class DatabaseId {
-    securityOrigin;
+    storageBucket;
     name;
-    constructor(securityOrigin, name) {
-        this.securityOrigin = securityOrigin;
+    constructor(storageBucket, name) {
+        this.storageBucket = storageBucket;
         this.name = name;
     }
     equals(databaseId) {
-        return this.name === databaseId.name && this.securityOrigin === databaseId.securityOrigin;
+        return this.name === databaseId.name && this.storageBucket.name === databaseId.storageBucket.name &&
+            this.storageBucket.storageKey === databaseId.storageBucket.storageKey;
+    }
+    inSet(databaseSet) {
+        for (const database of databaseSet) {
+            if (this.equals(database)) {
+                return true;
+            }
+        }
+        return false;
     }
 }
 export class Database {

@@ -14,7 +14,7 @@ export class NetworkFrameGrouper {
     }
     groupNodeForRequest(request) {
         const frame = SDK.ResourceTreeModel.ResourceTreeModel.frameForRequest(request);
-        if (!frame || frame.isTopFrame()) {
+        if (!frame || frame.isOutermostFrame()) {
             return null;
         }
         let groupNode = this.activeGroups.get(frame);
@@ -43,7 +43,7 @@ export class FrameGroupNode extends NetworkGroupNode {
         const columnIndex = this.dataGrid.indexOfVisibleColumn(columnId);
         if (columnIndex === 0) {
             const name = this.displayName();
-            cell.appendChild(UI.Icon.Icon.create('largeicon-navigator-frame', 'network-frame-group-icon'));
+            cell.appendChild(UI.Icon.Icon.create('frame', 'network-frame-group-icon'));
             UI.UIUtils.createTextChild(cell, name);
             UI.Tooltip.Tooltip.install(cell, name);
             this.setCellAccessibleName(cell.textContent || '', cell, columnId);

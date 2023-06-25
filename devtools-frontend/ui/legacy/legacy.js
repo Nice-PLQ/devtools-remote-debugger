@@ -42,7 +42,6 @@ import * as SplitWidget from './SplitWidget.js';
 import * as SuggestBox from './SuggestBox.js';
 import * as TabbedPane from './TabbedPane.js';
 import * as TargetCrashedScreen from './TargetCrashedScreen.js';
-import * as TextEditor from './TextEditor.js';
 import * as TextPrompt from './TextPrompt.js';
 import * as ThrottledWidget from './ThrottledWidget.js';
 import * as Toolbar from './Toolbar.js';
@@ -57,5 +56,5 @@ import * as XElement from './XElement.js';
 import * as XLink from './XLink.js';
 import * as XWidget from './XWidget.js';
 import * as ZoomManager from './ZoomManager.js';
-export { ActionRegistration, ActionRegistry, ARIAUtils, Context, ContextFlavorListener, ContextMenu, Dialog, DockController, DropTarget, EmptyWidget, FilterBar, FilterSuggestionBuilder, ForwardedInputEventHandler, Fragment, Geometry, GlassPane, HistoryInput, Icon, Infobar, InplaceEditor, InspectorView, KeyboardShortcut, ListControl, ListModel, ListWidget, Panel, PopoverHelper, ProgressIndicator, RemoteDebuggingTerminatedScreen, ReportView, ResizerWidget, RootView, SearchableView, SettingsUI, ShortcutRegistry, SoftContextMenu, SoftDropDown, SplitWidget, SuggestBox, TabbedPane, TargetCrashedScreen, TextEditor, TextPrompt, ThrottledWidget, Toolbar, Tooltip, TreeOutline, UIUtils, Utils, View, ViewManager, Widget, XElement, XLink, XWidget, ZoomManager, };
+export { ActionRegistration, ActionRegistry, ARIAUtils, Context, ContextFlavorListener, ContextMenu, Dialog, DockController, DropTarget, EmptyWidget, FilterBar, FilterSuggestionBuilder, ForwardedInputEventHandler, Fragment, Geometry, GlassPane, HistoryInput, Icon, Infobar, InplaceEditor, InspectorView, KeyboardShortcut, ListControl, ListModel, ListWidget, Panel, PopoverHelper, ProgressIndicator, RemoteDebuggingTerminatedScreen, ReportView, ResizerWidget, RootView, SearchableView, SettingsUI, ShortcutRegistry, SoftContextMenu, SoftDropDown, SplitWidget, SuggestBox, TabbedPane, TargetCrashedScreen, TextPrompt, ThrottledWidget, Toolbar, Tooltip, TreeOutline, UIUtils, Utils, View, ViewManager, Widget, XElement, XLink, XWidget, ZoomManager, };
 //# sourceMappingURL=legacy.js.map

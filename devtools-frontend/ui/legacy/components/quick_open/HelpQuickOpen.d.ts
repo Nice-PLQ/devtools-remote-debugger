@@ -1,10 +1,7 @@
 import { Provider } from './FilteredListWidget.js';
 export declare class HelpQuickOpen extends Provider {
     private providers;
-    private constructor();
-    static instance(opts?: {
-        forceNew: boolean | null;
-    }): HelpQuickOpen;
+    constructor();
     private addProvider;
     itemCount(): number;
     itemKeyAt(itemIndex: number): string;

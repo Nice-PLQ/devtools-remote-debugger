@@ -9,25 +9,25 @@ import { CSSLength } from './CSSShadowModel.js';
 import cssShadowEditorStyles from './cssShadowEditor.css.js';
 const UIStrings = {
     /**
-    *@description Text that refers to some types
-    */
+     *@description Text that refers to some types
+     */
     type: 'Type',
     /**
-    *@description Text in CSSShadow Editor of the inline editor in the Styles tab
-    */
+     *@description Text in CSSShadow Editor of the inline editor in the Styles tab
+     */
     xOffset: 'X offset',
     /**
-    *@description Text in CSSShadow Editor of the inline editor in the Styles tab
-    */
+     *@description Text in CSSShadow Editor of the inline editor in the Styles tab
+     */
     yOffset: 'Y offset',
     /**
-    * @description Text in CSSShadow Editor of the inline editor in the Styles tab. Noun which is a
-    * label for an input that allows the user to specify how blurred the box-shadow should be.
-    */
+     * @description Text in CSSShadow Editor of the inline editor in the Styles tab. Noun which is a
+     * label for an input that allows the user to specify how blurred the box-shadow should be.
+     */
     blur: 'Blur',
     /**
-    *@description Text in CSSShadow Editor of the inline editor in the Styles tab
-    */
+     *@description Text in CSSShadow Editor of the inline editor in the Styles tab
+     */
     spread: 'Spread',
 };
 const str_ = i18n.i18n.registerUIStrings('ui/legacy/components/inline_editor/CSSShadowEditor.ts', UIStrings);
@@ -102,7 +102,7 @@ export class CSSShadowEditor extends Common.ObjectWrapper.eventMixin(UI.Widget.V
         const slider = UI.UIUtils.createSlider(0, maxRange, -1);
         slider.addEventListener('input', this.onSliderInput.bind(this), false);
         field.appendChild(slider);
-        return /** @type {!HTMLInputElement} */ slider;
+        return slider;
     }
     wasShown() {
         this.registerCSSFiles([cssShadowEditorStyles]);
@@ -283,7 +283,7 @@ export class CSSShadowEditor extends Common.ObjectWrapper.eventMixin(UI.Widget.V
     dragStart(event) {
         this.xySlider.focus();
         this.updateCanvas(true);
-        this.canvasOrigin = new UI.Geometry.Point(this.xySlider.totalOffsetLeft() + this.halfCanvasSize, this.xySlider.totalOffsetTop() + this.halfCanvasSize);
+        this.canvasOrigin = new UI.Geometry.Point(this.xySlider.getBoundingClientRect().left + this.halfCanvasSize, this.xySlider.getBoundingClientRect().top + this.halfCanvasSize);
         const clickedPoint = new UI.Geometry.Point(event.x - this.canvasOrigin.x, event.y - this.canvasOrigin.y);
         const thumbPoint = this.sliderThumbPosition();
         if (clickedPoint.distanceTo(thumbPoint) >= sliderThumbRadius) {

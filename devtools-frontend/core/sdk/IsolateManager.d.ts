@@ -1,7 +1,7 @@
 import * as Common from '../common/common.js';
-import type { HeapProfilerModel } from './HeapProfilerModel.js';
+import { type HeapProfilerModel } from './HeapProfilerModel.js';
 import { RuntimeModel } from './RuntimeModel.js';
-import type { SDKModelObserver } from './TargetManager.js';
+import { type SDKModelObserver } from './TargetManager.js';
 export declare class IsolateManager extends Common.ObjectWrapper.ObjectWrapper<EventTypes> implements SDKModelObserver<RuntimeModel> {
     #private;
     constructor();
@@ -25,7 +25,7 @@ export interface Observer {
 export declare enum Events {
     MemoryChanged = "MemoryChanged"
 }
-export declare type EventTypes = {
+export type EventTypes = {
     [Events.MemoryChanged]: Isolate;
 };
 export declare const MemoryTrendWindowMs = 120000;

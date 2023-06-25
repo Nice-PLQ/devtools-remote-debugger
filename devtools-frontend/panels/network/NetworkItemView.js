@@ -29,8 +29,11 @@
  */
 import * as Common from '../../core/common/common.js';
 import * as i18n from '../../core/i18n/i18n.js';
+import * as Root from '../../core/root/root.js';
 import * as SDK from '../../core/sdk/sdk.js';
 import * as NetworkForward from '../../panels/network/forward/forward.js';
+import * as IconButton from '../../ui/components/icon_button/icon_button.js';
+import * as LegacyWrapper from '../../ui/components/legacy_wrapper/legacy_wrapper.js';
 import * as UI from '../../ui/legacy/legacy.js';
 import * as NetworkComponents from './components/components.js';
 import { EventSourceMessagesView } from './EventSourceMessagesView.js';
@@ -44,80 +47,80 @@ import { RequestTimingView } from './RequestTimingView.js';
 import { ResourceWebSocketFrameView } from './ResourceWebSocketFrameView.js';
 const UIStrings = {
     /**
-    *@description Text for network request headers
-    */
+     *@description Text for network request headers
+     */
     headers: 'Headers',
     /**
-    *@description Text in Network Item View of the Network panel
-    */
+     *@description Text in Network Item View of the Network panel
+     */
     payload: 'Payload',
     /**
-    *@description Text in Network Item View of the Network panel
-    */
+     *@description Text in Network Item View of the Network panel
+     */
     messages: 'Messages',
     /**
-    *@description Text in Network Item View of the Network panel
-    */
+     *@description Text in Network Item View of the Network panel
+     */
     websocketMessages: 'WebSocket messages',
     /**
-    *@description Text in Network Item View of the Network panel
-    */
+     *@description Text in Network Item View of the Network panel
+     */
     eventstream: 'EventStream',
     /**
-    *@description Text for previewing items
-    */
+     *@description Text for previewing items
+     */
     preview: 'Preview',
     /**
-    *@description Text in Network Item View of the Network panel
-    */
+     *@description Text in Network Item View of the Network panel
+     */
     responsePreview: 'Response preview',
     /**
-    *@description Icon title in Network Item View of the Network panel
-    */
+     *@description Icon title in Network Item View of the Network panel
+     */
     signedexchangeError: 'SignedExchange error',
     /**
-    *@description Title of a tab in the Network panel. A Network response refers to the act of acknowledging a
+     *@description Title of a tab in the Network panel. A Network response refers to the act of acknowledging a
     network request. Should not be confused with answer.
-    */
+     */
     response: 'Response',
     /**
-    *@description Text in Network Item View of the Network panel
-    */
+     *@description Text in Network Item View of the Network panel
+     */
     rawResponseData: 'Raw response data',
     /**
-    *@description Text for the initiator of something
-    */
+     *@description Text for the initiator of something
+     */
     initiator: 'Initiator',
     /**
-    * @description Tooltip for initiator view in Network panel. An initiator is a piece of code/entity
-    * in the code that initiated/started the network request, i.e. caused the network request. The 'call
-    * stack' is the location in the code where the initiation happened.
-    */
+     * @description Tooltip for initiator view in Network panel. An initiator is a piece of code/entity
+     * in the code that initiated/started the network request, i.e. caused the network request. The 'call
+     * stack' is the location in the code where the initiation happened.
+     */
     requestInitiatorCallStack: 'Request initiator call stack',
     /**
-    *@description Title of a tab in Network Item View of the Network panel.
-    *The tab displays the duration breakdown of a network request.
-    */
+     *@description Title of a tab in Network Item View of the Network panel.
+     *The tab displays the duration breakdown of a network request.
+     */
     timing: 'Timing',
     /**
-    *@description Text in Network Item View of the Network panel
-    */
+     *@description Text in Network Item View of the Network panel
+     */
     requestAndResponseTimeline: 'Request and response timeline',
     /**
-    *@description Label of a tab in the network panel
-    */
-    trustTokens: 'Trust Tokens',
+     *@description Label of a tab in the network panel. Previously known as 'Trust Tokens'.
+     */
+    trustTokens: 'Private State Tokens',
     /**
-    *@description Title of the Trust token tab in the Network panel
-    */
-    trustTokenOperationDetails: 'Trust Token operation details',
+     *@description Title of the Private State Token tab in the Network panel. Previously known as 'Trust Token tab'.
+     */
+    trustTokenOperationDetails: 'Private State Token operation details',
     /**
-    *@description Text for web cookies
-    */
+     *@description Text for web cookies
+     */
     cookies: 'Cookies',
     /**
-    *@description Text in Network Item View of the Network panel
-    */
+     *@description Text in Network Item View of the Network panel
+     */
     requestAndResponseCookies: 'Request and response cookies',
 };
 const str_ = i18n.i18n.registerUIStrings('panels/network/NetworkItemView.ts', UIStrings);
@@ -126,6 +129,7 @@ export class NetworkItemView extends UI.TabbedPane.TabbedPane {
     requestInternal;
     resourceViewTabSetting;
     headersView;
+    headersViewComponent;
     payloadView;
     responseView;
     cookiesView;
@@ -134,11 +138,20 @@ export class NetworkItemView extends UI.TabbedPane.TabbedPane {
         super();
         this.requestInternal = request;
         this.element.classList.add('network-item-view');
-        this.resourceViewTabSetting = Common.Settings.Settings.instance().createSetting('resourceViewTab', NetworkForward.UIRequestLocation.UIRequestTabs.Preview);
+        const headersTab = Root.Runtime.experiments.isEnabled(Root.Runtime.ExperimentName.HEADER_OVERRIDES) ?
+            NetworkForward.UIRequestLocation.UIRequestTabs.HeadersComponent :
+            NetworkForward.UIRequestLocation.UIRequestTabs.Headers;
+        this.resourceViewTabSetting = Common.Settings.Settings.instance().createSetting('resourceViewTab', headersTab);
         this.headersView = new RequestHeadersView(request);
-        this.appendTab(NetworkForward.UIRequestLocation.UIRequestTabs.Headers, i18nString(UIStrings.headers), this.headersView, i18nString(UIStrings.headers));
+        this.headersViewComponent = new NetworkComponents.RequestHeadersView.RequestHeadersView(request);
+        if (Root.Runtime.experiments.isEnabled(Root.Runtime.ExperimentName.HEADER_OVERRIDES)) {
+            this.appendTab(headersTab, i18nString(UIStrings.headers), LegacyWrapper.LegacyWrapper.legacyWrapper(UI.Widget.VBox, this.headersViewComponent), i18nString(UIStrings.headers));
+        }
+        else {
+            this.appendTab(headersTab, i18nString(UIStrings.headers), this.headersView, i18nString(UIStrings.headers));
+        }
         this.payloadView = null;
-        this.maybeAppendPayloadPanel();
+        void this.maybeAppendPayloadPanel();
         this.addEventListener(UI.TabbedPane.Events.TabSelected, this.tabSelected, this);
         if (request.resourceType() === Common.ResourceType.resourceTypes.WebSocket) {
             const frameView = new ResourceWebSocketFrameView(request);
@@ -153,7 +166,8 @@ export class NetworkItemView extends UI.TabbedPane.TabbedPane {
             this.appendTab(NetworkForward.UIRequestLocation.UIRequestTabs.Preview, i18nString(UIStrings.preview), previewView, i18nString(UIStrings.responsePreview));
             const signedExchangeInfo = request.signedExchangeInfo();
             if (signedExchangeInfo && signedExchangeInfo.errors && signedExchangeInfo.errors.length) {
-                const icon = UI.Icon.Icon.create('smallicon-error');
+                const icon = new IconButton.Icon.Icon();
+                icon.data = { iconName: 'cross-circle-filled', color: 'var(--icon-error)', width: '14px', height: '14px' };
                 UI.Tooltip.Tooltip.install(icon, i18nString(UIStrings.signedexchangeError));
                 this.setTabIcon(NetworkForward.UIRequestLocation.UIRequestTabs.Preview, icon);
             }
@@ -162,7 +176,7 @@ export class NetworkItemView extends UI.TabbedPane.TabbedPane {
         this.appendTab(NetworkForward.UIRequestLocation.UIRequestTabs.Initiator, i18nString(UIStrings.initiator), new RequestInitiatorView(request), i18nString(UIStrings.requestInitiatorCallStack));
         this.appendTab(NetworkForward.UIRequestLocation.UIRequestTabs.Timing, i18nString(UIStrings.timing), new RequestTimingView(request, calculator), i18nString(UIStrings.requestAndResponseTimeline));
         if (request.trustTokenParams()) {
-            this.appendTab(NetworkForward.UIRequestLocation.UIRequestTabs.TrustTokens, i18nString(UIStrings.trustTokens), new NetworkComponents.RequestTrustTokensView.RequestTrustTokensView(request), i18nString(UIStrings.trustTokenOperationDetails));
+            this.appendTab(NetworkForward.UIRequestLocation.UIRequestTabs.TrustTokens, i18nString(UIStrings.trustTokens), LegacyWrapper.LegacyWrapper.legacyWrapper(UI.Widget.VBox, new NetworkComponents.RequestTrustTokensView.RequestTrustTokensView(request)), i18nString(UIStrings.trustTokenOperationDetails));
         }
         this.cookiesView = null;
         this.initialTab = initialTab || this.resourceViewTabSetting.get();
@@ -192,7 +206,7 @@ export class NetworkItemView extends UI.TabbedPane.TabbedPane {
     }
     async requestHeadersChanged() {
         this.maybeAppendCookiesPanel();
-        this.maybeAppendPayloadPanel();
+        void this.maybeAppendPayloadPanel();
     }
     maybeAppendCookiesPanel() {
         const cookiesPresent = this.requestInternal.hasRequestCookies() || this.requestInternal.responseCookies.length > 0;
@@ -203,6 +217,9 @@ export class NetworkItemView extends UI.TabbedPane.TabbedPane {
         }
     }
     async maybeAppendPayloadPanel() {
+        if (this.hasTab('payload')) {
+            return;
+        }
         if (this.requestInternal.queryParameters || await this.requestInternal.requestFormData()) {
             this.payloadView = new RequestPayloadView(this.requestInternal);
             this.appendTab(NetworkForward.UIRequestLocation.UIRequestTabs.Payload, i18nString(UIStrings.payload), this.payloadView, i18nString(UIStrings.payload), /* userGesture=*/ void 0, 
@@ -213,12 +230,20 @@ export class NetworkItemView extends UI.TabbedPane.TabbedPane {
         const trustTokenResult = this.requestInternal.trustTokenOperationDoneEvent();
         if (trustTokenResult &&
             !NetworkComponents.RequestTrustTokensView.statusConsideredSuccess(trustTokenResult.status)) {
-            this.setTabIcon(NetworkForward.UIRequestLocation.UIRequestTabs.TrustTokens, UI.Icon.Icon.create('smallicon-error'));
+            const icon = new IconButton.Icon.Icon();
+            icon.data = { iconName: 'cross-circle-filled', color: 'var(--icon-error)', width: '14px', height: '14px' };
+            this.setTabIcon(NetworkForward.UIRequestLocation.UIRequestTabs.TrustTokens, icon);
         }
     }
     selectTabInternal(tabId) {
         if (!this.selectTab(tabId)) {
-            this.selectTab('headers');
+            // maybeAppendPayloadPanel might cause payload tab to appear asynchronously, so
+            // it makes sense to retry on the next tick
+            window.setTimeout(() => {
+                if (!this.selectTab(tabId)) {
+                    this.selectTab('headers');
+                }
+            }, 0);
         }
     }
     tabSelected(event) {
@@ -237,8 +262,20 @@ export class NetworkItemView extends UI.TabbedPane.TabbedPane {
         }
     }
     revealHeader(section, header) {
-        this.selectTabInternal(NetworkForward.UIRequestLocation.UIRequestTabs.Headers);
-        this.headersView.revealHeader(section, header);
+        if (Root.Runtime.experiments.isEnabled(Root.Runtime.ExperimentName.HEADER_OVERRIDES)) {
+            this.selectTabInternal(NetworkForward.UIRequestLocation.UIRequestTabs.HeadersComponent);
+            this.headersViewComponent.revealHeader(section, header);
+        }
+        else {
+            this.selectTabInternal(NetworkForward.UIRequestLocation.UIRequestTabs.Headers);
+            this.headersView.revealHeader(section, header);
+        }
+    }
+    getHeadersView() {
+        return this.headersView;
+    }
+    getHeadersViewComponent() {
+        return this.headersViewComponent;
     }
 }
 //# sourceMappingURL=NetworkItemView.js.map

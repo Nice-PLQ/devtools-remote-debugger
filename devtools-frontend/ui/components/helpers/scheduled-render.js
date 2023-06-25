@@ -27,8 +27,17 @@ export async function scheduleRender(component, callback) {
         wrappedCallback = async () => {
             pendingRenders.delete(component);
             activeRenders.add(component);
-            await callback.call(component);
-            activeRenders.delete(component);
+            try {
+                await callback.call(component);
+            }
+            catch (error) {
+                console.error(`ScheduledRender: rendering ${component.nodeName.toLowerCase()}:`);
+                console.error(error);
+                throw error;
+            }
+            finally {
+                activeRenders.delete(component);
+            }
         };
         // Store it for next time so we aren't creating wrappers unnecessarily.
         wrappedCallbacks.set(callback, wrappedCallback);
@@ -43,7 +52,7 @@ export async function scheduleRender(component, callback) {
         if (!newCallback) {
             return;
         }
-        scheduleRender(component, newCallback);
+        void scheduleRender(component, newCallback);
     }
 }
 export function isScheduledRender(component) {

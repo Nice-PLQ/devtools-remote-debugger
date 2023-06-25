@@ -1,4 +1,4 @@
-export declare type Values = {
+export type Values = {
     [key: string]: string | boolean | number;
 };
 export interface SerializedMessage {

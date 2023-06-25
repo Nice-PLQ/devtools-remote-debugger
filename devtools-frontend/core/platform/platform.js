@@ -27,10 +27,11 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-import './utilities.js';
 import * as ArrayUtilities from './array-utilities.js';
+import * as Brand from './brand.js';
 import * as DateUtilities from './date-utilities.js';
 import * as DevToolsPath from './DevToolsPath.js';
+import * as DOMUtilities from './dom-utilities.js';
 import * as KeyboardUtilities from './keyboard-utilities.js';
 import * as MapUtilities from './map-utilities.js';
 import * as NumberUtilities from './number-utilities.js';
@@ -38,13 +39,13 @@ import * as SetUtilities from './set-utilities.js';
 import * as StringUtilities from './string-utilities.js';
 import * as TypeScriptUtilities from './typescript-utilities.js';
 import * as UIString from './UIString.js';
+import * as UserVisibleError from './UserVisibleError.js';
 export { DCHECK } from './dcheck.js';
 /* `assertNotNull` also need to be exposed, as TypeScript does not
  * allow `asserts` functions to be used with qualified access
  * (e.g. `Platform.TypeScriptUtilities.assertNotNull` causes a
  * compiler error)
  */
-export { assertNotNullOrUndefined, assertUnhandled } from './typescript-utilities.js';
-export { assertNever, runOnWindowLoad } from './utilities.js';
-export { ArrayUtilities, DateUtilities, DevToolsPath, KeyboardUtilities, MapUtilities, NumberUtilities, SetUtilities, StringUtilities, TypeScriptUtilities, UIString, };
+export { assertNever, assertNotNullOrUndefined, assertUnhandled } from './typescript-utilities.js';
+export { ArrayUtilities, Brand, DateUtilities, DevToolsPath, DOMUtilities, KeyboardUtilities, MapUtilities, NumberUtilities, SetUtilities, StringUtilities, TypeScriptUtilities, UIString, UserVisibleError, };
 //# sourceMappingURL=platform.js.map

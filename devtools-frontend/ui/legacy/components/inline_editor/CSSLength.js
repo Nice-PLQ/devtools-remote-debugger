@@ -1,12 +1,13 @@
 // Copyright (c) 2021 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
+import * as Host from '../../../../core/host/host.js';
 import * as ComponentHelpers from '../../../components/helpers/helpers.js';
 import * as LitHtml from '../../../lit-html/lit-html.js';
 import cssLengthStyles from './cssLength.css.js';
 import { LENGTH_UNITS, parseText } from './CSSLengthUtils.js';
 import { ValueChangedEvent } from './InlineEditorUtils.js';
-const { render, html } = LitHtml;
+const { render, html, Directives: { classMap } } = LitHtml;
 export class DraggingFinishedEvent extends Event {
     static eventName = 'draggingfinished';
     constructor() {
@@ -15,22 +16,25 @@ export class DraggingFinishedEvent extends Event {
 }
 const DefaultLength = {
     value: 0,
-    unit: "px" /* PIXEL */,
+    unit: "px" /* LengthUnit.PIXEL */,
 };
 export class CSSLength extends HTMLElement {
     static litTagName = LitHtml.literal `devtools-css-length`;
     shadow = this.attachShadow({ mode: 'open' });
     onDraggingValue = this.dragValue.bind(this);
     length = DefaultLength;
+    overloaded = false;
     isEditingSlot = false;
     isDraggingValue = false;
     currentMouseClientX = 0;
+    #valueMousedownTime = 0;
     set data(data) {
         const parsedResult = parseText(data.lengthText);
         if (!parsedResult) {
             return;
         }
         this.length = parsedResult;
+        this.overloaded = data.overloaded;
         this.render();
     }
     connectedCallback() {
@@ -45,6 +49,10 @@ export class CSSLength extends HTMLElement {
     dragValue(event) {
         event.preventDefault();
         event.stopPropagation();
+        if (Date.now() - this.#valueMousedownTime <= 300) {
+            // Delay drag callback by 300ms to prioritize click over drag.
+            return;
+        }
         this.isDraggingValue = true;
         let displacement = event.clientX - this.currentMouseClientX;
         this.currentMouseClientX = event.clientX;
@@ -62,6 +70,7 @@ export class CSSLength extends HTMLElement {
         if (event.button !== 0) {
             return;
         }
+        this.#valueMousedownTime = Date.now();
         this.currentMouseClientX = event.clientX;
         const targetDocument = event.target instanceof Node && event.target.ownerDocument;
         if (targetDocument) {
@@ -87,12 +96,17 @@ export class CSSLength extends HTMLElement {
     onUnitMouseup(event) {
         event.preventDefault();
         event.stopPropagation();
+        Host.userMetrics.swatchActivated(8 /* Host.UserMetrics.SwatchType.Length */);
     }
     render() {
+        const classes = {
+            'css-length': true,
+            'overloaded': this.overloaded,
+        };
         // Disabled until https://crbug.com/1079231 is fixed.
         // clang-format off
         render(html `
-      <div class="css-length">
+      <div class=${classMap(classes)}>
         ${this.renderContent()}
       </div>
     `, this.shadow, {

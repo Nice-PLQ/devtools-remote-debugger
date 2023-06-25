@@ -4,24 +4,24 @@
 import * as i18n from '../../../../core/i18n/i18n.js';
 const UIStrings = {
     /**
-    *@description Text in Network Priorities of the Performance panel
-    */
+     *@description Text in Network Priorities of the Performance panel
+     */
     lowest: 'Lowest',
     /**
-    *@description Text in Network Priorities of the Performance panel
-    */
+     *@description Text in Network Priorities of the Performance panel
+     */
     low: 'Low',
     /**
-    *@description Text in Network Priorities of the Performance panel
-    */
+     *@description Text in Network Priorities of the Performance panel
+     */
     medium: 'Medium',
     /**
-    *@description Text in Network Priorities of the Performance panel
-    */
+     *@description Text in Network Priorities of the Performance panel
+     */
     high: 'High',
     /**
-    *@description Text in Network Priorities of the Performance panel
-    */
+     *@description Text in Network Priorities of the Performance panel
+     */
     highest: 'Highest',
 };
 const str_ = i18n.i18n.registerUIStrings('ui/legacy/components/perf_ui/NetworkPriorities.ts', UIStrings);
@@ -44,22 +44,22 @@ export function priorityUILabelMap() {
         return _priorityUILabelMapInstance;
     }
     const map = new Map();
-    map.set("VeryLow" /* VeryLow */, i18nString(UIStrings.lowest));
-    map.set("Low" /* Low */, i18nString(UIStrings.low));
-    map.set("Medium" /* Medium */, i18nString(UIStrings.medium));
-    map.set("High" /* High */, i18nString(UIStrings.high));
-    map.set("VeryHigh" /* VeryHigh */, i18nString(UIStrings.highest));
+    map.set("VeryLow" /* Protocol.Network.ResourcePriority.VeryLow */, i18nString(UIStrings.lowest));
+    map.set("Low" /* Protocol.Network.ResourcePriority.Low */, i18nString(UIStrings.low));
+    map.set("Medium" /* Protocol.Network.ResourcePriority.Medium */, i18nString(UIStrings.medium));
+    map.set("High" /* Protocol.Network.ResourcePriority.High */, i18nString(UIStrings.high));
+    map.set("VeryHigh" /* Protocol.Network.ResourcePriority.VeryHigh */, i18nString(UIStrings.highest));
     _priorityUILabelMapInstance = map;
     return map;
 }
 const networkPriorityWeights = new Map();
 export function networkPriorityWeight(priority) {
     if (networkPriorityWeights.size === 0) {
-        networkPriorityWeights.set("VeryLow" /* VeryLow */, 1);
-        networkPriorityWeights.set("Low" /* Low */, 2);
-        networkPriorityWeights.set("Medium" /* Medium */, 3);
-        networkPriorityWeights.set("High" /* High */, 4);
-        networkPriorityWeights.set("VeryHigh" /* VeryHigh */, 5);
+        networkPriorityWeights.set("VeryLow" /* Protocol.Network.ResourcePriority.VeryLow */, 1);
+        networkPriorityWeights.set("Low" /* Protocol.Network.ResourcePriority.Low */, 2);
+        networkPriorityWeights.set("Medium" /* Protocol.Network.ResourcePriority.Medium */, 3);
+        networkPriorityWeights.set("High" /* Protocol.Network.ResourcePriority.High */, 4);
+        networkPriorityWeights.set("VeryHigh" /* Protocol.Network.ResourcePriority.VeryHigh */, 5);
     }
     return networkPriorityWeights.get(priority) || 0;
 }

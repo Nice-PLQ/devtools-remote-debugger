@@ -6,8 +6,13 @@ export declare class ResourceType {
     static fromMimeTypeOverride(mimeType: string | null): ResourceType | null;
     static fromURL(url: string): ResourceType | null;
     static fromName(name: string): ResourceType | null;
-    static mimeFromURL(url: string): string | undefined;
+    static mimeFromURL(url: Platform.DevToolsPath.UrlString): string | undefined;
     static mimeFromExtension(ext: string): string | undefined;
+    /**
+     * Adds suffixes iff the mimeType is 'text/javascript' to denote whether the JS is minified or from
+     * a source map.
+     */
+    static mediaTypeForMetrics(mimeType: string, isFromSourceMap: boolean, isMinified: boolean): string;
     name(): string;
     title(): string;
     category(): ResourceCategory;
@@ -15,6 +20,7 @@ export declare class ResourceType {
     isScript(): boolean;
     hasScripts(): boolean;
     isStyleSheet(): boolean;
+    hasStyleSheets(): boolean;
     isDocument(): boolean;
     isDocumentOrScriptOrStyleSheet(): boolean;
     isFont(): boolean;
@@ -58,6 +64,7 @@ export declare const resourceTypes: {
     TextTrack: ResourceType;
     XHR: ResourceType;
     Fetch: ResourceType;
+    Prefetch: ResourceType;
     EventSource: ResourceType;
     WebSocket: ResourceType;
     WebTransport: ResourceType;

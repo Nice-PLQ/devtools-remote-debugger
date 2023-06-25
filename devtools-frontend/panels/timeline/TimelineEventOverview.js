@@ -29,38 +29,30 @@
  */
 import * as i18n from '../../core/i18n/i18n.js';
 import * as Platform from '../../core/platform/platform.js';
+import * as SDK from '../../core/sdk/sdk.js';
 import * as TimelineModel from '../../models/timeline_model/timeline_model.js';
 import * as PerfUI from '../../ui/legacy/components/perf_ui/perf_ui.js';
 import * as UI from '../../ui/legacy/legacy.js';
-import * as Coverage from '../coverage/coverage.js';
 import { TimelineUIUtils } from './TimelineUIUtils.js';
 const UIStrings = {
     /**
-    *@description Short for Network. Label for the network requests section of the Performance panel.
-    */
+     *@description Short for Network. Label for the network requests section of the Performance panel.
+     */
     net: 'NET',
     /**
-    *@description Text in Timeline Event Overview of the Performance panel
-    */
+     *@description Text in Timeline Event Overview of the Performance panel
+     */
     cpu: 'CPU',
     /**
-    *@description Text in Timeline Event Overview of the Performance panel
-    */
-    fps: 'FPS',
-    /**
-    *@description Text in Timeline Event Overview of the Performance panel
-    */
+     *@description Text in Timeline Event Overview of the Performance panel
+     */
     heap: 'HEAP',
     /**
-    *@description Heap size label text content in Timeline Event Overview of the Performance panel
-    *@example {10 MB} PH1
-    *@example {30 MB} PH2
-    */
+     *@description Heap size label text content in Timeline Event Overview of the Performance panel
+     *@example {10 MB} PH1
+     *@example {30 MB} PH2
+     */
     sSDash: '{PH1} – {PH2}',
-    /**
-    *@description Text in Timeline Event Overview of the Performance panel
-    */
-    coverage: 'COVERAGE',
 };
 const str_ = i18n.i18n.registerUIStrings('panels/timeline/TimelineEventOverview.ts', UIStrings);
 const i18nString = i18n.i18n.getLocalizedString.bind(undefined, str_);
@@ -86,53 +78,6 @@ export class TimelineEventOverview extends PerfUI.TimelineOverviewPane.TimelineO
         ctx.fillRect(x, position, width, height);
     }
 }
-export class TimelineEventOverviewInput extends TimelineEventOverview {
-    constructor() {
-        super('input', null);
-    }
-    update() {
-        super.update();
-        if (!this.model) {
-            return;
-        }
-        const height = this.height();
-        const descriptors = TimelineUIUtils.eventDispatchDesciptors();
-        const descriptorsByType = new Map();
-        let maxPriority = -1;
-        for (const descriptor of descriptors) {
-            for (const type of descriptor.eventTypes) {
-                descriptorsByType.set(type, descriptor);
-            }
-            maxPriority = Math.max(maxPriority, descriptor.priority);
-        }
-        const minWidth = 2 * window.devicePixelRatio;
-        const timeOffset = this.model.timelineModel().minimumRecordTime();
-        const timeSpan = this.model.timelineModel().maximumRecordTime() - timeOffset;
-        const canvasWidth = this.width();
-        const scale = canvasWidth / timeSpan;
-        for (let priority = 0; priority <= maxPriority; ++priority) {
-            for (const track of this.model.timelineModel().tracks()) {
-                for (let i = 0; i < track.events.length; ++i) {
-                    const event = track.events[i];
-                    if (event.name !== TimelineModel.TimelineModel.RecordType.EventDispatch) {
-                        continue;
-                    }
-                    const descriptor = descriptorsByType.get(event.args['data']['type']);
-                    if (!descriptor || descriptor.priority !== priority) {
-                        continue;
-                    }
-                    if (event.endTime === undefined) {
-                        continue;
-                    }
-                    const start = Platform.NumberUtilities.clamp(Math.floor((event.startTime - timeOffset) * scale), 0, canvasWidth);
-                    const end = Platform.NumberUtilities.clamp(Math.ceil((event.endTime - timeOffset) * scale), 0, canvasWidth);
-                    const width = Math.max(end - start, minWidth);
-                    this.renderBar(start, start + width, 0, height, descriptor.color);
-                }
-            }
-        }
-    }
-}
 export class TimelineEventOverviewNetwork extends TimelineEventOverview {
     constructor() {
         super('network', i18nString(UIStrings.net));
@@ -151,9 +96,9 @@ export class TimelineEventOverviewNetwork extends TimelineEventOverview {
         const highPath = new Path2D();
         const lowPath = new Path2D();
         const highPrioritySet = new Set([
-            "VeryHigh" /* VeryHigh */,
-            "High" /* High */,
-            "Medium" /* Medium */,
+            "VeryHigh" /* Protocol.Network.ResourcePriority.VeryHigh */,
+            "High" /* Protocol.Network.ResourcePriority.High */,
+            "Medium" /* Protocol.Network.ResourcePriority.Medium */,
         ]);
         for (const request of timelineModel.networkRequests()) {
             const path = highPrioritySet.has(request.priority) ? highPath : lowPath;
@@ -206,7 +151,7 @@ export class TimelineEventOverviewCPUActivity extends TimelineEventOverview {
         const otherIndex = categoryOrder.indexOf('other');
         const idleIndex = 0;
         console.assert(idleIndex === categoryOrder.indexOf('idle'));
-        for (let i = idleIndex + 1; i < categoryOrder.length; ++i) {
+        for (let i = 0; i < categoryOrder.length; ++i) {
             categoryToIndex.set(categories[categoryOrder[i]], i);
         }
         const backgroundContext = this.backgroundCanvas.getContext('2d');
@@ -244,14 +189,21 @@ export class TimelineEventOverviewCPUActivity extends TimelineEventOverview {
                 x += quantSizePx;
             }
             function onEventStart(e) {
+                const { startTime } = SDK.TracingModel.timesForEventInMilliseconds(e);
                 const index = categoryIndexStack.length ? categoryIndexStack[categoryIndexStack.length - 1] : idleIndex;
-                quantizer.appendInterval(e.startTime, index);
-                categoryIndexStack.push(categoryToIndex.get(TimelineUIUtils.eventStyle(e).category) || otherIndex);
+                quantizer.appendInterval(startTime, index);
+                const categoryIndex = categoryToIndex.get(TimelineUIUtils.eventStyle(e).category);
+                if (categoryIndex === idleIndex) {
+                    // Idle event won't show in CPU activity, so just skip them.
+                    return;
+                }
+                categoryIndexStack.push(categoryIndex !== undefined ? categoryIndex : otherIndex);
             }
             function onEventEnd(e) {
+                const { endTime } = SDK.TracingModel.timesForEventInMilliseconds(e);
                 const lastCategoryIndex = categoryIndexStack.pop();
-                if (e.endTime !== undefined && lastCategoryIndex) {
-                    quantizer.appendInterval(e.endTime, lastCategoryIndex);
+                if (endTime !== undefined && lastCategoryIndex) {
+                    quantizer.appendInterval(endTime, lastCategoryIndex);
                 }
             }
             TimelineModel.TimelineModel.TimelineModelImpl.forEachEvent(events, onEventStart, onEventEnd);
@@ -303,7 +255,7 @@ export class TimelineEventOverviewResponsiveness extends TimelineEventOverview {
         for (const track of this.model.timelineModel().tracks()) {
             const events = track.events;
             for (let i = 0; i < events.length; ++i) {
-                if (!TimelineModel.TimelineModel.TimelineData.forEvent(events[i]).warning) {
+                if (!TimelineModel.TimelineModel.EventOnTimelineData.forEvent(events[i]).warning) {
                     continue;
                 }
                 const duration = events[i].duration;
@@ -333,22 +285,24 @@ export class TimelineFilmStripOverview extends TimelineEventOverview {
     drawGeneration;
     emptyImage;
     imageWidth;
-    constructor() {
+    #filmStripModel = null;
+    constructor(filmStripModel) {
         super('filmstrip', null);
         this.frameToImagePromise = new Map();
+        this.#filmStripModel = filmStripModel;
         this.lastFrame = null;
         this.lastElement = null;
         this.reset();
     }
     update() {
         super.update();
-        const frames = this.model ? this.model.filmStripModel().frames() : [];
+        const frames = this.#filmStripModel ? this.#filmStripModel.frames() : [];
         if (!frames.length) {
             return;
         }
         const drawGeneration = Symbol('drawGeneration');
         this.drawGeneration = drawGeneration;
-        this.imageByFrame(frames[0]).then(image => {
+        void this.imageByFrame(frames[0]).then(image => {
             if (this.drawGeneration !== drawGeneration) {
                 return;
             }
@@ -375,26 +329,25 @@ export class TimelineFilmStripOverview extends TimelineEventOverview {
         if (!imageWidth || !this.model) {
             return;
         }
-        const filmStripModel = this.model.filmStripModel();
-        if (!filmStripModel.frames().length) {
+        if (!this.#filmStripModel || this.#filmStripModel.frames().length < 1) {
             return;
         }
         const padding = TimelineFilmStripOverview.Padding;
         const width = this.width();
-        const zeroTime = filmStripModel.zeroTime();
-        const spanTime = filmStripModel.spanTime();
+        const zeroTime = this.#filmStripModel.zeroTime();
+        const spanTime = this.#filmStripModel.spanTime();
         const scale = spanTime / width;
         const context = this.context();
         const drawGeneration = this.drawGeneration;
         context.beginPath();
         for (let x = padding; x < width; x += imageWidth + 2 * padding) {
             const time = zeroTime + (x + imageWidth / 2) * scale;
-            const frame = filmStripModel.frameByTimestamp(time);
+            const frame = this.#filmStripModel.frameByTimestamp(time);
             if (!frame) {
                 continue;
             }
             context.rect(x - 0.5, 0.5, imageWidth + 1, imageHeight + 1);
-            this.imageByFrame(frame).then(drawFrameImage.bind(this, x));
+            void this.imageByFrame(frame).then(drawFrameImage.bind(this, x));
         }
         context.strokeStyle = '#ddd';
         context.stroke();
@@ -407,7 +360,7 @@ export class TimelineFilmStripOverview extends TimelineEventOverview {
         }
     }
     async overviewInfoPromise(x) {
-        if (!this.model || !this.model.filmStripModel().frames().length) {
+        if (!this.#filmStripModel || this.#filmStripModel.frames().length === 0) {
             return null;
         }
         const calculator = this.calculator();
@@ -415,7 +368,7 @@ export class TimelineFilmStripOverview extends TimelineEventOverview {
             return null;
         }
         const time = calculator.positionToTime(x);
-        const frame = this.model.filmStripModel().frameByTimestamp(time);
+        const frame = this.#filmStripModel.frameByTimestamp(time);
         if (frame === this.lastFrame) {
             return this.lastElement;
         }
@@ -439,59 +392,6 @@ export class TimelineFilmStripOverview extends TimelineEventOverview {
     // TODO(crbug.com/1172300) Ignored during the jsdoc to ts migration
     // eslint-disable-next-line @typescript-eslint/naming-convention
     static Padding = 2;
-}
-export class TimelineEventOverviewFrames extends TimelineEventOverview {
-    constructor() {
-        super('framerate', i18nString(UIStrings.fps));
-    }
-    update() {
-        super.update();
-        if (!this.model) {
-            return;
-        }
-        const frames = this.model.frames();
-        if (!frames.length) {
-            return;
-        }
-        const height = this.height();
-        const padding = Number(window.devicePixelRatio);
-        const baseFrameDurationMs = 1e3 / 60;
-        const visualHeight = height - 2 * padding;
-        const timeOffset = this.model.timelineModel().minimumRecordTime();
-        const timeSpan = this.model.timelineModel().maximumRecordTime() - timeOffset;
-        const scale = this.width() / timeSpan;
-        const baseY = height - padding;
-        const ctx = this.context();
-        const bottomY = baseY + 10 * window.devicePixelRatio;
-        let x = 0;
-        let y = bottomY;
-        const lineWidth = window.devicePixelRatio;
-        const offset = lineWidth & 1 ? 0.5 : 0;
-        const tickDepth = 1.5 * window.devicePixelRatio;
-        ctx.beginPath();
-        ctx.moveTo(0, y);
-        for (let i = 0; i < frames.length; ++i) {
-            const frame = frames[i];
-            x = Math.round((frame.startTime - timeOffset) * scale) + offset;
-            ctx.lineTo(x, y);
-            ctx.lineTo(x, y + tickDepth);
-            y = frame.idle ? bottomY :
-                Math.round(baseY - visualHeight * Math.min(baseFrameDurationMs / frame.duration, 1)) - offset;
-            ctx.lineTo(x, y + tickDepth);
-            ctx.lineTo(x, y);
-        }
-        const lastFrame = frames[frames.length - 1];
-        if (lastFrame) {
-            x = Math.round((lastFrame.startTime + lastFrame.duration - timeOffset) * scale) + offset;
-        }
-        ctx.lineTo(x, y);
-        ctx.lineTo(x, bottomY);
-        ctx.fillStyle = 'hsl(110, 50%, 88%)';
-        ctx.strokeStyle = 'hsl(110, 50%, 60%)';
-        ctx.lineWidth = lineWidth;
-        ctx.fill();
-        ctx.stroke();
-    }
 }
 export class TimelineEventOverviewMemory extends TimelineEventOverview {
     heapSizeLabel;
@@ -626,137 +526,6 @@ export class Quantizer {
         this.counters[group] = interval;
         this.lastTime = time;
         this.remainder = this.quantDuration - interval;
-    }
-}
-export class TimelineEventOverviewCoverage extends TimelineEventOverview {
-    heapSizeLabel;
-    coverageModel;
-    constructor() {
-        super('coverage', i18nString(UIStrings.coverage));
-        this.heapSizeLabel = this.element.createChild('div', 'timeline-overview-coverage-label');
-    }
-    resetHeapSizeLabels() {
-        this.heapSizeLabel.textContent = '';
-    }
-    setModel(model) {
-        super.setModel(model);
-        if (model) {
-            const mainTarget = model.mainTarget();
-            if (mainTarget) {
-                this.coverageModel = mainTarget.model(Coverage.CoverageModel.CoverageModel);
-            }
-        }
-    }
-    update() {
-        super.update();
-        const ratio = window.devicePixelRatio;
-        if (!this.coverageModel) {
-            return;
-        }
-        let total = 0;
-        // TODO(crbug.com/1172300) Ignored during the jsdoc to ts migration
-        // eslint-disable-next-line @typescript-eslint/naming-convention
-        let total_used = 0;
-        const usedByTimestamp = new Map();
-        const totalByTimestamp = new Map();
-        for (const urlInfo of this.coverageModel.entries()) {
-            for (const info of urlInfo.entries()) {
-                total += info.getSize();
-                for (const [stamp, used] of info.usedByTimestamp()) {
-                    total_used += used;
-                    let uniqueTimestamps = totalByTimestamp.get(stamp);
-                    if (uniqueTimestamps === undefined) {
-                        uniqueTimestamps = new Set();
-                        totalByTimestamp.set(stamp, uniqueTimestamps);
-                    }
-                    uniqueTimestamps.add(info);
-                    const previousCount = usedByTimestamp.get(stamp);
-                    if (previousCount === undefined) {
-                        usedByTimestamp.set(stamp, used);
-                    }
-                    else {
-                        usedByTimestamp.set(stamp, previousCount + used);
-                    }
-                }
-            }
-        }
-        const seen = new Set();
-        const coverageByTimestamp = new Map();
-        let sumTotal = 0, sumUsed = 0;
-        const sortedByTimestamp = Array.from(totalByTimestamp.entries()).sort((a, b) => a[0] - b[0]);
-        for (const [stamp, infos] of sortedByTimestamp) {
-            for (const info of infos.values()) {
-                if (seen.has(info)) {
-                    continue;
-                }
-                seen.add(info);
-                sumTotal += info.getSize();
-            }
-            sumUsed += usedByTimestamp.get(stamp) || 0;
-            coverageByTimestamp.set(stamp, sumUsed / sumTotal);
-        }
-        const percentUsed = total ? Math.round(100 * total_used / total) : 0;
-        const lowerOffset = 3 * ratio;
-        const millisecondsPerSecond = 1000;
-        if (!this.model) {
-            return;
-        }
-        const minTime = this.model.timelineModel().minimumRecordTime() / millisecondsPerSecond;
-        const maxTime = this.model.timelineModel().maximumRecordTime() / millisecondsPerSecond;
-        const lineWidth = 1;
-        const width = this.width();
-        const height = this.height() - lowerOffset;
-        const xFactor = width / (maxTime - minTime);
-        const yFactor = height - lineWidth;
-        let yOffset = 0;
-        const ctx = this.context();
-        const heightBeyondView = height + lowerOffset + lineWidth;
-        ctx.translate(0.5, 0.5);
-        ctx.beginPath();
-        ctx.moveTo(-lineWidth, heightBeyondView);
-        ctx.lineTo(-lineWidth, height - yOffset);
-        let previous = null;
-        for (const stamp of this.coverageModel.getCoverageUpdateTimes()) {
-            const coverage = coverageByTimestamp.get(stamp) || previous;
-            previous = coverage;
-            if (!coverage) {
-                continue;
-            }
-            if (stamp > maxTime) {
-                break;
-            }
-            const x = (stamp - minTime) * xFactor;
-            yOffset = coverage * yFactor;
-            ctx.lineTo(x, height - yOffset);
-        }
-        const white = 'hsl(0, 100%, 100%)';
-        const blue = 'hsl(220, 90%, 70%)';
-        const transparentBlue = 'hsla(220, 90%, 70%, 0.2)';
-        ctx.lineTo(width + lineWidth, height - yOffset);
-        ctx.lineTo(width + lineWidth, heightBeyondView);
-        ctx.closePath();
-        ctx.fillStyle = transparentBlue;
-        ctx.fill();
-        ctx.lineWidth = lineWidth;
-        ctx.strokeStyle = blue;
-        ctx.stroke();
-        previous = null;
-        for (const stamp of this.coverageModel.getCoverageUpdateTimes()) {
-            const coverage = coverageByTimestamp.get(stamp) || previous;
-            previous = coverage;
-            if (!coverage) {
-                continue;
-            }
-            ctx.beginPath();
-            const x = (stamp - minTime) * xFactor;
-            const y = height - coverage * yFactor;
-            ctx.arc(x, y, 2 * lineWidth, 0, 2 * Math.PI, false);
-            ctx.closePath();
-            ctx.stroke();
-            ctx.fillStyle = coverageByTimestamp.has(stamp) ? blue : white;
-            ctx.fill();
-        }
-        this.heapSizeLabel.textContent = `${percentUsed}% used`;
     }
 }
 //# sourceMappingURL=TimelineEventOverview.js.map

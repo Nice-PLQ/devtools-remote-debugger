@@ -13,14 +13,14 @@ export class ElementsTreeElementHighlighter {
     alreadyExpandedParentElement;
     pendingHighlightNode;
     isModifyingTreeOutline;
-    constructor(treeOutline) {
-        this.throttler = new Common.Throttler.Throttler(100);
+    constructor(treeOutline, throttler) {
+        this.throttler = throttler;
         this.treeOutline = treeOutline;
         this.treeOutline.addEventListener(UI.TreeOutline.Events.ElementExpanded, this.clearState, this);
         this.treeOutline.addEventListener(UI.TreeOutline.Events.ElementCollapsed, this.clearState, this);
         this.treeOutline.addEventListener(ElementsTreeOutline.Events.SelectedNodeChanged, this.clearState, this);
-        SDK.TargetManager.TargetManager.instance().addModelListener(SDK.OverlayModel.OverlayModel, SDK.OverlayModel.Events.HighlightNodeRequested, this.highlightNode, this);
-        SDK.TargetManager.TargetManager.instance().addModelListener(SDK.OverlayModel.OverlayModel, SDK.OverlayModel.Events.InspectModeWillBeToggled, this.clearState, this);
+        SDK.TargetManager.TargetManager.instance().addModelListener(SDK.OverlayModel.OverlayModel, SDK.OverlayModel.Events.HighlightNodeRequested, this.highlightNode, this, { scoped: true });
+        SDK.TargetManager.TargetManager.instance().addModelListener(SDK.OverlayModel.OverlayModel, SDK.OverlayModel.Events.InspectModeWillBeToggled, this.clearState, this, { scoped: true });
         this.currentHighlightedElement = null;
         this.alreadyExpandedParentElement = null;
         this.pendingHighlightNode = null;
@@ -31,7 +31,7 @@ export class ElementsTreeElementHighlighter {
             return;
         }
         const domNode = event.data;
-        this.throttler.schedule(async () => {
+        void this.throttler.schedule(async () => {
             this.highlightNodeInternal(this.pendingHighlightNode);
             this.pendingHighlightNode = null;
         });

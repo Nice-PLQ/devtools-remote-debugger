@@ -3,18 +3,18 @@
 // found in the LICENSE file.
 import * as SDK from '../../core/sdk/sdk.js';
 export class ExecutionContextSelector {
-    targetManager;
-    context;
-    lastSelectedContextId;
-    ignoreContextChanged;
+    #targetManager;
+    #context;
+    #lastSelectedContextId;
+    #ignoreContextChanged;
     constructor(targetManager, context) {
-        context.addFlavorChangeListener(SDK.RuntimeModel.ExecutionContext, this.executionContextChanged, this);
-        context.addFlavorChangeListener(SDK.Target.Target, this.targetChanged, this);
-        targetManager.addModelListener(SDK.RuntimeModel.RuntimeModel, SDK.RuntimeModel.Events.ExecutionContextCreated, this.onExecutionContextCreated, this);
-        targetManager.addModelListener(SDK.RuntimeModel.RuntimeModel, SDK.RuntimeModel.Events.ExecutionContextDestroyed, this.onExecutionContextDestroyed, this);
-        targetManager.addModelListener(SDK.RuntimeModel.RuntimeModel, SDK.RuntimeModel.Events.ExecutionContextOrderChanged, this.onExecutionContextOrderChanged, this);
-        this.targetManager = targetManager;
-        this.context = context;
+        context.addFlavorChangeListener(SDK.RuntimeModel.ExecutionContext, this.#executionContextChanged, this);
+        context.addFlavorChangeListener(SDK.Target.Target, this.#targetChanged, this);
+        targetManager.addModelListener(SDK.RuntimeModel.RuntimeModel, SDK.RuntimeModel.Events.ExecutionContextCreated, this.#onExecutionContextCreated, this);
+        targetManager.addModelListener(SDK.RuntimeModel.RuntimeModel, SDK.RuntimeModel.Events.ExecutionContextDestroyed, this.#onExecutionContextDestroyed, this);
+        targetManager.addModelListener(SDK.RuntimeModel.RuntimeModel, SDK.RuntimeModel.Events.ExecutionContextOrderChanged, this.#onExecutionContextOrderChanged, this);
+        this.#targetManager = targetManager;
+        this.#context = context;
         targetManager.observeModels(SDK.RuntimeModel.RuntimeModel, this);
     }
     modelAdded(runtimeModel) {
@@ -23,34 +23,34 @@ export class ExecutionContextSelector {
         queueMicrotask(deferred.bind(this));
         function deferred() {
             // We always want the second context for the service worker targets.
-            if (!this.context.flavor(SDK.Target.Target)) {
-                this.context.setFlavor(SDK.Target.Target, runtimeModel.target());
+            if (!this.#context.flavor(SDK.Target.Target)) {
+                this.#context.setFlavor(SDK.Target.Target, runtimeModel.target());
             }
         }
     }
     modelRemoved(runtimeModel) {
-        const currentExecutionContext = this.context.flavor(SDK.RuntimeModel.ExecutionContext);
+        const currentExecutionContext = this.#context.flavor(SDK.RuntimeModel.ExecutionContext);
         if (currentExecutionContext && currentExecutionContext.runtimeModel === runtimeModel) {
-            this.currentExecutionContextGone();
+            this.#currentExecutionContextGone();
         }
-        const models = this.targetManager.models(SDK.RuntimeModel.RuntimeModel);
-        if (this.context.flavor(SDK.Target.Target) === runtimeModel.target() && models.length) {
-            this.context.setFlavor(SDK.Target.Target, models[0].target());
+        const models = this.#targetManager.models(SDK.RuntimeModel.RuntimeModel);
+        if (this.#context.flavor(SDK.Target.Target) === runtimeModel.target() && models.length) {
+            this.#context.setFlavor(SDK.Target.Target, models[0].target());
         }
     }
-    executionContextChanged({ data: newContext, }) {
+    #executionContextChanged({ data: newContext, }) {
         if (newContext) {
-            this.context.setFlavor(SDK.Target.Target, newContext.target());
-            if (!this.ignoreContextChanged) {
-                this.lastSelectedContextId = this.contextPersistentId(newContext);
+            this.#context.setFlavor(SDK.Target.Target, newContext.target());
+            if (!this.#ignoreContextChanged) {
+                this.#lastSelectedContextId = this.#contextPersistentId(newContext);
             }
         }
     }
-    contextPersistentId(executionContext) {
+    #contextPersistentId(executionContext) {
         return executionContext.isDefault ? executionContext.target().name() + ':' + executionContext.frameId : '';
     }
-    targetChanged({ data: newTarget }) {
-        const currentContext = this.context.flavor(SDK.RuntimeModel.ExecutionContext);
+    #targetChanged({ data: newTarget }) {
+        const currentContext = this.#context.flavor(SDK.RuntimeModel.ExecutionContext);
         if (!newTarget || (currentContext && currentContext.target() === newTarget)) {
             return;
         }
@@ -61,70 +61,73 @@ export class ExecutionContextSelector {
         }
         let newContext = null;
         for (let i = 0; i < executionContexts.length && !newContext; ++i) {
-            if (this.shouldSwitchToContext(executionContexts[i])) {
+            if (this.#shouldSwitchToContext(executionContexts[i])) {
                 newContext = executionContexts[i];
             }
         }
         for (let i = 0; i < executionContexts.length && !newContext; ++i) {
-            if (this.isDefaultContext(executionContexts[i])) {
+            if (this.#isDefaultContext(executionContexts[i])) {
                 newContext = executionContexts[i];
             }
         }
-        this.ignoreContextChanged = true;
-        this.context.setFlavor(SDK.RuntimeModel.ExecutionContext, newContext || executionContexts[0]);
-        this.ignoreContextChanged = false;
+        this.#ignoreContextChanged = true;
+        this.#context.setFlavor(SDK.RuntimeModel.ExecutionContext, newContext || executionContexts[0]);
+        this.#ignoreContextChanged = false;
     }
-    shouldSwitchToContext(executionContext) {
-        if (this.lastSelectedContextId && this.lastSelectedContextId === this.contextPersistentId(executionContext)) {
+    #shouldSwitchToContext(executionContext) {
+        if (executionContext.target().targetInfo()?.subtype) {
+            return false;
+        }
+        if (this.#lastSelectedContextId && this.#lastSelectedContextId === this.#contextPersistentId(executionContext)) {
             return true;
         }
-        return !this.lastSelectedContextId && this.isDefaultContext(executionContext);
+        return !this.#lastSelectedContextId && this.#isDefaultContext(executionContext);
     }
-    isDefaultContext(executionContext) {
+    #isDefaultContext(executionContext) {
         if (!executionContext.isDefault || !executionContext.frameId) {
             return false;
         }
-        if (executionContext.target().parentTarget()) {
+        if (executionContext.target().parentTarget()?.type() === SDK.Target.Type.Frame) {
             return false;
         }
         const resourceTreeModel = executionContext.target().model(SDK.ResourceTreeModel.ResourceTreeModel);
         const frame = resourceTreeModel && resourceTreeModel.frameForId(executionContext.frameId);
-        return Boolean(frame?.isTopFrame());
+        return Boolean(frame?.isOutermostFrame());
     }
-    onExecutionContextCreated(event) {
-        this.switchContextIfNecessary(event.data);
+    #onExecutionContextCreated(event) {
+        this.#switchContextIfNecessary(event.data);
     }
-    onExecutionContextDestroyed(event) {
+    #onExecutionContextDestroyed(event) {
         const executionContext = event.data;
-        if (this.context.flavor(SDK.RuntimeModel.ExecutionContext) === executionContext) {
-            this.currentExecutionContextGone();
+        if (this.#context.flavor(SDK.RuntimeModel.ExecutionContext) === executionContext) {
+            this.#currentExecutionContextGone();
         }
     }
-    onExecutionContextOrderChanged(event) {
+    #onExecutionContextOrderChanged(event) {
         const runtimeModel = event.data;
         const executionContexts = runtimeModel.executionContexts();
         for (let i = 0; i < executionContexts.length; i++) {
-            if (this.switchContextIfNecessary(executionContexts[i])) {
+            if (this.#switchContextIfNecessary(executionContexts[i])) {
                 break;
             }
         }
     }
-    switchContextIfNecessary(executionContext) {
-        if (!this.context.flavor(SDK.RuntimeModel.ExecutionContext) || this.shouldSwitchToContext(executionContext)) {
-            this.ignoreContextChanged = true;
-            this.context.setFlavor(SDK.RuntimeModel.ExecutionContext, executionContext);
-            this.ignoreContextChanged = false;
+    #switchContextIfNecessary(executionContext) {
+        if (!this.#context.flavor(SDK.RuntimeModel.ExecutionContext) || this.#shouldSwitchToContext(executionContext)) {
+            this.#ignoreContextChanged = true;
+            this.#context.setFlavor(SDK.RuntimeModel.ExecutionContext, executionContext);
+            this.#ignoreContextChanged = false;
             return true;
         }
         return false;
     }
-    currentExecutionContextGone() {
-        const runtimeModels = this.targetManager.models(SDK.RuntimeModel.RuntimeModel);
+    #currentExecutionContextGone() {
+        const runtimeModels = this.#targetManager.models(SDK.RuntimeModel.RuntimeModel);
         let newContext = null;
         for (let i = 0; i < runtimeModels.length && !newContext; ++i) {
             const executionContexts = runtimeModels[i].executionContexts();
             for (const executionContext of executionContexts) {
-                if (this.isDefaultContext(executionContext)) {
+                if (this.#isDefaultContext(executionContext)) {
                     newContext = executionContext;
                     break;
                 }
@@ -139,9 +142,9 @@ export class ExecutionContextSelector {
                 }
             }
         }
-        this.ignoreContextChanged = true;
-        this.context.setFlavor(SDK.RuntimeModel.ExecutionContext, newContext);
-        this.ignoreContextChanged = false;
+        this.#ignoreContextChanged = true;
+        this.#context.setFlavor(SDK.RuntimeModel.ExecutionContext, newContext);
+        this.#ignoreContextChanged = false;
     }
 }
 //# sourceMappingURL=ExecutionContextSelector.js.map

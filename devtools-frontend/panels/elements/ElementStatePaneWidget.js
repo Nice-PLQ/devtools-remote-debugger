@@ -8,15 +8,15 @@ import { ElementsPanel } from './ElementsPanel.js';
 import elementStatePaneWidgetStyles from './elementStatePaneWidget.css.js';
 const UIStrings = {
     /**
-    * @description Title of a section in the Element State Pane Widget of the Elements panel. The
-    * controls in this section allow users to force a particular state on the selected element, e.g. a
-    * focused state via :focus or a hover state via :hover.
-    */
+     * @description Title of a section in the Element State Pane Widget of the Elements panel. The
+     * controls in this section allow users to force a particular state on the selected element, e.g. a
+     * focused state via :focus or a hover state via :hover.
+     */
     forceElementState: 'Force element state',
     /**
-    * @description Tooltip text in Element State Pane Widget of the Elements panel. For a button that
-    * opens a tool that toggles the various states of the selected element on/off.
-    */
+     * @description Tooltip text in Element State Pane Widget of the Elements panel. For a button that
+     * opens a tool that toggles the various states of the selected element on/off.
+     */
     toggleElementState: 'Toggle Element State',
 };
 const str_ = i18n.i18n.registerUIStrings('panels/elements/ElementStatePaneWidget.ts', UIStrings);
@@ -88,9 +88,6 @@ export class ElementStatePaneWidget extends UI.Widget.Widget {
         this.update();
     }
     update() {
-        if (!this.isShowing()) {
-            return;
-        }
         let node = UI.Context.Context.instance().flavor(SDK.DOMModel.DOMNode);
         if (node) {
             node = node.enclosingElementOrSelf();
@@ -110,6 +107,7 @@ export class ElementStatePaneWidget extends UI.Widget.Widget {
                 input.checked = false;
             }
         }
+        ButtonProvider.instance().item().setToggled(this.inputs.some(input => input.checked));
     }
 }
 let buttonProviderInstance;
@@ -119,6 +117,7 @@ export class ButtonProvider {
     constructor() {
         this.button = new UI.Toolbar.ToolbarToggle(i18nString(UIStrings.toggleElementState), '');
         this.button.setText(i18n.i18n.lockedString(':hov'));
+        this.button.setToggleWithDot(true);
         this.button.addEventListener(UI.Toolbar.ToolbarButton.Events.Click, this.clicked, this);
         this.button.element.classList.add('monospace');
         this.view = new ElementStatePaneWidget();
@@ -131,7 +130,7 @@ export class ButtonProvider {
         return buttonProviderInstance;
     }
     clicked() {
-        ElementsPanel.instance().showToolbarPane(!this.view.isShowing() ? this.view : null, this.button);
+        ElementsPanel.instance().showToolbarPane(!this.view.isShowing() ? this.view : null, null);
     }
     item() {
         return this.button;

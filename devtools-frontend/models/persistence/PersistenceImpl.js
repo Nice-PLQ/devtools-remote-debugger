@@ -2,10 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 import * as Common from '../../core/common/common.js';
+import * as Host from '../../core/host/host.js';
 import * as Platform from '../../core/platform/platform.js';
 import * as SDK from '../../core/sdk/sdk.js';
 import * as Components from '../../ui/legacy/components/utils/utils.js';
 import * as Bindings from '../bindings/bindings.js';
+import * as BreakpointManager from '../breakpoints/breakpoints.js';
 import * as Workspace from '../workspace/workspace.js';
 import { Automapping } from './Automapping.js';
 import { LinkDecorator } from './PersistenceUtils.js';
@@ -20,7 +22,8 @@ export class PersistenceImpl extends Common.ObjectWrapper.ObjectWrapper {
         super();
         this.workspace = workspace;
         this.breakpointManager = breakpointManager;
-        this.filePathPrefixesToBindingCount = new Map();
+        this.breakpointManager.addUpdateBindingsCallback(this.#setupBindings.bind(this));
+        this.filePathPrefixesToBindingCount = new FilePathPrefixesBindingCounts();
         this.subscribedBindingEventListeners = new Platform.MapUtilities.Multimap();
         const linkDecorator = new LinkDecorator(this);
         Components.Linkifier.Linkifier.setLinkDecorator(linkDecorator);
@@ -54,6 +57,12 @@ export class PersistenceImpl extends Common.ObjectWrapper.ObjectWrapper {
     async removeBindingForTest(binding) {
         await this.innerRemoveBinding(binding);
     }
+    #setupBindings(networkUISourceCode) {
+        if (networkUISourceCode.project().type() !== Workspace.Workspace.projectTypes.Network) {
+            return Promise.resolve();
+        }
+        return this.mapping.computeNetworkStatus(networkUISourceCode);
+    }
     async innerAddBinding(binding) {
         bindings.set(binding.network, binding);
         bindings.set(binding.fileSystem, binding);
@@ -62,7 +71,7 @@ export class PersistenceImpl extends Common.ObjectWrapper.ObjectWrapper {
         binding.fileSystem.addEventListener(Workspace.UISourceCode.Events.WorkingCopyCommitted, this.onWorkingCopyCommitted, this);
         binding.network.addEventListener(Workspace.UISourceCode.Events.WorkingCopyChanged, this.onWorkingCopyChanged, this);
         binding.fileSystem.addEventListener(Workspace.UISourceCode.Events.WorkingCopyChanged, this.onWorkingCopyChanged, this);
-        this.addFilePathBindingPrefixes(binding.fileSystem.url());
+        this.filePathPrefixesToBindingCount.add(binding.fileSystem.url());
         await this.moveBreakpoints(binding.fileSystem, binding.network);
         console.assert(!binding.fileSystem.isDirty() || !binding.network.isDirty());
         if (binding.fileSystem.isDirty()) {
@@ -90,16 +99,16 @@ export class PersistenceImpl extends Common.ObjectWrapper.ObjectWrapper {
         binding.fileSystem.removeEventListener(Workspace.UISourceCode.Events.WorkingCopyCommitted, this.onWorkingCopyCommitted, this);
         binding.network.removeEventListener(Workspace.UISourceCode.Events.WorkingCopyChanged, this.onWorkingCopyChanged, this);
         binding.fileSystem.removeEventListener(Workspace.UISourceCode.Events.WorkingCopyChanged, this.onWorkingCopyChanged, this);
-        this.removeFilePathBindingPrefixes(binding.fileSystem.url());
-        await this.breakpointManager.copyBreakpoints(binding.network.url(), binding.fileSystem);
+        this.filePathPrefixesToBindingCount.remove(binding.fileSystem.url());
+        await this.breakpointManager.copyBreakpoints(binding.network, binding.fileSystem);
         this.notifyBindingEvent(binding.network);
         this.notifyBindingEvent(binding.fileSystem);
         this.dispatchEventToListeners(Events.BindingRemoved, binding);
     }
-    async onStatusAdded(status) {
+    onStatusAdded(status) {
         const binding = new PersistenceBinding(status.network, status.fileSystem);
         statusBindings.set(status, binding);
-        await this.innerAddBinding(binding);
+        return this.innerAddBinding(binding);
     }
     async onStatusRemoved(status) {
         const binding = statusBindings.get(status);
@@ -125,7 +134,7 @@ export class PersistenceImpl extends Common.ObjectWrapper.ObjectWrapper {
         const target = Bindings.NetworkProject.NetworkProject.targetForUISourceCode(binding.network);
         if (target && target.type() === SDK.Target.Type.Node) {
             const newContent = uiSourceCode.workingCopy();
-            other.requestContent().then(() => {
+            void other.requestContent().then(() => {
                 const nodeJSContent = PersistenceImpl.rewrapNodeJSContent(other, other.workingCopy(), newContent);
                 setWorkingCopy.call(this, () => nodeJSContent);
             });
@@ -156,7 +165,7 @@ export class PersistenceImpl extends Common.ObjectWrapper.ObjectWrapper {
         const other = binding.network === uiSourceCode ? binding.fileSystem : binding.network;
         const target = Bindings.NetworkProject.NetworkProject.targetForUISourceCode(binding.network);
         if (target && target.type() === SDK.Target.Type.Node) {
-            other.requestContent().then(currentContent => {
+            void other.requestContent().then(currentContent => {
                 const nodeJSContent = PersistenceImpl.rewrapNodeJSContent(other, currentContent.content || '', newContent);
                 setContent.call(this, nodeJSContent);
             });
@@ -197,9 +206,9 @@ export class PersistenceImpl extends Common.ObjectWrapper.ObjectWrapper {
     }
     async moveBreakpoints(from, to) {
         const breakpoints = this.breakpointManager.breakpointLocationsForUISourceCode(from).map(breakpointLocation => breakpointLocation.breakpoint);
-        await Promise.all(breakpoints.map(breakpoint => {
-            breakpoint.remove(false /* keepInStorage */);
-            return this.breakpointManager.setBreakpoint(to, breakpoint.lineNumber(), breakpoint.columnNumber(), breakpoint.condition(), breakpoint.enabled());
+        await Promise.all(breakpoints.map(async (breakpoint) => {
+            await breakpoint.remove(false /* keepInStorage */);
+            return this.breakpointManager.setBreakpoint(to, breakpoint.lineNumber(), breakpoint.columnNumber(), breakpoint.condition(), breakpoint.enabled(), breakpoint.isLogpoint(), "RESTORED" /* BreakpointManager.BreakpointManager.BreakpointOrigin.OTHER */);
         }));
     }
     hasUnsavedCommittedChanges(uiSourceCode) {
@@ -240,32 +249,47 @@ export class PersistenceImpl extends Common.ObjectWrapper.ObjectWrapper {
         const binding = this.binding(uiSourceCode);
         return binding ? binding.network : null;
     }
-    addFilePathBindingPrefixes(filePath) {
+    filePathHasBindings(filePath) {
+        return this.filePathPrefixesToBindingCount.hasBindingPrefix(filePath);
+    }
+}
+class FilePathPrefixesBindingCounts {
+    prefixCounts;
+    constructor() {
+        this.prefixCounts = new Map();
+    }
+    getPlatformCanonicalFilePath(path) {
+        return Host.Platform.isWin() ? Common.ParsedURL.ParsedURL.toLowerCase(path) : path;
+    }
+    add(filePath) {
+        filePath = this.getPlatformCanonicalFilePath(filePath);
         let relative = '';
         for (const token of filePath.split('/')) {
             relative += token + '/';
-            const count = this.filePathPrefixesToBindingCount.get(relative) || 0;
-            this.filePathPrefixesToBindingCount.set(relative, count + 1);
+            const count = this.prefixCounts.get(relative) || 0;
+            this.prefixCounts.set(relative, count + 1);
         }
     }
-    removeFilePathBindingPrefixes(filePath) {
+    remove(filePath) {
+        filePath = this.getPlatformCanonicalFilePath(filePath);
         let relative = '';
         for (const token of filePath.split('/')) {
             relative += token + '/';
-            const count = this.filePathPrefixesToBindingCount.get(relative);
+            const count = this.prefixCounts.get(relative);
             if (count === 1) {
-                this.filePathPrefixesToBindingCount.delete(relative);
+                this.prefixCounts.delete(relative);
             }
             else if (count !== undefined) {
-                this.filePathPrefixesToBindingCount.set(relative, count - 1);
+                this.prefixCounts.set(relative, count - 1);
             }
         }
     }
-    filePathHasBindings(filePath) {
+    hasBindingPrefix(filePath) {
+        filePath = this.getPlatformCanonicalFilePath(filePath);
         if (!filePath.endsWith('/')) {
-            filePath += '/';
+            filePath = Common.ParsedURL.ParsedURL.concatenate(filePath, '/');
         }
-        return this.filePathPrefixesToBindingCount.has(filePath);
+        return this.prefixCounts.has(filePath);
     }
 }
 const bindings = new WeakMap();
@@ -282,18 +306,6 @@ export var Events;
     Events["BindingCreated"] = "BindingCreated";
     Events["BindingRemoved"] = "BindingRemoved";
 })(Events || (Events = {}));
-export class PathEncoder {
-    encoder;
-    constructor() {
-        this.encoder = new Common.CharacterIdMap.CharacterIdMap();
-    }
-    encode(path) {
-        return path.split('/').map(token => this.encoder.toChar(token)).join('');
-    }
-    decode(path) {
-        return path.split('').map(token => this.encoder.fromChar(token)).join('/');
-    }
-}
 export class PersistenceBinding {
     network;
     fileSystem;

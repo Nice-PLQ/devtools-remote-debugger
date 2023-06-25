@@ -1,11 +1,9 @@
 // Copyright 2017 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
+import * as SDK from '../../core/sdk/sdk.js';
 import { RecordType, TimelineModelImpl } from './TimelineModel.js';
 export class TimelineModelFilter {
-    accept(_event) {
-        return true;
-    }
 }
 export class TimelineVisibleEventsFilter extends TimelineModelFilter {
     visibleTypes;
@@ -17,14 +15,11 @@ export class TimelineVisibleEventsFilter extends TimelineModelFilter {
         return this.visibleTypes.has(TimelineVisibleEventsFilter.eventType(event));
     }
     static eventType(event) {
-        if (event.hasCategory(TimelineModelImpl.Category.Console)) {
+        if (SDK.TracingModel.eventHasCategory(event, TimelineModelImpl.Category.Console)) {
             return RecordType.ConsoleTime;
         }
-        if (event.hasCategory(TimelineModelImpl.Category.UserTiming)) {
+        if (SDK.TracingModel.eventHasCategory(event, TimelineModelImpl.Category.UserTiming)) {
             return RecordType.UserTiming;
-        }
-        if (event.hasCategory(TimelineModelImpl.Category.LatencyInfo)) {
-            return RecordType.LatencyInfo;
         }
         return event.name;
     }

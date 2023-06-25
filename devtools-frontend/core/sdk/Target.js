@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 import * as Common from '../common/common.js';
-import * as Host from '../host/host.js';
+import * as Platform from '../platform/platform.js';
 import * as ProtocolClient from '../protocol_client/protocol_client.js';
 import { SDKModel } from './SDKModel.js';
 export class Target extends ProtocolClient.InspectorBackend.TargetBase {
@@ -23,7 +23,7 @@ export class Target extends ProtocolClient.InspectorBackend.TargetBase {
         super(needsNodeJSPatching, parentTarget, sessionId, connection);
         this.#targetManagerInternal = targetManager;
         this.#nameInternal = name;
-        this.#inspectedURLInternal = '';
+        this.#inspectedURLInternal = Platform.DevToolsPath.EmptyUrlString;
         this.#inspectedURLName = '';
         this.#capabilitiesMask = 0;
         switch (type) {
@@ -32,10 +32,13 @@ export class Target extends ProtocolClient.InspectorBackend.TargetBase {
                     Capability.Log | Capability.Network | Capability.Target | Capability.Tracing | Capability.Emulation |
                     Capability.Input | Capability.Inspector | Capability.Audits | Capability.WebAuthn | Capability.IO |
                     Capability.Media;
-                if (!parentTarget) {
+                if (parentTarget?.type() !== Type.Frame) {
                     // This matches backend exposing certain capabilities only for the main frame.
                     this.#capabilitiesMask |=
                         Capability.DeviceEmulation | Capability.ScreenCapture | Capability.Security | Capability.ServiceWorker;
+                    if (targetInfo?.url.startsWith('chrome-extension://')) {
+                        this.#capabilitiesMask &= ~Capability.Security;
+                    }
                     // TODO(dgozman): we report service workers for the whole frame tree on the main frame,
                     // while we should be able to only cover the subtree corresponding to the target.
                 }
@@ -43,7 +46,7 @@ export class Target extends ProtocolClient.InspectorBackend.TargetBase {
             case Type.ServiceWorker:
                 this.#capabilitiesMask = Capability.JS | Capability.Log | Capability.Network | Capability.Target |
                     Capability.Inspector | Capability.IO;
-                if (!parentTarget) {
+                if (parentTarget?.type() !== Type.Frame) {
                     this.#capabilitiesMask |= Capability.Browser;
                 }
                 break;
@@ -52,17 +55,20 @@ export class Target extends ProtocolClient.InspectorBackend.TargetBase {
                     Capability.IO | Capability.Media | Capability.Inspector;
                 break;
             case Type.Worker:
-                this.#capabilitiesMask =
-                    Capability.JS | Capability.Log | Capability.Network | Capability.Target | Capability.IO | Capability.Media;
+                this.#capabilitiesMask = Capability.JS | Capability.Log | Capability.Network | Capability.Target |
+                    Capability.IO | Capability.Media | Capability.Emulation;
                 break;
             case Type.Node:
                 this.#capabilitiesMask = Capability.JS;
                 break;
             case Type.AuctionWorklet:
-                this.#capabilitiesMask = Capability.JS;
+                this.#capabilitiesMask = Capability.JS | Capability.EventBreakpoints;
                 break;
             case Type.Browser:
                 this.#capabilitiesMask = Capability.Target | Capability.IO;
+                break;
+            case Type.Tab:
+                this.#capabilitiesMask = Capability.Target;
                 break;
         }
         this.#typeInternal = type;
@@ -96,6 +102,13 @@ export class Target extends ProtocolClient.InspectorBackend.TargetBase {
     name() {
         return this.#nameInternal || this.#inspectedURLName;
     }
+    setName(name) {
+        if (this.#nameInternal === name) {
+            return;
+        }
+        this.#nameInternal = name;
+        this.#targetManagerInternal.onNameChange(this);
+    }
     type() {
         return this.#typeInternal;
     }
@@ -118,6 +131,17 @@ export class Target extends ProtocolClient.InspectorBackend.TargetBase {
     parentTarget() {
         return this.#parentTargetInternal;
     }
+    outermostTarget() {
+        let lastTarget = null;
+        let currentTarget = this;
+        do {
+            if (currentTarget.type() !== Type.Tab && currentTarget.type() !== Type.Browser) {
+                lastTarget = currentTarget;
+            }
+            currentTarget = currentTarget.parentTarget();
+        } while (currentTarget);
+        return lastTarget;
+    }
     dispose(reason) {
         super.dispose(reason);
         this.#targetManagerInternal.removeTarget(this);
@@ -135,7 +159,7 @@ export class Target extends ProtocolClient.InspectorBackend.TargetBase {
                 const model = new modelClass(this);
                 this.#modelByConstructor.set(modelClass, model);
                 if (!this.#creatingModels) {
-                    this.#targetManagerInternal.modelAdded(this, modelClass, model);
+                    this.#targetManagerInternal.modelAdded(this, modelClass, model, this.#targetManagerInternal.isInScope(this));
                 }
             }
         }
@@ -151,9 +175,6 @@ export class Target extends ProtocolClient.InspectorBackend.TargetBase {
         this.#inspectedURLInternal = inspectedURL;
         const parsedURL = Common.ParsedURL.ParsedURL.fromString(inspectedURL);
         this.#inspectedURLName = parsedURL ? parsedURL.lastPathComponentWithFragment() : '#' + this.#idInternal;
-        if (!this.parentTarget()) {
-            Host.InspectorFrontendHost.InspectorFrontendHostInstance.inspectedURLChanged(inspectedURL || '');
-        }
         this.#targetManagerInternal.onInspectedURLChange(this);
         if (!this.#nameInternal) {
             this.#targetManagerInternal.onNameChange(this);
@@ -196,6 +217,7 @@ export var Type;
     Type["Node"] = "node";
     Type["Browser"] = "browser";
     Type["AuctionWorklet"] = "auction-worklet";
+    Type["Tab"] = "tab";
 })(Type || (Type = {}));
 // TODO(crbug.com/1167717): Make this a const enum again
 // eslint-disable-next-line rulesdir/const_enum
@@ -220,6 +242,7 @@ export var Capability;
     Capability[Capability["WebAuthn"] = 65536] = "WebAuthn";
     Capability[Capability["IO"] = 131072] = "IO";
     Capability[Capability["Media"] = 262144] = "Media";
+    Capability[Capability["EventBreakpoints"] = 524288] = "EventBreakpoints";
     Capability[Capability["None"] = 0] = "None";
 })(Capability || (Capability = {}));
 //# sourceMappingURL=Target.js.map

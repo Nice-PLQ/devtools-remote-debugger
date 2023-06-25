@@ -5,24 +5,24 @@ import * as i18n from '../../core/i18n/i18n.js';
 import { Issue, IssueCategory, IssueKind } from './Issue.js';
 const UIStrings = {
     /**
-    *@description Title for a learn more link in Heavy Ads issue description
-    */
+     *@description Title for a learn more link in Heavy Ads issue description
+     */
     handlingHeavyAdInterventions: 'Handling Heavy Ad Interventions',
 };
 const str_ = i18n.i18n.registerUIStrings('models/issues_manager/HeavyAdIssue.ts', UIStrings);
 const i18nString = i18n.i18n.getLocalizedString.bind(undefined, str_);
 export class HeavyAdIssue extends Issue {
-    issueDetails;
+    #issueDetails;
     constructor(issueDetails, issuesModel) {
-        const umaCode = ["HeavyAdIssue" /* HeavyAdIssue */, issueDetails.reason].join('::');
-        super({ code: "HeavyAdIssue" /* HeavyAdIssue */, umaCode }, issuesModel);
-        this.issueDetails = issueDetails;
+        const umaCode = ["HeavyAdIssue" /* Protocol.Audits.InspectorIssueCode.HeavyAdIssue */, issueDetails.reason].join('::');
+        super({ code: "HeavyAdIssue" /* Protocol.Audits.InspectorIssueCode.HeavyAdIssue */, umaCode }, issuesModel);
+        this.#issueDetails = issueDetails;
     }
     details() {
-        return this.issueDetails;
+        return this.#issueDetails;
     }
     primaryKey() {
-        return `${"HeavyAdIssue" /* HeavyAdIssue */}-${JSON.stringify(this.issueDetails)}`;
+        return `${"HeavyAdIssue" /* Protocol.Audits.InspectorIssueCode.HeavyAdIssue */}-${JSON.stringify(this.#issueDetails)}`;
     }
     getDescription() {
         return {
@@ -39,10 +39,10 @@ export class HeavyAdIssue extends Issue {
         return IssueCategory.HeavyAd;
     }
     getKind() {
-        switch (this.issueDetails.resolution) {
-            case "HeavyAdBlocked" /* HeavyAdBlocked */:
+        switch (this.#issueDetails.resolution) {
+            case "HeavyAdBlocked" /* Protocol.Audits.HeavyAdResolutionStatus.HeavyAdBlocked */:
                 return IssueKind.PageError;
-            case "HeavyAdWarning" /* HeavyAdWarning */:
+            case "HeavyAdWarning" /* Protocol.Audits.HeavyAdResolutionStatus.HeavyAdWarning */:
                 return IssueKind.BreakingChange;
         }
     }

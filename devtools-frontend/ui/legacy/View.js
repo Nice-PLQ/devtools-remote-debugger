@@ -4,16 +4,18 @@
 import { ViewManager } from './ViewManager.js';
 import { VBox } from './Widget.js';
 export class SimpleView extends VBox {
-    titleInternal;
-    constructor(title, isWebComponent) {
+    #title;
+    #viewId;
+    constructor(title, isWebComponent, viewId) {
         super(isWebComponent);
-        this.titleInternal = title;
+        this.#title = title;
+        this.#viewId = viewId ?? title;
     }
     viewId() {
-        return this.titleInternal;
+        return this.#viewId;
     }
     title() {
-        return this.titleInternal;
+        return this.#title;
     }
     isCloseable() {
         return false;

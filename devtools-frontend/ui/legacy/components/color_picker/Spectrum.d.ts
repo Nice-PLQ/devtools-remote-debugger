@@ -1,16 +1,18 @@
 import * as Common from '../../../../core/common/common.js';
 import * as Platform from '../../../../core/platform/platform.js';
 import * as UI from '../../legacy.js';
-import type { ContrastInfo } from './ContrastInfo.js';
+import { type ContrastInfo } from './ContrastInfo.js';
 declare const Spectrum_base: (new (...args: any[]) => {
-    "__#8@#events": Common.ObjectWrapper.ObjectWrapper<EventTypes>;
-    addEventListener<T extends keyof EventTypes>(eventType: T, listener: (arg0: Common.EventTarget.EventTargetEvent<EventTypes[T]>) => void, thisObject?: Object | undefined): Common.EventTarget.EventDescriptor<EventTypes, T>;
+    "__#13@#events": Common.ObjectWrapper.ObjectWrapper<EventTypes>;
+    addEventListener<T extends keyof EventTypes>(eventType: T, listener: (arg0: Common.EventTarget.EventTargetEvent<EventTypes[T], any>) => void, thisObject?: Object | undefined): Common.EventTarget.EventDescriptor<EventTypes, T>;
     once<T_1 extends keyof EventTypes>(eventType: T_1): Promise<EventTypes[T_1]>;
-    removeEventListener<T_2 extends keyof EventTypes>(eventType: T_2, listener: (arg0: Common.EventTarget.EventTargetEvent<EventTypes[T_2]>) => void, thisObject?: Object | undefined): void;
+    removeEventListener<T_2 extends keyof EventTypes>(eventType: T_2, listener: (arg0: Common.EventTarget.EventTargetEvent<EventTypes[T_2], any>) => void, thisObject?: Object | undefined): void;
     hasEventListeners(eventType: keyof EventTypes): boolean;
     dispatchEventToListeners<T_3 extends keyof EventTypes>(eventType: Platform.TypeScriptUtilities.NoUnion<T_3>, ...eventData: Common.EventTarget.EventPayloadToRestParameters<EventTypes, T_3>): void;
 }) & typeof UI.Widget.VBox;
 export declare class Spectrum extends Spectrum_base {
+    private colorInternal?;
+    private gamut;
     private colorElement;
     private colorDragElement;
     private dragX;
@@ -28,6 +30,7 @@ export declare class Spectrum extends Spectrum_base {
     private hexContainer;
     private hexValue;
     private readonly contrastInfo;
+    private srgbOverlay;
     private contrastOverlay;
     private contrastDetails;
     private readonly contrastDetailsBackgroundColorPickedToggledBound;
@@ -53,18 +56,20 @@ export declare class Spectrum extends Spectrum_base {
     private colorOffset?;
     private closeButton?;
     private paletteContainerMutable?;
+    private eyeDropperExperimentEnabled?;
     private shadesCloseHandler?;
     private dragElement?;
     private dragHotSpotX?;
     private dragHotSpotY?;
-    private originalFormat?;
     private colorNameInternal?;
+    private colorFormat;
+    private eyeDropperAbortController;
+    private isFormatPickerShown;
     private colorStringInternal?;
-    private colorFormat?;
     constructor(contrastInfo?: ContrastInfo | null);
     private dragStart;
     private contrastDetailsBackgroundColorPickedToggled;
-    private contrastPanelExpanded;
+    private contrastPanelExpandedChanged;
     private updatePalettePanel;
     private togglePalettePanel;
     private onCloseBtnKeydown;
@@ -94,16 +99,19 @@ export declare class Spectrum extends Spectrum_base {
     private addColorToCustomPalette;
     private showPaletteColorContextMenu;
     private deletePaletteColors;
-    setColor(color: Common.Color.Color, colorFormat: string): void;
-    colorSelected(color: Common.Color.Color): void;
+    setColor(color: Common.Color.Color, colorFormat: Common.Color.Format): void;
+    private colorSelected;
+    private get color();
     private innerSetColor;
-    private color;
     colorName(): string | undefined;
-    colorString(): string;
+    private colorString;
     private updateHelperLocations;
     private updateInput;
+    private hideSrgbOverlay;
+    private showSrgbOverlay;
+    private updateSrgbOverlay;
     private updateUI;
-    private formatViewSwitch;
+    private showFormatPicker;
     /**
      * If the pasted input is parsable as a color, applies it converting to the current user format
      */
@@ -111,7 +119,7 @@ export declare class Spectrum extends Spectrum_base {
     private inputChanged;
     wasShown(): void;
     willHide(): void;
-    private toggleColorPicker;
+    toggleColorPicker(enabled?: boolean): Promise<void>;
     private colorPicked;
 }
 export declare const ChangeSource: {
@@ -123,7 +131,7 @@ export declare enum Events {
     ColorChanged = "ColorChanged",
     SizeChanged = "SizeChanged"
 }
-export declare type EventTypes = {
+export type EventTypes = {
     [Events.ColorChanged]: string;
     [Events.SizeChanged]: void;
 };

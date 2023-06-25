@@ -16,7 +16,7 @@ export declare class PerformanceMonitorImpl extends UI.Widget.HBox implements SD
     private model?;
     private startTimestamp?;
     private pollTimer?;
-    constructor();
+    constructor(pollIntervalMs: number);
     static instance(opts?: {
         forceNew: null;
     }): PerformanceMonitorImpl;
@@ -45,9 +45,10 @@ export declare class ControlPane extends Common.ObjectWrapper.ObjectWrapper<Even
     element: Element;
     private readonly enabledChartsSetting;
     private readonly enabledCharts;
-    private readonly chartsInfo;
-    private readonly indicators;
+    private chartsInfo;
+    private indicators;
     constructor(parent: Element);
+    instantiateMetricData(): void;
     private onToggle;
     charts(): ChartInfo[];
     isActive(metricName: string): boolean;
@@ -56,7 +57,7 @@ export declare class ControlPane extends Common.ObjectWrapper.ObjectWrapper<Even
 declare const enum Events {
     MetricChanged = "MetricChanged"
 }
-declare type EventTypes = {
+type EventTypes = {
     [Events.MetricChanged]: void;
 };
 export declare class MetricIndicator {
@@ -66,9 +67,11 @@ export declare class MetricIndicator {
     element: HTMLElement;
     private readonly swatchElement;
     private valueElement;
+    private color;
     constructor(parent: Element, info: ChartInfo, active: boolean, onToggle: (arg0: boolean) => void);
     static formatNumber(value: number, info: ChartInfo): string;
     setValue(value: number): void;
+    private updateSwatchElement;
     private toggleIndicator;
     private handleKeypress;
 }

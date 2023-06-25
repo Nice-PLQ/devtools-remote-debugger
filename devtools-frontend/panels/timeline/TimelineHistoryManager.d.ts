@@ -1,5 +1,12 @@
+import type * as SDK from '../../core/sdk/sdk.js';
 import * as UI from '../../ui/legacy/legacy.js';
-import type { PerformanceModel } from './PerformanceModel.js';
+import type * as TraceEngine from '../../models/trace/trace.js';
+import { type PerformanceModel } from './PerformanceModel.js';
+export type RecordingData = {
+    legacyModel: PerformanceModel;
+    traceParseData: TraceEngine.Handlers.Migration.PartialTraceData | null;
+    filmStripModel: SDK.FilmStripModel.FilmStripModel;
+};
 export declare class TimelineHistoryManager {
     private recordings;
     private readonly action;
@@ -10,13 +17,13 @@ export declare class TimelineHistoryManager {
     private enabled;
     private lastActiveModel;
     constructor();
-    addRecording(performanceModel: PerformanceModel): void;
+    addRecording(performanceModel: PerformanceModel, traceParseData: TraceEngine.Handlers.Migration.PartialTraceData | null, filmStripModel: SDK.FilmStripModel.FilmStripModel): void;
     setEnabled(enabled: boolean): void;
     button(): ToolbarButton;
     clear(): void;
-    showHistoryDropDown(): Promise<PerformanceModel | null>;
+    showHistoryDropDown(): Promise<RecordingData | null>;
     cancelIfShowing(): void;
-    navigate(direction: number): PerformanceModel | null;
+    navigate(direction: number): RecordingData | null;
     private setCurrentModel;
     private updateState;
     static previewElement(performanceModel: PerformanceModel): Element;

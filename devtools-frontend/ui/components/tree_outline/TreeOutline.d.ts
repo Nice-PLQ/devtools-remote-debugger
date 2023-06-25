@@ -1,5 +1,5 @@
 import * as LitHtml from '../../lit-html/lit-html.js';
-import type { TreeNode } from './TreeOutlineUtils.js';
+import { type TreeNodeId, type TreeNode } from './TreeOutlineUtils.js';
 export interface TreeOutlineData<TreeNodeDataType> {
     defaultRenderer: (node: TreeNode<TreeNodeDataType>, state: {
         isExpanded: boolean;
@@ -11,6 +11,8 @@ export interface TreeOutlineData<TreeNodeDataType> {
      * cause issues in the TreeOutline.
      */
     tree: readonly TreeNode<TreeNodeDataType>[];
+    filter?: (node: TreeNodeDataType) => FilterOption;
+    compact?: boolean;
 }
 export declare function defaultRenderer(node: TreeNode<string>): LitHtml.TemplateResult;
 export declare class ItemSelectedEvent<TreeNodeDataType> extends Event {
@@ -34,30 +36,21 @@ export declare class ItemMouseOutEvent<TreeNodeDataType> extends Event {
     };
     constructor(node: TreeNode<TreeNodeDataType>);
 }
+/**
+ *
+ * The tree can be filtered by providing a custom filter function.
+ * The filter is applied on every node when constructing the tree
+ * and proceeds as follows:
+ * - If the filter return SHOW for a node, the node is included in the tree.
+ * - If the filter returns FLATTEN, the node is ignored but its subtree is included.
+ */
+export declare const enum FilterOption {
+    SHOW = "SHOW",
+    FLATTEN = "FLATTEN"
+}
 export declare class TreeOutline<TreeNodeDataType> extends HTMLElement {
+    #private;
     static readonly litTagName: import("../../lit-html/static.js").Static;
-    private readonly shadow;
-    private treeData;
-    private nodeExpandedMap;
-    private domNodeToTreeNodeMap;
-    private hasRenderedAtLeastOnce;
-    /**
-     * If we have expanded to a certain node, we want to focus it once we've
-     * rendered. But we render lazily and wrapped in LitHtml.until, so we can't
-     * know for sure when that node will be rendered. This variable tracks the
-     * node that we want focused but may not yet have been rendered.
-     */
-    private nodePendingFocus;
-    private selectedTreeNode;
-    private defaultRenderer;
-    /**
-     * scheduledRender = render() has been called and scheduled a render.
-     */
-    private scheduledRender;
-    /**
-     * enqueuedRender = render() was called mid-way through an existing render.
-     */
-    private enqueuedRender;
     static get observedAttributes(): string[];
     attributeChangedCallback(name: 'nowrap' | 'toplevelbordercolor', oldValue: string | null, newValue: string | null): void;
     connectedCallback(): void;
@@ -70,29 +63,26 @@ export declare class TreeOutline<TreeNodeDataType> extends HTMLElement {
      */
     expandRecursively(maxDepth?: number): Promise<void>;
     /**
+     * Collapses all nodes in the tree.
+     */
+    collapseAllNodes(): Promise<void>;
+    /**
      * Takes a TreeNode, expands the outline to reveal it, and focuses it.
      */
     expandToAndSelectTreeNode(targetTreeNode: TreeNode<TreeNodeDataType>): Promise<void>;
+    /**
+     * Takes a TreeNode ID, expands the outline to reveal it, and focuses it.
+     */
+    expandToAndSelectTreeNodeId(targetTreeNodeId: TreeNodeId): Promise<void>;
+    /**
+     * Takes a list of TreeNode IDs and expands the corresponding nodes.
+     */
+    expandNodeIds(nodeIds: TreeNodeId[]): Promise<void>;
+    /**
+     * Takes a TreeNode ID and focuses the corresponding node.
+     */
+    focusNodeId(nodeId: TreeNodeId): Promise<void>;
     collapseChildrenOfNode(domNode: HTMLLIElement): Promise<void>;
-    private setNodeKeyNoWrapCSSVariable;
-    private setTopLevelNodeBorderColorCSSVariable;
-    private recursivelyCollapseTreeNodeChildren;
-    private getSelectedTreeNode;
-    private fetchNodeChildren;
-    private setNodeExpandedState;
-    private nodeIsExpanded;
-    private expandAndRecurse;
-    private onArrowClick;
-    private onNodeClick;
-    private focusTreeNode;
-    private processHomeAndEndKeysNavigation;
-    private processArrowKeyNavigation;
-    private processEnterOrSpaceNavigation;
-    private onTreeKeyDown;
-    private focusPendingNode;
-    private isSelectedNode;
-    private renderNode;
-    private render;
 }
 declare global {
     interface HTMLElementTagNameMap {

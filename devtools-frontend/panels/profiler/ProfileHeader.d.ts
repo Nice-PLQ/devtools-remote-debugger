@@ -36,7 +36,7 @@ export declare enum Events {
     ProfileReceived = "ProfileReceived",
     ProfileTitleChanged = "ProfileTitleChanged"
 }
-export declare type EventTypes = {
+export type EventTypes = {
     [Events.UpdateStatus]: StatusUpdate;
     [Events.ProfileReceived]: void;
     [Events.ProfileTitleChanged]: ProfileHeader;
@@ -82,7 +82,7 @@ export declare enum ProfileEvents {
     RemoveProfileHeader = "remove-profile-header",
     ViewUpdated = "view-updated"
 }
-export declare type ProfileEventTypes = {
+export type ProfileEventTypes = {
     [ProfileEvents.AddProfileHeader]: ProfileHeader;
     [ProfileEvents.ProfileComplete]: ProfileHeader;
     [ProfileEvents.RemoveProfileHeader]: ProfileHeader;

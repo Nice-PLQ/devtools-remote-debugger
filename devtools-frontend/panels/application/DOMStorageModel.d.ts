@@ -4,12 +4,12 @@ import type * as Protocol from '../../generated/protocol.js';
 import type * as ProtocolProxyApi from '../../generated/protocol-proxy-api.js';
 export declare class DOMStorage extends Common.ObjectWrapper.ObjectWrapper<DOMStorage.EventTypes> {
     private readonly model;
-    private readonly securityOriginInternal;
+    private readonly storageKeyInternal;
     private readonly isLocalStorageInternal;
-    constructor(model: DOMStorageModel, securityOrigin: string, isLocalStorage: boolean);
-    static storageId(securityOrigin: string, isLocalStorage: boolean): Protocol.DOMStorage.StorageId;
+    constructor(model: DOMStorageModel, storageKey: string, isLocalStorage: boolean);
+    static storageId(storageKey: string, isLocalStorage: boolean): Protocol.DOMStorage.StorageId;
     get id(): Protocol.DOMStorage.StorageId;
-    get securityOrigin(): string;
+    get storageKey(): string | null;
     get isLocalStorage(): boolean;
     getItems(): Promise<Protocol.DOMStorage.Item[] | null>;
     setItem(key: string, value: string): void;
@@ -43,17 +43,18 @@ export declare namespace DOMStorage {
     };
 }
 export declare class DOMStorageModel extends SDK.SDKModel.SDKModel<EventTypes> {
-    private readonly securityOriginManager;
+    private readonly storageKeyManagerInternal;
     private storagesInternal;
     readonly agent: ProtocolProxyApi.DOMStorageApi;
     private enabled?;
     constructor(target: SDK.Target.Target);
+    get storageKeyManagerForTest(): SDK.StorageKeyManager.StorageKeyManager | null;
     enable(): void;
-    clearForOrigin(origin: string): void;
-    private securityOriginAdded;
-    private addOrigin;
-    private securityOriginRemoved;
-    private removeOrigin;
+    clearForStorageKey(storageKey: string): void;
+    private storageKeyAdded;
+    private addStorageKey;
+    private storageKeyRemoved;
+    private removeStorageKey;
     private storageKey;
     domStorageItemsCleared(storageId: Protocol.DOMStorage.StorageId): void;
     domStorageItemRemoved(storageId: Protocol.DOMStorage.StorageId, key: string): void;
@@ -66,7 +67,7 @@ export declare enum Events {
     DOMStorageAdded = "DOMStorageAdded",
     DOMStorageRemoved = "DOMStorageRemoved"
 }
-export declare type EventTypes = {
+export type EventTypes = {
     [Events.DOMStorageAdded]: DOMStorage;
     [Events.DOMStorageRemoved]: DOMStorage;
 };

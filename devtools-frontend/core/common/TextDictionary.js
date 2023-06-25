@@ -33,7 +33,7 @@ export class TextDictionary {
     index;
     constructor() {
         this.words = new Map();
-        this.index = new Trie();
+        this.index = Trie.newStringTrie();
     }
     addWord(word) {
         let count = this.words.get(word) || 0;

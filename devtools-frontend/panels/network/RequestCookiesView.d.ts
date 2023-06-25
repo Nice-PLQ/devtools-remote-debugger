@@ -9,6 +9,7 @@ export declare class RequestCookiesView extends UI.Widget.Widget {
     private readonly requestCookiesTable;
     private readonly responseCookiesTitle;
     private readonly responseCookiesTable;
+    private readonly siteHasCookieInOtherPartition;
     private readonly malformedResponseCookiesTitle;
     private readonly malformedResponseCookiesList;
     constructor(request: SDK.NetworkRequest.NetworkRequest);

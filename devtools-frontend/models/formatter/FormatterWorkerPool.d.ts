@@ -1,3 +1,5 @@
+import * as FormatterActions from '../../entrypoints/formatter_worker/FormatterActions.js';
+export { DefinitionKind, type ScopeTreeNode } from '../../entrypoints/formatter_worker/FormatterActions.js';
 export declare class FormatterWorkerPool {
     private taskQueue;
     private workerTasks;
@@ -9,26 +11,11 @@ export declare class FormatterWorkerPool {
     private onWorkerError;
     private runChunkedTask;
     private runTask;
-    format(mimeType: string, content: string, indentString: string): Promise<FormatResult>;
-    javaScriptIdentifiers(content: string): Promise<{
-        name: string;
-        offset: number;
-    }[]>;
+    format(mimeType: string, content: string, indentString: string): Promise<FormatterActions.FormatResult>;
+    javaScriptSubstitute(expression: string, mapping: Map<string, string>): Promise<string>;
+    javaScriptScopeTree(expression: string): Promise<FormatterActions.ScopeTreeNode | null>;
     evaluatableJavaScriptSubstring(content: string): Promise<string>;
     parseCSS(content: string, callback: (arg0: boolean, arg1: Array<CSSRule>) => void): void;
-    outlineForMimetype(content: string, mimeType: string, callback: (arg0: boolean, arg1: Array<OutlineItem>) => void): boolean;
-    findLastExpression(content: string): Promise<string | null>;
-    findLastFunctionCall(content: string): Promise<{
-        baseExpression: string;
-        receiver: string;
-        argumentIndex: number;
-        functionName: string;
-    } | null>;
-    argumentsList(content: string): Promise<string[]>;
-}
-export interface FormatResult {
-    content: string;
-    mapping: FormatMapping;
 }
 interface CSSProperty {
     name: string;
@@ -45,10 +32,6 @@ export interface OutlineItem {
     title: string;
     subtitle?: string;
 }
-export interface FormatMapping {
-    original: number[];
-    formatted: number[];
-}
 export interface CSSStyleRule {
     selectorText: string;
     styleRange: TextRange;
@@ -61,11 +44,10 @@ export interface CSSAtRule {
     lineNumber: number;
     columnNumber: number;
 }
-export declare type CSSRule = CSSStyleRule | CSSAtRule;
+export type CSSRule = CSSStyleRule | CSSAtRule;
 export interface TextRange {
     startLine: number;
     startColumn: number;
     endLine: number;
     endColumn: number;
 }
-export {};

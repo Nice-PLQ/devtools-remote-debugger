@@ -49,8 +49,7 @@ export class BinaryResourceViewFactory {
         return this.utf8Promise;
     }
     createBase64View() {
-        return new ResourceSourceFrame(TextUtils.StaticContentProvider.StaticContentProvider.fromString(this.contentUrl, this.resourceType, this.base64content), 
-        /* autoPrettyPrint */ false, { lineNumbers: false, lineWrapping: true });
+        return new ResourceSourceFrame(TextUtils.StaticContentProvider.StaticContentProvider.fromString(this.contentUrl, this.resourceType, this.base64content), this.resourceType.canonicalMimeType(), { lineNumbers: false, lineWrapping: true });
     }
     createHexView() {
         const hexViewerContentProvider = new TextUtils.StaticContentProvider.StaticContentProvider(this.contentUrl, this.resourceType, async () => {
@@ -58,14 +57,12 @@ export class BinaryResourceViewFactory {
             const content = BinaryResourceViewFactory.uint8ArrayToHexViewer(contentAsArray);
             return { content, isEncoded: false };
         });
-        return new ResourceSourceFrame(hexViewerContentProvider, 
-        /* autoPrettyPrint */ false, { lineNumbers: false, lineWrapping: false });
+        return new ResourceSourceFrame(hexViewerContentProvider, this.resourceType.canonicalMimeType(), { lineNumbers: false, lineWrapping: false });
     }
     createUtf8View() {
         const utf8fn = this.utf8.bind(this);
         const utf8ContentProvider = new TextUtils.StaticContentProvider.StaticContentProvider(this.contentUrl, this.resourceType, utf8fn);
-        return new ResourceSourceFrame(utf8ContentProvider, 
-        /* autoPrettyPrint */ false, { lineNumbers: true, lineWrapping: true });
+        return new ResourceSourceFrame(utf8ContentProvider, this.resourceType.canonicalMimeType(), { lineNumbers: true, lineWrapping: true });
     }
     static uint8ArrayToHexString(uint8Array) {
         let output = '';

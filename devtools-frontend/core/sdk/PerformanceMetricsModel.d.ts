@@ -1,4 +1,4 @@
-import type { Target } from './Target.js';
+import { type Target } from './Target.js';
 import { SDKModel } from './SDKModel.js';
 export declare class PerformanceMetricsModel extends SDKModel<void> {
     #private;

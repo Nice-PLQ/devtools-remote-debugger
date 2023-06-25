@@ -1,6 +1,6 @@
 import type * as Common from '../../core/common/common.js';
 import * as UI from '../../ui/legacy/legacy.js';
-import type { DataDisplayDelegate, ProfileHeader, StatusUpdate } from './ProfileHeader.js';
+import { type DataDisplayDelegate, type ProfileHeader, type StatusUpdate } from './ProfileHeader.js';
 export declare function setSharedFileSelectorElement(element: HTMLInputElement): void;
 export declare class ProfileSidebarTreeElement extends UI.TreeOutline.TreeElement {
     readonly iconElement: HTMLDivElement;

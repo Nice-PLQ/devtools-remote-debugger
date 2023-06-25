@@ -13,47 +13,44 @@ import { getMarkdownImage } from './MarkdownImagesMap.js';
  */
 export class MarkdownImage extends HTMLElement {
     static litTagName = LitHtml.literal `devtools-markdown-image`;
-    shadow = this.attachShadow({ mode: 'open' });
-    imageData;
-    imageTitle;
-    constructor() {
-        super();
-    }
+    #shadow = this.attachShadow({ mode: 'open' });
+    #imageData;
+    #imageTitle;
     connectedCallback() {
-        this.shadow.adoptedStyleSheets = [markdownImageStyles];
+        this.#shadow.adoptedStyleSheets = [markdownImageStyles];
     }
     set data(data) {
         const { key, title } = data;
         const markdownImage = getMarkdownImage(key);
-        this.imageData = markdownImage;
-        this.imageTitle = title;
-        this.render();
+        this.#imageData = markdownImage;
+        this.#imageTitle = title;
+        this.#render();
     }
-    getIconComponent() {
-        if (!this.imageData) {
+    #getIconComponent() {
+        if (!this.#imageData) {
             return LitHtml.html ``;
         }
-        const { src, color, width = '100%', height = '100%' } = this.imageData;
+        const { src, color, width = '100%', height = '100%' } = this.#imageData;
         return LitHtml.html `
       <${IconButton.Icon.Icon.litTagName} .data=${{ iconPath: src, color, width, height }}></${IconButton.Icon.Icon.litTagName}>
     `;
     }
-    getImageComponent() {
-        if (!this.imageData) {
+    #getImageComponent() {
+        if (!this.#imageData) {
             return LitHtml.html ``;
         }
-        const { src, width = '100%', height = '100%' } = this.imageData;
+        const { src, width = '100%', height = '100%' } = this.#imageData;
         return LitHtml.html `
-      <img class="markdown-image" src=${src} alt=${this.imageTitle} width=${width} height=${height}/>
+      <img class="markdown-image" src=${src} alt=${this.#imageTitle} width=${width} height=${height}/>
     `;
     }
-    render() {
-        if (!this.imageData) {
+    #render() {
+        if (!this.#imageData) {
             return;
         }
-        const { isIcon } = this.imageData;
-        const imageComponent = isIcon ? this.getIconComponent() : this.getImageComponent();
-        LitHtml.render(imageComponent, this.shadow, { host: this });
+        const { isIcon } = this.#imageData;
+        const imageComponent = isIcon ? this.#getIconComponent() : this.#getImageComponent();
+        LitHtml.render(imageComponent, this.#shadow, { host: this });
     }
 }
 ComponentHelpers.CustomElements.defineComponent('devtools-markdown-image', MarkdownImage);

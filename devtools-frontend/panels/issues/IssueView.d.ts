@@ -1,19 +1,10 @@
 import * as IssuesManager from '../../models/issues_manager/issues_manager.js';
 import * as UI from '../../ui/legacy/legacy.js';
-import type { AggregatedIssue } from './IssueAggregator.js';
+import { type AggregatedIssue } from './IssueAggregator.js';
 export declare class IssueView extends UI.TreeOutline.TreeElement {
-    private issue;
-    private description;
+    #private;
     toggleOnClick: boolean;
     affectedResources: UI.TreeOutline.TreeElement;
-    private readonly affectedResourceViews;
-    private aggregatedIssuesCount;
-    private issueKindIcon;
-    private hasBeenExpandedBefore;
-    private throttle;
-    private needsUpdateOnExpand;
-    private hiddenIssuesMenu;
-    private contentCreated;
     constructor(issue: AggregatedIssue, description: IssuesManager.MarkdownIssueDescription.IssueDescription);
     /**
      * Sets the issue to take the resources from. Assumes that the description
@@ -26,17 +17,10 @@ export declare class IssueView extends UI.TreeOutline.TreeElement {
     onattach(): void;
     createContent(): void;
     appendAffectedResource(resource: UI.TreeOutline.TreeElement): void;
-    private appendHeader;
-    private showHiddenIssuesMenu;
-    private hideHiddenIssuesMenu;
     onexpand(): void;
-    private updateFromIssue;
     updateAffectedResourceVisibility(): void;
-    private createAffectedResources;
-    private createBody;
-    private createReadMoreLinks;
-    private doUpdate;
     update(): void;
+    clear(): void;
     getIssueKind(): IssuesManager.Issue.IssueKind;
     isForHiddenIssue(): boolean;
     toggle(expand?: boolean): void;

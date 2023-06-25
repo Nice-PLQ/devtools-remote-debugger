@@ -21,7 +21,7 @@ export class AnimationModel extends SDK.SDKModel.SDKModel {
         this.#pendingAnimations = new Set();
         this.playbackRate = 1;
         const resourceTreeModel = target.model(SDK.ResourceTreeModel.ResourceTreeModel);
-        resourceTreeModel.addEventListener(SDK.ResourceTreeModel.Events.MainFrameNavigated, this.reset, this);
+        resourceTreeModel.addEventListener(SDK.ResourceTreeModel.Events.PrimaryPageChanged, this.reset, this);
         const screenCaptureModel = target.model(SDK.ScreenCaptureModel.ScreenCaptureModel);
         if (screenCaptureModel) {
             this.#screenshotCapture = new ScreenshotCapture(this, screenCaptureModel);
@@ -113,10 +113,10 @@ export class AnimationModel extends SDK.SDKModel.SDKModel {
     }
     setPlaybackRate(playbackRate) {
         this.playbackRate = playbackRate;
-        this.agent.invoke_setPlaybackRate({ playbackRate });
+        void this.agent.invoke_setPlaybackRate({ playbackRate });
     }
     releaseAnimations(animations) {
-        this.agent.invoke_releaseAnimations({ animations });
+        void this.agent.invoke_releaseAnimations({ animations });
     }
     async suspendModel() {
         this.reset();
@@ -211,7 +211,7 @@ export class AnimationImpl {
         return firstAnimation.endTime() >= secondAnimation.startTime();
     }
     setTiming(duration, delay) {
-        this.#sourceInternal.node().then(node => {
+        void this.#sourceInternal.node().then(node => {
             if (!node) {
                 throw new Error('Unable to find node');
             }
@@ -219,14 +219,14 @@ export class AnimationImpl {
         });
         this.#sourceInternal.durationInternal = duration;
         this.#sourceInternal.delayInternal = delay;
-        this.#animationModel.agent.invoke_setTiming({ animationId: this.id(), duration, delay });
+        void this.#animationModel.agent.invoke_setTiming({ animationId: this.id(), duration, delay });
     }
     updateNodeStyle(duration, delay, node) {
         let animationPrefix;
-        if (this.type() === "CSSTransition" /* CSSTransition */) {
+        if (this.type() === "CSSTransition" /* Protocol.Animation.AnimationType.CSSTransition */) {
             animationPrefix = 'transition-';
         }
-        else if (this.type() === "CSSAnimation" /* CSSAnimation */) {
+        else if (this.type() === "CSSAnimation" /* Protocol.Animation.AnimationType.CSSAnimation */) {
             animationPrefix = 'animation-';
         }
         else {
@@ -394,7 +394,7 @@ export class AnimationGroup {
         return maxDuration;
     }
     seekTo(currentTime) {
-        this.#animationModel.agent.invoke_seekAnimations({ animations: this.animationIds(), currentTime });
+        void this.#animationModel.agent.invoke_seekAnimations({ animations: this.animationIds(), currentTime });
     }
     paused() {
         return this.#pausedInternal;
@@ -404,7 +404,7 @@ export class AnimationGroup {
             return;
         }
         this.#pausedInternal = paused;
-        this.#animationModel.agent.invoke_setPaused({ animations: this.animationIds(), paused });
+        void this.#animationModel.agent.invoke_setPaused({ animations: this.animationIds(), paused });
     }
     currentTimePromise() {
         let longestAnim = null;
@@ -421,7 +421,7 @@ export class AnimationGroup {
     }
     matches(group) {
         function extractId(anim) {
-            if (anim.type() === "WebAnimation" /* WebAnimation */) {
+            if (anim.type() === "WebAnimation" /* Protocol.Animation.AnimationType.WebAnimation */) {
                 return anim.type() + anim.id();
             }
             return anim.cssId();
@@ -493,7 +493,7 @@ export class ScreenshotCapture {
             return;
         }
         this.#capturing = true;
-        this.#screenCaptureModel.startScreencast("jpeg" /* Jpeg */, 80, undefined, 300, 2, this.screencastFrame.bind(this), _visible => { });
+        this.#screenCaptureModel.startScreencast("jpeg" /* Protocol.Page.StartScreencastRequestFormat.Jpeg */, 80, undefined, 300, 2, this.screencastFrame.bind(this), _visible => { });
     }
     screencastFrame(base64Data, _metadata) {
         function isAnimating(request) {

@@ -8,16 +8,10 @@ export interface MarkdownImageData {
  * This makes sure that all icons/images are accounted for in markdown.
  */
 export declare class MarkdownImage extends HTMLElement {
+    #private;
     static readonly litTagName: import("../../lit-html/static.js").Static;
-    private readonly shadow;
-    private imageData?;
-    private imageTitle?;
-    constructor();
     connectedCallback(): void;
     set data(data: MarkdownImageData);
-    private getIconComponent;
-    private getImageComponent;
-    private render;
 }
 declare global {
     interface HTMLElementTagNameMap {

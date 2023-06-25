@@ -18,82 +18,82 @@ import { ProfileSidebarTreeElement } from './ProfileSidebarTreeElement.js';
 import { TopDownProfileDataGridTree } from './TopDownProfileDataGrid.js';
 const UIStrings = {
     /**
-    *@description Text in Profile View of a profiler tool
-    */
+     *@description Text in Profile View of a profiler tool
+     */
     profile: 'Profile',
     /**
-    *@description Placeholder text in the search box of the JavaScript profiler tool. Users can search
-    *the results by the cost in milliseconds, the name of the function, or the file name.
-    */
+     *@description Placeholder text in the search box of the JavaScript profiler tool. Users can search
+     *the results by the cost in milliseconds, the name of the function, or the file name.
+     */
     findByCostMsNameOrFile: 'Find by cost (>50ms), name or file',
     /**
-    *@description Text for a programming function
-    */
+     *@description Text for a programming function
+     */
     function: 'Function',
     /**
-    *@description Title of the Profiler tool
-    */
+     *@description Title of the Profiler tool
+     */
     profiler: 'Profiler',
     /**
-    *@description Aria-label for profiles view combobox in memory tool
-    */
+     *@description Aria-label for profiles view combobox in memory tool
+     */
     profileViewMode: 'Profile view mode',
     /**
-    *@description Tooltip text that appears when hovering over the largeicon visibility button in the Profile View of a profiler tool
-    */
+     *@description Tooltip text that appears when hovering over the largeicon visibility button in the Profile View of a profiler tool
+     */
     focusSelectedFunction: 'Focus selected function',
     /**
-    *@description Tooltip text that appears when hovering over the largeicon delete button in the Profile View of a profiler tool
-    */
+     *@description Tooltip text that appears when hovering over the largeicon delete button in the Profile View of a profiler tool
+     */
     excludeSelectedFunction: 'Exclude selected function',
     /**
-    *@description Tooltip text that appears when hovering over the largeicon refresh button in the Profile View of a profiler tool
-    */
+     *@description Tooltip text that appears when hovering over the largeicon refresh button in the Profile View of a profiler tool
+     */
     restoreAllFunctions: 'Restore all functions',
     /**
-    *@description Text in Profile View of a profiler tool
-    */
+     *@description Text in Profile View of a profiler tool
+     */
     chart: 'Chart',
     /**
-    *@description Text in Profile View of a profiler tool
-    */
+     *@description Text in Profile View of a profiler tool
+     */
     heavyBottomUp: 'Heavy (Bottom Up)',
     /**
-    *@description Text for selecting different profile views in the JS profiler tool. This option is a tree view.
-    */
+     *@description Text for selecting different profile views in the JS profiler tool. This option is a tree view.
+     */
     treeTopDown: 'Tree (Top Down)',
     /**
-    * @description Name of a profile
-    * @example {2} PH1
-    */
+     * @description Name of a profile
+     * @example {2} PH1
+     */
     profileD: 'Profile {PH1}',
     /**
      *@description Text in Profile View of a profiler tool
-    *@example {4 MB} PH1
-    */
+     *@example {4 MB} PH1
+     */
     loadingD: 'Loading… {PH1}%',
     /**
-    *@description Text in Profile View of a profiler tool
-    *@example {example.file} PH1
-    *@example {cannot open file} PH2
-    */
+     *@description Text in Profile View of a profiler tool
+     *@example {example.file} PH1
+     *@example {cannot open file} PH2
+     */
     fileSReadErrorS: 'File \'\'{PH1}\'\' read error: {PH2}',
     /**
-    *@description Text when something is loading
-    */
+     *@description Text when something is loading
+     */
     loading: 'Loading…',
     /**
-    *@description Text in Profile View of a profiler tool
-    */
+     *@description Text in Profile View of a profiler tool
+     */
     failedToReadFile: 'Failed to read file',
     /**
-    *@description Text in Profile View of a profiler tool
-    */
+     *@description Text in Profile View of a profiler tool
+     */
     parsing: 'Parsing…',
     /**
-    * @description Status indicator in the JS Profiler to show that a file has been successfully loaded
-    * from file, as opposed to a profile that has been captured locally.
-    */
+     * @description Status indicator in the JS Profiler to show that a file has been successfully loaded
+     * from file, as opposed to a profile that has been captured locally.
+     */
     loaded: 'Loaded',
 };
 const str_ = i18n.i18n.registerUIStrings('panels/profiler/ProfileView.ts', UIStrings);
@@ -193,15 +193,13 @@ export class ProfileView extends UI.View.SimpleView {
         this.dataGrid.setRowContextMenuCallback(this.populateContextMenu.bind(this));
         this.viewSelectComboBox =
             new UI.Toolbar.ToolbarComboBox(this.changeView.bind(this), i18nString(UIStrings.profileViewMode));
-        this.focusButton =
-            new UI.Toolbar.ToolbarButton(i18nString(UIStrings.focusSelectedFunction), 'largeicon-visibility');
+        this.focusButton = new UI.Toolbar.ToolbarButton(i18nString(UIStrings.focusSelectedFunction), 'eye');
         this.focusButton.setEnabled(false);
         this.focusButton.addEventListener(UI.Toolbar.ToolbarButton.Events.Click, this.focusClicked, this);
-        this.excludeButton =
-            new UI.Toolbar.ToolbarButton(i18nString(UIStrings.excludeSelectedFunction), 'largeicon-delete');
+        this.excludeButton = new UI.Toolbar.ToolbarButton(i18nString(UIStrings.excludeSelectedFunction), 'cross');
         this.excludeButton.setEnabled(false);
         this.excludeButton.addEventListener(UI.Toolbar.ToolbarButton.Events.Click, this.excludeClicked, this);
-        this.resetButton = new UI.Toolbar.ToolbarButton(i18nString(UIStrings.restoreAllFunctions), 'largeicon-refresh');
+        this.resetButton = new UI.Toolbar.ToolbarButton(i18nString(UIStrings.restoreAllFunctions), 'refresh');
         this.resetButton.setEnabled(false);
         this.resetButton.addEventListener(UI.Toolbar.ToolbarButton.Events.Click, this.resetClicked, this);
         this.linkifierInternal = new Components.Linkifier.Linkifier(maxLinkLength);
@@ -227,12 +225,12 @@ export class ProfileView extends UI.View.SimpleView {
     }
     initialize(nodeFormatter) {
         this.nodeFormatter = nodeFormatter;
-        this.viewType = Common.Settings.Settings.instance().createSetting('profileView', "Heavy" /* Heavy */);
-        const viewTypes = ["Flame" /* Flame */, "Heavy" /* Heavy */, "Tree" /* Tree */];
+        this.viewType = Common.Settings.Settings.instance().createSetting('profileView', "Heavy" /* ViewTypes.Heavy */);
+        const viewTypes = ["Flame" /* ViewTypes.Flame */, "Heavy" /* ViewTypes.Heavy */, "Tree" /* ViewTypes.Tree */];
         const optionNames = new Map([
-            ["Flame" /* Flame */, i18nString(UIStrings.chart)],
-            ["Heavy" /* Heavy */, i18nString(UIStrings.heavyBottomUp)],
-            ["Tree" /* Tree */, i18nString(UIStrings.treeTopDown)],
+            ["Flame" /* ViewTypes.Flame */, i18nString(UIStrings.chart)],
+            ["Heavy" /* ViewTypes.Heavy */, i18nString(UIStrings.heavyBottomUp)],
+            ["Tree" /* ViewTypes.Tree */, i18nString(UIStrings.treeTopDown)],
         ]);
         const options = new Map(viewTypes.map(type => [type, this.viewSelectComboBox.createOption(optionNames.get(type), type)]));
         const optionName = this.viewType.get() || viewTypes[0];
@@ -317,9 +315,9 @@ export class ProfileView extends UI.View.SimpleView {
     supportsRegexSearch() {
         return false;
     }
-    searchCanceled() {
+    onSearchCanceled() {
         if (this.searchableElement) {
-            this.searchableElement.searchCanceled();
+            this.searchableElement.onSearchCanceled();
         }
     }
     performSearch(searchConfig, shouldJump, jumpBackwards) {
@@ -350,7 +348,7 @@ export class ProfileView extends UI.View.SimpleView {
         this.dataProvider = this.createFlameChartDataProvider();
         this.flameChart = new CPUProfileFlameChart(this.searchableViewInternal, this.dataProvider);
         this.flameChart.addEventListener(PerfUI.FlameChart.Events.EntryInvoked, event => {
-            this.onEntryInvoked(event);
+            void this.onEntryInvoked(event);
         });
     }
     async onEntryInvoked(event) {
@@ -369,7 +367,7 @@ export class ProfileView extends UI.View.SimpleView {
         }
         const location = debuggerModel.createRawLocation(script, node.lineNumber, node.columnNumber);
         const uiLocation = await Bindings.DebuggerWorkspaceBinding.DebuggerWorkspaceBinding.instance().rawLocationToUILocation(location);
-        Common.Revealer.reveal(uiLocation);
+        void Common.Revealer.reveal(uiLocation);
     }
     changeView() {
         if (!this.profileInternal) {
@@ -381,25 +379,25 @@ export class ProfileView extends UI.View.SimpleView {
         }
         this.viewType.set(this.viewSelectComboBox.selectedOption().value);
         switch (this.viewType.get()) {
-            case "Flame" /* Flame */:
+            case "Flame" /* ViewTypes.Flame */:
                 this.ensureFlameChartCreated();
                 this.visibleView = this.flameChart;
                 this.searchableElement = this.flameChart;
                 break;
-            case "Tree" /* Tree */:
+            case "Tree" /* ViewTypes.Tree */:
                 this.profileDataGridTree = this.getTopDownProfileDataGridTree();
                 this.sortProfile();
                 this.visibleView = this.dataGrid.asWidget();
                 this.searchableElement = this.profileDataGridTree;
                 break;
-            case "Heavy" /* Heavy */:
+            case "Heavy" /* ViewTypes.Heavy */:
                 this.profileDataGridTree = this.getBottomUpProfileDataGridTree();
                 this.sortProfile();
                 this.visibleView = this.dataGrid.asWidget();
                 this.searchableElement = this.profileDataGridTree;
                 break;
         }
-        const isFlame = this.viewType.get() === "Flame" /* Flame */;
+        const isFlame = this.viewType.get() === "Flame" /* ViewTypes.Flame */;
         this.focusButton.setVisible(!isFlame);
         this.excludeButton.setVisible(!isFlame);
         this.resetButton.setVisible(!isFlame);
@@ -512,7 +510,7 @@ export class WritableProfileHeader extends ProfileHeader {
         if (data) {
             await fileOutputStream.write(data);
         }
-        fileOutputStream.close();
+        void fileOutputStream.close();
     }
     async loadFromFile(file) {
         this.updateStatus(i18nString(UIStrings.loading), true);

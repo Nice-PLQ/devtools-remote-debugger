@@ -1,4 +1,4 @@
-import type { NameValue } from './NetworkRequest.js';
+import { type NameValue } from './NetworkRequest.js';
 export declare class ServerTiming {
     metric: string;
     value: number | null;

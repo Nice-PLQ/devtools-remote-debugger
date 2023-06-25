@@ -2,14 +2,16 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 export class Plugin {
+    uiSourceCode;
+    constructor(uiSourceCode, _transformer) {
+        this.uiSourceCode = uiSourceCode;
+    }
     static accepts(_uiSourceCode) {
         return false;
     }
-    wasShown() {
-    }
     willHide() {
     }
-    async rightToolbarItems() {
+    rightToolbarItems() {
         return [];
     }
     /**
@@ -21,10 +23,15 @@ export class Plugin {
         return [];
     }
     populateLineGutterContextMenu(_contextMenu, _lineNumber) {
-        return Promise.resolve();
     }
     populateTextAreaContextMenu(_contextMenu, _lineNumber, _columnNumber) {
-        return Promise.resolve();
+    }
+    decorationChanged(_type, _editor) {
+    }
+    editorExtension() {
+        return [];
+    }
+    editorInitialized(_editor) {
     }
     dispose() {
     }

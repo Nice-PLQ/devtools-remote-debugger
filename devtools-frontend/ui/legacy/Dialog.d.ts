@@ -1,10 +1,10 @@
 import * as Common from '../../core/common/common.js';
 import { GlassPane } from './GlassPane.js';
 declare const Dialog_base: (new (...args: any[]) => {
-    "__#8@#events": Common.ObjectWrapper.ObjectWrapper<EventTypes>;
-    addEventListener<T extends Events.Hidden>(eventType: T, listener: (arg0: Common.EventTarget.EventTargetEvent<EventTypes[T]>) => void, thisObject?: Object | undefined): Common.EventTarget.EventDescriptor<EventTypes, T>;
+    "__#13@#events": Common.ObjectWrapper.ObjectWrapper<EventTypes>;
+    addEventListener<T extends Events.Hidden>(eventType: T, listener: (arg0: Common.EventTarget.EventTargetEvent<EventTypes[T], any>) => void, thisObject?: Object | undefined): Common.EventTarget.EventDescriptor<EventTypes, T>;
     once<T_1 extends Events.Hidden>(eventType: T_1): Promise<EventTypes[T_1]>;
-    removeEventListener<T_2 extends Events.Hidden>(eventType: T_2, listener: (arg0: Common.EventTarget.EventTargetEvent<EventTypes[T_2]>) => void, thisObject?: Object | undefined): void;
+    removeEventListener<T_2 extends Events.Hidden>(eventType: T_2, listener: (arg0: Common.EventTarget.EventTargetEvent<EventTypes[T_2], any>) => void, thisObject?: Object | undefined): void;
     hasEventListeners(eventType: Events.Hidden): boolean;
     dispatchEventToListeners<T_3 extends Events.Hidden>(eventType: import("../../core/platform/typescript-utilities.js").NoUnion<T_3>, ...eventData: Common.EventTarget.EventPayloadToRestParameters<EventTypes, T_3>): void;
 }) & typeof GlassPane;
@@ -33,7 +33,7 @@ export declare class Dialog extends Dialog_base {
 export declare const enum Events {
     Hidden = "hidden"
 }
-export declare type EventTypes = {
+export type EventTypes = {
     [Events.Hidden]: void;
 };
 export declare enum OutsideTabIndexBehavior {

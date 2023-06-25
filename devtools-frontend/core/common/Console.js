@@ -13,11 +13,14 @@ export class Console extends ObjectWrapper {
         super();
         this.#messagesInternal = [];
     }
-    static instance({ forceNew } = { forceNew: false }) {
-        if (!consoleInstance || forceNew) {
+    static instance(opts) {
+        if (!consoleInstance || opts?.forceNew) {
             consoleInstance = new Console();
         }
         return consoleInstance;
+    }
+    static removeInstance() {
+        consoleInstance = undefined;
     }
     addMessage(text, level, show) {
         const message = new Message(text, level || MessageLevel.Info, Date.now(), show || false);
@@ -37,7 +40,7 @@ export class Console extends ObjectWrapper {
         return this.#messagesInternal;
     }
     show() {
-        this.showPromise();
+        void this.showPromise();
     }
     showPromise() {
         return reveal(this);

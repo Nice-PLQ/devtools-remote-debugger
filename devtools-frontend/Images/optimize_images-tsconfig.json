@@ -1,9 +1,8 @@
-
 {
-    "compilerOptions": {
-        "composite": true
-    },
-    "files": [
-        "Images.js"
-    ]
+  "compilerOptions": {
+      "composite": true
+  },
+  "files": [
+      "Images.js"
+  ]
 }

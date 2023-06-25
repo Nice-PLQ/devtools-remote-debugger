@@ -7,17 +7,14 @@ import * as Host from '../../core/host/host.js';
 import * as SDK from '../../core/sdk/sdk.js';
 import * as UI from '../../ui/legacy/legacy.js';
 import { CSSOverviewCompletedView } from './CSSOverviewCompletedView.js';
-import { OverviewController } from './CSSOverviewController.js';
 import { CSSOverviewModel } from './CSSOverviewModel.js';
 import { CSSOverviewProcessingView } from './CSSOverviewProcessingView.js';
-// eslint-disable-next-line @typescript-eslint/naming-convention
-let CSSOverviewPanelInstance;
 export class CSSOverviewPanel extends UI.Panel.Panel {
-    #model;
     #controller;
     #startView;
     #processingView;
     #completedView;
+    #model;
     #backgroundColors;
     #textColors;
     #fillColors;
@@ -26,36 +23,43 @@ export class CSSOverviewPanel extends UI.Panel.Panel {
     #mediaQueries;
     #unusedDeclarations;
     #elementCount;
-    #cancelled;
     #globalStyleStats;
     #textColorContrastIssues;
-    constructor() {
+    constructor(controller) {
         super('css_overview');
         this.element.classList.add('css-overview-panel');
-        const [model] = SDK.TargetManager.TargetManager.instance().models(CSSOverviewModel);
-        this.#model = model;
-        this.#controller = new OverviewController();
+        this.#controller = controller;
         this.#startView = new CSSOverviewComponents.CSSOverviewStartView.CSSOverviewStartView();
-        this.#startView.addEventListener('overviewstartrequested', () => this.#controller.dispatchEventToListeners("RequestOverviewStart" /* RequestOverviewStart */));
+        this.#startView.addEventListener('overviewstartrequested', () => this.#controller.dispatchEventToListeners("RequestOverviewStart" /* Events.RequestOverviewStart */));
         this.#processingView = new CSSOverviewProcessingView(this.#controller);
-        this.#completedView = new CSSOverviewCompletedView(this.#controller, model.target());
-        this.#controller.addEventListener("RequestOverviewStart" /* RequestOverviewStart */, _event => {
+        this.#completedView = new CSSOverviewCompletedView(this.#controller);
+        SDK.TargetManager.TargetManager.instance().observeTargets(this);
+        this.#controller.addEventListener("RequestOverviewStart" /* Events.RequestOverviewStart */, _event => {
             Host.userMetrics.actionTaken(Host.UserMetrics.Action.CaptureCssOverviewClicked);
-            this.startOverview();
+            void this.#startOverview();
         }, this);
-        this.#controller.addEventListener("RequestOverviewCancel" /* RequestOverviewCancel */, this.cancelOverview, this);
-        this.#controller.addEventListener("OverviewCompleted" /* OverviewCompleted */, this.overviewCompleted, this);
-        this.#controller.addEventListener("Reset" /* Reset */, this.reset, this);
-        this.#controller.addEventListener("RequestNodeHighlight" /* RequestNodeHighlight */, this.requestNodeHighlight, this);
-        this.reset();
+        this.#controller.addEventListener("OverviewCompleted" /* Events.OverviewCompleted */, this.#overviewCompleted, this);
+        this.#controller.addEventListener("Reset" /* Events.Reset */, this.#reset, this);
+        this.#controller.addEventListener("RequestNodeHighlight" /* Events.RequestNodeHighlight */, this.#requestNodeHighlight, this);
+        this.#reset();
     }
-    static instance() {
-        if (!CSSOverviewPanelInstance) {
-            CSSOverviewPanelInstance = new CSSOverviewPanel();
+    targetAdded(target) {
+        if (target !== SDK.TargetManager.TargetManager.instance().primaryPageTarget()) {
+            return;
         }
-        return CSSOverviewPanelInstance;
+        this.#completedView.initializeModels(target);
+        const model = target.model(CSSOverviewModel);
+        this.#model = model;
     }
-    reset() {
+    targetRemoved() {
+    }
+    #getModel() {
+        if (!this.#model) {
+            throw new Error('Did not retrieve model information yet.');
+        }
+        return this.#model;
+    }
+    #reset() {
         this.#backgroundColors = new Map();
         this.#textColors = new Map();
         this.#fillColors = new Map();
@@ -64,7 +68,6 @@ export class CSSOverviewPanel extends UI.Panel.Panel {
         this.#mediaQueries = new Map();
         this.#unusedDeclarations = new Map();
         this.#elementCount = 0;
-        this.#cancelled = false;
         this.#globalStyleStats = {
             styleRules: 0,
             inlineStyles: 0,
@@ -81,23 +84,23 @@ export class CSSOverviewPanel extends UI.Panel.Panel {
             },
         };
         this.#textColorContrastIssues = new Map();
-        this.renderInitialView();
+        this.#renderInitialView();
     }
-    requestNodeHighlight(evt) {
-        this.#model.highlightNode(evt.data);
+    #requestNodeHighlight(evt) {
+        this.#getModel().highlightNode(evt.data);
     }
-    renderInitialView() {
+    #renderInitialView() {
         this.#processingView.hideWidget();
         this.#completedView.hideWidget();
         this.contentElement.append(this.#startView);
         this.#startView.show();
     }
-    renderOverviewStartedView() {
+    #renderOverviewStartedView() {
         this.#startView.hide();
         this.#completedView.hideWidget();
         this.#processingView.show(this.contentElement);
     }
-    renderOverviewCompletedView() {
+    #renderOverviewCompletedView() {
         this.#startView.hide();
         this.#processingView.hideWidget();
         this.#completedView.show(this.contentElement);
@@ -114,12 +117,13 @@ export class CSSOverviewPanel extends UI.Panel.Panel {
             unusedDeclarations: this.#unusedDeclarations,
         });
     }
-    async startOverview() {
-        this.renderOverviewStartedView();
+    async #startOverview() {
+        this.#renderOverviewStartedView();
+        const model = this.#getModel();
         const [globalStyleStats, { elementCount, backgroundColors, textColors, textColorContrastIssues, fillColors, borderColors, fontInfo, unusedDeclarations }, mediaQueries] = await Promise.all([
-            this.#model.getGlobalStylesheetStats(),
-            this.#model.getNodeStyleStats(),
-            this.#model.getMediaQueries(),
+            model.getGlobalStylesheetStats(),
+            model.getNodeStyleStats(),
+            model.getMediaQueries(),
         ]);
         if (elementCount) {
             this.#elementCount = elementCount;
@@ -151,20 +155,10 @@ export class CSSOverviewPanel extends UI.Panel.Panel {
         if (unusedDeclarations) {
             this.#unusedDeclarations = unusedDeclarations;
         }
-        this.#controller.dispatchEventToListeners("OverviewCompleted" /* OverviewCompleted */);
+        this.#controller.dispatchEventToListeners("OverviewCompleted" /* Events.OverviewCompleted */);
     }
-    getStyleValue(styles, name) {
-        const item = styles.filter(style => style.name === name);
-        if (!item.length) {
-            return;
-        }
-        return item[0].value;
-    }
-    cancelOverview() {
-        this.#cancelled = true;
-    }
-    overviewCompleted() {
-        this.renderOverviewCompletedView();
+    #overviewCompleted() {
+        this.#renderOverviewCompletedView();
     }
     wasShown() {
         super.wasShown();

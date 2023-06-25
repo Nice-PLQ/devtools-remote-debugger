@@ -1,23 +1,25 @@
 import * as DataGrid from '../../ui/legacy/components/data_grid/data_grid.js';
 import * as ObjectUI from '../../ui/legacy/components/object_ui/object_ui.js';
 import * as UI from '../../ui/legacy/legacy.js';
-import type { Database, DatabaseId, Index, IndexedDBModel, ObjectStore } from './IndexedDBModel.js';
-export declare class IDBDatabaseView extends UI.Widget.VBox {
+import * as LitHtml from '../../ui/lit-html/lit-html.js';
+import * as ApplicationComponents from './components/components.js';
+import { type Database, type DatabaseId, type Index, type IndexedDBModel, type ObjectStore } from './IndexedDBModel.js';
+export declare class IDBDatabaseView extends ApplicationComponents.StorageMetadataView.StorageMetadataView {
     private readonly model;
     private database;
-    private readonly reportView;
-    private securityOriginElement;
-    private versionElement;
-    private objectStoreCountElement;
-    private readonly clearButton;
-    private readonly refreshButton;
     constructor(model: IndexedDBModel, database: Database | null);
-    private refreshDatabase;
+    getTitle(): string | undefined;
+    renderReportContent(): Promise<LitHtml.LitTemplate>;
     private refreshDatabaseButtonClicked;
     update(database: Database): void;
     private updatedForTests;
     private deleteDatabase;
     wasShown(): void;
+}
+declare global {
+    interface HTMLElementTagNameMap {
+        'devtools-idb-database-view': IDBDatabaseView;
+    }
 }
 export declare class IDBDataView extends UI.View.SimpleView {
     private readonly model;

@@ -10,17 +10,17 @@ export class LogModel extends SDKModel {
         super(target);
         target.registerLogDispatcher(this);
         this.#logAgent = target.logAgent();
-        this.#logAgent.invoke_enable();
+        void this.#logAgent.invoke_enable();
         if (!Host.InspectorFrontendHost.isUnderTest()) {
-            this.#logAgent.invoke_startViolationsReport({
+            void this.#logAgent.invoke_startViolationsReport({
                 config: [
-                    { name: "longTask" /* LongTask */, threshold: 200 },
-                    { name: "longLayout" /* LongLayout */, threshold: 30 },
-                    { name: "blockedEvent" /* BlockedEvent */, threshold: 100 },
-                    { name: "blockedParser" /* BlockedParser */, threshold: -1 },
-                    { name: "handler" /* Handler */, threshold: 150 },
-                    { name: "recurringHandler" /* RecurringHandler */, threshold: 50 },
-                    { name: "discouragedAPIUse" /* DiscouragedAPIUse */, threshold: -1 },
+                    { name: "longTask" /* Protocol.Log.ViolationSettingName.LongTask */, threshold: 200 },
+                    { name: "longLayout" /* Protocol.Log.ViolationSettingName.LongLayout */, threshold: 30 },
+                    { name: "blockedEvent" /* Protocol.Log.ViolationSettingName.BlockedEvent */, threshold: 100 },
+                    { name: "blockedParser" /* Protocol.Log.ViolationSettingName.BlockedParser */, threshold: -1 },
+                    { name: "handler" /* Protocol.Log.ViolationSettingName.Handler */, threshold: 150 },
+                    { name: "recurringHandler" /* Protocol.Log.ViolationSettingName.RecurringHandler */, threshold: 50 },
+                    { name: "discouragedAPIUse" /* Protocol.Log.ViolationSettingName.DiscouragedAPIUse */, threshold: -1 },
                 ],
             });
         }
@@ -29,7 +29,7 @@ export class LogModel extends SDKModel {
         this.dispatchEventToListeners(Events.EntryAdded, { logModel: this, entry });
     }
     requestClear() {
-        this.#logAgent.invoke_clear();
+        void this.#logAgent.invoke_clear();
     }
 }
 // TODO(crbug.com/1167717): Make this a const enum again

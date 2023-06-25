@@ -1,6 +1,7 @@
 import * as Common from '../../core/common/common.js';
+import type * as Platform from '../../core/platform/platform.js';
 interface SaveCallbackParam {
-    fileSystemPath?: string;
+    fileSystemPath?: Platform.DevToolsPath.RawPathString | Platform.DevToolsPath.UrlString;
 }
 export declare class FileManager extends Common.ObjectWrapper.ObjectWrapper<EventTypes> {
     private readonly saveCallbacks;
@@ -8,17 +9,17 @@ export declare class FileManager extends Common.ObjectWrapper.ObjectWrapper<Even
     static instance(opts?: {
         forceNew: boolean | null;
     }): FileManager;
-    save(url: string, content: string, forceSaveAs: boolean): Promise<SaveCallbackParam | null>;
+    save(url: Platform.DevToolsPath.RawPathString | Platform.DevToolsPath.UrlString, content: string, forceSaveAs: boolean): Promise<SaveCallbackParam | null>;
     private savedURL;
     private canceledSavedURL;
-    append(url: string, content: string): void;
-    close(url: string): void;
+    append(url: Platform.DevToolsPath.RawPathString | Platform.DevToolsPath.UrlString, content: string): void;
+    close(url: Platform.DevToolsPath.RawPathString | Platform.DevToolsPath.UrlString): void;
     private appendedToURL;
 }
 export declare enum Events {
     AppendedToURL = "AppendedToURL"
 }
-export declare type EventTypes = {
+export type EventTypes = {
     [Events.AppendedToURL]: string;
 };
 export {};

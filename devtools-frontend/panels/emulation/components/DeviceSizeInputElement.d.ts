@@ -13,8 +13,6 @@ export declare class SizeInputElement extends HTMLElement {
     set size(size: string);
     set placeholder(placeholder: string);
     render(): void;
-    private fireSizeChange;
-    private handleModifierKeys;
 }
 declare global {
     interface HTMLElementTagNameMap {

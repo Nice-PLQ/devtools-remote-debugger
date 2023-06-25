@@ -1,5 +1,5 @@
-import type * as CodeMirror from '../../third_party/codemirror.next/codemirror.next.js';
-import type * as TextEditor from '../../ui/components/text_editor/text_editor.js';
+import * as CodeMirror from '../../third_party/codemirror.next/codemirror.next.js';
+import * as TextEditor from '../../ui/components/text_editor/text_editor.js';
 import * as UI from '../../ui/legacy/legacy.js';
 export declare class ConsolePinPane extends UI.ThrottledWidget.ThrottledWidget {
     private readonly liveExpressionButton;
@@ -29,11 +29,9 @@ export declare class ConsolePin {
     private committedExpression;
     private hovered;
     private lastNode;
-    private readonly editorPromise;
-    private consolePinNumber;
     private deletePinIcon;
     constructor(expression: string, pinPane: ConsolePinPane, focusOut: () => void);
-    createEditor(expression: string, parent: HTMLElement): Promise<TextEditor.TextEditor.TextEditor>;
+    createEditor(doc: string, parent: HTMLElement): TextEditor.TextEditor.TextEditor;
     onBlur(editor: CodeMirror.EditorView): void;
     setHovered(hovered: boolean): void;
     expression(): string;

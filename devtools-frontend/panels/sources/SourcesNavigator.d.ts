@@ -1,19 +1,21 @@
 import * as Workspace from '../../models/workspace/workspace.js';
 import * as UI from '../../ui/legacy/legacy.js';
-import type { NavigatorUISourceCodeTreeNode } from './NavigatorView.js';
-import { NavigatorView } from './NavigatorView.js';
+import { NavigatorView, type NavigatorUISourceCodeTreeNode } from './NavigatorView.js';
 export declare class NetworkNavigatorView extends NavigatorView {
     private constructor();
+    wasShown(): void;
     static instance(opts?: {
         forceNew: boolean | null;
     }): NetworkNavigatorView;
     acceptProject(project: Workspace.Workspace.Project): boolean;
+    onScopeChange(): void;
     private inspectedURLChanged;
     uiSourceCodeAdded(uiSourceCode: Workspace.UISourceCode.UISourceCode): void;
 }
 export declare class FilesNavigatorView extends NavigatorView {
     private constructor();
     static instance(): FilesNavigatorView;
+    sourceSelected(uiSourceCode: Workspace.UISourceCode.UISourceCode, focusSource: boolean): void;
     acceptProject(project: Workspace.Workspace.Project): boolean;
     handleContextMenu(event: Event): void;
 }
@@ -26,7 +28,8 @@ export declare class OverridesNavigatorView extends NavigatorView {
     private onProjectAddOrRemoved;
     private updateProjectAndUI;
     private updateUI;
-    private setupNewWorkspace;
+    setupNewWorkspace(): Promise<void>;
+    sourceSelected(uiSourceCode: Workspace.UISourceCode.UISourceCode, focusSource: boolean): void;
     acceptProject(project: Workspace.Workspace.Project): boolean;
 }
 export declare class ContentScriptsNavigatorView extends NavigatorView {
@@ -43,6 +46,7 @@ export declare class SnippetsNavigatorView extends NavigatorView {
     handleContextMenu(event: Event): void;
     handleFileContextMenu(event: Event, node: NavigatorUISourceCodeTreeNode): void;
     private handleSaveAs;
+    private addJSExtension;
 }
 export declare class ActionDelegate implements UI.ActionRegistration.ActionDelegate {
     static instance(opts?: {

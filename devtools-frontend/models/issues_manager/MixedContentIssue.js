@@ -5,26 +5,26 @@ import * as i18n from '../../core/i18n/i18n.js';
 import { Issue, IssueCategory, IssueKind } from './Issue.js';
 const UIStrings = {
     /**
-    *@description Label for the link for Mixed Content Issues
-    */
+     *@description Label for the link for Mixed Content Issues
+     */
     preventingMixedContent: 'Preventing mixed content',
 };
 const str_ = i18n.i18n.registerUIStrings('models/issues_manager/MixedContentIssue.ts', UIStrings);
 const i18nString = i18n.i18n.getLocalizedString.bind(undefined, str_);
 export class MixedContentIssue extends Issue {
-    issueDetails;
+    #issueDetails;
     constructor(issueDetails, issuesModel) {
-        super("MixedContentIssue" /* MixedContentIssue */, issuesModel);
-        this.issueDetails = issueDetails;
+        super("MixedContentIssue" /* Protocol.Audits.InspectorIssueCode.MixedContentIssue */, issuesModel);
+        this.#issueDetails = issueDetails;
     }
     requests() {
-        if (this.issueDetails.request) {
-            return [this.issueDetails.request];
+        if (this.#issueDetails.request) {
+            return [this.#issueDetails.request];
         }
         return [];
     }
     getDetails() {
-        return this.issueDetails;
+        return this.#issueDetails;
     }
     getCategory() {
         return IssueCategory.MixedContent;
@@ -36,15 +36,15 @@ export class MixedContentIssue extends Issue {
         };
     }
     primaryKey() {
-        return JSON.stringify(this.issueDetails);
+        return JSON.stringify(this.#issueDetails);
     }
     getKind() {
-        switch (this.issueDetails.resolutionStatus) {
-            case "MixedContentAutomaticallyUpgraded" /* MixedContentAutomaticallyUpgraded */:
+        switch (this.#issueDetails.resolutionStatus) {
+            case "MixedContentAutomaticallyUpgraded" /* Protocol.Audits.MixedContentResolutionStatus.MixedContentAutomaticallyUpgraded */:
                 return IssueKind.Improvement;
-            case "MixedContentBlocked" /* MixedContentBlocked */:
+            case "MixedContentBlocked" /* Protocol.Audits.MixedContentResolutionStatus.MixedContentBlocked */:
                 return IssueKind.PageError;
-            case "MixedContentWarning" /* MixedContentWarning */:
+            case "MixedContentWarning" /* Protocol.Audits.MixedContentResolutionStatus.MixedContentWarning */:
                 return IssueKind.Improvement;
         }
     }

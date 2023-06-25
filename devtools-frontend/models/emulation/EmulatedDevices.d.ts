@@ -74,7 +74,7 @@ export declare const enum Events {
     CustomDevicesUpdated = "CustomDevicesUpdated",
     StandardDevicesUpdated = "StandardDevicesUpdated"
 }
-export declare type EventTypes = {
+export type EventTypes = {
     [Events.CustomDevicesUpdated]: void;
     [Events.StandardDevicesUpdated]: void;
 };

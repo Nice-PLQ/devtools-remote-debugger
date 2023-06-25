@@ -10,26 +10,27 @@ import * as Workspace from '../../models/workspace/workspace.js';
 import * as QuickOpen from '../../ui/legacy/components/quick_open/quick_open.js';
 import * as SourceFrame from '../../ui/legacy/components/source_frame/source_frame.js';
 import * as UI from '../../ui/legacy/legacy.js';
+import * as Components from './components/components.js';
 import { EditingLocationHistoryManager } from './EditingLocationHistoryManager.js';
 import sourcesViewStyles from './sourcesView.css.js';
-import { Events as TabbedEditorContainerEvents, TabbedEditorContainer } from './TabbedEditorContainer.js';
+import { Events as TabbedEditorContainerEvents, TabbedEditorContainer, } from './TabbedEditorContainer.js';
 import { Events as UISourceCodeFrameEvents, UISourceCodeFrame } from './UISourceCodeFrame.js';
 const UIStrings = {
     /**
-    *@description Text to open a file
-    */
+     *@description Text to open a file
+     */
     openFile: 'Open file',
     /**
-    *@description Text to run commands
-    */
+     *@description Text to run commands
+     */
     runCommand: 'Run command',
     /**
-    *@description Text in Sources View of the Sources panel
-    */
+     *@description Text in Sources View of the Sources panel
+     */
     dropInAFolderToAddToWorkspace: 'Drop in a folder to add to workspace',
     /**
-    *@description Accessible label for Sources placeholder view actions list
-    */
+     *@description Accessible label for Sources placeholder view actions list
+     */
     sourceViewActions: 'Source View Actions',
 };
 const str_ = i18n.i18n.registerUIStrings('panels/sources/SourcesView.ts', UIStrings);
@@ -52,7 +53,7 @@ export class SourcesView extends Common.ObjectWrapper.eventMixin(UI.Widget.VBox)
     constructor() {
         super();
         this.element.id = 'sources-panel-sources-view';
-        this.setMinimumAndPreferredSizes(250, 52, 250, 100);
+        this.setMinimumAndPreferredSizes(88, 52, 150, 100);
         this.placeholderOptionArray = [];
         this.selectedIndex = 0;
         const workspace = Workspace.Workspace.WorkspaceImpl.instance();
@@ -64,14 +65,8 @@ export class SourcesView extends Common.ObjectWrapper.eventMixin(UI.Widget.VBox)
         this.editorContainer.show(this.searchableViewInternal.element);
         this.editorContainer.addEventListener(TabbedEditorContainerEvents.EditorSelected, this.editorSelected, this);
         this.editorContainer.addEventListener(TabbedEditorContainerEvents.EditorClosed, this.editorClosed, this);
-        this.historyManager = new EditingLocationHistoryManager(this, this.currentSourceFrame.bind(this));
+        this.historyManager = new EditingLocationHistoryManager(this);
         this.toolbarContainerElementInternal = this.element.createChild('div', 'sources-toolbar');
-        if (!Root.Runtime.experiments.isEnabled('sourcesPrettyPrint')) {
-            const toolbarEditorActions = new UI.Toolbar.Toolbar('', this.toolbarContainerElementInternal);
-            for (const action of getRegisteredEditorActions()) {
-                toolbarEditorActions.appendToolbarItem(action.getOrCreateButton(this));
-            }
-        }
         this.scriptViewToolbar = new UI.Toolbar.Toolbar('', this.toolbarContainerElementInternal);
         this.scriptViewToolbar.element.style.flex = 'auto';
         this.bottomToolbarInternal = new UI.Toolbar.Toolbar('', this.toolbarContainerElementInternal);
@@ -89,15 +84,19 @@ export class SourcesView extends Common.ObjectWrapper.eventMixin(UI.Widget.VBox)
             const unsavedSourceCodes = [];
             const projects = Workspace.Workspace.WorkspaceImpl.instance().projectsForType(Workspace.Workspace.projectTypes.FileSystem);
             for (const project of projects) {
-                unsavedSourceCodes.push(...project.uiSourceCodes().filter(sourceCode => sourceCode.isDirty()));
+                for (const uiSourceCode of project.uiSourceCodes()) {
+                    if (uiSourceCode.isDirty()) {
+                        unsavedSourceCodes.push(uiSourceCode);
+                    }
+                }
             }
             if (!unsavedSourceCodes.length) {
                 return;
             }
             event.returnValue = true;
-            UI.ViewManager.ViewManager.instance().showView('sources');
+            void UI.ViewManager.ViewManager.instance().showView('sources');
             for (const sourceCode of unsavedSourceCodes) {
-                Common.Revealer.reveal(sourceCode);
+                void Common.Revealer.reveal(sourceCode);
             }
         }
         if (!window.opener) {
@@ -117,7 +116,7 @@ export class SourcesView extends Common.ObjectWrapper.eventMixin(UI.Widget.VBox)
         const list = element.createChild('div', 'tabbed-pane-placeholder');
         list.addEventListener('keydown', this.placeholderOnKeyDown.bind(this), false);
         UI.ARIAUtils.markAsList(list);
-        UI.ARIAUtils.setAccessibleName(list, i18nString(UIStrings.sourceViewActions));
+        UI.ARIAUtils.setLabel(list, i18nString(UIStrings.sourceViewActions));
         for (let i = 0; i < shortcuts.length; i++) {
             const shortcut = shortcuts[i];
             const shortcutKeyText = UI.ShortcutRegistry.ShortcutRegistry.instance().shortcutTitleForAction(shortcut.actionId);
@@ -138,7 +137,7 @@ export class SourcesView extends Common.ObjectWrapper.eventMixin(UI.Widget.VBox)
                 this.placeholderOptionArray.push({
                     element: row,
                     handler() {
-                        action.execute();
+                        void action.execute();
                     },
                 });
             }
@@ -148,7 +147,7 @@ export class SourcesView extends Common.ObjectWrapper.eventMixin(UI.Widget.VBox)
     }
     placeholderOnKeyDown(event) {
         const keyboardEvent = event;
-        if (isEnterOrSpaceKey(keyboardEvent)) {
+        if (Platform.KeyboardUtilities.isEnterOrSpaceKey(keyboardEvent)) {
             this.placeholderOptionArray[this.selectedIndex].handler();
             return;
         }
@@ -275,25 +274,30 @@ export class SourcesView extends Common.ObjectWrapper.eventMixin(UI.Widget.VBox)
     projectRemoved(event) {
         const project = event.data;
         const uiSourceCodes = project.uiSourceCodes();
-        this.removeUISourceCodes(uiSourceCodes);
+        this.removeUISourceCodes([...uiSourceCodes]);
     }
     updateScriptViewToolbarItems() {
         const view = this.visibleView();
         if (view instanceof UI.View.SimpleView) {
-            view.toolbarItems().then(items => {
+            void view.toolbarItems().then(items => {
                 this.scriptViewToolbar.removeToolbarItems();
+                for (const action of getRegisteredEditorActions()) {
+                    this.scriptViewToolbar.appendToolbarItem(action.getOrCreateButton(this));
+                }
                 items.map(item => this.scriptViewToolbar.appendToolbarItem(item));
             });
         }
     }
-    showSourceLocation(uiSourceCode, lineNumber, columnNumber, omitFocus, omitHighlight) {
-        this.historyManager.updateCurrentState();
+    showSourceLocation(uiSourceCode, location, omitFocus, omitHighlight) {
+        const currentFrame = this.currentSourceFrame();
+        if (currentFrame) {
+            this.historyManager.updateCurrentState(currentFrame.uiSourceCode(), currentFrame.textEditor.state.selection.main.head);
+        }
         this.editorContainer.showFile(uiSourceCode);
         const currentSourceFrame = this.currentSourceFrame();
-        if (currentSourceFrame && typeof lineNumber === 'number') {
-            currentSourceFrame.revealPosition(lineNumber, columnNumber, !omitHighlight);
+        if (currentSourceFrame && location) {
+            currentSourceFrame.revealPosition(location, !omitHighlight);
         }
-        this.historyManager.pushNewState();
         const visibleView = this.visibleView();
         if (!omitFocus && visibleView) {
             visibleView.focus();
@@ -309,23 +313,71 @@ export class SourcesView extends Common.ObjectWrapper.eventMixin(UI.Widget.VBox)
         else if (contentType === Common.ResourceType.resourceTypes.Font) {
             sourceView = new SourceFrame.FontView.FontView(uiSourceCode.mimeType(), uiSourceCode);
         }
+        else if (uiSourceCode.name() === HEADER_OVERRIDES_FILENAME &&
+            Root.Runtime.experiments.isEnabled(Root.Runtime.ExperimentName.HEADER_OVERRIDES)) {
+            sourceView = new Components.HeadersView.HeadersView(uiSourceCode);
+        }
         else {
             sourceFrame = new UISourceCodeFrame(uiSourceCode);
         }
         if (sourceFrame) {
             this.historyManager.trackSourceFrameCursorJumps(sourceFrame);
         }
+        uiSourceCode.addEventListener(Workspace.UISourceCode.Events.TitleChanged, this.#uiSourceCodeTitleChanged, this);
         const widget = (sourceFrame || sourceView);
         this.sourceViewByUISourceCode.set(uiSourceCode, widget);
         return widget;
+    }
+    #sourceViewTypeForWidget(widget) {
+        if (widget instanceof SourceFrame.ImageView.ImageView) {
+            return SourceViewType.ImageView;
+        }
+        if (widget instanceof SourceFrame.FontView.FontView) {
+            return SourceViewType.FontView;
+        }
+        if (widget instanceof Components.HeadersView.HeadersView) {
+            return SourceViewType.HeadersView;
+        }
+        return SourceViewType.SourceView;
+    }
+    #sourceViewTypeForUISourceCode(uiSourceCode) {
+        if (uiSourceCode.name() === HEADER_OVERRIDES_FILENAME &&
+            Root.Runtime.experiments.isEnabled(Root.Runtime.ExperimentName.HEADER_OVERRIDES)) {
+            return SourceViewType.HeadersView;
+        }
+        const contentType = uiSourceCode.contentType();
+        switch (contentType) {
+            case Common.ResourceType.resourceTypes.Image:
+                return SourceViewType.ImageView;
+            case Common.ResourceType.resourceTypes.Font:
+                return SourceViewType.FontView;
+            default:
+                return SourceViewType.SourceView;
+        }
+    }
+    #uiSourceCodeTitleChanged(event) {
+        const uiSourceCode = event.data;
+        const widget = this.sourceViewByUISourceCode.get(uiSourceCode);
+        if (widget) {
+            if (this.#sourceViewTypeForWidget(widget) !== this.#sourceViewTypeForUISourceCode(uiSourceCode)) {
+                // Remove the exisiting editor tab and create a new one of the correct type.
+                this.removeUISourceCodes([uiSourceCode]);
+                this.showSourceLocation(uiSourceCode);
+            }
+        }
+    }
+    getSourceView(uiSourceCode) {
+        return this.sourceViewByUISourceCode.get(uiSourceCode);
     }
     getOrCreateSourceView(uiSourceCode) {
         return this.sourceViewByUISourceCode.get(uiSourceCode) || this.createSourceView(uiSourceCode);
     }
     recycleUISourceCodeFrame(sourceFrame, uiSourceCode) {
+        sourceFrame.uiSourceCode().removeEventListener(Workspace.UISourceCode.Events.TitleChanged, this.#uiSourceCodeTitleChanged, this);
         this.sourceViewByUISourceCode.delete(sourceFrame.uiSourceCode());
         sourceFrame.setUISourceCode(uiSourceCode);
         this.sourceViewByUISourceCode.set(uiSourceCode, sourceFrame);
+        uiSourceCode.addEventListener(Workspace.UISourceCode.Events.TitleChanged, this.#uiSourceCodeTitleChanged, this);
     }
     viewForFile(uiSourceCode) {
         return this.getOrCreateSourceView(uiSourceCode);
@@ -336,6 +388,7 @@ export class SourcesView extends Common.ObjectWrapper.eventMixin(UI.Widget.VBox)
         if (sourceView && sourceView instanceof UISourceCodeFrame) {
             sourceView.dispose();
         }
+        uiSourceCode.removeEventListener(Workspace.UISourceCode.Events.TitleChanged, this.#uiSourceCodeTitleChanged, this);
     }
     editorClosed(event) {
         const uiSourceCode = event.data;
@@ -363,7 +416,7 @@ export class SourcesView extends Common.ObjectWrapper.eventMixin(UI.Widget.VBox)
         if (currentSourceFrame) {
             currentSourceFrame.setSearchableView(this.searchableViewInternal);
         }
-        this.searchableViewInternal.setReplaceable(Boolean(currentSourceFrame) && (currentSourceFrame ? currentSourceFrame.canEditSource() : false));
+        this.searchableViewInternal.setReplaceable(Boolean(currentSourceFrame?.canEditSource()));
         this.searchableViewInternal.refreshSearch();
         this.updateToolbarChangedListener();
         this.updateScriptViewToolbarItems();
@@ -386,9 +439,9 @@ export class SourcesView extends Common.ObjectWrapper.eventMixin(UI.Widget.VBox)
         }
         this.toolbarChangedListener = sourceFrame.addEventListener(UISourceCodeFrameEvents.ToolbarItemsChanged, this.updateScriptViewToolbarItems, this);
     }
-    searchCanceled() {
+    onSearchCanceled() {
         if (this.searchView) {
-            this.searchView.searchCanceled();
+            this.searchView.onSearchCanceled();
         }
         delete this.searchView;
         delete this.searchConfig;
@@ -501,13 +554,11 @@ export class SwitchFileActionDelegate {
             const namePrefix = name.substr(0, lastDotIndex !== -1 ? lastDotIndex : name.length);
             return namePrefix.toLowerCase();
         }
-        const uiSourceCodes = currentUISourceCode.project().uiSourceCodes();
         const candidates = [];
         const url = currentUISourceCode.parentURL();
         const name = currentUISourceCode.name();
         const namePrefix = fileNamePrefix(name);
-        for (let i = 0; i < uiSourceCodes.length; ++i) {
-            const uiSourceCode = uiSourceCodes[i];
+        for (const uiSourceCode of currentUISourceCode.project().uiSourceCodes()) {
             if (url !== uiSourceCode.parentURL()) {
                 continue;
             }
@@ -517,7 +568,7 @@ export class SwitchFileActionDelegate {
         }
         candidates.sort(Platform.StringUtilities.naturalOrderComparator);
         const index = Platform.NumberUtilities.mod(candidates.indexOf(name) + 1, candidates.length);
-        const fullURL = (url ? url + '/' : '') + candidates[index];
+        const fullURL = Common.ParsedURL.ParsedURL.concatenate((url ? Common.ParsedURL.ParsedURL.concatenate(url, '/') : ''), candidates[index]);
         const nextUISourceCode = currentUISourceCode.project().uiSourceCodeForURL(fullURL);
         return nextUISourceCode !== currentUISourceCode ? nextUISourceCode : null;
     }
@@ -562,6 +613,12 @@ export class ActionDelegate {
             case 'sources.jump-to-next-location':
                 sourcesView.onJumpToNextLocation();
                 return true;
+            case 'sources.next-editor-tab':
+                sourcesView.editorContainer.selectNextTab();
+                return true;
+            case 'sources.previous-editor-tab':
+                sourcesView.editorContainer.selectPrevTab();
+                return true;
             case 'sources.close-editor-tab':
                 return sourcesView.onCloseEditorTab();
             case 'sources.go-to-line':
@@ -580,4 +637,13 @@ export class ActionDelegate {
         return false;
     }
 }
+const HEADER_OVERRIDES_FILENAME = '.headers';
+// eslint-disable-next-line rulesdir/const_enum
+var SourceViewType;
+(function (SourceViewType) {
+    SourceViewType["ImageView"] = "ImageView";
+    SourceViewType["FontView"] = "FontView";
+    SourceViewType["HeadersView"] = "HeadersView";
+    SourceViewType["SourceView"] = "SourceView";
+})(SourceViewType || (SourceViewType = {}));
 //# sourceMappingURL=SourcesView.js.map

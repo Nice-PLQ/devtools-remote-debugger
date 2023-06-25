@@ -31,86 +31,87 @@ import * as Acorn from '../../third_party/acorn/acorn.js';
 import { AcornTokenizer, ECMA_VERSION } from './AcornTokenizer.js';
 import { ESTreeWalker } from './ESTreeWalker.js';
 export class JavaScriptFormatter {
-    builder;
-    tokenizer;
-    content;
-    fromOffset;
-    lastLineNumber;
-    toOffset;
+    #builder;
+    #tokenizer;
+    #content;
+    #fromOffset;
+    #lastLineNumber;
+    #toOffset;
     constructor(builder) {
-        this.builder = builder;
+        this.#builder = builder;
     }
     format(text, lineEndings, fromOffset, toOffset) {
-        this.fromOffset = fromOffset;
-        this.toOffset = toOffset;
-        this.content = text.substring(this.fromOffset, this.toOffset);
-        this.lastLineNumber = 0;
-        this.tokenizer = new AcornTokenizer(this.content);
-        const ast = Acorn.parse(this.content, {
+        this.#fromOffset = fromOffset;
+        this.#toOffset = toOffset;
+        this.#content = text.substring(this.#fromOffset, this.#toOffset);
+        this.#lastLineNumber = 0;
+        this.#tokenizer = new AcornTokenizer(this.#content);
+        const ast = Acorn.parse(this.#content, {
             ranges: false,
             preserveParens: true,
+            allowAwaitOutsideFunction: true,
             allowImportExportEverywhere: true,
             ecmaVersion: ECMA_VERSION,
             allowHashBang: true,
         });
-        const walker = new ESTreeWalker(this.beforeVisit.bind(this), this.afterVisit.bind(this));
+        const walker = new ESTreeWalker(this.#beforeVisit.bind(this), this.#afterVisit.bind(this));
         // @ts-ignore Technically, the acorn Node type is a subclass of Acorn.ESTree.Node.
         // However, the acorn package currently exports its type without specifying
         // this relationship. So while this is allowed on runtime, we can't properly
         // typecheck it.
         walker.walk(ast);
     }
-    push(token, format) {
+    #push(token, format) {
         for (let i = 0; i < format.length; ++i) {
             if (format[i] === 's') {
-                this.builder.addSoftSpace();
+                this.#builder.addSoftSpace();
             }
             else if (format[i] === 'S') {
-                this.builder.addHardSpace();
+                this.#builder.addHardSpace();
             }
             else if (format[i] === 'n') {
-                this.builder.addNewLine();
+                this.#builder.addNewLine();
             }
             else if (format[i] === '>') {
-                this.builder.increaseNestingLevel();
+                this.#builder.increaseNestingLevel();
             }
             else if (format[i] === '<') {
-                this.builder.decreaseNestingLevel();
+                this.#builder.decreaseNestingLevel();
             }
             else if (format[i] === 't') {
-                if (this.tokenizer.tokenLineStart() - this.lastLineNumber > 1) {
-                    this.builder.addNewLine(true);
+                if (this.#tokenizer.tokenLineStart() - this.#lastLineNumber > 1) {
+                    this.#builder.addNewLine(true);
                 }
-                this.lastLineNumber = this.tokenizer.tokenLineEnd();
+                this.#lastLineNumber = this.#tokenizer.tokenLineEnd();
                 if (token) {
-                    this.builder.addToken(this.content.substring(token.start, token.end), this.fromOffset + token.start);
+                    this.#builder.addToken(this.#content.substring(token.start, token.end), this.#fromOffset + token.start);
                 }
             }
         }
     }
-    beforeVisit(node) {
+    #beforeVisit(node) {
         if (!node.parent) {
             return;
         }
         let token;
-        while ((token = this.tokenizer.peekToken()) && token.start < node.start) {
-            const token = this.tokenizer.nextToken();
+        while ((token = this.#tokenizer.peekToken()) && token.start < node.start) {
+            const token = this.#tokenizer.nextToken();
             // @ts-ignore Same reason as above about Acorn types and ESTree types
-            const format = this.formatToken(node.parent, token);
-            this.push(token, format);
+            const format = this.#formatToken(node.parent, token);
+            this.#push(token, format);
         }
         return;
     }
-    afterVisit(node) {
+    #afterVisit(node) {
         let token;
-        while ((token = this.tokenizer.peekToken()) && token.start < node.end) {
-            const token = this.tokenizer.nextToken();
-            const format = this.formatToken(node, token);
-            this.push(token, format);
+        while ((token = this.#tokenizer.peekToken()) && token.start < node.end) {
+            const token = this.#tokenizer.nextToken();
+            const format = this.#formatToken(node, token);
+            this.#push(token, format);
         }
-        this.push(null, this.finishNode(node));
+        this.#push(null, this.#finishNode(node));
     }
-    inForLoopHeader(node) {
+    #inForLoopHeader(node) {
         const parent = node.parent;
         if (!parent) {
             return false;
@@ -125,7 +126,7 @@ export class JavaScriptFormatter {
         }
         return false;
     }
-    formatToken(node, tokenOrComment) {
+    #formatToken(node, tokenOrComment) {
         const AT = AcornTokenizer;
         if (AT.lineComment(tokenOrComment)) {
             return 'tn';
@@ -244,7 +245,7 @@ export class JavaScriptFormatter {
                     // it exists. We can't fix that, unless we use proper typechecking
                     allVariablesInitialized = allVariablesInitialized && Boolean(declarations[i].init);
                 }
-                return !this.inForLoopHeader(node) && allVariablesInitialized ? 'nSSts' : 'ts';
+                return !this.#inForLoopHeader(node) && allVariablesInitialized ? 'nSSts' : 'ts';
             }
         }
         else if (node.type === 'PropertyDefinition') {
@@ -372,14 +373,14 @@ export class JavaScriptFormatter {
         }
         return AT.keyword(token) && !AT.keyword(token, 'this') ? 'ts' : 't';
     }
-    finishNode(node) {
+    #finishNode(node) {
         if (node.type === 'WithStatement') {
             if (node.body && node.body.type !== 'BlockStatement') {
                 return 'n<';
             }
         }
         else if (node.type === 'VariableDeclaration') {
-            if (!this.inForLoopHeader(node)) {
+            if (!this.#inForLoopHeader(node)) {
                 return 'n';
             }
         }

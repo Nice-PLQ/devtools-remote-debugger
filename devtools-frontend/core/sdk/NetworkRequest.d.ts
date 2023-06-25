@@ -2,8 +2,7 @@ import * as Protocol from '../../generated/protocol.js';
 import * as TextUtils from '../../models/text_utils/text_utils.js';
 import * as Common from '../common/common.js';
 import * as Platform from '../platform/platform.js';
-import type { Cookie } from './Cookie.js';
-import { Attributes } from './Cookie.js';
+import { Attributes, type Cookie } from './Cookie.js';
 import { ServerTiming } from './ServerTiming.js';
 export declare enum MIME_TYPE {
     HTML = "text/html",
@@ -24,22 +23,23 @@ export declare class NetworkRequest extends Common.ObjectWrapper.ObjectWrapper<E
     requestMethod: string;
     requestTime: number;
     protocol: string;
+    alternateProtocolUsage: Protocol.Network.AlternateProtocolUsage | undefined;
     mixedContentType: Protocol.Security.MixedContentType;
     connectionId: string;
     connectionReused: boolean;
     hasNetworkData: boolean;
     localizedFailDescription: string | null;
     private constructor();
-    static create(backendRequestId: Protocol.Network.RequestId, url: string, documentURL: string, frameId: Protocol.Page.FrameId | null, loaderId: Protocol.Network.LoaderId | null, initiator: Protocol.Network.Initiator | null): NetworkRequest;
-    static createForWebSocket(backendRequestId: Protocol.Network.RequestId, requestURL: string, initiator?: Protocol.Network.Initiator): NetworkRequest;
-    static createWithoutBackendRequest(requestId: string, url: string, documentURL: string, initiator: Protocol.Network.Initiator | null): NetworkRequest;
+    static create(backendRequestId: Protocol.Network.RequestId, url: Platform.DevToolsPath.UrlString, documentURL: Platform.DevToolsPath.UrlString, frameId: Protocol.Page.FrameId | null, loaderId: Protocol.Network.LoaderId | null, initiator: Protocol.Network.Initiator | null, hasUserGesture?: boolean): NetworkRequest;
+    static createForWebSocket(backendRequestId: Protocol.Network.RequestId, requestURL: Platform.DevToolsPath.UrlString, initiator?: Protocol.Network.Initiator): NetworkRequest;
+    static createWithoutBackendRequest(requestId: string, url: Platform.DevToolsPath.UrlString, documentURL: Platform.DevToolsPath.UrlString, initiator: Protocol.Network.Initiator | null): NetworkRequest;
     identityCompare(other: NetworkRequest): number;
     requestId(): string;
     backendRequestId(): Protocol.Network.RequestId | undefined;
-    url(): string;
+    url(): Platform.DevToolsPath.UrlString;
     isBlobRequest(): boolean;
-    setUrl(x: string): void;
-    get documentURL(): string;
+    setUrl(x: Platform.DevToolsPath.UrlString): void;
+    get documentURL(): Platform.DevToolsPath.UrlString;
     get parsedURL(): Common.ParsedURL.ParsedURL;
     get frameId(): Protocol.Page.FrameId | null;
     get loaderId(): Protocol.Network.LoaderId | null;
@@ -147,10 +147,18 @@ export declare class NetworkRequest extends Common.ObjectWrapper.ObjectWrapper<E
     requestHttpVersion(): string;
     get responseHeaders(): NameValue[];
     set responseHeaders(x: NameValue[]);
+    get originalResponseHeaders(): Protocol.Fetch.HeaderEntry[];
+    set originalResponseHeaders(headers: Protocol.Fetch.HeaderEntry[]);
+    get setCookieHeaders(): Protocol.Fetch.HeaderEntry[];
+    set setCookieHeaders(headers: Protocol.Fetch.HeaderEntry[]);
     get responseHeadersText(): string;
     set responseHeadersText(x: string);
     get sortedResponseHeaders(): NameValue[];
+    get sortedOriginalResponseHeaders(): NameValue[];
+    hasOverriddenHeaders(): boolean;
     responseHeaderValue(headerName: string): string | undefined;
+    wasIntercepted(): boolean;
+    setWasIntercepted(wasIntercepted: boolean): void;
     get responseCookies(): Cookie[];
     responseLastModified(): string | undefined;
     allCookiesIncludingBlockedOnes(): Cookie[];
@@ -178,9 +186,8 @@ export declare class NetworkRequest extends Common.ObjectWrapper.ObjectWrapper<E
     private computeHeaderValue;
     contentData(): Promise<ContentData>;
     setContentDataProvider(dataProvider: () => Promise<ContentData>): void;
-    contentURL(): Platform.DevToolsPath.RawPathString;
+    contentURL(): Platform.DevToolsPath.UrlString;
     contentType(): Common.ResourceType.ResourceType;
-    contentEncoded(): Promise<boolean>;
     requestContent(): Promise<TextUtils.ContentProvider.DeferredContent>;
     searchInContent(query: string, caseSensitive: boolean, isRegex: boolean): Promise<TextUtils.ContentProvider.SearchMatch[]>;
     isHttpFamily(): boolean;
@@ -198,6 +205,7 @@ export declare class NetworkRequest extends Common.ObjectWrapper.ObjectWrapper<E
     webBundleInnerRequestInfo(): WebBundleInnerRequestInfo | null;
     populateImageSource(image: HTMLImageElement): Promise<void>;
     initiator(): Protocol.Network.Initiator | null;
+    hasUserGesture(): boolean | null;
     frames(): WebSocketFrame[];
     addProtocolFrameError(errorMessage: string, time: number): void;
     addProtocolFrame(response: Protocol.Network.WebSocketFrame, time: number, sent: boolean): void;
@@ -213,9 +221,13 @@ export declare class NetworkRequest extends Common.ObjectWrapper.ObjectWrapper<E
     blockedRequestCookies(): BlockedCookieWithReason[];
     includedRequestCookies(): Cookie[];
     hasRequestCookies(): boolean;
+    siteHasCookieInOtherPartition(): boolean;
+    static parseStatusTextFromResponseHeadersText(responseHeadersText: string): string;
     addExtraResponseInfo(extraResponseInfo: ExtraResponseInfo): void;
     hasExtraResponseInfo(): boolean;
     blockedResponseCookies(): BlockedSetCookieWithReason[];
+    responseCookiesPartitionKey(): string | null;
+    responseCookiesPartitionKeyOpaque(): boolean | null;
     redirectSourceSignedExchangeInfoHasNoErrors(): boolean;
     clientSecurityState(): Protocol.Network.ClientSecurityState | undefined;
     setTrustTokenParams(trustTokenParams: Protocol.Network.TrustTokenParams): void;
@@ -224,6 +236,9 @@ export declare class NetworkRequest extends Common.ObjectWrapper.ObjectWrapper<E
     trustTokenOperationDoneEvent(): Protocol.Network.TrustTokenOperationDoneEvent | undefined;
     setIsSameSite(isSameSite: boolean): void;
     isSameSite(): boolean | null;
+    getAssociatedData(key: string): object | null;
+    setAssociatedData(key: string, data: object): void;
+    deleteAssociatedData(key: string): void;
 }
 export declare enum Events {
     FinishedLoading = "FinishedLoading",
@@ -235,7 +250,7 @@ export declare enum Events {
     EventSourceMessageAdded = "EventSourceMessageAdded",
     TrustTokenResultAdded = "TrustTokenResultAdded"
 }
-export declare type EventTypes = {
+export type EventTypes = {
     [Events.FinishedLoading]: NetworkRequest;
     [Events.TimingChanged]: NetworkRequest;
     [Events.RemoteAddressChanged]: NetworkRequest;
@@ -303,6 +318,7 @@ export interface ExtraRequestInfo {
     includedRequestCookies: Cookie[];
     clientSecurityState?: Protocol.Network.ClientSecurityState;
     connectTiming: Protocol.Network.ConnectTiming;
+    siteHasCookieInOtherPartition?: boolean;
 }
 export interface ExtraResponseInfo {
     blockedResponseCookies: {
@@ -314,9 +330,11 @@ export interface ExtraResponseInfo {
     responseHeadersText?: string;
     resourceIPAddressSpace: Protocol.Network.IPAddressSpace;
     statusCode: number | undefined;
+    cookiePartitionKey: string | undefined;
+    cookiePartitionKeyOpaque: boolean | undefined;
 }
 export interface WebBundleInfo {
-    resourceUrls?: string[];
+    resourceUrls?: Platform.DevToolsPath.UrlString[];
     errorMessage?: string;
 }
 export interface WebBundleInnerRequestInfo {

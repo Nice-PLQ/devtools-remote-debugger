@@ -31,6 +31,7 @@ import * as Common from '../../../../core/common/common.js';
 import * as UI from '../../legacy.js';
 import * as i18n from '../../../../core/i18n/i18n.js';
 import { Events as OverviewGridEvents, OverviewGrid } from './OverviewGrid.js';
+import timelineOverviewInfoStyles from './timelineOverviewInfo.css.js';
 export class TimelineOverviewPane extends Common.ObjectWrapper.eventMixin(UI.Widget.VBox) {
     overviewCalculator;
     overviewGrid;
@@ -79,7 +80,7 @@ export class TimelineOverviewPane extends Common.ObjectWrapper.eventMixin(UI.Wid
         this.cursorPosition = mouseEvent.offsetX + target.offsetLeft;
         this.cursorElement.style.left = this.cursorPosition + 'px';
         this.cursorElement.style.visibility = 'visible';
-        this.overviewInfo.setContent(this.buildOverviewInfo());
+        void this.overviewInfo.setContent(this.buildOverviewInfo());
     }
     async buildOverviewInfo() {
         const document = this.element.ownerDocument;
@@ -128,7 +129,7 @@ export class TimelineOverviewPane extends Common.ObjectWrapper.eventMixin(UI.Wid
         this.overviewCalculator.setNavStartTimes(navStartTimes);
     }
     scheduleUpdate() {
-        this.updateThrottler.schedule(async () => {
+        void this.updateThrottler.schedule(async () => {
             this.update();
         });
     }
@@ -188,8 +189,10 @@ export class TimelineOverviewPane extends Common.ObjectWrapper.eventMixin(UI.Wid
         if (!this.overviewControls.length) {
             return;
         }
-        this.windowStartTime = event.data.rawStartValue;
-        this.windowEndTime = event.data.rawEndValue;
+        this.windowStartTime =
+            event.data.rawStartValue === this.overviewCalculator.minimumBoundary() ? 0 : event.data.rawStartValue;
+        this.windowEndTime =
+            event.data.rawEndValue === this.overviewCalculator.maximumBoundary() ? Infinity : event.data.rawEndValue;
         const windowTimes = { startTime: this.windowStartTime, endTime: this.windowEndTime };
         this.dispatchEventToListeners(Events.WindowChanged, windowTimes);
     }
@@ -310,8 +313,8 @@ export class TimelineOverviewBase extends UI.Widget.VBox {
     }
     reset() {
     }
-    overviewInfoPromise(_x) {
-        return Promise.resolve(null);
+    async overviewInfoPromise(_x) {
+        return null;
     }
     setCalculator(calculator) {
         this.calculatorInternal = calculator;
@@ -337,13 +340,13 @@ export class OverviewInfo {
     constructor(anchor) {
         this.anchorElement = anchor;
         this.glassPane = new UI.GlassPane.GlassPane();
-        this.glassPane.setPointerEventsBehavior("PierceContents" /* PierceContents */);
-        this.glassPane.setMarginBehavior("Arrow" /* Arrow */);
-        this.glassPane.setSizeBehavior("MeasureContent" /* MeasureContent */);
+        this.glassPane.setPointerEventsBehavior("PierceContents" /* UI.GlassPane.PointerEventsBehavior.PierceContents */);
+        this.glassPane.setMarginBehavior("Arrow" /* UI.GlassPane.MarginBehavior.Arrow */);
+        this.glassPane.setSizeBehavior("MeasureContent" /* UI.GlassPane.SizeBehavior.MeasureContent */);
         this.visible = false;
         this.element = UI.Utils
             .createShadowRootWithCoreStyles(this.glassPane.contentElement, {
-            cssFile: 'ui/legacy/components/perf_ui/timelineOverviewInfo.css',
+            cssFile: [timelineOverviewInfoStyles],
             delegatesFocus: undefined,
         })
             .createChild('div', 'overview-info');

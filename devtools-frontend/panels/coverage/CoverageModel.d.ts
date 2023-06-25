@@ -1,5 +1,6 @@
 import type * as Bindings from '../../models/bindings/bindings.js';
 import * as Common from '../../core/common/common.js';
+import * as Platform from '../../core/platform/platform.js';
 import * as SDK from '../../core/sdk/sdk.js';
 import * as TextUtils from '../../models/text_utils/text_utils.js';
 import type * as Protocol from '../../generated/protocol.js';
@@ -17,7 +18,7 @@ export declare enum Events {
     CoverageUpdated = "CoverageUpdated",
     CoverageReset = "CoverageReset"
 }
-export declare type EventTypes = {
+export type EventTypes = {
     [Events.CoverageUpdated]: CoverageInfo[];
     [Events.CoverageReset]: void;
 };
@@ -58,7 +59,7 @@ export declare class CoverageModel extends SDK.SDKModel.SDKModel<EventTypes> {
      */
     postResumeModel(): Promise<void>;
     entries(): URLCoverageInfo[];
-    getCoverageForUrl(url: string): URLCoverageInfo | null;
+    getCoverageForUrl(url: Platform.DevToolsPath.UrlString): URLCoverageInfo | null;
     usageForRange(contentProvider: TextUtils.ContentProvider.ContentProvider, startOffset: number, endOffset: number): boolean | undefined;
     private clearCSS;
     private takeAllCoverage;
@@ -77,7 +78,7 @@ export declare class CoverageModel extends SDK.SDKModel.SDKModel<EventTypes> {
     exportReport(fos: Bindings.FileUtils.FileOutputStream): Promise<void>;
 }
 export interface EntryForExport {
-    url: string;
+    url: Platform.DevToolsPath.UrlString;
     ranges: {
         start: number;
         end: number;
@@ -91,8 +92,8 @@ export declare class URLCoverageInfo extends Common.ObjectWrapper.ObjectWrapper<
     private usedSizeInternal;
     private typeInternal;
     private isContentScriptInternal;
-    constructor(url: string);
-    url(): string;
+    constructor(url: Platform.DevToolsPath.UrlString);
+    url(): Platform.DevToolsPath.UrlString;
     type(): CoverageType;
     size(): number;
     usedSize(): number;
@@ -130,7 +131,7 @@ export declare class CoverageInfo {
     private segments;
     constructor(contentProvider: TextUtils.ContentProvider.ContentProvider, size: number, lineOffset: number, columnOffset: number, type: CoverageType);
     getContentProvider(): TextUtils.ContentProvider.ContentProvider;
-    url(): string;
+    url(): Platform.DevToolsPath.UrlString;
     type(): CoverageType;
     addCoverageType(type: CoverageType): void;
     getOffsets(): {

@@ -1,6 +1,6 @@
 import * as Common from '../../core/common/common.js';
 import * as SDK from '../../core/sdk/sdk.js';
-import type { HAREntry, HARLog, HARPage, HARTimings } from './HARFormat.js';
+import { type HAREntry, type HARLog, type HARPage, type HARTimings } from './HARFormat.js';
 export declare class Importer {
     static requestsFromHARLog(log: HARLog): SDK.NetworkRequest.NetworkRequest[];
     static buildPageLoad(page: HARPage, mainRequest: SDK.NetworkRequest.NetworkRequest): SDK.PageLoad.PageLoad;

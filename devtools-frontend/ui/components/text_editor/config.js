@@ -3,58 +3,183 @@
 // found in the LICENSE file.
 import * as Common from '../../../core/common/common.js';
 import * as i18n from '../../../core/i18n/i18n.js';
+import * as WindowBoundsService from '../../../services/window_bounds/window_bounds.js';
 import * as CM from '../../../third_party/codemirror.next/codemirror.next.js';
+import * as UI from '../../legacy/legacy.js';
 import * as CodeHighlighter from '../code_highlighter/code_highlighter.js';
+import * as Icon from '../icon_button/icon_button.js';
 import { editorTheme } from './theme.js';
 const LINES_TO_SCAN_FOR_INDENTATION_GUESSING = 1000;
 const UIStrings = {
     /**
-    *@description Label text for the editor
-    */
+     *@description Label text for the editor
+     */
     codeEditor: 'Code editor',
+    /**
+     *@description Aria alert to read the suggestion for the suggestion box when typing in text editor
+     *@example {name} PH1
+     *@example {2} PH2
+     *@example {5} PH3
+     */
+    sSuggestionSOfS: '{PH1}, suggestion {PH2} of {PH3}',
 };
 const str_ = i18n.i18n.registerUIStrings('ui/components/text_editor/config.ts', UIStrings);
 const i18nString = i18n.i18n.getLocalizedString.bind(undefined, str_);
 const empty = [];
 export const dynamicSetting = CM.Facet.define();
 // The code below is used to wire up dynamic settings to editors. When
-// you include one of these objects in an editor configuration, the
-// TextEditor class will take care of listening to changes in the
-// setting, and updating the configuration as appropriate.
+// you include the result of calling `instance()` in an editor
+// configuration, the TextEditor class will take care of listening to
+// changes in the setting, and updating the configuration as
+// appropriate.
 export class DynamicSetting {
     settingName;
     getExtension;
     compartment = new CM.Compartment();
-    extension;
     constructor(settingName, getExtension) {
         this.settingName = settingName;
         this.getExtension = getExtension;
-        this.extension = [this.compartment.of(empty), dynamicSetting.of(this)];
+    }
+    settingValue() {
+        return Common.Settings.Settings.instance().moduleSetting(this.settingName).get();
+    }
+    instance() {
+        return [
+            this.compartment.of(this.getExtension(this.settingValue())),
+            dynamicSetting.of(this),
+        ];
     }
     sync(state, value) {
         const cur = this.compartment.get(state);
-        const needed = this.getExtension(value, state);
+        const needed = this.getExtension(value);
         return cur === needed ? null : this.compartment.reconfigure(needed);
     }
     static bool(name, enabled, disabled = empty) {
         return new DynamicSetting(name, val => val ? enabled : disabled);
     }
+    static none = [];
 }
-export const tabMovesFocus = DynamicSetting.bool('textEditorTabMovesFocus', CM.keymap.of([{
+export const tabMovesFocus = DynamicSetting.bool('textEditorTabMovesFocus', [], CM.keymap.of([{
         key: 'Tab',
         run: (view) => view.state.doc.length ? CM.indentMore(view) : false,
         shift: (view) => view.state.doc.length ? CM.indentLess(view) : false,
     }]));
-export const autocompletion = CM.autocompletion({ icons: false });
-export const sourcesAutocompletion = DynamicSetting.bool('textEditorAutocompletion', autocompletion);
+const disableConservativeCompletion = CM.StateEffect.define();
+// When enabled, this suppresses the behavior of showCompletionHint
+// and accepting of completions with Enter until the user selects a
+// completion beyond the initially selected one. Used in the console.
+export const conservativeCompletion = CM.StateField.define({
+    create() {
+        return true;
+    },
+    update(value, tr) {
+        if (CM.completionStatus(tr.state) !== 'active') {
+            return true;
+        }
+        if ((CM.selectedCompletionIndex(tr.startState) ?? 0) !== (CM.selectedCompletionIndex(tr.state) ?? 0) ||
+            tr.effects.some(e => e.is(disableConservativeCompletion))) {
+            return false;
+        }
+        return value;
+    },
+});
+function acceptCompletionIfNotConservative(view) {
+    return !view.state.field(conservativeCompletion, false) && CM.acceptCompletion(view);
+}
+function acceptCompletionIfAtEndOfLine(view) {
+    const cursorPosition = view.state.selection.main.head;
+    const line = view.state.doc.lineAt(cursorPosition);
+    const column = cursorPosition - line.from;
+    const isCursorAtEndOfLine = column >= line.length;
+    if (isCursorAtEndOfLine) {
+        return CM.acceptCompletion(view);
+    }
+    // We didn't handle this key press
+    // so it will be handled by default behavior.
+    return false;
+}
+// This is a wrapper around CodeMirror's own moveCompletionSelection command, which
+// selects the first selection if the state of the selection is conservative, and
+// otherwise behaves as normal.
+function moveCompletionSelectionIfNotConservative(forward, by = 'option') {
+    return view => {
+        if (CM.completionStatus(view.state) !== 'active') {
+            return false;
+        }
+        if (view.state.field(conservativeCompletion, false)) {
+            view.dispatch({ effects: disableConservativeCompletion.of(null) });
+            announceSelectedCompletionInfo(view);
+            return true;
+        }
+        const moveSelectionResult = CM.moveCompletionSelection(forward, by)(view);
+        announceSelectedCompletionInfo(view);
+        return moveSelectionResult;
+    };
+}
+function moveCompletionSelectionBackwardWrapper() {
+    return view => {
+        if (CM.completionStatus(view.state) !== 'active') {
+            return false;
+        }
+        CM.moveCompletionSelection(false)(view);
+        announceSelectedCompletionInfo(view);
+        return true;
+    };
+}
+function announceSelectedCompletionInfo(view) {
+    const ariaMessage = i18nString(UIStrings.sSuggestionSOfS, {
+        PH1: CM.selectedCompletion(view.state)?.label || '',
+        PH2: (CM.selectedCompletionIndex(view.state) || 0) + 1,
+        PH3: CM.currentCompletions(view.state).length,
+    });
+    UI.ARIAUtils.alert(ariaMessage);
+}
+export const autocompletion = new DynamicSetting('textEditorAutocompletion', (activateOnTyping) => [CM.autocompletion({
+        activateOnTyping,
+        icons: false,
+        optionClass: (option) => option.type === 'secondary' ? 'cm-secondaryCompletion' : '',
+        tooltipClass: (state) => {
+            return state.field(conservativeCompletion, false) ? 'cm-conservativeCompletion' : '';
+        },
+        defaultKeymap: false,
+    }),
+    CM.Prec.highest(CM.keymap.of([
+        { key: 'End', run: acceptCompletionIfAtEndOfLine },
+        { key: 'ArrowRight', run: acceptCompletionIfAtEndOfLine },
+        { key: 'Ctrl-Space', run: CM.startCompletion },
+        { key: 'Escape', run: CM.closeCompletion },
+        { key: 'ArrowDown', run: moveCompletionSelectionIfNotConservative(true) },
+        { key: 'ArrowUp', run: moveCompletionSelectionBackwardWrapper() },
+        { mac: 'Ctrl-n', run: moveCompletionSelectionIfNotConservative(true) },
+        { mac: 'Ctrl-p', run: moveCompletionSelectionBackwardWrapper() },
+        { key: 'PageDown', run: CM.moveCompletionSelection(true, 'page') },
+        { key: 'PageUp', run: CM.moveCompletionSelection(false, 'page') },
+        { key: 'Enter', run: acceptCompletionIfNotConservative },
+    ]))]);
 export const bracketMatching = DynamicSetting.bool('textEditorBracketMatching', CM.bracketMatching());
-export const codeFolding = DynamicSetting.bool('textEditorCodeFolding', [CM.foldGutter(), CM.keymap.of(CM.foldKeymap)]);
+export const codeFolding = DynamicSetting.bool('textEditorCodeFolding', [
+    CM.foldGutter({
+        markerDOM(open) {
+            const iconName = open ? 'triangle-down' : 'triangle-right';
+            const icon = new Icon.Icon.Icon();
+            icon.setAttribute('class', open ? 'cm-foldGutterElement' : 'cm-foldGutterElement cm-foldGutterElement-folded');
+            icon.data = {
+                iconName,
+                color: 'var(--icon-fold-marker)',
+                width: '14px',
+                height: '14px',
+            };
+            return icon;
+        },
+    }),
+    CM.keymap.of(CM.foldKeymap),
+]);
 export function guessIndent(doc) {
     const values = Object.create(null);
     let scanned = 0;
     for (let cur = doc.iterLines(1, Math.min(doc.lines + 1, LINES_TO_SCAN_FOR_INDENTATION_GUESSING)); !cur.next().done;) {
         let space = /^\s*/.exec(cur.value)[0];
-        if (space.length === cur.value.length || !space.length) {
+        if (space.length === cur.value.length || !space.length || cur.value[space.length] === '*') {
             continue;
         }
         if (space[0] === '\t') {
@@ -67,20 +192,13 @@ export function guessIndent(doc) {
         values[space] = (values[space] || 0) + 1;
     }
     const minOccurrence = scanned * 0.05;
-    const sorted = Object.entries(values).filter(e => e[1] > minOccurrence).sort((a, b) => a[1] - b[1]);
-    return sorted.length ? sorted[0][0] : Common.Settings.Settings.instance().moduleSetting('textEditorIndent').get();
+    const shortest = Object.entries(values).reduce((shortest, [string, count]) => {
+        return count < minOccurrence || shortest && shortest.length < string.length ? shortest : string;
+    }, null);
+    return shortest ?? Common.Settings.Settings.instance().moduleSetting('textEditorIndent').get();
 }
-const cachedIndentUnit = Object.create(null);
-function getIndentUnit(indent) {
-    let value = cachedIndentUnit[indent];
-    if (!value) {
-        value = cachedIndentUnit[indent] = CM.indentUnit.of(indent);
-    }
-    return value;
-}
-export const autoDetectIndent = new DynamicSetting('textEditorAutoDetectIndent', (on, state) => {
-    return on ? CM.Prec.override(getIndentUnit(guessIndent(state.doc))) : empty;
-});
+const deriveIndentUnit = CM.Prec.highest(CM.indentUnit.compute([], (state) => guessIndent(state.doc)));
+export const autoDetectIndent = DynamicSetting.bool('textEditorAutoDetectIndent', deriveIndentUnit);
 function matcher(decorator) {
     return CM.ViewPlugin.define(view => ({
         decorations: decorator.createDeco(view),
@@ -126,6 +244,14 @@ export const showWhitespace = new DynamicSetting('showWhitespacesInEditor', valu
     return empty;
 });
 export const allowScrollPastEof = DynamicSetting.bool('allowScrollPastEof', CM.scrollPastEnd());
+const cachedIndentUnit = Object.create(null);
+function getIndentUnit(indent) {
+    let value = cachedIndentUnit[indent];
+    if (!value) {
+        value = cachedIndentUnit[indent] = CM.indentUnit.of(indent);
+    }
+    return value;
+}
 export const indentUnit = new DynamicSetting('textEditorIndent', getIndentUnit);
 export const domWordWrap = DynamicSetting.bool('domWordWrap', CM.EditorView.lineWrapping);
 function detectLineSeparator(text) {
@@ -139,9 +265,10 @@ const baseKeymap = CM.keymap.of([
     { key: 'Ctrl-m', run: CM.cursorMatchingBracket, shift: CM.selectMatchingBracket },
     { key: 'Mod-/', run: CM.toggleComment },
     { key: 'Mod-d', run: CM.selectNextOccurrence },
-    { key: 'Alt-ArrowLeft', mac: 'Ctrl-ArrowLeft', run: CM.cursorSubwordBackward, shift: CM.selectSubwordBackward },
-    { key: 'Alt-ArrowRight', mac: 'Ctrl-ArrowRight', run: CM.cursorSubwordForward, shift: CM.selectSubwordForward },
-    ...CM.closeBracketsKeymap,
+    { key: 'Alt-ArrowLeft', mac: 'Ctrl-ArrowLeft', run: CM.cursorSyntaxLeft, shift: CM.selectSyntaxLeft },
+    { key: 'Alt-ArrowRight', mac: 'Ctrl-ArrowRight', run: CM.cursorSyntaxRight, shift: CM.selectSyntaxRight },
+    { key: 'Ctrl-ArrowLeft', mac: 'Alt-ArrowLeft', run: CM.cursorSubwordBackward, shift: CM.selectSubwordBackward },
+    { key: 'Ctrl-ArrowRight', mac: 'Alt-ArrowRight', run: CM.cursorSubwordForward, shift: CM.selectSubwordForward },
     ...CM.standardKeymap,
     ...CM.historyKeymap,
 ]);
@@ -149,33 +276,51 @@ function themeIsDark() {
     const setting = Common.Settings.Settings.instance().moduleSetting('uiTheme').get();
     return setting === 'systemPreferred' ? window.matchMedia('(prefers-color-scheme: dark)').matches : setting === 'dark';
 }
-const dummyDarkTheme = CM.EditorView.theme({}, { dark: true });
+export const dummyDarkTheme = CM.EditorView.theme({}, { dark: true });
+export const themeSelection = new CM.Compartment();
+export function theme() {
+    return [editorTheme, themeIsDark() ? themeSelection.of(dummyDarkTheme) : themeSelection.of([])];
+}
+let sideBarElement = null;
+function getTooltipSpace() {
+    if (!sideBarElement) {
+        sideBarElement =
+            WindowBoundsService.WindowBoundsService.WindowBoundsServiceImpl.instance().getDevToolsBoundingElement();
+    }
+    return sideBarElement.getBoundingClientRect();
+}
 export function baseConfiguration(text) {
     return [
-        editorTheme,
-        themeIsDark() ? dummyDarkTheme : [],
+        theme(),
         CM.highlightSpecialChars(),
+        CM.highlightSelectionMatches(),
         CM.history(),
         CM.drawSelection(),
         CM.EditorState.allowMultipleSelections.of(true),
         CM.indentOnInput(),
-        CodeHighlighter.CodeHighlighter.getHighlightStyle(CM),
-        CM.closeBrackets(),
+        CM.syntaxHighlighting(CodeHighlighter.CodeHighlighter.highlightStyle),
         baseKeymap,
-        tabMovesFocus,
-        bracketMatching,
-        indentUnit,
-        CM.Prec.fallback(CM.EditorView.contentAttributes.of({ 'aria-label': i18nString(UIStrings.codeEditor) })),
-        detectLineSeparator(text),
-        autocompletion,
-        CM.tooltips({ parent: getTooltipHost() }),
+        CM.EditorView.clickAddsSelectionRange.of(mouseEvent => mouseEvent.altKey || mouseEvent.ctrlKey),
+        tabMovesFocus.instance(),
+        bracketMatching.instance(),
+        indentUnit.instance(),
+        CM.Prec.lowest(CM.EditorView.contentAttributes.of({ 'aria-label': i18nString(UIStrings.codeEditor) })),
+        text instanceof CM.Text ? [] : detectLineSeparator(text),
+        CM.tooltips({
+            parent: getTooltipHost(),
+            tooltipSpace: getTooltipSpace,
+        }),
     ];
 }
+export const closeBrackets = [
+    CM.closeBrackets(),
+    CM.keymap.of(CM.closeBracketsKeymap),
+];
 // Root editor tooltips at the top of the document, creating a special
 // element with the editor styles mounted in it for them. This is
 // annoying, but necessary because a scrollable parent node clips them
 // otherwise, `position: fixed` doesn't work due to `contain` styles,
-// and appending them diretly to `document.body` doesn't work because
+// and appending them directly to `document.body` doesn't work because
 // the necessary style sheets aren't available there.
 let tooltipHost = null;
 function getTooltipHost() {
@@ -185,7 +330,7 @@ function getTooltipHost() {
             extensions: [
                 editorTheme,
                 themeIsDark() ? dummyDarkTheme : [],
-                CodeHighlighter.CodeHighlighter.getHighlightStyle(CM),
+                CM.syntaxHighlighting(CodeHighlighter.CodeHighlighter.highlightStyle),
                 CM.showTooltip.of({
                     pos: 0,
                     create() {
@@ -223,7 +368,7 @@ export const showCompletionHint = CM.ViewPlugin.fromClass(class {
     currentHint = null;
     update(update) {
         const top = this.currentHint = this.topCompletion(update.state);
-        if (!top) {
+        if (!top || update.state.field(conservativeCompletion, false)) {
             this.decorations = CM.Decoration.none;
         }
         else {
@@ -231,12 +376,16 @@ export const showCompletionHint = CM.ViewPlugin.fromClass(class {
         }
     }
     topCompletion(state) {
-        const completions = CM.currentCompletions(state);
-        if (!completions.length) {
+        const completion = CM.selectedCompletion(state);
+        if (!completion) {
             return null;
         }
-        const { label } = completions[0];
-        if (label.length > 100 || label.indexOf('\n') > -1) {
+        let { label, apply } = completion;
+        if (typeof apply === 'string') {
+            label = apply;
+            apply = undefined;
+        }
+        if (apply || label.length > 100 || label.indexOf('\n') > -1 || completion.type === 'secondary') {
             return null;
         }
         const pos = state.selection.main.head;
@@ -244,13 +393,14 @@ export const showCompletionHint = CM.ViewPlugin.fromClass(class {
         if (pos !== lineBefore.to) {
             return null;
         }
-        const textBefore = lineBefore.text.slice(0, pos - lineBefore.from);
-        for (let i = label.length - 1; i > 0; i--) {
-            if (textBefore.endsWith(label.slice(0, i)) && !/\w/.test(textBefore.charAt(textBefore.length - i - 1))) {
-                return label.slice(i);
-            }
+        const partBefore = (label[0] === '\'' ? /'(\\.|[^'\\])*$/ :
+            label[0] === '"' ? /"(\\.|[^"\\])*$/ :
+                /#?[\w$]+$/)
+            .exec(lineBefore.text);
+        if (partBefore && !label.startsWith(partBefore[0])) {
+            return null;
         }
-        return null;
+        return label.slice(partBefore ? partBefore[0].length : 0);
     }
 }, { decorations: p => p.decorations });
 export function contentIncludingHint(view) {

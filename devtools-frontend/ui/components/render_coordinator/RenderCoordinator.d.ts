@@ -27,6 +27,7 @@ export declare class RenderCoordinatorNewFrameEvent extends Event {
     constructor();
 }
 export declare class RenderCoordinator extends EventTarget {
+    #private;
     static instance({ forceNew }?: {
         forceNew?: boolean | undefined;
     }): RenderCoordinator;
@@ -34,14 +35,10 @@ export declare class RenderCoordinator extends EventTarget {
     observe: boolean;
     recordStorageLimit: number;
     observeOnlyNamed: boolean;
-    private readonly logInternal;
-    private readonly pendingWorkFrames;
-    private readonly resolvers;
-    private readonly rejectors;
-    private readonly labels;
-    private scheduledWorkId;
     pendingFramesCount(): number;
-    done(): Promise<void>;
+    done(options?: {
+        waitForWork: boolean;
+    }): Promise<void>;
     read<T extends unknown>(callback: CoordinatorCallback): Promise<T>;
     read<T extends unknown>(label: string, callback: CoordinatorCallback): Promise<T>;
     write<T extends unknown>(callback: CoordinatorCallback): Promise<T>;
@@ -55,10 +52,6 @@ export declare class RenderCoordinator extends EventTarget {
      */
     scroll<T extends unknown>(callback: CoordinatorCallback): Promise<T>;
     scroll<T extends unknown>(label: string, callback: CoordinatorCallback): Promise<T>;
-    private enqueueHandler;
-    private handleWork;
-    private scheduleWork;
-    private rejectAll;
-    private logIfEnabled;
+    cancelPending(): void;
 }
 export {};

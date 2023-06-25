@@ -1,5 +1,5 @@
 import * as SDK from '../../core/sdk/sdk.js';
-import * as Extensions from '../../models/extensions/extensions.js';
+import * as TimelineModel from '../../models/timeline_model/timeline_model.js';
 import type * as Protocol from '../../generated/protocol.js';
 import { PerformanceModel } from './PerformanceModel.js';
 export declare class TimelineController implements SDK.TargetManager.SDKModelObserver<SDK.CPUProfilerModel.CPUProfilerModel>, SDK.TracingManager.TracingManagerClient {
@@ -8,20 +8,18 @@ export declare class TimelineController implements SDK.TargetManager.SDKModelObs
     private performanceModel;
     private readonly client;
     private readonly tracingModel;
-    private extensionSessions;
-    private extensionTraceProviders?;
     private tracingCompleteCallback?;
     private profiling?;
     private cpuProfiles?;
     constructor(target: SDK.Target.Target, client: Client);
     dispose(): void;
     mainTarget(): SDK.Target.Target;
-    startRecording(options: RecordingOptions, providers: Extensions.ExtensionTraceProvider.ExtensionTraceProvider[]): Promise<Protocol.ProtocolResponseWithError>;
+    startRecording(options: RecordingOptions): Promise<Protocol.ProtocolResponseWithError>;
     stopRecording(): Promise<PerformanceModel>;
+    getPerformanceModel(): PerformanceModel;
     private waitForTracingToStop;
     modelAdded(cpuProfilerModel: SDK.CPUProfilerModel.CPUProfilerModel): void;
     modelRemoved(_cpuProfilerModel: SDK.CPUProfilerModel.CPUProfilerModel): void;
-    private startProfilingOnAllModels;
     private addCpuProfile;
     private stopProfilingOnAllModels;
     private startRecordingWithCategories;
@@ -40,11 +38,11 @@ export interface Client {
     loadingStarted(): void;
     processingStarted(): void;
     loadingProgress(progress?: number): void;
-    loadingComplete(tracingModel: SDK.TracingModel.TracingModel | null): void;
+    loadingComplete(tracingModel: SDK.TracingModel.TracingModel | null, exclusiveFilter: TimelineModel.TimelineModelFilter.TimelineModelFilter | null): Promise<void>;
+    loadingCompleteForTest(): void;
 }
 export interface RecordingOptions {
     enableJSSampling?: boolean;
     capturePictures?: boolean;
     captureFilmStrip?: boolean;
-    startCoverage?: boolean;
 }

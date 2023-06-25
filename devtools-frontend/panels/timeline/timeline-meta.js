@@ -7,68 +7,68 @@ import * as UI from '../../ui/legacy/legacy.js';
 import * as i18n from '../../core/i18n/i18n.js';
 const UIStrings = {
     /**
-    *@description Text for the performance of something
-    */
+     *@description Text for the performance of something
+     */
     performance: 'Performance',
     /**
-    *@description Command for showing the 'Performance' tool
-    */
+     *@description Command for showing the 'Performance' tool
+     */
     showPerformance: 'Show Performance',
     /**
-    *@description Title of the 'JavaScript Profiler' tool
-    */
+     *@description Title of the 'JavaScript Profiler' tool
+     */
     javascriptProfiler: 'JavaScript Profiler',
     /**
-    *@description Command for showing the 'JavaScript Profiler' tool
-    */
+     *@description Command for showing the 'JavaScript Profiler' tool
+     */
     showJavascriptProfiler: 'Show JavaScript Profiler',
     /**
-    *@description Text to record a series of actions for analysis
-    */
+     *@description Text to record a series of actions for analysis
+     */
     record: 'Record',
     /**
-    *@description Text of an item that stops the running task
-    */
+     *@description Text of an item that stops the running task
+     */
     stop: 'Stop',
     /**
-    *@description Title of an action in the timeline tool to record reload
-    */
+     *@description Title of an action in the timeline tool to record reload
+     */
     startProfilingAndReloadPage: 'Start profiling and reload page',
     /**
-    *@description Tooltip text that appears when hovering over the largeicon download button
-    */
+     *@description Tooltip text that appears when hovering over the largeicon download button
+     */
     saveProfile: 'Save profile…',
     /**
-    *@description Tooltip text that appears when hovering over the largeicon load button
-    */
+     *@description Tooltip text that appears when hovering over the largeicon load button
+     */
     loadProfile: 'Load profile…',
     /**
-    *@description Prev button title in Film Strip View of the Performance panel
-    */
+     *@description Prev button title in Film Strip View of the Performance panel
+     */
     previousFrame: 'Previous frame',
     /**
-    *@description Next button title in Film Strip View of the Performance panel
-    */
+     *@description Next button title in Film Strip View of the Performance panel
+     */
     nextFrame: 'Next frame',
     /**
-    *@description Title of an action in the timeline tool to show history
-    */
+     *@description Title of an action in the timeline tool to show history
+     */
     showRecentTimelineSessions: 'Show recent timeline sessions',
     /**
-    *@description Title of an action that opens the previous recording in the performance panel
-    */
+     *@description Title of an action that opens the previous recording in the performance panel
+     */
     previousRecording: 'Previous recording',
     /**
-    *@description Title of an action that opens the next recording in the performance panel
-    */
+     *@description Title of an action that opens the next recording in the performance panel
+     */
     nextRecording: 'Next recording',
     /**
-    *@description Title of a setting under the Performance category in Settings
-    */
+     *@description Title of a setting under the Performance category in Settings
+     */
     hideChromeFrameInLayersView: 'Hide `chrome` frame in Layers view',
     /**
-    *@description Text in the Shortcuts page to explain a keyboard shortcut (start/stop recording performance)
-    */
+     *@description Text in the Shortcuts page to explain a keyboard shortcut (start/stop recording performance)
+     */
     startStopRecording: 'Start/stop recording',
 };
 const str_ = i18n.i18n.registerUIStrings('panels/timeline/timeline-meta.ts', UIStrings);
@@ -77,8 +77,6 @@ let loadedTimelineModule;
 let loadedProfilerModule;
 async function loadTimelineModule() {
     if (!loadedTimelineModule) {
-        // Side-effect import resources in module.json
-        await Root.Runtime.Runtime.instance().loadModulePromise('panels/timeline');
         loadedTimelineModule = await import('./timeline.js');
     }
     return loadedTimelineModule;
@@ -92,8 +90,6 @@ async function loadTimelineModule() {
 // js_profiler/ so that the tab is available only in the apps it belongs to.
 async function loadProfilerModule() {
     if (!loadedProfilerModule) {
-        // Side-effect import resources in module.json
-        await Root.Runtime.Runtime.instance().loadModulePromise('profiler');
         loadedProfilerModule = await import('../profiler/profiler.js');
     }
     return loadedProfilerModule;
@@ -111,7 +107,7 @@ function maybeRetrieveContextTypes(getClassCallBack) {
     return getClassCallBack(loadedTimelineModule);
 }
 UI.ViewManager.registerViewExtension({
-    location: "panel" /* PANEL */,
+    location: "panel" /* UI.ViewManager.ViewLocationValues.PANEL */,
     id: 'timeline',
     title: i18nLazyString(UIStrings.performance),
     commandPrompt: i18nLazyString(UIStrings.showPerformance),
@@ -122,12 +118,13 @@ UI.ViewManager.registerViewExtension({
     },
 });
 UI.ViewManager.registerViewExtension({
-    location: "panel" /* PANEL */,
+    location: "panel" /* UI.ViewManager.ViewLocationValues.PANEL */,
     id: 'js_profiler',
     title: i18nLazyString(UIStrings.javascriptProfiler),
     commandPrompt: i18nLazyString(UIStrings.showJavascriptProfiler),
-    persistence: "closeable" /* CLOSEABLE */,
+    persistence: "closeable" /* UI.ViewManager.ViewPersistence.CLOSEABLE */,
     order: 65,
+    experiment: Root.Runtime.ExperimentName.JS_PROFILER_TEMP_ENABLE,
     async loadView() {
         const Profiler = await loadProfilerModule();
         return Profiler.ProfilesPanel.JSProfilerPanel.instance();
@@ -136,9 +133,9 @@ UI.ViewManager.registerViewExtension({
 UI.ActionRegistration.registerActionExtension({
     actionId: 'timeline.toggle-recording',
     category: UI.ActionRegistration.ActionCategory.PERFORMANCE,
-    iconClass: "largeicon-start-recording" /* LARGEICON_START_RECORDING */,
+    iconClass: "record-start" /* UI.ActionRegistration.IconClass.START_RECORDING */,
     toggleable: true,
-    toggledIconClass: "largeicon-stop-recording" /* LARGEICON_STOP_RECORDING */,
+    toggledIconClass: "record-stop" /* UI.ActionRegistration.IconClass.STOP_RECORDING */,
     toggleWithRedColor: true,
     contextTypes() {
         return maybeRetrieveContextTypes(Timeline => [Timeline.TimelinePanel.TimelinePanel]);
@@ -159,18 +156,18 @@ UI.ActionRegistration.registerActionExtension({
     ],
     bindings: [
         {
-            platform: "windows,linux" /* WindowsLinux */,
+            platform: "windows,linux" /* UI.ActionRegistration.Platforms.WindowsLinux */,
             shortcut: 'Ctrl+E',
         },
         {
-            platform: "mac" /* Mac */,
+            platform: "mac" /* UI.ActionRegistration.Platforms.Mac */,
             shortcut: 'Meta+E',
         },
     ],
 });
 UI.ActionRegistration.registerActionExtension({
     actionId: 'timeline.record-reload',
-    iconClass: "largeicon-refresh" /* LARGEICON_REFRESH */,
+    iconClass: "refresh" /* UI.ActionRegistration.IconClass.REFRESH */,
     contextTypes() {
         return maybeRetrieveContextTypes(Timeline => [Timeline.TimelinePanel.TimelinePanel]);
     },
@@ -182,11 +179,11 @@ UI.ActionRegistration.registerActionExtension({
     },
     bindings: [
         {
-            platform: "windows,linux" /* WindowsLinux */,
+            platform: "windows,linux" /* UI.ActionRegistration.Platforms.WindowsLinux */,
             shortcut: 'Ctrl+Shift+E',
         },
         {
-            platform: "mac" /* Mac */,
+            platform: "mac" /* UI.ActionRegistration.Platforms.Mac */,
             shortcut: 'Meta+Shift+E',
         },
     ],
@@ -204,11 +201,11 @@ UI.ActionRegistration.registerActionExtension({
     title: i18nLazyString(UIStrings.saveProfile),
     bindings: [
         {
-            platform: "windows,linux" /* WindowsLinux */,
+            platform: "windows,linux" /* UI.ActionRegistration.Platforms.WindowsLinux */,
             shortcut: 'Ctrl+S',
         },
         {
-            platform: "mac" /* Mac */,
+            platform: "mac" /* UI.ActionRegistration.Platforms.Mac */,
             shortcut: 'Meta+S',
         },
     ],
@@ -226,11 +223,11 @@ UI.ActionRegistration.registerActionExtension({
     title: i18nLazyString(UIStrings.loadProfile),
     bindings: [
         {
-            platform: "windows,linux" /* WindowsLinux */,
+            platform: "windows,linux" /* UI.ActionRegistration.Platforms.WindowsLinux */,
             shortcut: 'Ctrl+O',
         },
         {
-            platform: "mac" /* Mac */,
+            platform: "mac" /* UI.ActionRegistration.Platforms.Mac */,
             shortcut: 'Meta+O',
         },
     ],
@@ -282,11 +279,11 @@ UI.ActionRegistration.registerActionExtension({
     },
     bindings: [
         {
-            platform: "windows,linux" /* WindowsLinux */,
+            platform: "windows,linux" /* UI.ActionRegistration.Platforms.WindowsLinux */,
             shortcut: 'Ctrl+H',
         },
         {
-            platform: "mac" /* Mac */,
+            platform: "mac" /* UI.ActionRegistration.Platforms.Mac */,
             shortcut: 'Meta+Y',
         },
     ],
@@ -304,11 +301,11 @@ UI.ActionRegistration.registerActionExtension({
     },
     bindings: [
         {
-            platform: "windows,linux" /* WindowsLinux */,
+            platform: "windows,linux" /* UI.ActionRegistration.Platforms.WindowsLinux */,
             shortcut: 'Alt+Left',
         },
         {
-            platform: "mac" /* Mac */,
+            platform: "mac" /* UI.ActionRegistration.Platforms.Mac */,
             shortcut: 'Meta+Left',
         },
     ],
@@ -326,11 +323,11 @@ UI.ActionRegistration.registerActionExtension({
     },
     bindings: [
         {
-            platform: "windows,linux" /* WindowsLinux */,
+            platform: "windows,linux" /* UI.ActionRegistration.Platforms.WindowsLinux */,
             shortcut: 'Alt+Right',
         },
         {
-            platform: "mac" /* Mac */,
+            platform: "mac" /* UI.ActionRegistration.Platforms.Mac */,
             shortcut: 'Meta+Right',
         },
     ],
@@ -339,9 +336,9 @@ UI.ActionRegistration.registerActionExtension({
     actionId: 'profiler.js-toggle-recording',
     category: UI.ActionRegistration.ActionCategory.JAVASCRIPT_PROFILER,
     title: i18nLazyString(UIStrings.startStopRecording),
-    iconClass: "largeicon-start-recording" /* LARGEICON_START_RECORDING */,
+    iconClass: "record-start" /* UI.ActionRegistration.IconClass.START_RECORDING */,
     toggleable: true,
-    toggledIconClass: "largeicon-stop-recording" /* LARGEICON_STOP_RECORDING */,
+    toggledIconClass: "record-stop" /* UI.ActionRegistration.IconClass.STOP_RECORDING */,
     toggleWithRedColor: true,
     contextTypes() {
         return maybeRetrieveProfilerContextTypes(Profiler => [Profiler.ProfilesPanel.JSProfilerPanel]);
@@ -352,11 +349,11 @@ UI.ActionRegistration.registerActionExtension({
     },
     bindings: [
         {
-            platform: "windows,linux" /* WindowsLinux */,
+            platform: "windows,linux" /* UI.ActionRegistration.Platforms.WindowsLinux */,
             shortcut: 'Ctrl+E',
         },
         {
-            platform: "mac" /* Mac */,
+            platform: "mac" /* UI.ActionRegistration.Platforms.Mac */,
             shortcut: 'Meta+E',
         },
     ],

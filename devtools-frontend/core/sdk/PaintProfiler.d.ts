@@ -1,6 +1,6 @@
 import type * as ProtocolProxyApi from '../../generated/protocol-proxy-api.js';
 import type * as Protocol from '../../generated/protocol.js';
-import type { Target } from './Target.js';
+import { type Target } from './Target.js';
 import { SDKModel } from './SDKModel.js';
 export declare class PaintProfilerModel extends SDKModel<void> {
     readonly layerTreeAgent: ProtocolProxyApi.LayerTreeApi;
@@ -24,10 +24,10 @@ export declare class PaintProfilerLogItem {
     commandIndex: number;
     constructor(rawEntry: RawPaintProfilerLogItem, commandIndex: number);
 }
-export declare type RawPaintProfilerLogItemParamValue = string | {
+export type RawPaintProfilerLogItemParamValue = string | {
     [key: string]: RawPaintProfilerLogItemParamValue;
 };
-export declare type RawPaintProfilerLogItemParams = {
+export type RawPaintProfilerLogItemParams = {
     [key: string]: RawPaintProfilerLogItemParamValue;
 };
 export interface SnapshotWithRect {

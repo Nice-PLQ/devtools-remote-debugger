@@ -1,8 +1,9 @@
-import type * as Common from '../../core/common/common.js';
+import * as Platform from '../../core/platform/platform.js';
 import * as TextUtils from '../../models/text_utils/text_utils.js';
+import * as IconButton from '../components/icon_button/icon_button.js';
 import { Size } from './Geometry.js';
-import type { ToolbarButton } from './Toolbar.js';
-import type { TreeOutline } from './Treeoutline.js';
+import { type ToolbarButton } from './Toolbar.js';
+import { type TreeOutline } from './Treeoutline.js';
 export declare const highlightedSearchResultClassName = "highlighted-search-result";
 export declare const highlightedCurrentSearchResultClassName = "current-search-result";
 export declare function installDragHandle(element: Element, elementDragStart: ((arg0: MouseEvent) => boolean) | null, elementDrag: (arg0: MouseEvent) => void, elementDragEnd: ((arg0: MouseEvent) => void) | null, cursor: string | null, hoverCursor?: string | null, startDelay?: number): void;
@@ -15,7 +16,6 @@ export declare function getValueModificationDirection(event: Event): string | nu
 export declare function modifiedFloatNumber(number: number, event: Event, modifierMultiplier?: number): number | null;
 export declare function createReplacementString(wordString: string, event: Event, customNumberHandler?: ((arg0: string, arg1: number, arg2: string) => string)): string | null;
 export declare function handleElementValueModifications(event: Event, element: Element, finishHandler?: ((arg0: string, arg1: string) => void), suggestionHandler?: ((arg0: string) => boolean), customNumberHandler?: ((arg0: string, arg1: number, arg2: string) => string)): boolean;
-export declare function formatLocalized<U>(format: string, substitutions: ArrayLike<U> | null): Element;
 export declare function openLinkExternallyLabel(): string;
 export declare function copyLinkAddressLabel(): string;
 export declare function copyFileNameLabel(): string;
@@ -50,13 +50,13 @@ export declare class LongClickController {
     private readonly editKey;
     private longClickData;
     private longClickInterval;
-    constructor(element: Element, callback: (arg0: Event) => void, isEditKeyFunc?: (arg0: Event) => boolean);
+    constructor(element: Element, callback: (arg0: Event) => void, isEditKeyFunc?: (arg0: KeyboardEvent) => boolean);
     reset(): void;
     private enable;
     dispose(): void;
     static readonly TIME_MS = 200;
 }
-export declare function initializeUIUtils(document: Document, themeSetting: Common.Settings.Setting<string>): void;
+export declare function initializeUIUtils(document: Document): void;
 export declare function beautifyFunctionName(name: string): string;
 export declare const createTextChild: (element: Element | DocumentFragment, text: string) => Text;
 export declare const createTextChildren: (element: Element | DocumentFragment, ...childrenText: string[]) => void;
@@ -65,7 +65,13 @@ export declare function createInput(className?: string, type?: string): HTMLInpu
 export declare function createSelect(name: string, options: string[] | Map<string, string[]>[] | Set<string>): HTMLSelectElement;
 export declare function createLabel(title: string, className?: string, associatedControl?: Element): Element;
 export declare function createRadioLabel(name: string, title: string, checked?: boolean): DevToolsRadioButton;
-export declare function createIconLabel(title: string, iconClass: string): HTMLElement;
+export declare function createIconLabel(options: {
+    title?: string;
+    iconName: string;
+    color?: string;
+    width?: '14px' | '20px';
+    height?: '14px' | '20px';
+}): DevToolsIconLabel;
 export declare function createSlider(min: number, max: number, tabIndex: number): Element;
 export declare function setTitle(element: HTMLElement, title: string): void;
 export declare class CheckboxLabel extends HTMLSpanElement {
@@ -74,16 +80,13 @@ export declare class CheckboxLabel extends HTMLSpanElement {
     textElement: HTMLElement;
     constructor();
     static create(title?: string, checked?: boolean, subtitle?: string): CheckboxLabel;
-    set backgroundColor(color: string);
-    set checkColor(color: string);
-    set borderColor(color: string);
     private static lastId;
     static constructorInternal: (() => Element) | null;
 }
 export declare class DevToolsIconLabel extends HTMLSpanElement {
-    private readonly iconElement;
+    #private;
     constructor();
-    set type(type: string);
+    set data(data: IconButton.Icon.IconData);
 }
 export declare class DevToolsRadioButton extends HTMLSpanElement {
     radioElement: HTMLInputElement;
@@ -104,10 +107,7 @@ export declare class DevToolsSmallBubble extends HTMLSpanElement {
 }
 export declare class DevToolsCloseButton extends HTMLDivElement {
     private buttonElement;
-    private readonly hoverIcon;
-    private readonly activeIcon;
     constructor();
-    set gray(gray: boolean);
     setAccessibleName(name: string): void;
     setTabbable(tabbable: boolean): void;
 }
@@ -122,12 +122,12 @@ export declare function measureTextWidth(context: CanvasRenderingContext2D, text
 /**
  * Adds a 'utm_source=devtools' as query parameter to the url.
  */
-export declare function addReferrerToURL(url: string): string;
+export declare function addReferrerToURL(url: Platform.DevToolsPath.UrlString): Platform.DevToolsPath.UrlString;
 /**
  * We want to add a referrer query param to every request to
  * 'web.dev' or 'developers.google.com'.
  */
-export declare function addReferrerToURLIfNecessary(url: string): string;
+export declare function addReferrerToURLIfNecessary(url: Platform.DevToolsPath.UrlString): Platform.DevToolsPath.UrlString;
 export declare function loadImage(url: string): Promise<HTMLImageElement | null>;
 export declare function loadImageFromData(data: string | null): Promise<HTMLImageElement | null>;
 export declare function createFileSelectorElement(callback: (arg0: File) => void): HTMLInputElement;

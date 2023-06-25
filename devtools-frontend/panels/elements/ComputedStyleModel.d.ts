@@ -20,8 +20,8 @@ export declare class ComputedStyleModel extends Common.ObjectWrapper.ObjectWrapp
 export declare const enum Events {
     ComputedStyleChanged = "ComputedStyleChanged"
 }
-export declare type ComputedStyleChangedEvent = SDK.CSSStyleSheetHeader.CSSStyleSheetHeader | SDK.CSSModel.StyleSheetChangedEvent | void | SDK.CSSModel.PseudoStateForcedEvent | null;
-export declare type EventTypes = {
+export type ComputedStyleChangedEvent = SDK.CSSStyleSheetHeader.CSSStyleSheetHeader | SDK.CSSModel.StyleSheetChangedEvent | void | SDK.CSSModel.PseudoStateForcedEvent | null;
+export type EventTypes = {
     [Events.ComputedStyleChanged]: ComputedStyleChangedEvent;
 };
 export declare class ComputedStyle {

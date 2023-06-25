@@ -62,7 +62,9 @@ export declare class Widget {
     restoreScrollPositions(): void;
     doResize(): void;
     doLayout(): void;
-    registerRequiredCSS(cssFile: string): void;
+    registerRequiredCSS(cssFile: {
+        cssContent: string;
+    }): void;
     registerCSSFiles(cssFiles: CSSStyleSheet[]): void;
     printWidgetHierarchy(): void;
     private collectWidgetHierarchy;

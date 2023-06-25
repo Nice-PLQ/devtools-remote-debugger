@@ -1,6 +1,7 @@
 // Copyright 2019 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
+import * as Platform from '../../../core/platform/platform.js';
 // TODO(crbug.com/1172300) Ignored during the jsdoc to ts migration
 // eslint-disable-next-line @typescript-eslint/naming-convention
 function WidgetfocusWidgetForNode(node) {
@@ -44,7 +45,7 @@ function XWidgetfocusWidgetForNode(node) {
 export function focusChanged(event) {
     const target = event.target;
     const document = target ? target.ownerDocument : null;
-    const element = document ? document.deepActiveElement() : null;
+    const element = document ? Platform.DOMUtilities.deepActiveElement(document) : null;
     WidgetfocusWidgetForNode(element);
     XWidgetfocusWidgetForNode(element);
 }

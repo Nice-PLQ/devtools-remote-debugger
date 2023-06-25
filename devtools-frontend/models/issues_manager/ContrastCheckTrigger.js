@@ -6,8 +6,8 @@ import * as Root from '../../core/root/root.js';
 import * as SDK from '../../core/sdk/sdk.js';
 let contrastCheckTriggerInstance = null;
 export class ContrastCheckTrigger {
-    pageLoadListeners = new WeakMap();
-    frameAddedListeners = new WeakMap();
+    #pageLoadListeners = new WeakMap();
+    #frameAddedListeners = new WeakMap();
     constructor() {
         SDK.TargetManager.TargetManager.instance().observeModels(SDK.ResourceTreeModel.ResourceTreeModel, this);
     }
@@ -18,30 +18,30 @@ export class ContrastCheckTrigger {
         return contrastCheckTriggerInstance;
     }
     async modelAdded(resourceTreeModel) {
-        this.pageLoadListeners.set(resourceTreeModel, resourceTreeModel.addEventListener(SDK.ResourceTreeModel.Events.Load, this.pageLoaded, this));
-        this.frameAddedListeners.set(resourceTreeModel, resourceTreeModel.addEventListener(SDK.ResourceTreeModel.Events.FrameAdded, this.frameAdded, this));
+        this.#pageLoadListeners.set(resourceTreeModel, resourceTreeModel.addEventListener(SDK.ResourceTreeModel.Events.Load, this.#pageLoaded, this));
+        this.#frameAddedListeners.set(resourceTreeModel, resourceTreeModel.addEventListener(SDK.ResourceTreeModel.Events.FrameAdded, this.#frameAdded, this));
     }
     modelRemoved(resourceTreeModel) {
-        const pageLoadListener = this.pageLoadListeners.get(resourceTreeModel);
+        const pageLoadListener = this.#pageLoadListeners.get(resourceTreeModel);
         if (pageLoadListener) {
             Common.EventTarget.removeEventListeners([pageLoadListener]);
         }
-        const frameAddedListeners = this.frameAddedListeners.get(resourceTreeModel);
+        const frameAddedListeners = this.#frameAddedListeners.get(resourceTreeModel);
         if (frameAddedListeners) {
             Common.EventTarget.removeEventListeners([frameAddedListeners]);
         }
     }
-    checkContrast(resourceTreeModel) {
+    #checkContrast(resourceTreeModel) {
         if (!Root.Runtime.experiments.isEnabled('contrastIssues')) {
             return;
         }
-        resourceTreeModel.target().auditsAgent().invoke_checkContrast({});
+        void resourceTreeModel.target().auditsAgent().invoke_checkContrast({});
     }
-    pageLoaded(event) {
+    #pageLoaded(event) {
         const { resourceTreeModel } = event.data;
-        this.checkContrast(resourceTreeModel);
+        this.#checkContrast(resourceTreeModel);
     }
-    async frameAdded(event) {
+    async #frameAdded(event) {
         if (!Root.Runtime.experiments.isEnabled('contrastIssues')) {
             return;
         }
@@ -53,7 +53,7 @@ export class ContrastCheckTrigger {
         // Otherwise, it should be triggered when the page load event fires.
         const response = await frame.resourceTreeModel().target().runtimeAgent().invoke_evaluate({ expression: 'document.readyState', returnByValue: true });
         if (response.result && response.result.value === 'complete') {
-            this.checkContrast(frame.resourceTreeModel());
+            this.#checkContrast(frame.resourceTreeModel());
         }
     }
 }

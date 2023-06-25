@@ -9,17 +9,17 @@ import * as UI from '../../ui/legacy/legacy.js';
 import consoleContextSelectorStyles from './consoleContextSelector.css.js';
 const UIStrings = {
     /**
-    *@description Title of toolbar item in console context selector of the console panel
-    */
+     *@description Title of toolbar item in console context selector of the console panel
+     */
     javascriptContextNotSelected: 'JavaScript context: Not selected',
     /**
-    *@description Text in Console Context Selector of the Console panel
-    */
+     *@description Text in Console Context Selector of the Console panel
+     */
     extension: 'Extension',
     /**
-    *@description Text in Console Context Selector of the Console panel
-    *@example {top} PH1
-    */
+     *@description Text in Console Context Selector of the Console panel
+     *@example {top} PH1
+     */
     javascriptContextS: 'JavaScript context: {PH1}',
 };
 const str_ = i18n.i18n.registerUIStrings('panels/console/ConsoleContextSelector.ts', UIStrings);
@@ -37,13 +37,13 @@ export class ConsoleContextSelector {
         this.toolbarItemInternal.setTitle(i18nString(UIStrings.javascriptContextNotSelected));
         this.items.addEventListener(UI.ListModel.Events.ItemsReplaced, () => this.toolbarItemInternal.setEnabled(Boolean(this.items.length)));
         this.toolbarItemInternal.element.classList.add('toolbar-has-dropdown');
-        SDK.TargetManager.TargetManager.instance().addModelListener(SDK.RuntimeModel.RuntimeModel, SDK.RuntimeModel.Events.ExecutionContextCreated, this.onExecutionContextCreated, this);
-        SDK.TargetManager.TargetManager.instance().addModelListener(SDK.RuntimeModel.RuntimeModel, SDK.RuntimeModel.Events.ExecutionContextChanged, this.onExecutionContextChanged, this);
-        SDK.TargetManager.TargetManager.instance().addModelListener(SDK.RuntimeModel.RuntimeModel, SDK.RuntimeModel.Events.ExecutionContextDestroyed, this.onExecutionContextDestroyed, this);
-        SDK.TargetManager.TargetManager.instance().addModelListener(SDK.ResourceTreeModel.ResourceTreeModel, SDK.ResourceTreeModel.Events.FrameNavigated, this.frameNavigated, this);
+        SDK.TargetManager.TargetManager.instance().addModelListener(SDK.RuntimeModel.RuntimeModel, SDK.RuntimeModel.Events.ExecutionContextCreated, this.onExecutionContextCreated, this, { scoped: true });
+        SDK.TargetManager.TargetManager.instance().addModelListener(SDK.RuntimeModel.RuntimeModel, SDK.RuntimeModel.Events.ExecutionContextChanged, this.onExecutionContextChanged, this, { scoped: true });
+        SDK.TargetManager.TargetManager.instance().addModelListener(SDK.RuntimeModel.RuntimeModel, SDK.RuntimeModel.Events.ExecutionContextDestroyed, this.onExecutionContextDestroyed, this, { scoped: true });
+        SDK.TargetManager.TargetManager.instance().addModelListener(SDK.ResourceTreeModel.ResourceTreeModel, SDK.ResourceTreeModel.Events.FrameNavigated, this.frameNavigated, this, { scoped: true });
         UI.Context.Context.instance().addFlavorChangeListener(SDK.RuntimeModel.ExecutionContext, this.executionContextChangedExternally, this);
         UI.Context.Context.instance().addFlavorChangeListener(SDK.DebuggerModel.CallFrame, this.callFrameSelectedInUI, this);
-        SDK.TargetManager.TargetManager.instance().observeModels(SDK.RuntimeModel.RuntimeModel, this);
+        SDK.TargetManager.TargetManager.instance().observeModels(SDK.RuntimeModel.RuntimeModel, this, { scoped: true });
         SDK.TargetManager.TargetManager.instance().addModelListener(SDK.DebuggerModel.DebuggerModel, SDK.DebuggerModel.Events.CallFrameSelected, this.callFrameSelectedInModel, this);
     }
     toolbarItem() {
@@ -53,8 +53,8 @@ export class ConsoleContextSelector {
         SDK.OverlayModel.OverlayModel.hideDOMNodeHighlight();
         if (to && to.frameId) {
             const frame = SDK.FrameManager.FrameManager.instance().getFrame(to.frameId);
-            if (frame && !frame.isTopFrame()) {
-                frame.highlight();
+            if (frame && !frame.isOutermostFrame()) {
+                void frame.highlight();
             }
         }
         if (fromElement) {
@@ -135,6 +135,9 @@ export class ConsoleContextSelector {
         this.executionContextDestroyed(executionContext);
     }
     executionContextChangedExternally({ data: executionContext, }) {
+        if (executionContext && !SDK.TargetManager.TargetManager.instance().isInScope(executionContext.target())) {
+            return;
+        }
         this.dropDown.selectItem(executionContext);
     }
     isTopContext(executionContext) {
@@ -146,7 +149,7 @@ export class ConsoleContextSelector {
         if (!frame) {
             return false;
         }
-        return frame.isTopFrame();
+        return frame.isOutermostFrame();
     }
     hasTopContext() {
         return this.items.some(executionContext => this.isTopContext(executionContext));

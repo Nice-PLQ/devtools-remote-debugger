@@ -1,32 +1,38 @@
 import * as Platform from '../../../core/platform/platform.js';
 import type * as LitHtml from '../../../ui/lit-html/lit-html.js';
 import * as IconButton from '../../../ui/components/icon_button/icon_button.js';
+export interface CSSStylesObject {
+    readonly [name: string]: string;
+}
 /**
-  * A column is an object with the following properties:
-  *
-  * - `id`: a unique ID for that column.
-  * - `title`: the user visible title.
-  * - `visible`: if the column is visible when rendered
-  * - `hideable`: if the user is able to show/hide the column via the context menu.
-  * - `widthWeighting`: a number that denotes the width of the column. This is a proportion
-  *   of the total weighting of all columns (for details see below).
-  * - `sortable`: an optional property to denote if the  column is sortable.
-  *   Note, if you're rendering a data-grid yourself you likely  shouldn't set
-  *   this. It's set by the `data-grid-controller`, which is the component you
-  *   want if your table needs to be sortable.
-*/
+ * A column is an object with the following properties:
+ *
+ * - `id`: a unique ID for that column.
+ * - `title`: the user visible title.
+ * - `visible`: if the column is visible when rendered
+ * - `hideable`: if the user is able to show/hide the column via the context menu.
+ * - `widthWeighting`: a number that denotes the width of the column. This is a proportion
+ *   of the total weighting of all columns (for details see below).
+ * - `sortable`: an optional property to denote if the  column is sortable.
+ *   Note, if you're rendering a data-grid yourself you likely  shouldn't set
+ *   this. It's set by the `data-grid-controller`, which is the component you
+ *   want if your table needs to be sortable.
+ * - `styles`: an optional property of key-value sets of CSS properties and values.
+ */
 export interface Column {
     id: string;
     title: string;
+    titleElement?: LitHtml.TemplateResult;
     sortable?: boolean;
     widthWeighting: number;
     hideable: boolean;
     visible: boolean;
+    styles?: CSSStylesObject;
 }
-export declare type CellValue = string | number | boolean | IconButton.Icon.Icon | null;
+export type CellValue = string | number | boolean | IconButton.Icon.Icon | null;
 /**
  * A cell contains a `columnId`, which is the ID of the column the cell
- * reprsents, and the `value`, which is a string value for that cell.
+ * represents, and the `value`, which is a string value for that cell.
  *
  * Note that currently cells cannot render complex data (e.g. nested HTML) but
  * in future we may extend the DataGrid to support this.
@@ -38,13 +44,10 @@ export interface Cell {
     renderer?: (value: CellValue) => LitHtml.TemplateResult | typeof LitHtml.nothing;
 }
 export declare function getStringifiedCellValues(cells: Cell[]): string;
-export interface RowCSSStylesObject {
-    readonly [name: string]: string;
-}
-export declare type Row = {
+export type Row = {
     cells: Cell[];
     hidden?: boolean;
-    styles?: RowCSSStylesObject;
+    styles?: CSSStylesObject;
 };
 export declare const enum SortDirection {
     ASC = "ASC",
@@ -54,9 +57,9 @@ export interface SortState {
     columnId: string;
     direction: SortDirection;
 }
-export declare type CellPosition = readonly [columnIndex: number, rowIndex: number];
+export type CellPosition = readonly [columnIndex: number, rowIndex: number];
 export declare function getRowEntryForColumnId(row: Row, id: string): Cell;
-export declare function renderCellValue(cell: Cell): LitHtml.TemplateResult | typeof LitHtml.nothing;
+export declare function renderCellValue(cell: Cell): LitHtml.LitTemplate;
 /**
  * When the user passes in columns we want to know how wide each one should be.
  * We don't work in exact percentages, or pixel values, because it's then
@@ -91,3 +94,4 @@ export declare const calculateFirstFocusableCell: (options: {
     columns: readonly Column[];
     rows: readonly Row[];
 }) => [colIndex: number, rowIndex: number];
+export declare const getCellTitleFromCellContent: (text: string) => string;

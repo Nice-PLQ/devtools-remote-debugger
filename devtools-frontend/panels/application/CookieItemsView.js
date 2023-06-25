@@ -39,37 +39,37 @@ import cookieItemsViewStyles from './cookieItemsView.css.js';
 import { StorageItemsView } from './StorageItemsView.js';
 const UIStrings = {
     /**
-    *@description Label for checkbox to show url decoded cookie values
-    */
-    showUrlDecoded: 'Show URL decoded',
+     *@description Label for checkbox to show URL-decoded cookie values
+     */
+    showUrlDecoded: 'Show URL-decoded',
     /**
-    *@description Text for web cookies
-    */
+     *@description Text for web cookies
+     */
     cookies: 'Cookies',
     /**
-    *@description Text in Cookie Items View of the Application panel
-    */
+     *@description Text in Cookie Items View of the Application panel
+     */
     selectACookieToPreviewItsValue: 'Select a cookie to preview its value',
     /**
-    *@description Text for filter in Cookies View of the Application panel
-    */
+     *@description Text for filter in Cookies View of the Application panel
+     */
     onlyShowCookiesWithAnIssue: 'Only show cookies with an issue',
     /**
-    *@description Title for filter in the Cookies View of the Application panel
-    */
-    onlyShowCookiesWhichHaveAn: 'Only show cookies which have an associated issue',
+     *@description Title for filter in the Cookies View of the Application panel
+     */
+    onlyShowCookiesWhichHaveAn: 'Only show cookies that have an associated issue',
     /**
-    *@description Label to only delete the cookies that are visible after filtering
-    */
+     *@description Label to only delete the cookies that are visible after filtering
+     */
     clearFilteredCookies: 'Clear filtered cookies',
     /**
-    *@description Label to delete all cookies
-    */
+     *@description Label to delete all cookies
+     */
     clearAllCookies: 'Clear all cookies',
     /**
-    *@description Alert message for screen reader to announce # of cookies in the table
-    *@example {5} PH1
-    */
+     *@description Alert message for screen reader to announce # of cookies in the table
+     *@example {5} PH1
+     */
     numberOfCookiesShownInTableS: 'Number of cookies shown in table: {PH1}',
 };
 const str_ = i18n.i18n.registerUIStrings('panels/application/CookieItemsView.ts', UIStrings);
@@ -226,7 +226,7 @@ export class CookieItemsView extends StorageItemsView {
         return this.model.saveCookie(newCookie);
     }
     deleteCookie(cookie, callback) {
-        this.model.deleteCookie(cookie).then(callback);
+        void this.model.deleteCookie(cookie).then(callback);
     }
     updateWithCookies(allCookies) {
         this.allCookies = allCookies;
@@ -237,11 +237,11 @@ export class CookieItemsView extends StorageItemsView {
         this.shownCookies = this.filter(allCookies, cookie => `${cookie.name()} ${cookie.value()} ${cookie.domain()}`);
         if (this.hasFilter()) {
             this.setDeleteAllTitle(i18nString(UIStrings.clearFilteredCookies));
-            this.setDeleteAllGlyph('largeicon-delete-filter');
+            this.setDeleteAllGlyph('filter-clear');
         }
         else {
             this.setDeleteAllTitle(i18nString(UIStrings.clearAllCookies));
-            this.setDeleteAllGlyph('largeicon-delete-list');
+            this.setDeleteAllGlyph('clear-list');
         }
         this.cookiesTable.setCookies(this.shownCookies, this.model.getCookieToBlockedReasonsMap());
         UI.ARIAUtils.alert(i18nString(UIStrings.numberOfCookiesShownInTableS, { PH1: this.shownCookies.length }));
@@ -269,20 +269,20 @@ export class CookieItemsView extends StorageItemsView {
      */
     deleteAllItems() {
         this.showPreview(null);
-        this.model.deleteCookies(this.shownCookies).then(() => this.refreshItems());
+        void this.model.deleteCookies(this.shownCookies).then(() => this.refreshItems());
     }
     deleteSelectedItem() {
         const selectedCookie = this.cookiesTable.selectedCookie();
         if (selectedCookie) {
             this.showPreview(null);
-            this.model.deleteCookie(selectedCookie).then(() => this.refreshItems());
+            void this.model.deleteCookie(selectedCookie).then(() => this.refreshItems());
         }
     }
     refreshItems() {
-        this.model.getCookiesForDomain(this.cookieDomain).then(this.updateWithCookies.bind(this));
+        void this.model.getCookiesForDomain(this.cookieDomain).then(this.updateWithCookies.bind(this));
     }
     refreshItemsThrottled() {
-        this.refreshThrottler.schedule(() => Promise.resolve(this.refreshItems()));
+        void this.refreshThrottler.schedule(() => Promise.resolve(this.refreshItems()));
     }
     onResponseReceived() {
         this.refreshItemsThrottled();

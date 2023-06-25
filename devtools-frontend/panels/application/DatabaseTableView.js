@@ -31,26 +31,26 @@ import * as DataGrid from '../../ui/legacy/components/data_grid/data_grid.js';
 import * as UI from '../../ui/legacy/legacy.js';
 const UIStrings = {
     /**
-    *@description Text in Database Table View of the Application panel
-    */
+     *@description Text in Database Table View of the Application panel
+     */
     database: 'Database',
     /**
-    *@description Text to refresh the page
-    */
+     *@description Text to refresh the page
+     */
     refresh: 'Refresh',
     /**
-    *@description Text in Database Table View of the Application panel
-    */
+     *@description Text in Database Table View of the Application panel
+     */
     visibleColumns: 'Visible columns',
     /**
-    *@description Text in Database Table View of the Application panel
-    *@example {database} PH1
-    */
+     *@description Text in Database Table View of the Application panel
+     *@example {database} PH1
+     */
     theStableIsEmpty: 'The "{PH1}" table is empty.',
     /**
-    *@description Error msg element text content in Database Table View of the Application panel
-    *@example {database} PH1
-    */
+     *@description Error msg element text content in Database Table View of the Application panel
+     *@example {database} PH1
+     */
     anErrorOccurredTryingToreadTheS: 'An error occurred trying to read the "{PH1}" table.',
 };
 const str_ = i18n.i18n.registerUIStrings('panels/application/DatabaseTableView.ts', UIStrings);
@@ -74,7 +74,7 @@ export class DatabaseTableView extends UI.View.SimpleView {
         this.element.classList.add('storage-view', 'table');
         this.visibleColumnsSetting =
             Common.Settings.Settings.instance().createSetting('databaseTableViewVisibleColumns', {});
-        this.refreshButton = new UI.Toolbar.ToolbarButton(i18nString(UIStrings.refresh), 'largeicon-refresh');
+        this.refreshButton = new UI.Toolbar.ToolbarButton(i18nString(UIStrings.refresh), 'refresh');
         this.refreshButton.addEventListener(UI.Toolbar.ToolbarButton.Events.Click, this.refreshButtonClicked, this);
         this.visibleColumnsInput = new UI.Toolbar.ToolbarInput(i18nString(UIStrings.visibleColumns), '', 1);
         this.visibleColumnsInput.addEventListener(UI.Toolbar.ToolbarInput.Event.TextChanged, this.onVisibleColumnsChanged, this);
@@ -90,7 +90,7 @@ export class DatabaseTableView extends UI.View.SimpleView {
         return tableName.replace(/\"/g, '""');
     }
     update() {
-        this.database.executeSql('SELECT rowid, * FROM "' + this.escapeTableName(this.tableName) + '"', this.queryFinished.bind(this), this.queryError.bind(this));
+        void this.database.executeSql('SELECT rowid, * FROM "' + this.escapeTableName(this.tableName) + '"', this.queryFinished.bind(this), this.queryError.bind(this));
     }
     // TODO(crbug.com/1172300) Ignored during the jsdoc to ts migration)
     // eslint-disable-next-line @typescript-eslint/no-explicit-any

@@ -4,6 +4,7 @@
         "outDir": "."
     },
     "files": [
+        "linearMemoryHighlightChipList.css.js",
         "linearMemoryInspector.css.js",
         "linearMemoryNavigator.css.js",
         "linearMemoryValueInterpreter.css.js",

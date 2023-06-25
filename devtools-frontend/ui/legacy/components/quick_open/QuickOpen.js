@@ -5,9 +5,9 @@ import * as i18n from '../../../../core/i18n/i18n.js';
 import { FilteredListWidget, getRegisteredProviders } from './FilteredListWidget.js';
 const UIStrings = {
     /**
-    * @description Text of the hint shows under Quick Open input box
-    */
-    useTabToSwitchCommandsTypeToSeeAvailableCommands: 'Use Tab to switch commands. Type \'?\' to see available commands',
+     * @description Text of the hint shows under Quick Open input box
+     */
+    typeToSeeAvailableCommands: 'Type ? to see available commands',
 };
 const str_ = i18n.i18n.registerUIStrings('ui/legacy/components/quick_open/QuickOpen.ts', UIStrings);
 const i18nString = i18n.i18n.getLocalizedString.bind(undefined, str_);
@@ -29,7 +29,7 @@ export class QuickOpenImpl {
         const quickOpen = new this();
         const filteredListWidget = new FilteredListWidget(null, history, quickOpen.queryChanged.bind(quickOpen));
         quickOpen.filteredListWidget = filteredListWidget;
-        filteredListWidget.setHintElement(i18nString(UIStrings.useTabToSwitchCommandsTypeToSeeAvailableCommands));
+        filteredListWidget.setHintElement(i18nString(UIStrings.typeToSeeAvailableCommands));
         filteredListWidget.showAsDialog();
         filteredListWidget.setQuery(query);
     }

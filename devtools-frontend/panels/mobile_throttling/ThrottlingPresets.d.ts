@@ -24,7 +24,7 @@ export interface MobileThrottlingConditionsGroup {
     title: string;
     items: (Conditions | PlaceholderConditions)[];
 }
-export declare type ConditionsList = (Conditions | PlaceholderConditions | null)[];
+export type ConditionsList = (Conditions | PlaceholderConditions | null)[];
 export interface PlaceholderConditions {
     title: string;
     description: string;

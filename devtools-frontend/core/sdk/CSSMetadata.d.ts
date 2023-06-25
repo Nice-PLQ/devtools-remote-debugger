@@ -1,8 +1,10 @@
+import * as Protocol from '../../generated/protocol.js';
 export declare class CSSMetadata {
     #private;
     constructor(properties: CSSPropertyDefinition[], aliasesFor: Map<string, string>);
     private static sortPrefixesToEnd;
     allProperties(): string[];
+    aliasesFor(): Map<string, string>;
     nameValuePresets(includeSVG?: boolean): string[];
     isSVGProperty(name: string): boolean;
     getLonghands(shorthand: string): string[] | null;
@@ -28,6 +30,7 @@ export declare class CSSMetadata {
         startColumn: number;
         endColumn: number;
     } | null;
+    isHighlightPseudoType(pseudoType: Protocol.DOM.PseudoType): boolean;
 }
 export declare const VariableRegex: RegExp;
 export declare const CustomVariableRegex: RegExp;

@@ -1,6 +1,6 @@
 import * as Common from '../../core/common/common.js';
 import type * as HeapSnapshotModel from '../../models/heap_snapshot_model/heap_snapshot_model.js';
-import type { ChildrenProvider } from './ChildrenProvider.js';
+import { type ChildrenProvider } from './ChildrenProvider.js';
 export declare class HeapSnapshotWorkerProxy extends Common.ObjectWrapper.ObjectWrapper<HeapSnapshotWorkerProxy.EventTypes> {
     readonly eventHandler: (arg0: string, arg1: any) => void;
     nextObjectId: number;
@@ -14,7 +14,7 @@ export declare class HeapSnapshotWorkerProxy extends Common.ObjectWrapper.Object
     dispose(): void;
     disposeObject(objectId: number): void;
     evaluateForTest(script: string, callback: (arg0: any) => void): void;
-    callFactoryMethod<T>(callback: ((...arg0: unknown[]) => void) | null, objectId: string, methodName: string, proxyConstructor: new (...arg1: unknown[]) => T): Object | null;
+    callFactoryMethod<T extends Object>(callback: ((...arg0: unknown[]) => void) | null, objectId: string, methodName: string, proxyConstructor: new (...arg1: unknown[]) => T): Object | null;
     callMethod(callback: (arg0: any) => void, objectId: string, methodName: string): void;
     startCheckingForLongRunningCalls(): void;
     checkLongRunningCalls(): void;

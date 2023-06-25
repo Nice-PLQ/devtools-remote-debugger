@@ -1,16 +1,10 @@
+import * as SDK from '../../core/sdk/sdk.js';
 import * as UI from '../../ui/legacy/legacy.js';
-export declare class CSSOverviewPanel extends UI.Panel.Panel {
+import { type OverviewController } from './CSSOverviewController.js';
+export declare class CSSOverviewPanel extends UI.Panel.Panel implements SDK.TargetManager.Observer {
     #private;
-    private constructor();
-    static instance(): CSSOverviewPanel;
-    private reset;
-    private requestNodeHighlight;
-    private renderInitialView;
-    private renderOverviewStartedView;
-    private renderOverviewCompletedView;
-    private startOverview;
-    private getStyleValue;
-    private cancelOverview;
-    private overviewCompleted;
+    constructor(controller: OverviewController);
+    targetAdded(target: SDK.Target.Target): void;
+    targetRemoved(): void;
     wasShown(): void;
 }

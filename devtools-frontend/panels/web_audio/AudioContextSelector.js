@@ -8,13 +8,13 @@ import * as UI from '../../ui/legacy/legacy.js';
 import audioContextSelectorStyles from './audioContextSelector.css.js';
 const UIStrings = {
     /**
-    *@description Text that shows there is no recording
-    */
+     *@description Text that shows there is no recording
+     */
     noRecordings: '(no recordings)',
     /**
-    *@description Label prefix for an audio context selection
-    *@example {realtime (1e03ec)} PH1
-    */
+     *@description Label prefix for an audio context selection
+     *@example {realtime (1e03ec)} PH1
+     */
     audioContextS: 'Audio context: {PH1}',
 };
 const str_ = i18n.i18n.registerUIStrings('panels/web_audio/AudioContextSelector.ts', UIStrings);
@@ -102,7 +102,7 @@ export class AudioContextSelector extends Common.ObjectWrapper.ObjectWrapper {
             this.selectedContextInternal = item;
             this.toolbarItemInternal.setTitle(i18nString(UIStrings.audioContextS, { PH1: this.titleFor(item) }));
         }
-        this.dispatchEventToListeners("ContextSelected" /* ContextSelected */, item);
+        this.dispatchEventToListeners("ContextSelected" /* Events.ContextSelected */, item);
     }
     reset() {
         this.items.replaceAll([]);

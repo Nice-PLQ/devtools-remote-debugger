@@ -20,7 +20,7 @@ export declare enum Events {
     IndexingWorked = "indexingWorked",
     IndexingDone = "indexingDone",
     KeyEventUnhandled = "keyEventUnhandled",
-    ReattachMainTarget = "reattachMainTarget",
+    ReattachRootTarget = "reattachMainTarget",
     ReloadInspectedPage = "reloadInspectedPage",
     RevealSourceLine = "revealSourceLine",
     SavedURL = "savedURL",
@@ -72,21 +72,21 @@ export interface KeyEventUnhandledEvent {
     modifiers: number;
 }
 export interface RevealSourceLineEvent {
-    url: string;
+    url: Platform.DevToolsPath.UrlString;
     lineNumber: number;
     columnNumber: number;
 }
 export interface SavedURLEvent {
-    url: string;
-    fileSystemPath: string;
+    url: Platform.DevToolsPath.RawPathString | Platform.DevToolsPath.UrlString;
+    fileSystemPath: Platform.DevToolsPath.RawPathString | Platform.DevToolsPath.UrlString;
 }
 export interface SearchCompletedEvent {
     requestId: number;
     files: Platform.DevToolsPath.RawPathString[];
 }
-export declare type EventTypes = {
-    [Events.AppendedToURL]: string;
-    [Events.CanceledSaveURL]: string;
+export type EventTypes = {
+    [Events.AppendedToURL]: Platform.DevToolsPath.RawPathString | Platform.DevToolsPath.UrlString;
+    [Events.CanceledSaveURL]: Platform.DevToolsPath.UrlString;
     [Events.ContextMenuCleared]: void;
     [Events.ContextMenuItemSelected]: number;
     [Events.DeviceCountUpdated]: number;
@@ -105,7 +105,7 @@ export declare type EventTypes = {
     [Events.IndexingWorked]: IndexingWorkedEvent;
     [Events.IndexingDone]: IndexingEvent;
     [Events.KeyEventUnhandled]: KeyEventUnhandledEvent;
-    [Events.ReattachMainTarget]: void;
+    [Events.ReattachRootTarget]: void;
     [Events.ReloadInspectedPage]: boolean;
     [Events.RevealSourceLine]: RevealSourceLineEvent;
     [Events.SavedURL]: SavedURLEvent;
@@ -117,7 +117,7 @@ export declare type EventTypes = {
 export interface InspectorFrontendHostAPI {
     addFileSystem(type?: string): void;
     loadCompleted(): void;
-    indexPath(requestId: number, fileSystemPath: string, excludedFolders: string): void;
+    indexPath(requestId: number, fileSystemPath: Platform.DevToolsPath.RawPathString, excludedFolders: string): void;
     /**
      * Requests inspected page to be placed atop of the inspector frontend with specified bounds.
      */
@@ -131,19 +131,19 @@ export interface InspectorFrontendHostAPI {
     setWhitelistedShortcuts(shortcuts: string): void;
     setEyeDropperActive(active: boolean): void;
     inspectElementCompleted(): void;
-    openInNewTab(url: string): void;
-    showItemInFolder(fileSystemPath: string): void;
-    removeFileSystem(fileSystemPath: string): void;
+    openInNewTab(url: Platform.DevToolsPath.UrlString): void;
+    showItemInFolder(fileSystemPath: Platform.DevToolsPath.RawPathString): void;
+    removeFileSystem(fileSystemPath: Platform.DevToolsPath.RawPathString): void;
     requestFileSystems(): void;
-    save(url: string, content: string, forceSaveAs: boolean): void;
-    append(url: string, content: string): void;
-    close(url: string): void;
-    searchInPath(requestId: number, fileSystemPath: string, query: string): void;
+    save(url: Platform.DevToolsPath.UrlString, content: string, forceSaveAs: boolean): void;
+    append(url: Platform.DevToolsPath.UrlString, content: string): void;
+    close(url: Platform.DevToolsPath.UrlString): void;
+    searchInPath(requestId: number, fileSystemPath: Platform.DevToolsPath.RawPathString, query: string): void;
     stopIndexing(requestId: number): void;
     bringToFront(): void;
     closeWindow(): void;
     copyText(text: string | null | undefined): void;
-    inspectedURLChanged(url: string): void;
+    inspectedURLChanged(url: Platform.DevToolsPath.UrlString): void;
     isolatedFileSystem(fileSystemId: string, registeredName: string): FileSystem | null;
     loadNetworkResource(url: string, headers: string, streamId: number, callback: (arg0: LoadNetworkResourceResult) => void): void;
     registerPreference(name: string, options: {
@@ -152,12 +152,14 @@ export interface InspectorFrontendHostAPI {
     getPreferences(callback: (arg0: {
         [x: string]: string;
     }) => void): void;
+    getPreference(name: string, callback: (arg0: string) => void): void;
     setPreference(name: string, value: string): void;
     removePreference(name: string): void;
     clearPreferences(): void;
     getSyncInformation(callback: (arg0: SyncInformation) => void): void;
     upgradeDraggedFileSystemPermissions(fileSystem: FileSystem): void;
     platform(): string;
+    recordCountHistogram(histogramName: string, sample: number, min: number, exclusiveMax: number, bucketSize: number): void;
     recordEnumeratedHistogram(actionName: EnumeratedHistogram, actionCode: number, bucketSize: number): void;
     recordPerformanceHistogram(histogramName: string, duration: number): void;
     recordUserMetricsAction(umaName: string): void;
@@ -185,7 +187,7 @@ export interface InspectorFrontendHostAPI {
     initialTargetId(): Promise<string | null>;
 }
 export interface ContextMenuDescriptor {
-    type: string;
+    type: 'checkbox' | 'item' | 'separator' | 'subMenu';
     id?: number;
     label?: string;
     enabled?: boolean;
@@ -232,6 +234,8 @@ export interface SyncInformation {
  */
 export declare enum EnumeratedHistogram {
     ActionTaken = "DevTools.ActionTaken",
+    BreakpointWithConditionAdded = "DevTools.BreakpointWithConditionAdded",
+    BreakpointEditDialogRevealedFrom = "DevTools.BreakpointEditDialogRevealedFrom",
     PanelClosed = "DevTools.PanelClosed",
     PanelShown = "DevTools.PanelShown",
     SidebarPaneShown = "DevTools.SidebarPaneShown",
@@ -241,15 +245,39 @@ export declare enum EnumeratedHistogram {
     IssuesPanelOpenedFrom = "DevTools.IssuesPanelOpenedFrom",
     IssuesPanelResourceOpened = "DevTools.IssuesPanelResourceOpened",
     KeybindSetSettingChanged = "DevTools.KeybindSetSettingChanged",
-    DualScreenDeviceEmulated = "DevTools.DualScreenDeviceEmulated",
+    ElementsSidebarTabShown = "DevTools.Elements.SidebarTabShown",
     ExperimentEnabledAtLaunch = "DevTools.ExperimentEnabledAtLaunch",
     ExperimentEnabled = "DevTools.ExperimentEnabled",
     ExperimentDisabled = "DevTools.ExperimentDisabled",
-    CssEditorOpened = "DevTools.CssEditorOpened",
     DeveloperResourceLoaded = "DevTools.DeveloperResourceLoaded",
     DeveloperResourceScheme = "DevTools.DeveloperResourceScheme",
     LinearMemoryInspectorRevealedFrom = "DevTools.LinearMemoryInspector.RevealedFrom",
     LinearMemoryInspectorTarget = "DevTools.LinearMemoryInspector.Target",
     Language = "DevTools.Language",
-    ConsoleShowsCorsErrors = "DevTools.ConsoleShowsCorsErrors"
+    SyncSetting = "DevTools.SyncSetting",
+    RecordingAssertion = "DevTools.RecordingAssertion",
+    RecordingCodeToggled = "DevTools.RecordingCodeToggled",
+    RecordingCopiedToClipboard = "DevTools.RecordingCopiedToClipboard",
+    RecordingEdited = "DevTools.RecordingEdited",
+    RecordingExported = "DevTools.RecordingExported",
+    RecordingReplayFinished = "DevTools.RecordingReplayFinished",
+    RecordingReplaySpeed = "DevTools.RecordingReplaySpeed",
+    RecordingReplayStarted = "DevTools.RecordingReplayStarted",
+    RecordingToggled = "DevTools.RecordingToggled",
+    SourcesSidebarTabShown = "DevTools.Sources.SidebarTabShown",
+    SourcesPanelFileDebugged = "DevTools.SourcesPanelFileDebugged",
+    SourcesPanelFileOpened = "DevTools.SourcesPanelFileOpened",
+    NetworkPanelResponsePreviewOpened = "DevTools.NetworkPanelResponsePreviewOpened",
+    StyleTextCopied = "DevTools.StyleTextCopied",
+    ManifestSectionSelected = "DevTools.ManifestSectionSelected",
+    CSSHintShown = "DevTools.CSSHintShown",
+    LighthouseModeRun = "DevTools.LighthouseModeRun",
+    ColorConvertedFrom = "DevTools.ColorConvertedFrom",
+    ColorPickerOpenedFrom = "DevTools.ColorPickerOpenedFrom",
+    CSSPropertyDocumentation = "DevTools.CSSPropertyDocumentation",
+    InlineScriptParsed = "DevTools.InlineScriptParsed",
+    VMInlineScriptTypeShown = "DevTools.VMInlineScriptShown",
+    BreakpointsRestoredFromStorageCount = "DevTools.BreakpointsRestoredFromStorageCount",
+    SwatchActivated = "DevTools.SwatchActivated",
+    BadgeActivated = "DevTools.BadgeActivated"
 }

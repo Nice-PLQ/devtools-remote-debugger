@@ -34,28 +34,28 @@ import { IsolateSelector } from './IsolateSelector.js';
 import profileLauncherViewStyles from './profileLauncherView.css.js';
 const UIStrings = {
     /**
-    *@description Text in Profile Launcher View of a profiler tool
-    */
+     *@description Text in Profile Launcher View of a profiler tool
+     */
     selectJavascriptVmInstance: 'Select JavaScript VM instance',
     /**
-    *@description Text to load something
-    */
+     *@description Text to load something
+     */
     load: 'Load',
     /**
-    *@description Control button text content in Profile Launcher View of a profiler tool
-    */
+     *@description Control button text content in Profile Launcher View of a profiler tool
+     */
     takeSnapshot: 'Take snapshot',
     /**
-    *@description Text of an item that stops the running task
-    */
+     *@description Text of an item that stops the running task
+     */
     stop: 'Stop',
     /**
-    *@description Control button text content in Profile Launcher View of a profiler tool
-    */
+     *@description Control button text content in Profile Launcher View of a profiler tool
+     */
     start: 'Start',
     /**
-    *@description Profile type header element text content in Profile Launcher View of a profiler tool
-    */
+     *@description Profile type header element text content in Profile Launcher View of a profiler tool
+     */
     selectProfilingType: 'Select profiling type',
 };
 const str_ = i18n.i18n.registerUIStrings('panels/profiler/ProfileLauncherView.ts', UIStrings);
@@ -154,13 +154,15 @@ export class ProfileLauncherView extends Common.ObjectWrapper.eventMixin(UI.Widg
         UI.ARIAUtils.setDescription(optionElement, profileType.description);
         const customContent = profileType.customContent();
         if (customContent) {
+            customContent.setAttribute('role', 'group');
+            customContent.setAttribute('aria-labelledby', `${optionElement.id}`);
             this.profileTypeSelectorForm.createChild('p').appendChild(customContent);
             profileType.setCustomContentEnabled(false);
         }
         const headerText = this.typeIdToOptionElementAndProfileType.size > 1 ? i18nString(UIStrings.selectProfilingType) :
             profileType.name;
         this.profileTypeHeaderElement.textContent = headerText;
-        UI.ARIAUtils.setAccessibleName(this.profileTypeSelectorForm, headerText);
+        UI.ARIAUtils.setLabel(this.profileTypeSelectorForm, headerText);
     }
     restoreSelectedProfileType() {
         let typeId = this.selectedProfileTypeSetting.get();

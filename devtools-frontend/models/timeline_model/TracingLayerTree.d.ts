@@ -1,6 +1,6 @@
 import * as SDK from '../../core/sdk/sdk.js';
 import * as Protocol from '../../generated/protocol.js';
-import type { LayerPaintEvent } from './TimelineFrameModel.js';
+import { type LayerPaintEvent } from './TimelineFrameModel.js';
 export declare class TracingLayerTree extends SDK.LayerTreeBase.LayerTreeBase {
     private tileById;
     private paintProfilerModel;
@@ -26,6 +26,7 @@ export declare class TracingLayer implements SDK.LayerTreeBase.Layer {
     private scrollRectsInternal;
     private gpuMemoryUsageInternal;
     private paints;
+    private compositingReasons;
     private compositingReasonIds;
     private drawsContentInternal;
     private paintProfilerModel;
@@ -58,6 +59,7 @@ export declare class TracingLayer implements SDK.LayerTreeBase.Layer {
     private scrollRectsFromParams;
     private createScrollRects;
     addPaintEvent(paint: LayerPaintEvent): void;
+    requestCompositingReasons(): Promise<string[]>;
     requestCompositingReasonIds(): Promise<string[]>;
     drawsContent(): boolean;
 }
@@ -75,12 +77,8 @@ export interface TracingLayerPayload {
     gpu_memory_usage: number;
     transform: number[];
     owner_node: Protocol.DOM.BackendNodeId;
-    reasons: string[];
-    compositing_reason: string[];
+    compositing_reasons: string[];
     compositing_reason_ids: string[];
-    debug_info: {
-        compositing_reason_ids: string[];
-    };
     non_fast_scrollable_region: number[];
     touch_event_handler_region: number[];
     wheel_event_handler_region: number[];

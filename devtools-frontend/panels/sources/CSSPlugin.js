@@ -1,359 +1,388 @@
-/*
- * Copyright (C) 2013 Google Inc. All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are
- * met:
- *
- *     * Redistributions of source code must retain the above copyright
- * notice, this list of conditions and the following disclaimer.
- *     * Redistributions in binary form must reproduce the above
- * copyright notice, this list of conditions and the following disclaimer
- * in the documentation and/or other materials provided with the
- * distribution.
- *     * Neither the name of Google Inc. nor the names of its
- * contributors may be used to endorse or promote products derived from
- * this software without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
- * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
- * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
- * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
- * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
- * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
- * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- */
+// Copyright 2021 The Chromium Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
 import * as Common from '../../core/common/common.js';
+import * as Host from '../../core/host/host.js';
 import * as i18n from '../../core/i18n/i18n.js';
 import * as Platform from '../../core/platform/platform.js';
 import * as SDK from '../../core/sdk/sdk.js';
-import * as TextUtils from '../../models/text_utils/text_utils.js';
 import * as ColorPicker from '../../ui/legacy/components/color_picker/color_picker.js';
 import * as InlineEditor from '../../ui/legacy/components/inline_editor/inline_editor.js';
-import * as SourceFrame from '../../ui/legacy/components/source_frame/source_frame.js';
+import * as CodeMirror from '../../third_party/codemirror.next/codemirror.next.js';
 import * as UI from '../../ui/legacy/legacy.js';
+import { assertNotNullOrUndefined } from '../../core/platform/platform.js';
 import { Plugin } from './Plugin.js';
+// Plugin to add CSS completion, shortcuts, and color/curve swatches
+// to editors with CSS content.
 const UIStrings = {
     /**
-    *@description Swatch icon element title in CSSPlugin of the Sources panel
-    */
+     *@description Swatch icon element title in CSSPlugin of the Sources panel
+     */
     openColorPicker: 'Open color picker.',
     /**
-    *@description Text to open the cubic bezier editor
-    */
+     *@description Text to open the cubic bezier editor
+     */
     openCubicBezierEditor: 'Open cubic bezier editor.',
 };
 const str_ = i18n.i18n.registerUIStrings('panels/sources/CSSPlugin.ts', UIStrings);
 const i18nString = i18n.i18n.getLocalizedString.bind(undefined, str_);
-export class CSSPlugin extends Plugin {
-    textEditor;
-    swatchPopoverHelper;
-    muteSwatchProcessing;
-    hadSwatchChange;
-    bezierEditor;
-    editedSwatchTextRange;
-    spectrum;
-    currentSwatch;
-    boundHandleKeyDown;
-    constructor(textEditor) {
+const dontCompleteIn = new Set(['ColorLiteral', 'NumberLiteral', 'StringLiteral', 'Comment', 'Important']);
+function findPropertyAt(node, pos) {
+    if (dontCompleteIn.has(node.name)) {
+        return null;
+    }
+    for (let cur = node; cur; cur = cur.parent) {
+        if (cur.name === 'StyleSheet' || cur.name === 'Styles' || cur.name === 'CallExpression') {
+            break;
+        }
+        else if (cur.name === 'Declaration') {
+            const name = cur.getChild('PropertyName'), colon = cur.getChild(':');
+            return name && colon && colon.to <= pos ? name : null;
+        }
+    }
+    return null;
+}
+function getCurrentStyleSheet(url, cssModel) {
+    const currentStyleSheet = cssModel.getStyleSheetIdsForURL(url);
+    if (currentStyleSheet.length === 0) {
+        Platform.DCHECK(() => currentStyleSheet.length !== 0, 'Can\'t find style sheet ID for current URL');
+    }
+    return currentStyleSheet[0];
+}
+async function specificCssCompletion(cx, uiSourceCode, cssModel) {
+    const node = CodeMirror.syntaxTree(cx.state).resolveInner(cx.pos, -1);
+    if (node.name === 'ClassName') {
+        // Should never happen, but let's code defensively here
+        assertNotNullOrUndefined(cssModel);
+        const currentStyleSheet = getCurrentStyleSheet(uiSourceCode.url(), cssModel);
+        const existingClassNames = await cssModel.getClassNames(currentStyleSheet);
+        return {
+            from: node.from,
+            options: existingClassNames.map(value => ({ type: 'constant', label: value })),
+        };
+    }
+    const property = findPropertyAt(node, cx.pos);
+    if (property) {
+        const propertyValues = SDK.CSSMetadata.cssMetadata().getPropertyValues(cx.state.sliceDoc(property.from, property.to));
+        return {
+            from: node.name === 'ValueName' ? node.from : cx.pos,
+            options: propertyValues.map(value => ({ type: 'constant', label: value })),
+            validFor: /^[\w\P{ASCII}\-]+$/u,
+        };
+    }
+    return null;
+}
+function findColorsAndCurves(state, from, to, onColor, onCurve) {
+    let line = state.doc.lineAt(from);
+    function getToken(from, to) {
+        if (from >= line.to) {
+            line = state.doc.lineAt(from);
+        }
+        return line.text.slice(from - line.from, to - line.from);
+    }
+    const tree = CodeMirror.ensureSyntaxTree(state, to, 100);
+    if (!tree) {
+        return;
+    }
+    tree.iterate({
+        from,
+        to,
+        enter: node => {
+            let content;
+            if (node.name === 'ValueName' || node.name === 'ColorLiteral') {
+                content = getToken(node.from, node.to);
+            }
+            else if (node.name === 'Callee' &&
+                /^(?:(?:rgba?|hsla?|hwba?|lch|oklch|lab|oklab|color)|cubic-bezier)$/.test(getToken(node.from, node.to))) {
+                content = state.sliceDoc(node.from, node.node.parent.to);
+            }
+            if (content) {
+                const parsedColor = Common.Color.parse(content);
+                if (parsedColor) {
+                    onColor(node.from, parsedColor, content);
+                }
+                else {
+                    const parsedCurve = UI.Geometry.CubicBezier.parse(content);
+                    if (parsedCurve) {
+                        onCurve(node.from, parsedCurve, content);
+                    }
+                }
+            }
+        },
+    });
+}
+class ColorSwatchWidget extends CodeMirror.WidgetType {
+    #text;
+    #color;
+    #from;
+    constructor(color, text, from) {
         super();
-        this.textEditor = textEditor;
-        this.swatchPopoverHelper = new InlineEditor.SwatchPopoverHelper.SwatchPopoverHelper();
-        this.muteSwatchProcessing = false;
-        this.hadSwatchChange = false;
-        this.bezierEditor = null;
-        this.editedSwatchTextRange = null;
-        this.spectrum = null;
-        this.currentSwatch = null;
-        this.textEditor.configureAutocomplete({
-            suggestionsCallback: this.cssSuggestions.bind(this),
-            isWordChar: this.isWordChar.bind(this),
-            anchorBehavior: undefined,
-            substituteRangeCallback: undefined,
-            tooltipCallback: undefined,
-        });
-        this.textEditor.addEventListener(SourceFrame.SourcesTextEditor.Events.ScrollChanged, this.textEditorScrolled, this);
-        this.textEditor.addEventListener(UI.TextEditor.Events.TextChanged, this.onTextChanged, this);
-        this.updateSwatches(0, this.textEditor.linesCount - 1);
-        this.boundHandleKeyDown = null;
-        this.registerShortcuts();
+        this.#color = color;
+        this.#text = text;
+        this.#from = from;
     }
-    static accepts(uiSourceCode) {
-        return uiSourceCode.contentType().isStyleSheet();
+    eq(other) {
+        return this.#color.equal(other.#color) && this.#text === other.#text && this.#from === other.#from;
     }
-    registerShortcuts() {
-        this.boundHandleKeyDown =
-            UI.ShortcutRegistry.ShortcutRegistry.instance().addShortcutListener(this.textEditor.element, {
-                'sources.increment-css': this.handleUnitModification.bind(this, 1),
-                'sources.increment-css-by-ten': this.handleUnitModification.bind(this, 10),
-                'sources.decrement-css': this.handleUnitModification.bind(this, -1),
-                'sources.decrement-css-by-ten': this.handleUnitModification.bind(this, -10),
-            });
-    }
-    textEditorScrolled() {
-        if (this.swatchPopoverHelper.isShowing()) {
-            this.swatchPopoverHelper.hide(true);
-        }
-    }
-    modifyUnit(unit, change) {
-        const unitValue = parseInt(unit, 10);
-        if (isNaN(unitValue)) {
-            return null;
-        }
-        const tail = unit.substring((unitValue).toString().length);
-        return Platform.StringUtilities.sprintf('%d%s', unitValue + change, tail);
-    }
-    async handleUnitModification(change) {
-        const selection = this.textEditor.selection().normalize();
-        let token = this.textEditor.tokenAtTextPosition(selection.startLine, selection.startColumn);
-        if (!token) {
-            if (selection.startColumn > 0) {
-                token = this.textEditor.tokenAtTextPosition(selection.startLine, selection.startColumn - 1);
-            }
-            if (!token) {
-                return false;
-            }
-        }
-        if (token.type !== 'css-number') {
-            return false;
-        }
-        const cssUnitRange = new TextUtils.TextRange.TextRange(selection.startLine, token.startColumn, selection.startLine, token.endColumn);
-        const cssUnitText = this.textEditor.text(cssUnitRange);
-        const newUnitText = this.modifyUnit(cssUnitText, change);
-        if (!newUnitText) {
-            return false;
-        }
-        this.textEditor.editRange(cssUnitRange, newUnitText);
-        selection.startColumn = token.startColumn;
-        selection.endColumn = selection.startColumn + newUnitText.length;
-        this.textEditor.setSelection(selection);
-        return true;
-    }
-    updateSwatches(startLine, endLine) {
-        const swatches = [];
-        const swatchPositions = [];
-        const regexes = [SDK.CSSMetadata.VariableRegex, SDK.CSSMetadata.URLRegex, UI.Geometry.CubicBezier.Regex, Common.Color.Regex];
-        const handlers = new Map();
-        handlers.set(Common.Color.Regex, this.createColorSwatch.bind(this));
-        handlers.set(UI.Geometry.CubicBezier.Regex, this.createBezierSwatch.bind(this));
-        for (let lineNumber = startLine; lineNumber <= endLine; lineNumber++) {
-            const line = this.textEditor.line(lineNumber).substring(0, maxSwatchProcessingLength);
-            const results = TextUtils.TextUtils.Utils.splitStringByRegexes(line, regexes);
-            for (let i = 0; i < results.length; i++) {
-                const result = results[i];
-                const handler = handlers.get(regexes[result.regexIndex]);
-                if (result.regexIndex === -1 || !handler) {
-                    continue;
-                }
-                const delimiters = /[\s:;,(){}]/;
-                const positionBefore = result.position - 1;
-                const positionAfter = result.position + result.value.length;
-                if (positionBefore >= 0 && !delimiters.test(line.charAt(positionBefore)) ||
-                    positionAfter < line.length && !delimiters.test(line.charAt(positionAfter))) {
-                    continue;
-                }
-                const swatch = handler(result.value);
-                if (!swatch) {
-                    continue;
-                }
-                swatches.push(swatch);
-                swatchPositions.push(TextUtils.TextRange.TextRange.createFromLocation(lineNumber, result.position));
-            }
-        }
-        this.textEditor.operation(putSwatchesInline.bind(this));
-        function putSwatchesInline() {
-            const clearRange = new TextUtils.TextRange.TextRange(startLine, 0, endLine, this.textEditor.line(endLine).length);
-            this.textEditor.bookmarks(clearRange, SwatchBookmark).forEach(marker => marker.clear());
-            for (let i = 0; i < swatches.length; i++) {
-                const swatch = swatches[i];
-                const swatchPosition = swatchPositions[i];
-                const bookmark = this.textEditor.addBookmark(swatchPosition.startLine, swatchPosition.startColumn, swatch, SwatchBookmark);
-                swatchToBookmark.set(swatch, bookmark);
-            }
-        }
-    }
-    createColorSwatch(text) {
-        const color = Common.Color.Color.parse(text);
-        if (!color) {
-            return null;
-        }
+    toDOM(view) {
         const swatch = new InlineEditor.ColorSwatch.ColorSwatch();
-        swatch.renderColor(color, false, i18nString(UIStrings.openColorPicker));
+        swatch.renderColor(this.#color, false, i18nString(UIStrings.openColorPicker));
         const value = swatch.createChild('span');
-        value.textContent = text;
+        value.textContent = this.#text;
         value.setAttribute('hidden', 'true');
-        swatch.addEventListener(InlineEditor.ColorSwatch.ClickEvent.eventName, this.swatchIconClicked.bind(this, swatch), false);
+        swatch.addEventListener(InlineEditor.ColorSwatch.ColorChangedEvent.eventName, event => {
+            view.dispatch({
+                changes: { from: this.#from, to: this.#from + this.#text.length, insert: event.data.text },
+            });
+            this.#text = event.data.text;
+            this.#color = swatch.getColor();
+        });
+        swatch.addEventListener(InlineEditor.ColorSwatch.ClickEvent.eventName, event => {
+            event.consume(true);
+            view.dispatch({
+                effects: setTooltip.of({
+                    type: 0 /* TooltipType.Color */,
+                    pos: view.posAtDOM(swatch),
+                    text: this.#text,
+                    swatch,
+                    color: this.#color,
+                }),
+            });
+        });
         return swatch;
     }
-    createBezierSwatch(text) {
-        if (!UI.Geometry.CubicBezier.parse(text)) {
-            return null;
-        }
+    ignoreEvent() {
+        return true;
+    }
+}
+class CurveSwatchWidget extends CodeMirror.WidgetType {
+    curve;
+    text;
+    constructor(curve, text) {
+        super();
+        this.curve = curve;
+        this.text = text;
+    }
+    eq(other) {
+        return this.curve.asCSSText() === other.curve.asCSSText() && this.text === other.text;
+    }
+    toDOM(view) {
         const swatch = InlineEditor.Swatches.BezierSwatch.create();
-        swatch.setBezierText(text);
+        swatch.setBezierText(this.text);
         UI.Tooltip.Tooltip.install(swatch.iconElement(), i18nString(UIStrings.openCubicBezierEditor));
-        swatch.iconElement().addEventListener('click', this.swatchIconClicked.bind(this, swatch), false);
+        swatch.iconElement().addEventListener('click', (event) => {
+            event.consume(true);
+            view.dispatch({
+                effects: setTooltip.of({
+                    type: 1 /* TooltipType.Curve */,
+                    pos: view.posAtDOM(swatch),
+                    text: this.text,
+                    swatch,
+                    curve: this.curve,
+                }),
+            });
+        }, false);
         swatch.hideText(true);
         return swatch;
     }
-    swatchIconClicked(swatch, event) {
-        event.consume(true);
-        this.hadSwatchChange = false;
-        this.muteSwatchProcessing = true;
-        const bookmark = swatchToBookmark.get(swatch);
-        if (!bookmark) {
-            return;
-        }
-        const swatchPosition = bookmark.position();
-        if (!swatchPosition) {
-            return;
-        }
-        this.textEditor.setSelection(swatchPosition);
-        this.editedSwatchTextRange = swatchPosition.clone();
-        if (this.editedSwatchTextRange) {
-            this.editedSwatchTextRange.endColumn += (swatch.textContent || '').length;
-        }
-        this.currentSwatch = swatch;
-        if (InlineEditor.ColorSwatch.ColorSwatch.isColorSwatch(swatch)) {
-            this.showSpectrum(swatch);
-        }
-        else if (swatch instanceof InlineEditor.Swatches.BezierSwatch) {
-            this.showBezierEditor(swatch);
-        }
-    }
-    showSpectrum(swatch) {
-        if (!this.spectrum) {
-            this.spectrum = new ColorPicker.Spectrum.Spectrum();
-            this.spectrum.addEventListener(ColorPicker.Spectrum.Events.SizeChanged, this.spectrumResized, this);
-            this.spectrum.addEventListener(ColorPicker.Spectrum.Events.ColorChanged, this.spectrumChanged, this);
-        }
-        this.spectrum.setColor(swatch.getColor(), swatch.getFormat() || '');
-        this.swatchPopoverHelper.show(this.spectrum, swatch, this.swatchPopoverHidden.bind(this));
-    }
-    spectrumResized() {
-        this.swatchPopoverHelper.reposition();
-    }
-    spectrumChanged(event) {
-        const colorString = event.data;
-        const color = Common.Color.Color.parse(colorString);
-        if (!color || !this.currentSwatch) {
-            return;
-        }
-        if (InlineEditor.ColorSwatch.ColorSwatch.isColorSwatch(this.currentSwatch)) {
-            const swatch = this.currentSwatch;
-            swatch.renderColor(color);
-        }
-        this.changeSwatchText(colorString);
-    }
-    showBezierEditor(swatch) {
-        const cubicBezier = UI.Geometry.CubicBezier.parse(swatch.bezierText()) ||
-            UI.Geometry.CubicBezier.parse('linear');
-        if (!this.bezierEditor) {
-            this.bezierEditor = new InlineEditor.BezierEditor.BezierEditor(cubicBezier);
-            this.bezierEditor.addEventListener(InlineEditor.BezierEditor.Events.BezierChanged, this.bezierChanged, this);
-        }
-        else {
-            this.bezierEditor.setBezier(cubicBezier);
-        }
-        this.swatchPopoverHelper.show(this.bezierEditor, swatch.iconElement(), this.swatchPopoverHidden.bind(this));
-    }
-    bezierChanged(event) {
-        const bezierString = event.data;
-        if (this.currentSwatch instanceof InlineEditor.Swatches.BezierSwatch) {
-            this.currentSwatch.setBezierText(bezierString);
-        }
-        this.changeSwatchText(bezierString);
-    }
-    changeSwatchText(text) {
-        this.hadSwatchChange = true;
-        const editedRange = this.editedSwatchTextRange;
-        this.textEditor.editRange(editedRange, text, '*swatch-text-changed');
-        editedRange.endColumn = editedRange.startColumn + text.length;
-    }
-    swatchPopoverHidden(commitEdit) {
-        this.muteSwatchProcessing = false;
-        if (!commitEdit && this.hadSwatchChange) {
-            this.textEditor.undo();
-        }
-    }
-    onTextChanged(event) {
-        if (!this.muteSwatchProcessing) {
-            this.updateSwatches(event.data.newRange.startLine, event.data.newRange.endLine);
-        }
-    }
-    isWordChar(char) {
-        return TextUtils.TextUtils.Utils.isWordChar(char) || char === '.' || char === '-' || char === '$';
-    }
-    cssSuggestions(prefixRange, _substituteRange) {
-        const prefix = this.textEditor.text(prefixRange);
-        if (prefix.startsWith('$')) {
-            return null;
-        }
-        const propertyToken = this.backtrackPropertyToken(prefixRange.startLine, prefixRange.startColumn - 1);
-        if (!propertyToken) {
-            return null;
-        }
-        const line = this.textEditor.line(prefixRange.startLine);
-        const tokenContent = line.substring(propertyToken.startColumn, propertyToken.endColumn);
-        const propertyValues = SDK.CSSMetadata.cssMetadata().getPropertyValues(tokenContent);
-        return Promise.resolve(propertyValues.filter(value => value.startsWith(prefix)).map(value => {
-            return {
-                text: value,
-                title: undefined,
-                subtitle: undefined,
-                iconType: undefined,
-                priority: undefined,
-                isSecondary: undefined,
-                subtitleRenderer: undefined,
-                selectionRange: undefined,
-                hideGhostText: undefined,
-                iconElement: undefined,
-            };
-        }));
-    }
-    backtrackPropertyToken(lineNumber, columnNumber) {
-        const backtrackDepth = 10;
-        let tokenPosition = columnNumber;
-        const line = this.textEditor.line(lineNumber);
-        let seenColon = false;
-        for (let i = 0; i < backtrackDepth && tokenPosition >= 0; ++i) {
-            const token = this.textEditor.tokenAtTextPosition(lineNumber, tokenPosition);
-            if (!token) {
-                return null;
-            }
-            if (token.type === 'css-property') {
-                return seenColon ? token : null;
-            }
-            if (token.type && !(token.type.indexOf('whitespace') !== -1 || token.type.startsWith('css-comment'))) {
-                return null;
-            }
-            if (!token.type && line.substring(token.startColumn, token.endColumn) === ':') {
-                if (!seenColon) {
-                    seenColon = true;
-                }
-                else {
-                    return null;
-                }
-            }
-            tokenPosition = token.startColumn - 1;
-        }
-        return null;
-    }
-    dispose() {
-        if (this.swatchPopoverHelper.isShowing()) {
-            this.swatchPopoverHelper.hide(true);
-        }
-        this.textEditor.removeEventListener(SourceFrame.SourcesTextEditor.Events.ScrollChanged, this.textEditorScrolled, this);
-        this.textEditor.removeEventListener(UI.TextEditor.Events.TextChanged, this.onTextChanged, this);
-        this.textEditor.bookmarks(this.textEditor.fullRange(), SwatchBookmark).forEach(marker => marker.clear());
-        this.textEditor.element.removeEventListener('keydown', this.boundHandleKeyDown);
+    ignoreEvent() {
+        return true;
     }
 }
-export const maxSwatchProcessingLength = 300;
-export const SwatchBookmark = Symbol('swatch');
-const swatchToBookmark = new WeakMap();
+function createCSSTooltip(active) {
+    return {
+        pos: active.pos,
+        arrow: true,
+        create(view) {
+            let text = active.text;
+            let widget, addListener;
+            if (active.type === 0 /* TooltipType.Color */) {
+                const spectrum = new ColorPicker.Spectrum.Spectrum();
+                addListener = (handler) => {
+                    spectrum.addEventListener(ColorPicker.Spectrum.Events.ColorChanged, handler);
+                };
+                spectrum.addEventListener(ColorPicker.Spectrum.Events.SizeChanged, () => view.requestMeasure());
+                spectrum.setColor(active.color, active.color.format());
+                widget = spectrum;
+                Host.userMetrics.colorPickerOpenedFrom(0 /* Host.UserMetrics.ColorPickerOpenedFrom.SourcesPanel */);
+            }
+            else {
+                const spectrum = new InlineEditor.BezierEditor.BezierEditor(active.curve);
+                widget = spectrum;
+                addListener = (handler) => {
+                    spectrum.addEventListener(InlineEditor.BezierEditor.Events.BezierChanged, handler);
+                };
+            }
+            const dom = document.createElement('div');
+            dom.className = 'cm-tooltip-swatchEdit';
+            widget.markAsRoot();
+            widget.show(dom);
+            widget.showWidget();
+            widget.element.addEventListener('keydown', event => {
+                if (event.key === 'Escape') {
+                    event.consume();
+                    view.dispatch({
+                        effects: setTooltip.of(null),
+                        changes: text === active.text ? undefined :
+                            { from: active.pos, to: active.pos + text.length, insert: active.text },
+                    });
+                    widget.hideWidget();
+                    view.focus();
+                }
+            });
+            widget.element.addEventListener('focusout', event => {
+                if (event.relatedTarget && !widget.element.contains(event.relatedTarget)) {
+                    view.dispatch({ effects: setTooltip.of(null) });
+                    widget.hideWidget();
+                }
+            }, false);
+            widget.element.addEventListener('mousedown', event => event.consume());
+            return {
+                dom,
+                resize: false,
+                offset: { x: -8, y: 0 },
+                mount: () => {
+                    widget.focus();
+                    widget.wasShown();
+                    addListener((event) => {
+                        view.dispatch({
+                            changes: { from: active.pos, to: active.pos + text.length, insert: event.data },
+                            annotations: isSwatchEdit.of(true),
+                        });
+                        text = event.data;
+                    });
+                },
+            };
+        },
+    };
+}
+const setTooltip = CodeMirror.StateEffect.define();
+const isSwatchEdit = CodeMirror.Annotation.define();
+const cssTooltipState = CodeMirror.StateField.define({
+    create() {
+        return null;
+    },
+    update(value, tr) {
+        if ((tr.docChanged || tr.selection) && !tr.annotation(isSwatchEdit)) {
+            value = null;
+        }
+        for (const effect of tr.effects) {
+            if (effect.is(setTooltip)) {
+                value = effect.value;
+            }
+        }
+        return value;
+    },
+    provide: field => CodeMirror.showTooltip.from(field, active => active && createCSSTooltip(active)),
+});
+function computeSwatchDeco(state, from, to) {
+    const builder = new CodeMirror.RangeSetBuilder();
+    findColorsAndCurves(state, from, to, (pos, parsedColor, colorText) => {
+        builder.add(pos, pos, CodeMirror.Decoration.widget({ widget: new ColorSwatchWidget(parsedColor, colorText, pos) }));
+    }, (pos, curve, text) => {
+        builder.add(pos, pos, CodeMirror.Decoration.widget({ widget: new CurveSwatchWidget(curve, text) }));
+    });
+    return builder.finish();
+}
+const cssSwatchPlugin = CodeMirror.ViewPlugin.fromClass(class {
+    decorations;
+    constructor(view) {
+        this.decorations = computeSwatchDeco(view.state, view.viewport.from, view.viewport.to);
+    }
+    update(update) {
+        if (update.viewportChanged || update.docChanged) {
+            this.decorations = computeSwatchDeco(update.state, update.view.viewport.from, update.view.viewport.to);
+        }
+    }
+}, {
+    decorations: v => v.decorations,
+});
+function cssSwatches() {
+    return [cssSwatchPlugin, cssTooltipState];
+}
+function getNumberAt(node) {
+    if (node.name === 'Unit') {
+        node = node.parent;
+    }
+    if (node.name === 'NumberLiteral') {
+        const lastChild = node.lastChild;
+        return { from: node.from, to: lastChild && lastChild.name === 'Unit' ? lastChild.from : node.to };
+    }
+    return null;
+}
+function modifyUnit(view, by) {
+    const { head } = view.state.selection.main;
+    const context = CodeMirror.syntaxTree(view.state).resolveInner(head, -1);
+    const numberRange = getNumberAt(context) || getNumberAt(context.resolve(head, 1));
+    if (!numberRange) {
+        return false;
+    }
+    const currentNumber = Number(view.state.sliceDoc(numberRange.from, numberRange.to));
+    if (isNaN(currentNumber)) {
+        return false;
+    }
+    view.dispatch({
+        changes: { from: numberRange.from, to: numberRange.to, insert: String(currentNumber + by) },
+        scrollIntoView: true,
+        userEvent: 'insert.modifyUnit',
+    });
+    return true;
+}
+export function cssBindings() {
+    // This is an awkward way to pass the argument given to the editor
+    // event handler through the ShortcutRegistry calling convention.
+    let currentView = null;
+    const listener = UI.ShortcutRegistry.ShortcutRegistry.instance().getShortcutListener({
+        'sources.increment-css': () => Promise.resolve(modifyUnit(currentView, 1)),
+        'sources.increment-css-by-ten': () => Promise.resolve(modifyUnit(currentView, 10)),
+        'sources.decrement-css': () => Promise.resolve(modifyUnit(currentView, -1)),
+        'sources.decrement-css-by-ten': () => Promise.resolve(modifyUnit(currentView, -10)),
+    });
+    return CodeMirror.EditorView.domEventHandlers({
+        keydown: (event, view) => {
+            const prevView = currentView;
+            currentView = view;
+            listener(event);
+            currentView = prevView;
+            return event.defaultPrevented;
+        },
+    });
+}
+export class CSSPlugin extends Plugin {
+    #cssModel;
+    constructor(uiSourceCode, _transformer) {
+        super(uiSourceCode, _transformer);
+        SDK.TargetManager.TargetManager.instance().observeModels(SDK.CSSModel.CSSModel, this);
+    }
+    static accepts(uiSourceCode) {
+        return uiSourceCode.contentType().hasStyleSheets();
+    }
+    modelAdded(cssModel) {
+        if (cssModel.target() !== SDK.TargetManager.TargetManager.instance().primaryPageTarget()) {
+            return;
+        }
+        this.#cssModel = cssModel;
+    }
+    modelRemoved(cssModel) {
+        if (this.#cssModel === cssModel) {
+            this.#cssModel = undefined;
+        }
+    }
+    editorExtension() {
+        return [cssBindings(), this.#cssCompletion(), cssSwatches()];
+    }
+    #cssCompletion() {
+        const { cssCompletionSource } = CodeMirror.css;
+        // CodeMirror binds the function below to the state object.
+        // Therefore, we can't access `this` and retrieve the following properties.
+        // Instead, retrieve them up front to bind them to the correct closure.
+        const uiSourceCode = this.uiSourceCode;
+        const cssModel = this.#cssModel;
+        return CodeMirror.autocompletion({
+            override: [async (cx) => {
+                    return (await specificCssCompletion(cx, uiSourceCode, cssModel)) || cssCompletionSource(cx);
+                }],
+        });
+    }
+}
 //# sourceMappingURL=CSSPlugin.js.map

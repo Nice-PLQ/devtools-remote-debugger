@@ -38,7 +38,7 @@ export class Throttler {
         this.#processTimeout = undefined;
         this.#asSoonAsPossible = false;
         this.#isRunningProcess = true;
-        Promise.resolve()
+        void Promise.resolve()
             .then(this.#process)
             .catch(console.error.bind(console))
             .then(this.processCompleted.bind(this))

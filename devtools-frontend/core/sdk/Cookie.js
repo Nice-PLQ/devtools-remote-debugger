@@ -1,6 +1,7 @@
 // Copyright 2019 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
+const OPAQUE_PARTITION_KEY = '<opaque>';
 export class Cookie {
     #nameInternal;
     #valueInternal;
@@ -34,14 +35,17 @@ export class Cookie {
         if (protocolCookie['sameSite']) {
             cookie.addAttribute('sameSite', protocolCookie['sameSite']);
         }
-        if (protocolCookie.sameParty) {
-            cookie.addAttribute('sameParty');
-        }
         if ('sourcePort' in protocolCookie) {
             cookie.addAttribute('sourcePort', protocolCookie.sourcePort);
         }
         if ('sourceScheme' in protocolCookie) {
             cookie.addAttribute('sourceScheme', protocolCookie.sourceScheme);
+        }
+        if ('partitionKey' in protocolCookie) {
+            cookie.addAttribute('partitionKey', protocolCookie.partitionKey);
+        }
+        if ('partitionKeyOpaque' in protocolCookie) {
+            cookie.addAttribute('partitionKey', OPAQUE_PARTITION_KEY);
         }
         cookie.setSize(protocolCookie['size']);
         return cookie;
@@ -69,8 +73,17 @@ export class Cookie {
         // when #attributes get added via addAttribute() they are lowercased, hence the lowercasing of samesite here
         return this.#attributes['samesite'];
     }
-    sameParty() {
-        return 'sameparty' in this.#attributes;
+    partitionKey() {
+        return this.#attributes['partitionkey'];
+    }
+    setPartitionKey(key) {
+        this.addAttribute('partitionKey', key);
+    }
+    partitionKeyOpaque() {
+        return (this.#attributes['partitionkey'] === OPAQUE_PARTITION_KEY);
+    }
+    setPartitionKeyOpaque() {
+        this.addAttribute('partitionKey', OPAQUE_PARTITION_KEY);
     }
     priority() {
         return this.#priorityInternal;
@@ -203,31 +216,9 @@ export var Attributes;
     Attributes["HttpOnly"] = "httpOnly";
     Attributes["Secure"] = "secure";
     Attributes["SameSite"] = "sameSite";
-    Attributes["SameParty"] = "sameParty";
     Attributes["SourceScheme"] = "sourceScheme";
     Attributes["SourcePort"] = "sourcePort";
     Attributes["Priority"] = "priority";
+    Attributes["PartitionKey"] = "partitionKey";
 })(Attributes || (Attributes = {}));
-/**
- * A `CookieReference` uniquely identifies a cookie by the triple (#name,domain,#path). Additionally, a context may be
- * included to make it clear which site under Application>Cookies should be opened when revealing a `CookieReference`.
- */
-export class CookieReference {
-    #name;
-    #domainInternal;
-    #path;
-    #contextUrlInternal;
-    constructor(name, domain, path, contextUrl) {
-        this.#name = name;
-        this.#domainInternal = domain;
-        this.#path = path;
-        this.#contextUrlInternal = contextUrl;
-    }
-    domain() {
-        return this.#domainInternal;
-    }
-    contextUrl() {
-        return this.#contextUrlInternal;
-    }
-}
 //# sourceMappingURL=Cookie.js.map

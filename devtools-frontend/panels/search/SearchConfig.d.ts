@@ -1,4 +1,5 @@
 import type * as Common from '../../core/common/common.js';
+import * as Platform from '../../core/platform/platform.js';
 import type * as Workspace from '../../models/workspace/workspace.js';
 export declare class SearchConfig implements Workspace.Workspace.ProjectSearchConfig {
     private readonly queryInternal;
@@ -22,7 +23,7 @@ export declare class SearchConfig implements Workspace.Workspace.ProjectSearchCo
         isRegex: boolean;
     };
     private parse;
-    filePathMatchesFileQuery(filePath: string): boolean;
+    filePathMatchesFileQuery(filePath: Platform.DevToolsPath.RawPathString | Platform.DevToolsPath.EncodedPathString | Platform.DevToolsPath.UrlString): boolean;
     queries(): string[];
     private parseUnquotedQuery;
     private parseQuotedQuery;
@@ -34,9 +35,6 @@ export declare class QueryTerm {
     isNegative: boolean;
     constructor(text: string, isNegative: boolean);
 }
-/**
- * @interface
- */
 export interface SearchResult {
     label(): string;
     description(): string;
@@ -45,9 +43,6 @@ export interface SearchResult {
     matchLineContent(index: number): string;
     matchRevealable(index: number): Object;
 }
-/**
- * @interface
- */
 export interface SearchScope {
     performSearch(searchConfig: SearchConfig, progress: Common.Progress.Progress, searchResultCallback: (arg0: SearchResult) => void, searchFinishedCallback: (arg0: boolean) => void): void | Promise<void>;
     performIndexing(progress: Common.Progress.Progress): void;

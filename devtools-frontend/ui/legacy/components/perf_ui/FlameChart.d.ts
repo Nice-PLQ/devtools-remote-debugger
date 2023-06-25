@@ -31,9 +31,10 @@ import * as Common from '../../../../core/common/common.js';
 import * as Platform from '../../../../core/platform/platform.js';
 import type * as SDK from '../../../../core/sdk/sdk.js';
 import type * as TimelineModel from '../../../../models/timeline_model/timeline_model.js';
+import * as TraceEngine from '../../../../models/trace/trace.js';
 import * as UI from '../../legacy.js';
-import type { ChartViewportDelegate } from './ChartViewport.js';
-import type { Calculator } from './TimelineGrid.js';
+import { type ChartViewportDelegate } from './ChartViewport.js';
+import { type Calculator } from './TimelineGrid.js';
 export declare class FlameChartDelegate {
     windowChanged(_startTime: number, _endTime: number, _animate: boolean): void;
     updateRangeSelection(_startTime: number, _endTime: number): void;
@@ -43,35 +44,31 @@ interface GroupExpansionState {
     [key: string]: boolean;
 }
 declare const FlameChart_base: (new (...args: any[]) => {
-    "__#8@#events": Common.ObjectWrapper.ObjectWrapper<EventTypes>;
-    addEventListener<T extends keyof EventTypes>(eventType: T, listener: (arg0: Common.EventTarget.EventTargetEvent<EventTypes[T]>) => void, thisObject?: Object | undefined): Common.EventTarget.EventDescriptor<EventTypes, T>;
+    "__#13@#events": Common.ObjectWrapper.ObjectWrapper<EventTypes>;
+    addEventListener<T extends keyof EventTypes>(eventType: T, listener: (arg0: Common.EventTarget.EventTargetEvent<EventTypes[T], any>) => void, thisObject?: Object | undefined): Common.EventTarget.EventDescriptor<EventTypes, T>;
     once<T_1 extends keyof EventTypes>(eventType: T_1): Promise<EventTypes[T_1]>;
-    removeEventListener<T_2 extends keyof EventTypes>(eventType: T_2, listener: (arg0: Common.EventTarget.EventTargetEvent<EventTypes[T_2]>) => void, thisObject?: Object | undefined): void;
+    removeEventListener<T_2 extends keyof EventTypes>(eventType: T_2, listener: (arg0: Common.EventTarget.EventTargetEvent<EventTypes[T_2], any>) => void, thisObject?: Object | undefined): void;
     hasEventListeners(eventType: keyof EventTypes): boolean;
     dispatchEventToListeners<T_3 extends keyof EventTypes>(eventType: Platform.TypeScriptUtilities.NoUnion<T_3>, ...eventData: Common.EventTarget.EventPayloadToRestParameters<EventTypes, T_3>): void;
 }) & typeof UI.Widget.VBox;
 export declare class FlameChart extends FlameChart_base implements Calculator, ChartViewportDelegate {
+    #private;
     private readonly groupExpansionSetting?;
     private groupExpansionState;
     private readonly flameChartDelegate;
-    private useWebGL;
     private chartViewport;
     private dataProvider;
     private candyStripeCanvas;
     private viewportElement;
-    private canvasGL;
     private canvas;
     private entryInfo;
     private readonly markerHighlighElement;
-    private readonly highlightElement;
+    readonly highlightElement: HTMLElement;
     private readonly selectedElement;
     private rulerEnabled;
-    private readonly rangeSelectionStart;
-    private readonly rangeSelectionEnd;
     private barHeight;
     private textBaseline;
     private textPadding;
-    private readonly markerRadius;
     private readonly headerLeftPadding;
     private arrowSide;
     private readonly expansionArrowIndent;
@@ -81,13 +78,10 @@ export declare class FlameChart extends FlameChart_base implements Calculator, C
     private highlightedEntryIndex;
     private selectedEntryIndex;
     private rawTimelineDataLength;
-    private textWidth;
     private readonly markerPositions;
     private lastMouseOffsetX;
     private selectedGroup;
     private keyboardFocusedGroup;
-    private selectedGroupBackroundColor;
-    private selectedGroupBorderColor;
     private offsetWidth;
     private offsetHeight;
     private dragStartX;
@@ -95,15 +89,6 @@ export declare class FlameChart extends FlameChart_base implements Calculator, C
     private lastMouseOffsetY;
     private minimumBoundaryInternal;
     private maxDragOffset;
-    private shaderProgram?;
-    private vertexBuffer?;
-    private colorBuffer?;
-    private uScalingFactor?;
-    private uShiftVector?;
-    private aVertexPosition?;
-    private aVertexColor?;
-    private vertexCount?;
-    private prevTimelineData?;
     private timelineLevels?;
     private visibleLevelOffsets?;
     private visibleLevels?;
@@ -158,19 +143,42 @@ export declare class FlameChart extends FlameChart_base implements Calculator, C
     private handleSelectionNavigation;
     private coordinatesToEntryIndex;
     private coordinatesToGroupIndex;
-    private markerIndexAtPosition;
     private markerIndexBeforeTime;
     private draw;
-    private initWebGL;
-    private setupGLGeometry;
-    private drawGL;
+    /**
+     * Preprocess the data to be drawn to speed the rendering time.
+     * Especifically:
+     *  - Groups events into color buckets.
+     *  - Discards non visible events.
+     *  - Gathers marker events (LCP, FCP, DCL, etc.).
+     *  - Gathers event titles that should be rendered.
+     */
+    private getDrawableData;
     private drawGroupHeaders;
+    /**
+     * Draws page load events in the Timings track (LCP, FCP, DCL, etc.)
+     */
+    private drawMarkers;
+    /**
+     * Draws the titles of trace events in the timeline. Also calls `decorateEntry` on the data
+     * provider, which can do any custom drawing on the corresponding entry's area (e.g. draw screenshots
+     * in the Performance Panel timeline).
+     *
+     * Takes in the width of the entire canvas so that we know if an event does
+     * not fit into the viewport entirely, the max width we can draw is that
+     * width, not the width of the event itself.
+     */
+    private drawEventTitles;
     private forEachGroup;
     private forEachGroupInViewport;
     private labelWidthForGroup;
     private drawCollapsedOverviewForGroup;
     private drawFlowEvents;
-    private drawMarkers;
+    /**
+     * Draws the vertical dashed lines in the timeline marking where the "Marker" events
+     * happened in time.
+     */
+    private drawMarkerLines;
     private updateMarkerHighlight;
     private processTimelineData;
     private updateLevelPositions;
@@ -178,7 +186,11 @@ export declare class FlameChart extends FlameChart_base implements Calculator, C
     setSelectedEntry(entryIndex: number): void;
     private updateElementPosition;
     private timeToPositionClipped;
-    private levelToOffset;
+    /**
+     * Returns the amount of pixels a level is vertically offset in the.
+     * flame chart.
+     */
+    levelToOffset(level: number): number;
     private levelHeight;
     private updateBoundaries;
     private updateHeight;
@@ -196,10 +208,31 @@ export declare class FlameChart extends FlameChart_base implements Calculator, C
 }
 export declare const HeaderHeight = 15;
 export declare const MinimalTimeWindowMs = 0.5;
-export declare class TimelineData {
+/**
+ * Represents a decoration that can be added to event. Each event can have as
+ * many decorations as required.
+ *
+ * It is anticipated in the future that we will add to this as we want to
+ * annotate events in more ways.
+ *
+ * This work is being tracked in crbug.com/1434297.
+ **/
+export type FlameChartDecoration = {
+    type: 'CANDY';
+    startAtTime: TraceEngine.Types.Timing.MicroSeconds;
+} | {
+    type: 'WARNING_TRIANGLE';
+};
+export declare function sortDecorationsForRenderingOrder(decorations: FlameChartDecoration[]): void;
+export declare class FlameChartTimelineData {
     entryLevels: number[] | Uint16Array;
     entryTotalTimes: number[] | Float32Array;
     entryStartTimes: number[] | Float64Array;
+    /**
+     * An array of entry decorations, where each item in the array is an array of
+     * decorations for the event at that index.
+     **/
+    readonly entryDecorations: FlameChartDecoration[][];
     groups: Group[];
     markers: FlameChartMarker[];
     flowStartTimes: number[];
@@ -207,17 +240,22 @@ export declare class TimelineData {
     flowEndTimes: number[];
     flowEndLevels: number[];
     selectedGroup: Group | null;
-    constructor(entryLevels: number[] | Uint16Array, entryTotalTimes: number[] | Float32Array, entryStartTimes: number[] | Float64Array, groups: Group[] | null);
+    private constructor();
+    static create(data: {
+        entryLevels: FlameChartTimelineData['entryLevels'];
+        entryTotalTimes: FlameChartTimelineData['entryTotalTimes'];
+        entryStartTimes: FlameChartTimelineData['entryStartTimes'];
+        groups: FlameChartTimelineData['groups'] | null;
+        entryDecorations?: FlameChartDecoration[][];
+    }): FlameChartTimelineData;
+    static createEmpty(): FlameChartTimelineData;
 }
-/**
- * @interface
- */
 export interface FlameChartDataProvider {
     minimumBoundary(): number;
     totalTime(): number;
     formatValue(value: number, precision?: number): string;
     maxStackDepth(): number;
-    timelineData(): TimelineData | null;
+    timelineData(): FlameChartTimelineData | null;
     prepareHighlightedEntryInfo(entryIndex: number): Element | null;
     canJumpToEntry(entryIndex: number): boolean;
     entryTitle(entryIndex: number): string | null;
@@ -235,50 +273,60 @@ export interface FlameChartMarker {
     draw(context: CanvasRenderingContext2D, x: number, height: number, pixelsPerMillisecond: number): void;
 }
 export declare enum Events {
+    /**
+     * Emitted when the <canvas> element of the FlameChart is focused by the user.
+     **/
     CanvasFocused = "CanvasFocused",
+    /**
+     * Emitted when an event is selected by either mouse click, or hitting
+     * <enter> on the keyboard - e.g. the same actions that would invoke a
+     * <button> element.
+     *
+     * Will be emitted with a number which is the index of the entry that has
+     * been selected, or -1 if no entry is selected (e.g the user has clicked
+     * away from any events)
+     */
     EntryInvoked = "EntryInvoked",
+    /**
+     * Emitted when an event is selected via keyboard navigation using the arrow
+     * keys.
+     *
+     * Will be emitted with a number which is the index of the entry that has
+     * been selected, or -1 if no entry is selected.
+     */
     EntrySelected = "EntrySelected",
+    /**
+     * Emitted when an event is hovered over with the mouse.
+     *
+     * Will be emitted with a number which is the index of the entry that has
+     * been hovered on, or -1 if no entry is selected (the user has moved their
+     * mouse off the event)
+     */
     EntryHighlighted = "EntryHighlighted"
 }
-export declare type EventTypes = {
+export type EventTypes = {
     [Events.CanvasFocused]: number | void;
     [Events.EntryInvoked]: number;
     [Events.EntrySelected]: number;
     [Events.EntryHighlighted]: number;
-};
-export declare const Colors: {
-    SelectedGroupBackground: string;
-    SelectedGroupBorder: string;
 };
 export interface Group {
     name: Common.UIString.LocalizedString;
     startLevel: number;
     expanded?: boolean;
     selectable?: boolean;
-    style: {
-        height: number;
-        padding: number;
-        collapsible: boolean;
-        font: string;
-        color: string;
-        backgroundColor: string;
-        nestingLevel: number;
-        itemsHeight?: number;
-        shareHeaderLine?: boolean;
-        useFirstLineForOverview?: boolean;
-        useDecoratorsForOverview?: boolean;
-    };
+    style: GroupStyle;
     track?: TimelineModel.TimelineModel.Track | null;
 }
 export interface GroupStyle {
     height: number;
     padding: number;
     collapsible: boolean;
-    font: string;
     color: string;
     backgroundColor: string;
     nestingLevel: number;
     itemsHeight?: number;
+    /** Allow entries to be placed on the same horizontal level as the text heading */
     shareHeaderLine?: boolean;
     useFirstLineForOverview?: boolean;
     useDecoratorsForOverview?: boolean;

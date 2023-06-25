@@ -8,8 +8,8 @@ import { ObjectPropertiesSection } from './ObjectPropertiesSection.js';
 import customPreviewComponentStyles from './customPreviewComponent.css.js';
 const UIStrings = {
     /**
-    *@description A context menu item in the Custom Preview Component
-    */
+     *@description A context menu item in the Custom Preview Component
+     */
     showAsJavascriptObject: 'Show as JavaScript object',
 };
 const str_ = i18n.i18n.registerUIStrings('ui/legacy/components/object_ui/CustomPreviewComponent.ts', UIStrings);
@@ -49,7 +49,7 @@ export class CustomPreviewSection {
                 this.header.classList.add('custom-expandable-section-header');
             }
             this.header.addEventListener('click', this.onClick.bind(this), false);
-            this.expandIcon = UI.Icon.Icon.create('smallicon-triangle-right', 'custom-expand-icon');
+            this.expandIcon = UI.Icon.Icon.create('triangle-right', 'custom-expand-icon');
             this.header.insertBefore(this.expandIcon, this.header.firstChild);
         }
         this.sectionElement.appendChild(this.header);
@@ -116,7 +116,7 @@ export class CustomPreviewSection {
             this.toggleExpand();
         }
         else {
-            this.loadBody();
+            void this.loadBody();
         }
     }
     toggleExpand() {
@@ -129,10 +129,10 @@ export class CustomPreviewSection {
         }
         if (this.expandIcon) {
             if (this.expanded) {
-                this.expandIcon.setIconType('smallicon-triangle-down');
+                this.expandIcon.setIconType('triangle-down');
             }
             else {
-                this.expandIcon.setIconType('smallicon-triangle-right');
+                this.expandIcon.setIconType('triangle-right');
             }
         }
     }
@@ -175,7 +175,7 @@ export class CustomPreviewComponent {
     expandIfPossible() {
         const customPreview = this.object.customPreview();
         if (customPreview && customPreview.bodyGetterId && this.customPreviewSection) {
-            this.customPreviewSection.loadBody();
+            void this.customPreviewSection.loadBody();
         }
     }
     contextMenuEventFired(event) {
@@ -184,7 +184,7 @@ export class CustomPreviewComponent {
             contextMenu.revealSection().appendItem(i18nString(UIStrings.showAsJavascriptObject), this.disassemble.bind(this));
         }
         contextMenu.appendApplicableItems(this.object);
-        contextMenu.show();
+        void contextMenu.show();
     }
     disassemble() {
         if (this.element.shadowRoot) {

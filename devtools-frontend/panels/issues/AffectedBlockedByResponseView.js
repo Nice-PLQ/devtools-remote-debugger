@@ -7,26 +7,26 @@ import * as Host from '../../core/host/host.js';
 import { AffectedResourcesView } from './AffectedResourcesView.js';
 const UIStrings = {
     /**
-    *@description Noun for singular or plural network requests. Label for the affected resources section in the issue view.
-    */
+     *@description Noun for singular or plural network requests. Label for the affected resources section in the issue view.
+     */
     nRequests: '{n, plural, =1 {# request} other {# requests}}',
     /**
-    *@description Noun for a singular network request. Label for a column in the affected resources table in the issue view.
-    */
+     *@description Noun for a singular network request. Label for a column in the affected resources table in the issue view.
+     */
     requestC: 'Request',
     /**
-    *@description Noun for a singular parent frame. Label for a column in the affected resources table in the issue view.
-    */
+     *@description Noun for a singular parent frame. Label for a column in the affected resources table in the issue view.
+     */
     parentFrame: 'Parent Frame',
     /**
-    *@description Noun for a singular resource that was blocked (an example for a blocked resource would be a frame). Label for a column in the affected resources table in the issue view.
-    */
+     *@description Noun for a singular resource that was blocked (an example for a blocked resource would be a frame). Label for a column in the affected resources table in the issue view.
+     */
     blockedResource: 'Blocked Resource',
 };
 const str_ = i18n.i18n.registerUIStrings('panels/issues/AffectedBlockedByResponseView.ts', UIStrings);
 const i18nString = i18n.i18n.getLocalizedString.bind(undefined, str_);
 export class AffectedBlockedByResponseView extends AffectedResourcesView {
-    appendDetails(details) {
+    #appendDetails(details) {
         const header = document.createElement('tr');
         this.appendColumnTitle(header, i18nString(UIStrings.requestC));
         this.appendColumnTitle(header, i18nString(UIStrings.parentFrame));
@@ -34,7 +34,7 @@ export class AffectedBlockedByResponseView extends AffectedResourcesView {
         this.affectedResources.appendChild(header);
         let count = 0;
         for (const detail of details) {
-            this.appendDetail(detail);
+            this.#appendDetail(detail);
             count++;
         }
         this.updateAffectedResourceCount(count);
@@ -42,12 +42,12 @@ export class AffectedBlockedByResponseView extends AffectedResourcesView {
     getResourceNameWithCount(count) {
         return i18nString(UIStrings.nRequests, { n: count });
     }
-    appendDetail(details) {
+    #appendDetail(details) {
         const element = document.createElement('tr');
         element.classList.add('affected-resource-row');
         const requestCell = this.createRequestCell(details.request, {
             additionalOnClickAction() {
-                Host.userMetrics.issuesPanelResourceOpened(IssuesManager.Issue.IssueCategory.CrossOriginEmbedderPolicy, "Request" /* Request */);
+                Host.userMetrics.issuesPanelResourceOpened(IssuesManager.Issue.IssueCategory.CrossOriginEmbedderPolicy, "Request" /* AffectedItem.Request */);
             },
         });
         element.appendChild(requestCell);
@@ -69,7 +69,7 @@ export class AffectedBlockedByResponseView extends AffectedResourcesView {
     }
     update() {
         this.clear();
-        this.appendDetails(this.issue.getBlockedByResponseDetails());
+        this.#appendDetails(this.issue.getBlockedByResponseDetails());
     }
 }
 //# sourceMappingURL=AffectedBlockedByResponseView.js.map

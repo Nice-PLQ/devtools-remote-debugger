@@ -28,6 +28,7 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 import * as Utils from './utils/utils.js';
+import progressIndicatorStyles from './progressIndicator.css.legacy.js';
 export class ProgressIndicator {
     element;
     shadowRoot;
@@ -41,7 +42,7 @@ export class ProgressIndicator {
     constructor() {
         this.element = document.createElement('div');
         this.element.classList.add('progress-indicator');
-        this.shadowRoot = Utils.createShadowRootWithCoreStyles(this.element, { cssFile: 'ui/legacy/progressIndicator.css', delegatesFocus: undefined });
+        this.shadowRoot = Utils.createShadowRootWithCoreStyles(this.element, { cssFile: progressIndicatorStyles, delegatesFocus: undefined });
         this.contentElement = this.shadowRoot.createChild('div', 'progress-indicator-shadow-container');
         this.labelElement = this.contentElement.createChild('div', 'title');
         this.progressElement = this.contentElement.createChild('progress');

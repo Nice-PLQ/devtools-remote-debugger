@@ -16,13 +16,13 @@ export declare class LayerTreeModel extends SDK.SDKModel.SDKModel<EventTypes> {
     layerTreeChanged(layers: Protocol.LayerTree.Layer[] | null): Promise<void>;
     private innerSetLayers;
     layerPainted(layerId: string, clipRect: Protocol.DOM.Rect): void;
-    private onMainFrameNavigated;
+    private onPrimaryPageChanged;
 }
 export declare enum Events {
     LayerTreeChanged = "LayerTreeChanged",
     LayerPainted = "LayerPainted"
 }
-export declare type EventTypes = {
+export type EventTypes = {
     [Events.LayerTreeChanged]: void;
     [Events.LayerPainted]: AgentLayer;
 };
@@ -67,6 +67,7 @@ export declare class AgentLayer implements SDK.LayerTreeBase.Layer {
     setLastPaintRect(lastPaintRect?: Protocol.DOM.Rect): void;
     scrollRects(): Protocol.LayerTree.ScrollRect[];
     stickyPositionConstraint(): SDK.LayerTreeBase.StickyPositionConstraint | null;
+    requestCompositingReasons(): Promise<string[]>;
     requestCompositingReasonIds(): Promise<string[]>;
     drawsContent(): boolean;
     gpuMemoryUsage(): number;

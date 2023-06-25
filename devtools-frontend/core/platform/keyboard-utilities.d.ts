@@ -13,3 +13,5 @@ export declare const ESCAPE_KEY = "Escape";
 export declare const TAB_KEY = "Tab";
 export declare const ARROW_KEYS: Set<ArrowKey>;
 export declare function keyIsArrowKey(key: string): key is ArrowKey;
+export declare function isEscKey(event: KeyboardEvent): boolean;
+export declare function isEnterOrSpaceKey(event: KeyboardEvent): boolean;

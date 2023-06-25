@@ -1,7 +1,6 @@
 import * as DataGrid from '../../ui/legacy/components/data_grid/data_grid.js';
 import * as UI from '../../ui/legacy/legacy.js';
-import type { URLCoverageInfo } from './CoverageModel.js';
-import { CoverageType } from './CoverageModel.js';
+import { CoverageType, type URLCoverageInfo } from './CoverageModel.js';
 export declare function coverageTypeToString(type: CoverageType): string;
 export declare class CoverageListView extends UI.Widget.VBox {
     private readonly nodeForCoverageInfo;

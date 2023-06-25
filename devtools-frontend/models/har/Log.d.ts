@@ -1,3 +1,4 @@
+import type * as Platform from '../../core/platform/platform.js';
 import * as SDK from '../../core/sdk/sdk.js';
 import type * as Protocol from '../../generated/protocol.js';
 export declare class Log {
@@ -50,7 +51,7 @@ export interface Content {
 }
 export interface Request {
     method: string;
-    url: string;
+    url: Platform.DevToolsPath.UrlString;
     httpVersion: string;
     headers: Object;
     queryString: Parameter[];

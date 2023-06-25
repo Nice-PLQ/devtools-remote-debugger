@@ -33,22 +33,22 @@ import * as Common from '../../core/common/common.js';
 import * as SDK from '../../core/sdk/sdk.js';
 export class DOMStorage extends Common.ObjectWrapper.ObjectWrapper {
     model;
-    securityOriginInternal;
+    storageKeyInternal;
     isLocalStorageInternal;
-    constructor(model, securityOrigin, isLocalStorage) {
+    constructor(model, storageKey, isLocalStorage) {
         super();
         this.model = model;
-        this.securityOriginInternal = securityOrigin;
+        this.storageKeyInternal = storageKey;
         this.isLocalStorageInternal = isLocalStorage;
     }
-    static storageId(securityOrigin, isLocalStorage) {
-        return { securityOrigin: securityOrigin, isLocalStorage: isLocalStorage };
+    static storageId(storageKey, isLocalStorage) {
+        return { storageKey: storageKey, isLocalStorage: isLocalStorage };
     }
     get id() {
-        return DOMStorage.storageId(this.securityOriginInternal, this.isLocalStorageInternal);
+        return DOMStorage.storageId(this.storageKeyInternal, this.isLocalStorageInternal);
     }
-    get securityOrigin() {
-        return this.securityOriginInternal;
+    get storageKey() {
+        return this.storageKeyInternal;
     }
     get isLocalStorage() {
         return this.isLocalStorageInternal;
@@ -57,13 +57,13 @@ export class DOMStorage extends Common.ObjectWrapper.ObjectWrapper {
         return this.model.agent.invoke_getDOMStorageItems({ storageId: this.id }).then(({ entries }) => entries);
     }
     setItem(key, value) {
-        this.model.agent.invoke_setDOMStorageItem({ storageId: this.id, key, value });
+        void this.model.agent.invoke_setDOMStorageItem({ storageId: this.id, key, value });
     }
     removeItem(key) {
-        this.model.agent.invoke_removeDOMStorageItem({ storageId: this.id, key });
+        void this.model.agent.invoke_removeDOMStorageItem({ storageId: this.id, key });
     }
     clear() {
-        this.model.agent.invoke_clear({ storageId: this.id });
+        void this.model.agent.invoke_clear({ storageId: this.id });
     }
 }
 (function (DOMStorage) {
@@ -78,69 +78,67 @@ export class DOMStorage extends Common.ObjectWrapper.ObjectWrapper {
     })(Events = DOMStorage.Events || (DOMStorage.Events = {}));
 })(DOMStorage || (DOMStorage = {}));
 export class DOMStorageModel extends SDK.SDKModel.SDKModel {
-    securityOriginManager;
+    storageKeyManagerInternal;
     storagesInternal;
     agent;
     enabled;
     constructor(target) {
         super(target);
-        this.securityOriginManager = target.model(SDK.SecurityOriginManager.SecurityOriginManager);
+        this.storageKeyManagerInternal = target.model(SDK.StorageKeyManager.StorageKeyManager);
         this.storagesInternal = {};
         this.agent = target.domstorageAgent();
+    }
+    get storageKeyManagerForTest() {
+        return this.storageKeyManagerInternal;
     }
     enable() {
         if (this.enabled) {
             return;
         }
         this.target().registerDOMStorageDispatcher(new DOMStorageDispatcher(this));
-        if (this.securityOriginManager) {
-            this.securityOriginManager.addEventListener(SDK.SecurityOriginManager.Events.SecurityOriginAdded, this.securityOriginAdded, this);
-            this.securityOriginManager.addEventListener(SDK.SecurityOriginManager.Events.SecurityOriginRemoved, this.securityOriginRemoved, this);
-            for (const securityOrigin of this.securityOriginManager.securityOrigins()) {
-                this.addOrigin(securityOrigin);
+        if (this.storageKeyManagerInternal) {
+            this.storageKeyManagerInternal.addEventListener(SDK.StorageKeyManager.Events.StorageKeyAdded, this.storageKeyAdded, this);
+            this.storageKeyManagerInternal.addEventListener(SDK.StorageKeyManager.Events.StorageKeyRemoved, this.storageKeyRemoved, this);
+            for (const storageKey of this.storageKeyManagerInternal.storageKeys()) {
+                this.addStorageKey(storageKey);
             }
         }
-        this.agent.invoke_enable();
+        void this.agent.invoke_enable();
         this.enabled = true;
     }
-    clearForOrigin(origin) {
+    clearForStorageKey(storageKey) {
         if (!this.enabled) {
             return;
         }
         for (const isLocal of [true, false]) {
-            const key = this.storageKey(origin, isLocal);
+            const key = this.storageKey(storageKey, isLocal);
             const storage = this.storagesInternal[key];
             if (!storage) {
                 return;
             }
             storage.clear();
         }
-        this.removeOrigin(origin);
-        this.addOrigin(origin);
+        this.removeStorageKey(storageKey);
+        this.addStorageKey(storageKey);
     }
-    securityOriginAdded(event) {
-        this.addOrigin(event.data);
+    storageKeyAdded(event) {
+        this.addStorageKey(event.data);
     }
-    addOrigin(securityOrigin) {
-        const parsed = new Common.ParsedURL.ParsedURL(securityOrigin);
-        // These are "opaque" origins which are not supposed to support DOM storage.
-        if (!parsed.isValid || parsed.scheme === 'data' || parsed.scheme === 'about' || parsed.scheme === 'javascript') {
-            return;
-        }
+    addStorageKey(storageKey) {
         for (const isLocal of [true, false]) {
-            const key = this.storageKey(securityOrigin, isLocal);
+            const key = this.storageKey(storageKey, isLocal);
             console.assert(!this.storagesInternal[key]);
-            const storage = new DOMStorage(this, securityOrigin, isLocal);
+            const storage = new DOMStorage(this, storageKey, isLocal);
             this.storagesInternal[key] = storage;
             this.dispatchEventToListeners(Events.DOMStorageAdded, storage);
         }
     }
-    securityOriginRemoved(event) {
-        this.removeOrigin(event.data);
+    storageKeyRemoved(event) {
+        this.removeStorageKey(event.data);
     }
-    removeOrigin(securityOrigin) {
+    removeStorageKey(storageKey) {
         for (const isLocal of [true, false]) {
-            const key = this.storageKey(securityOrigin, isLocal);
+            const key = this.storageKey(storageKey, isLocal);
             const storage = this.storagesInternal[key];
             if (!storage) {
                 continue;
@@ -149,8 +147,8 @@ export class DOMStorageModel extends SDK.SDKModel.SDKModel {
             this.dispatchEventToListeners(Events.DOMStorageRemoved, storage);
         }
     }
-    storageKey(securityOrigin, isLocalStorage) {
-        return JSON.stringify(DOMStorage.storageId(securityOrigin, isLocalStorage));
+    storageKey(storageKey, isLocalStorage) {
+        return JSON.stringify(DOMStorage.storageId(storageKey, isLocalStorage));
     }
     domStorageItemsCleared(storageId) {
         const domStorage = this.storageForId(storageId);
@@ -184,7 +182,8 @@ export class DOMStorageModel extends SDK.SDKModel.SDKModel {
         domStorage.dispatchEventToListeners(DOMStorage.Events.DOMStorageItemUpdated, eventData);
     }
     storageForId(storageId) {
-        return this.storagesInternal[JSON.stringify(storageId)];
+        console.assert(Boolean(storageId.storageKey));
+        return this.storagesInternal[this.storageKey(storageId.storageKey || '', storageId.isLocalStorage)];
     }
     storages() {
         const result = [];

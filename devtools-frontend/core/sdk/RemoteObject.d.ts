@@ -1,12 +1,14 @@
-import type * as Protocol from '../../generated/protocol.js';
-import type { DebuggerModel, FunctionDetails } from './DebuggerModel.js';
-import type { RuntimeModel } from './RuntimeModel.js';
+import * as Protocol from '../../generated/protocol.js';
+import { type DOMPinnedWebIDLProp, type DOMPinnedWebIDLType } from '../common/JavaScriptMetaData.js';
+import { type DebuggerModel, type FunctionDetails } from './DebuggerModel.js';
+import { type RuntimeModel } from './RuntimeModel.js';
 export declare class RemoteObject {
     /**
      * This may not be an interface due to "instanceof RemoteObject" checks in the code.
      */
     static fromLocalObject(value: any): RemoteObject;
     static type(remoteObject: RemoteObject): string;
+    static isNullOrUndefined(remoteObject?: RemoteObject): boolean;
     static arrayNameFromDescription(description: string): string;
     static arrayLength(object: RemoteObject | Protocol.Runtime.RemoteObject | Protocol.Runtime.ObjectPreview): number;
     static arrayBufferByteLength(object: RemoteObject | Protocol.Runtime.RemoteObject | Protocol.Runtime.ObjectPreview): number;
@@ -36,6 +38,7 @@ export declare class RemoteObject {
     debuggerModel(): DebuggerModel;
     runtimeModel(): RuntimeModel;
     isNode(): boolean;
+    webIdl?: RemoteObjectWebIdlTypeMetadata;
 }
 export declare class RemoteObjectImpl extends RemoteObject {
     #private;
@@ -82,7 +85,7 @@ export declare class ScopeRef {
 }
 export declare class RemoteObjectProperty {
     name: string;
-    value: RemoteObject | null | undefined;
+    value?: RemoteObject;
     enumerable: boolean;
     writable: boolean;
     isOwn: boolean;
@@ -93,9 +96,14 @@ export declare class RemoteObjectProperty {
     private: boolean;
     getter: RemoteObject | undefined;
     setter: RemoteObject | undefined;
+    webIdl?: RemoteObjectWebIdlPropertyMetadata;
     constructor(name: string, value: RemoteObject | null, enumerable?: boolean, writable?: boolean, isOwn?: boolean, wasThrown?: boolean, symbol?: RemoteObject | null, synthetic?: boolean, syntheticSetter?: ((arg0: string) => Promise<RemoteObject | null>), isPrivate?: boolean);
     setSyntheticValue(expression: string): Promise<boolean>;
     isAccessorProperty(): boolean;
+    match({ includeNullOrUndefinedValues, regex }: {
+        includeNullOrUndefinedValues: boolean;
+        regex: RegExp | null;
+    }): boolean;
 }
 export declare class LocalJSONObject extends RemoteObject {
     #private;
@@ -149,4 +157,12 @@ export interface CallFunctionResult {
 export interface GetPropertiesResult {
     properties: RemoteObjectProperty[] | null;
     internalProperties: RemoteObjectProperty[] | null;
+}
+export interface RemoteObjectWebIdlTypeMetadata {
+    info: DOMPinnedWebIDLType;
+    state: Map<string, string>;
+}
+export interface RemoteObjectWebIdlPropertyMetadata {
+    info: DOMPinnedWebIDLProp;
+    applicable?: boolean;
 }

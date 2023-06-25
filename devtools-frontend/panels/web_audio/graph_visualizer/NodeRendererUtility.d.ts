@@ -1,4 +1,4 @@
-import type { Point, Size } from './GraphStyle.js';
+import { type Point, type Size } from './GraphStyle.js';
 /**
  * Calculate the x, y value of input port.
  * Input ports are placed near the top of the left-side border.

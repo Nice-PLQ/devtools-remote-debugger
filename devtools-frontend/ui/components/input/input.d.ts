@@ -1,2 +1,3 @@
-declare const textInputStyles: CSSStyleSheet;
-export { textInputStyles, };
+import checkboxStyles from './checkbox.css.js';
+import textInputStyles from './textInput.css.js';
+export { checkboxStyles, textInputStyles, };

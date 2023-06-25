@@ -1,4 +1,4 @@
-import type { Conditions, ConditionsList, MobileThrottlingConditionsGroup } from './ThrottlingPresets.js';
+import { type Conditions, type ConditionsList, type MobileThrottlingConditionsGroup } from './ThrottlingPresets.js';
 export declare class MobileThrottlingSelector {
     private readonly populateCallback;
     private readonly selectCallback;

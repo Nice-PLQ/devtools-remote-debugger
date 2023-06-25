@@ -1,4 +1,4 @@
-import type { DataGridData, Parameters } from './DataGrid.js';
+import { type DataGridData, type Parameters } from './DataGrid.js';
 import { ViewportDataGrid, ViewportDataGridNode } from './ViewportDataGrid.js';
 export declare class SortableDataGrid<T> extends ViewportDataGrid<SortableDataGridNode<T>> {
     sortingFunction: <T>(a: SortableDataGridNode<T>, b: SortableDataGridNode<T>) => number;

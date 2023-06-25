@@ -1,8 +1,7 @@
 import type * as Protocol from '../../generated/protocol.js';
 import type * as ProtocolProxyApi from '../../generated/protocol-proxy-api.js';
-import type { DOMNode } from './DOMModel.js';
-import { DeferredDOMNode } from './DOMModel.js';
-import type { Target } from './Target.js';
+import { DeferredDOMNode, type DOMNode } from './DOMModel.js';
+import { type Target } from './Target.js';
 import { SDKModel } from './SDKModel.js';
 export declare enum CoreAxPropertyName {
     Name = "name",
@@ -28,7 +27,6 @@ export declare class AccessibilityNode {
     value(): Protocol.Accessibility.AXValue | null;
     properties(): Protocol.Accessibility.AXProperty[] | null;
     parentNode(): AccessibilityNode | null;
-    setParentNode(parentNode: AccessibilityNode | null): void;
     isDOMNode(): boolean;
     backendDOMNodeId(): Protocol.DOM.BackendNodeId | null;
     deferredDOMNode(): DeferredDOMNode | null;
@@ -36,9 +34,18 @@ export declare class AccessibilityNode {
     children(): AccessibilityNode[];
     numChildren(): number;
     hasOnlyUnloadedChildren(): boolean;
+    hasUnloadedChildren(): boolean;
     getFrameId(): Protocol.Page.FrameId | null;
 }
-export declare class AccessibilityModel extends SDKModel<void> {
+export declare enum Events {
+    TreeUpdated = "TreeUpdated"
+}
+export type EventTypes = {
+    [Events.TreeUpdated]: {
+        root?: AccessibilityNode;
+    };
+};
+export declare class AccessibilityModel extends SDKModel<EventTypes> implements ProtocolProxyApi.AccessibilityDispatcher {
     #private;
     agent: ProtocolProxyApi.AccessibilityApi;
     constructor(target: Target);
@@ -46,16 +53,17 @@ export declare class AccessibilityModel extends SDKModel<void> {
     resumeModel(): Promise<void>;
     suspendModel(): Promise<void>;
     requestPartialAXTree(node: DOMNode): Promise<void>;
-    private pushNodesToFrontend;
+    loadComplete({ root }: Protocol.Accessibility.LoadCompleteEvent): void;
+    nodesUpdated({ nodes }: Protocol.Accessibility.NodesUpdatedEvent): void;
     private createNodesFromPayload;
-    requestRootNode(depth?: number, frameId?: Protocol.Page.FrameId): Promise<AccessibilityNode | undefined>;
+    requestRootNode(frameId?: Protocol.Page.FrameId): Promise<AccessibilityNode | undefined>;
     requestAXChildren(nodeId: Protocol.Accessibility.AXNodeId, frameId?: Protocol.Page.FrameId): Promise<AccessibilityNode[]>;
-    requestAndLoadSubTreeToNode(node: DOMNode): Promise<AccessibilityNode | null>;
-    updateSubtreeAndAncestors(backendNodeId: Protocol.DOM.BackendNodeId): Promise<void>;
-    axNodeForId(axId: string): AccessibilityNode | null;
+    requestAndLoadSubTreeToNode(node: DOMNode): Promise<AccessibilityNode[] | null>;
+    axNodeForId(axId: Protocol.Accessibility.AXNodeId): AccessibilityNode | null;
+    setRootAXNodeForFrameId(frameId: Protocol.Page.FrameId, axNode: AccessibilityNode): void;
+    axNodeForFrameId(frameId: Protocol.Page.FrameId): AccessibilityNode | null;
     setAXNodeForAXId(axId: string, axNode: AccessibilityNode): void;
     axNodeForDOMNode(domNode: DOMNode | null): AccessibilityNode | null;
-    domNodeforAXNode(axNode: AccessibilityNode): DOMNode | null;
     setAXNodeForBackendDOMNodeId(backendDOMNodeId: Protocol.DOM.BackendNodeId, axNode: AccessibilityNode): void;
     getAgent(): ProtocolProxyApi.AccessibilityApi;
 }

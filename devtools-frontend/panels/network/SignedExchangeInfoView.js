@@ -5,92 +5,93 @@ import * as Host from '../../core/host/host.js';
 import * as i18n from '../../core/i18n/i18n.js';
 import signedExchangeInfoTreeStyles from './signedExchangeInfoTree.css.js';
 import signedExchangeInfoViewStyles from './signedExchangeInfoView.css.js';
+import * as IconButton from '../../ui/components/icon_button/icon_button.js';
 import * as Components from '../../ui/legacy/components/utils/utils.js';
 import * as UI from '../../ui/legacy/legacy.js';
 const UIStrings = {
     /**
-    *@description Text for errors
-    */
+     *@description Text for errors
+     */
     errors: 'Errors',
     /**
-    *@description Text in Signed Exchange Info View of the Network panel
-    */
+     *@description Text in Signed Exchange Info View of the Network panel
+     */
     signedHttpExchange: 'Signed HTTP exchange',
     /**
-    *@description Text for an option to learn more about something
-    */
+     *@description Text for an option to learn more about something
+     */
     learnmore: 'Learn more',
     /**
-    *@description Text in Request Headers View of the Network panel
-    */
+     *@description Text in Request Headers View of the Network panel
+     */
     requestUrl: 'Request URL',
     /**
-    *@description Text in Signed Exchange Info View of the Network panel
-    */
+     *@description Text in Signed Exchange Info View of the Network panel
+     */
     responseCode: 'Response code',
     /**
-    *@description Text in Signed Exchange Info View of the Network panel
-    */
+     *@description Text in Signed Exchange Info View of the Network panel
+     */
     headerIntegrityHash: 'Header integrity hash',
     /**
-    *@description Text in Signed Exchange Info View of the Network panel
-    */
+     *@description Text in Signed Exchange Info View of the Network panel
+     */
     responseHeaders: 'Response headers',
     /**
-    *@description Text in Signed Exchange Info View of the Network panel
-    */
+     *@description Text in Signed Exchange Info View of the Network panel
+     */
     signature: 'Signature',
     /**
-    *@description Text in Signed Exchange Info View of the Network panel
-    */
+     *@description Text in Signed Exchange Info View of the Network panel
+     */
     label: 'Label',
     /**
-    *@description Text in Signed Exchange Info View of the Network panel
-    */
+     *@description Text in Signed Exchange Info View of the Network panel
+     */
     certificateUrl: 'Certificate URL',
     /**
-    *@description Text to view a security certificate
-    */
+     *@description Text to view a security certificate
+     */
     viewCertificate: 'View certificate',
     /**
-    *@description Text in Signed Exchange Info View of the Network panel
-    */
+     *@description Text in Signed Exchange Info View of the Network panel
+     */
     integrity: 'Integrity',
     /**
-    *@description Text in Signed Exchange Info View of the Network panel
-    */
+     *@description Text in Signed Exchange Info View of the Network panel
+     */
     certificateSha: 'Certificate SHA256',
     /**
-    *@description Text in Signed Exchange Info View of the Network panel
-    */
+     *@description Text in Signed Exchange Info View of the Network panel
+     */
     validityUrl: 'Validity URL',
     /**
-    *@description Text in Signed Exchange Info View of the Network panel
-    */
+     *@description Text in Signed Exchange Info View of the Network panel
+     */
     date: 'Date',
     /**
-    *@description Text in Signed Exchange Info View of the Network panel
-    */
+     *@description Text in Signed Exchange Info View of the Network panel
+     */
     expires: 'Expires',
     /**
-    *@description Text for a security certificate
-    */
+     *@description Text for a security certificate
+     */
     certificate: 'Certificate',
     /**
-    *@description Text that refers to the subject of a security certificate
-    */
+     *@description Text that refers to the subject of a security certificate
+     */
     subject: 'Subject',
     /**
-    *@description Text to show since when an item is valid
-    */
+     *@description Text to show since when an item is valid
+     */
     validFrom: 'Valid from',
     /**
-    *@description Text to indicate the expiry date
-    */
+     *@description Text to indicate the expiry date
+     */
     validUntil: 'Valid until',
     /**
-    *@description Text for the issuer of an item
-    */
+     *@description Text for the issuer of an item
+     */
     issuer: 'Issuer',
 };
 const str_ = i18n.i18n.registerUIStrings('panels/network/SignedExchangeInfoView.ts', UIStrings);
@@ -114,7 +115,10 @@ export class SignedExchangeInfoView extends UI.Widget.VBox {
             const errorMessagesCategory = new Category(root, i18nString(UIStrings.errors));
             for (const error of signedExchangeInfo.errors) {
                 const fragment = document.createDocumentFragment();
-                fragment.appendChild(UI.Icon.Icon.create('smallicon-error', 'prompt-icon'));
+                const icon = new IconButton.Icon.Icon();
+                icon.data = { iconName: 'cross-circle-filled', color: 'var(--icon-error)', width: '14px', height: '14px' };
+                icon.classList.add('prompt-icon');
+                fragment.appendChild(icon);
                 fragment.createChild('div', 'error-log').textContent = error.message;
                 errorMessagesCategory.createLeaf(fragment);
                 if (error.errorField) {
@@ -158,9 +162,9 @@ export class SignedExchangeInfoView extends UI.Widget.VBox {
                 const signature = header.signatures[i];
                 const signatureCategory = new Category(root, i18nString(UIStrings.signature));
                 signatureCategory.createLeaf(this.formatHeader(i18nString(UIStrings.label), signature.label));
-                signatureCategory.createLeaf(this.formatHeaderForHexData(i18nString(UIStrings.signature), signature.signature, errorFieldSet.has("signatureSig" /* SignatureSig */)));
+                signatureCategory.createLeaf(this.formatHeaderForHexData(i18nString(UIStrings.signature), signature.signature, errorFieldSet.has("signatureSig" /* Protocol.Network.SignedExchangeErrorField.SignatureSig */)));
                 if (signature.certUrl) {
-                    const certURLElement = this.formatHeader(i18nString(UIStrings.certificateUrl), signature.certUrl, errorFieldSet.has("signatureCertUrl" /* SignatureCertUrl */));
+                    const certURLElement = this.formatHeader(i18nString(UIStrings.certificateUrl), signature.certUrl, errorFieldSet.has("signatureCertUrl" /* Protocol.Network.SignedExchangeErrorField.SignatureCertUrl */));
                     if (signature.certificates) {
                         const viewCertLink = certURLElement.createChild('span', 'devtools-link header-toggle');
                         viewCertLink.textContent = i18nString(UIStrings.viewCertificate);
@@ -168,13 +172,13 @@ export class SignedExchangeInfoView extends UI.Widget.VBox {
                     }
                     signatureCategory.createLeaf(certURLElement);
                 }
-                signatureCategory.createLeaf(this.formatHeader(i18nString(UIStrings.integrity), signature.integrity, errorFieldSet.has("signatureIntegrity" /* SignatureIntegrity */)));
+                signatureCategory.createLeaf(this.formatHeader(i18nString(UIStrings.integrity), signature.integrity, errorFieldSet.has("signatureIntegrity" /* Protocol.Network.SignedExchangeErrorField.SignatureIntegrity */)));
                 if (signature.certSha256) {
-                    signatureCategory.createLeaf(this.formatHeaderForHexData(i18nString(UIStrings.certificateSha), signature.certSha256, errorFieldSet.has("signatureCertSha256" /* SignatureCertSha256 */)));
+                    signatureCategory.createLeaf(this.formatHeaderForHexData(i18nString(UIStrings.certificateSha), signature.certSha256, errorFieldSet.has("signatureCertSha256" /* Protocol.Network.SignedExchangeErrorField.SignatureCertSha256 */)));
                 }
-                signatureCategory.createLeaf(this.formatHeader(i18nString(UIStrings.validityUrl), signature.validityUrl, errorFieldSet.has("signatureValidityUrl" /* SignatureValidityUrl */)));
-                signatureCategory.createLeaf().title = this.formatHeader(i18nString(UIStrings.date), new Date(1000 * signature.date).toUTCString(), errorFieldSet.has("signatureTimestamps" /* SignatureTimestamps */));
-                signatureCategory.createLeaf().title = this.formatHeader(i18nString(UIStrings.expires), new Date(1000 * signature.expires).toUTCString(), errorFieldSet.has("signatureTimestamps" /* SignatureTimestamps */));
+                signatureCategory.createLeaf(this.formatHeader(i18nString(UIStrings.validityUrl), signature.validityUrl, errorFieldSet.has("signatureValidityUrl" /* Protocol.Network.SignedExchangeErrorField.SignatureValidityUrl */)));
+                signatureCategory.createLeaf().title = this.formatHeader(i18nString(UIStrings.date), new Date(1000 * signature.date).toUTCString(), errorFieldSet.has("signatureTimestamps" /* Protocol.Network.SignedExchangeErrorField.SignatureTimestamps */));
+                signatureCategory.createLeaf().title = this.formatHeader(i18nString(UIStrings.expires), new Date(1000 * signature.expires).toUTCString(), errorFieldSet.has("signatureTimestamps" /* Protocol.Network.SignedExchangeErrorField.SignatureTimestamps */));
             }
         }
         if (signedExchangeInfo.securityDetails) {

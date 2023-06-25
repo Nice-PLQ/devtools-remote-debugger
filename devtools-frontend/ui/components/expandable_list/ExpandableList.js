@@ -6,22 +6,22 @@ import * as LitHtml from '../../lit-html/lit-html.js';
 import expandableListStyles from './expandableList.css.js';
 export class ExpandableList extends HTMLElement {
     static litTagName = LitHtml.literal `devtools-expandable-list`;
-    shadow = this.attachShadow({ mode: 'open' });
-    expanded = false;
-    rows = [];
+    #shadow = this.attachShadow({ mode: 'open' });
+    #expanded = false;
+    #rows = [];
     set data(data) {
-        this.rows = data.rows;
-        this.render();
+        this.#rows = data.rows;
+        this.#render();
     }
-    onArrowClick() {
-        this.expanded = !this.expanded;
-        this.render();
+    #onArrowClick() {
+        this.#expanded = !this.#expanded;
+        this.#render();
     }
     connectedCallback() {
-        this.shadow.adoptedStyleSheets = [expandableListStyles];
+        this.#shadow.adoptedStyleSheets = [expandableListStyles];
     }
-    render() {
-        if (this.rows.length < 1) {
+    #render() {
+        if (this.#rows.length < 1) {
             return;
         }
         // Disabled until https://crbug.com/1079231 is fixed.
@@ -29,21 +29,21 @@ export class ExpandableList extends HTMLElement {
         LitHtml.render(LitHtml.html `
       <div class="expandable-list-container">
         <div>
-          ${this.rows.length > 1 ?
+          ${this.#rows.length > 1 ?
             LitHtml.html `
-              <button @click=${() => this.onArrowClick()} class="arrow-icon-button">
-                <span class="arrow-icon ${this.expanded ? 'expanded' : ''}"></span>
+              <button @click=${() => this.#onArrowClick()} class="arrow-icon-button">
+                <span class="arrow-icon ${this.#expanded ? 'expanded' : ''}"></span>
               </button>
             `
             : LitHtml.nothing}
         </div>
         <div class="expandable-list-items">
-          ${this.rows.filter((_, index) => (this.expanded || index === 0)).map(row => LitHtml.html `
+          ${this.#rows.filter((_, index) => (this.#expanded || index === 0)).map(row => LitHtml.html `
             ${row}
           `)}
         </div>
       </div>
-    `, this.shadow, { host: this });
+    `, this.#shadow, { host: this });
         // clang-format on
     }
 }

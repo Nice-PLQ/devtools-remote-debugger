@@ -9,16 +9,16 @@ import * as LitHtml from '../../lit-html/lit-html.js';
 import issueCounterStyles from './issueCounter.css.js';
 const UIStrings = {
     /**
-    *@description Label for link to Issues tab, specifying how many issues there are.
-    */
+     *@description Label for link to Issues tab, specifying how many issues there are.
+     */
     pageErrors: '{issueCount, plural, =1 {# page error} other {# page errors}}',
     /**
-   *@description Label for link to Issues tab, specifying how many issues there are.
-   */
+     *@description Label for link to Issues tab, specifying how many issues there are.
+     */
     breakingChanges: '{issueCount, plural, =1 {# breaking change} other {# breaking changes}}',
     /**
-   *@description Label for link to Issues tab, specifying how many issues there are.
-   */
+     *@description Label for link to Issues tab, specifying how many issues there are.
+     */
     possibleImprovements: '{issueCount, plural, =1 {# possible improvement} other {# possible improvements}}',
 };
 const str_ = i18n.i18n.registerUIStrings('ui/components/issue_counter/IssueCounter.ts', UIStrings);
@@ -26,11 +26,11 @@ const i18nString = i18n.i18n.getLocalizedString.bind(undefined, str_);
 export function getIssueKindIconData(issueKind) {
     switch (issueKind) {
         case IssuesManager.Issue.IssueKind.PageError:
-            return { iconName: 'issue-cross-icon', color: 'var(--issue-color-red)', width: '16px', height: '16px' };
+            return { iconName: 'issue-cross-filled', color: 'var(--icon-error)', width: '20px', height: '20px' };
         case IssuesManager.Issue.IssueKind.BreakingChange:
-            return { iconName: 'issue-exclamation-icon', color: 'var(--issue-color-yellow)', width: '16px', height: '16px' };
+            return { iconName: 'issue-exclamation-filled', color: 'var(--icon-warning)', width: '20px', height: '20px' };
         case IssuesManager.Issue.IssueKind.Improvement:
-            return { iconName: 'issue-text-icon', color: 'var(--issue-color-blue)', width: '16px', height: '16px' };
+            return { iconName: 'issue-text-filled', color: 'var(--icon-info)', width: '20px', height: '20px' };
     }
 }
 function toIconGroup({ iconName, color, width, height }, sizeOverride) {
@@ -56,83 +56,83 @@ export function getIssueCountsEnumeration(issuesManager, omitEmpty = true) {
 }
 export class IssueCounter extends HTMLElement {
     static litTagName = LitHtml.literal `issue-counter`;
-    shadow = this.attachShadow({ mode: 'open' });
-    clickHandler = undefined;
-    tooltipCallback = undefined;
-    leadingText = '';
-    throttler;
-    counts = [0, 0, 0];
-    displayMode = "OmitEmpty" /* OmitEmpty */;
-    issuesManager = undefined;
-    accessibleName = undefined;
-    throttlerTimeout;
-    compact = false;
+    #shadow = this.attachShadow({ mode: 'open' });
+    #clickHandler = undefined;
+    #tooltipCallback = undefined;
+    #leadingText = '';
+    #throttler;
+    #counts = [0, 0, 0];
+    #displayMode = "OmitEmpty" /* DisplayMode.OmitEmpty */;
+    #issuesManager = undefined;
+    #accessibleName = undefined;
+    #throttlerTimeout;
+    #compact = false;
     scheduleUpdate() {
-        if (this.throttler) {
-            this.throttler.schedule(async () => this.render());
+        if (this.#throttler) {
+            void this.#throttler.schedule(async () => this.#render());
         }
         else {
-            this.render();
+            this.#render();
         }
     }
     connectedCallback() {
-        this.shadow.adoptedStyleSheets = [issueCounterStyles];
+        this.#shadow.adoptedStyleSheets = [issueCounterStyles];
     }
     set data(data) {
-        this.clickHandler = data.clickHandler;
-        this.leadingText = data.leadingText ?? '';
-        this.tooltipCallback = data.tooltipCallback;
-        this.displayMode = data.displayMode ?? "OmitEmpty" /* OmitEmpty */;
-        this.accessibleName = data.accessibleName;
-        this.throttlerTimeout = data.throttlerTimeout;
-        this.compact = Boolean(data.compact);
-        if (this.issuesManager !== data.issuesManager) {
-            this.issuesManager?.removeEventListener("IssuesCountUpdated" /* IssuesCountUpdated */, this.scheduleUpdate, this);
-            this.issuesManager = data.issuesManager;
-            this.issuesManager.addEventListener("IssuesCountUpdated" /* IssuesCountUpdated */, this.scheduleUpdate, this);
+        this.#clickHandler = data.clickHandler;
+        this.#leadingText = data.leadingText ?? '';
+        this.#tooltipCallback = data.tooltipCallback;
+        this.#displayMode = data.displayMode ?? "OmitEmpty" /* DisplayMode.OmitEmpty */;
+        this.#accessibleName = data.accessibleName;
+        this.#throttlerTimeout = data.throttlerTimeout;
+        this.#compact = Boolean(data.compact);
+        if (this.#issuesManager !== data.issuesManager) {
+            this.#issuesManager?.removeEventListener("IssuesCountUpdated" /* IssuesManager.IssuesManager.Events.IssuesCountUpdated */, this.scheduleUpdate, this);
+            this.#issuesManager = data.issuesManager;
+            this.#issuesManager.addEventListener("IssuesCountUpdated" /* IssuesManager.IssuesManager.Events.IssuesCountUpdated */, this.scheduleUpdate, this);
         }
         if (data.throttlerTimeout !== 0) {
-            this.throttler = new Common.Throttler.Throttler(data.throttlerTimeout ?? 100);
+            this.#throttler = new Common.Throttler.Throttler(data.throttlerTimeout ?? 100);
         }
         else {
-            this.throttler = undefined;
+            this.#throttler = undefined;
         }
         this.scheduleUpdate();
     }
     get data() {
         return {
-            clickHandler: this.clickHandler,
-            leadingText: this.leadingText,
-            tooltipCallback: this.tooltipCallback,
-            displayMode: this.displayMode,
-            accessibleName: this.accessibleName,
-            throttlerTimeout: this.throttlerTimeout,
-            compact: this.compact,
-            issuesManager: this.issuesManager,
+            clickHandler: this.#clickHandler,
+            leadingText: this.#leadingText,
+            tooltipCallback: this.#tooltipCallback,
+            displayMode: this.#displayMode,
+            accessibleName: this.#accessibleName,
+            throttlerTimeout: this.#throttlerTimeout,
+            compact: this.#compact,
+            issuesManager: this.#issuesManager,
         };
     }
-    render() {
-        if (!this.issuesManager) {
+    #render() {
+        if (!this.#issuesManager) {
             return;
         }
-        this.counts = [
-            this.issuesManager.numberOfIssues(IssuesManager.Issue.IssueKind.PageError),
-            this.issuesManager.numberOfIssues(IssuesManager.Issue.IssueKind.BreakingChange),
-            this.issuesManager.numberOfIssues(IssuesManager.Issue.IssueKind.Improvement),
+        this.#counts = [
+            this.#issuesManager.numberOfIssues(IssuesManager.Issue.IssueKind.PageError),
+            this.#issuesManager.numberOfIssues(IssuesManager.Issue.IssueKind.BreakingChange),
+            this.#issuesManager.numberOfIssues(IssuesManager.Issue.IssueKind.Improvement),
         ];
         const importance = [
             IssuesManager.Issue.IssueKind.PageError,
             IssuesManager.Issue.IssueKind.BreakingChange,
             IssuesManager.Issue.IssueKind.Improvement,
         ];
-        const mostImportant = importance[this.counts.findIndex(x => x > 0) ?? 2];
+        const mostImportant = importance[this.#counts.findIndex(x => x > 0) ?? 2];
         const countToString = (kind, count) => {
-            switch (this.displayMode) {
-                case "OmitEmpty" /* OmitEmpty */:
+            switch (this.#displayMode) {
+                case "OmitEmpty" /* DisplayMode.OmitEmpty */:
                     return count > 0 ? `${count}` : undefined;
-                case "ShowAlways" /* ShowAlways */:
+                case "ShowAlways" /* DisplayMode.ShowAlways */:
                     return `${count}`;
-                case "OnlyMostImportant" /* OnlyMostImportant */:
+                case "OnlyMostImportant" /* DisplayMode.OnlyMostImportant */:
                     return kind === mostImportant ? `${count}` : undefined;
             }
         };
@@ -141,26 +141,26 @@ export class IssueCounter extends HTMLElement {
             groups: [
                 {
                     ...toIconGroup(getIssueKindIconData(IssuesManager.Issue.IssueKind.PageError), iconSize),
-                    text: countToString(IssuesManager.Issue.IssueKind.PageError, this.counts[0]),
+                    text: countToString(IssuesManager.Issue.IssueKind.PageError, this.#counts[0]),
                 },
                 {
                     ...toIconGroup(getIssueKindIconData(IssuesManager.Issue.IssueKind.BreakingChange), iconSize),
-                    text: countToString(IssuesManager.Issue.IssueKind.BreakingChange, this.counts[1]),
+                    text: countToString(IssuesManager.Issue.IssueKind.BreakingChange, this.#counts[1]),
                 },
                 {
                     ...toIconGroup(getIssueKindIconData(IssuesManager.Issue.IssueKind.Improvement), iconSize),
-                    text: countToString(IssuesManager.Issue.IssueKind.Improvement, this.counts[2]),
+                    text: countToString(IssuesManager.Issue.IssueKind.Improvement, this.#counts[2]),
                 },
             ],
-            clickHandler: this.clickHandler,
-            leadingText: this.leadingText,
-            accessibleName: this.accessibleName,
-            compact: this.compact,
+            clickHandler: this.#clickHandler,
+            leadingText: this.#leadingText,
+            accessibleName: this.#accessibleName,
+            compact: this.#compact,
         };
         LitHtml.render(LitHtml.html `
-        <icon-button .data=${data} .accessibleName="${this.accessibleName}"></icon-button>
-        `, this.shadow, { host: this });
-        this.tooltipCallback?.();
+        <icon-button .data=${data} .accessibleName=${this.#accessibleName}></icon-button>
+        `, this.#shadow, { host: this });
+        this.#tooltipCallback?.();
     }
 }
 ComponentHelpers.CustomElements.defineComponent('issue-counter', IssueCounter);

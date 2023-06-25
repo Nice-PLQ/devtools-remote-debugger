@@ -22,6 +22,6 @@ export declare class SwatchPopoverHelper extends Common.ObjectWrapper.ObjectWrap
 export declare enum Events {
     WillShowPopover = "WillShowPopover"
 }
-export declare type EventTypes = {
+export type EventTypes = {
     [Events.WillShowPopover]: void;
 };

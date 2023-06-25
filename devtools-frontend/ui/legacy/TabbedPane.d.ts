@@ -1,16 +1,16 @@
 import * as Common from '../../core/common/common.js';
 import * as Platform from '../../core/platform/platform.js';
+import * as IconButton from '../components/icon_button/icon_button.js';
 import { ContextMenu } from './ContextMenu.js';
 import { Constraints } from './Geometry.js';
 import { Icon } from './Icon.js';
 import { Toolbar } from './Toolbar.js';
-import type { Widget } from './Widget.js';
-import { VBox } from './Widget.js';
+import { VBox, type Widget } from './Widget.js';
 declare const TabbedPane_base: (new (...args: any[]) => {
-    "__#8@#events": Common.ObjectWrapper.ObjectWrapper<EventTypes>;
-    addEventListener<T extends keyof EventTypes>(eventType: T, listener: (arg0: Common.EventTarget.EventTargetEvent<EventTypes[T]>) => void, thisObject?: Object | undefined): Common.EventTarget.EventDescriptor<EventTypes, T>;
+    "__#13@#events": Common.ObjectWrapper.ObjectWrapper<EventTypes>;
+    addEventListener<T extends keyof EventTypes>(eventType: T, listener: (arg0: Common.EventTarget.EventTargetEvent<EventTypes[T], any>) => void, thisObject?: Object | undefined): Common.EventTarget.EventDescriptor<EventTypes, T>;
     once<T_1 extends keyof EventTypes>(eventType: T_1): Promise<EventTypes[T_1]>;
-    removeEventListener<T_2 extends keyof EventTypes>(eventType: T_2, listener: (arg0: Common.EventTarget.EventTargetEvent<EventTypes[T_2]>) => void, thisObject?: Object | undefined): void;
+    removeEventListener<T_2 extends keyof EventTypes>(eventType: T_2, listener: (arg0: Common.EventTarget.EventTargetEvent<EventTypes[T_2], any>) => void, thisObject?: Object | undefined): void;
     hasEventListeners(eventType: keyof EventTypes): boolean;
     dispatchEventToListeners<T_3 extends keyof EventTypes>(eventType: Platform.TypeScriptUtilities.NoUnion<T_3>, ...eventData: Common.EventTarget.EventPayloadToRestParameters<EventTypes, T_3>): void;
 }) & typeof VBox;
@@ -75,7 +75,7 @@ export declare class TabbedPane extends TabbedPane_base {
     selectNextTab(): void;
     selectPrevTab(): void;
     lastOpenedTabIds(tabsCount: number): string[];
-    setTabIcon(id: string, icon: Icon | null): void;
+    setTabIcon(id: string, icon: Icon | IconButton.Icon.Icon | null): void;
     setTabEnabled(id: string, enabled: boolean): void;
     toggleTabClass(id: string, className: string, force?: boolean): void;
     private zoomChanged;
@@ -132,7 +132,7 @@ export declare enum Events {
     TabClosed = "TabClosed",
     TabOrderChanged = "TabOrderChanged"
 }
-export declare type EventTypes = {
+export type EventTypes = {
     [Events.TabInvoked]: EventData;
     [Events.TabSelected]: EventData;
     [Events.TabClosed]: EventData;
@@ -160,7 +160,7 @@ export declare class TabbedPaneTab {
     get title(): string;
     set title(title: string);
     isCloseable(): boolean;
-    setIcon(icon: Icon | null): void;
+    setIcon(icon: Icon | IconButton.Icon.Icon | null): void;
     toggleClass(className: string, force?: boolean): boolean;
     get view(): Widget;
     set view(view: Widget);

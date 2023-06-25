@@ -1,11 +1,12 @@
 import * as SDK from '../../core/sdk/sdk.js';
 import * as UI from '../../ui/legacy/legacy.js';
+import * as LayerViewer from '../layer_viewer/layer_viewer.js';
 export declare class LayersPanel extends UI.Panel.PanelWithSidebar implements SDK.TargetManager.Observer {
     private model;
     private readonly layerViewHost;
     private readonly layerTreeOutline;
     private readonly rightSplitWidget;
-    private readonly layers3DView;
+    readonly layers3DView: LayerViewer.Layers3DView.Layers3DView;
     private tabbedPane;
     private readonly layerDetailsView;
     private readonly paintProfilerView;
@@ -13,7 +14,7 @@ export declare class LayersPanel extends UI.Panel.PanelWithSidebar implements SD
     private layerBeingProfiled?;
     constructor();
     static instance(opts?: {
-        forceNew: null;
+        forceNew: boolean;
     }): LayersPanel;
     focus(): void;
     wasShown(): void;

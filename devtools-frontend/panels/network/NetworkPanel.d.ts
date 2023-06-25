@@ -6,7 +6,7 @@ import * as UI from '../../ui/legacy/legacy.js';
 import * as Search from '../search/search.js';
 import { NetworkItemView } from './NetworkItemView.js';
 import { NetworkLogView } from './NetworkLogView.js';
-import type { NetworkTimeCalculator } from './NetworkTimeCalculator.js';
+import { type NetworkTimeCalculator } from './NetworkTimeCalculator.js';
 export declare class NetworkPanel extends UI.Panel.Panel implements UI.ContextMenu.Provider, UI.View.ViewLocationResolver {
     private readonly networkLogShowOverviewSetting;
     private readonly networkLogLargeRowsSetting;
@@ -37,9 +37,11 @@ export declare class NetworkPanel extends UI.Panel.Panel implements UI.ContextMe
     private preserveLogSetting;
     recordLogSetting: Common.Settings.Setting<boolean>;
     private readonly throttlingSelect;
-    constructor();
+    private readonly displayScreenshotDelay;
+    constructor(displayScreenshotDelay: number);
     static instance(opts?: {
-        forceNew: boolean | null;
+        forceNew: boolean;
+        displayScreenshotDelay?: number;
     }): NetworkPanel;
     static revealAndFilter(filters: {
         filterType: NetworkForward.UIFilter.FilterType | null;
@@ -85,7 +87,6 @@ export declare class NetworkPanel extends UI.Panel.Panel implements UI.ContextMe
     private onUpdateRequest;
     resolveLocation(locationName: string): UI.View.ViewLocation | null;
 }
-export declare const displayScreenshotDelay = 1000;
 export declare class ContextMenuProvider implements UI.ContextMenu.Provider {
     static instance(opts?: {
         forceNew: boolean | null;

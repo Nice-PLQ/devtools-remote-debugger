@@ -13,7 +13,7 @@ export declare class XMLView extends UI.Widget.Widget implements UI.SearchableVi
     private updateSearchIndex;
     innerPerformSearch(shouldJump: boolean, jumpBackwards?: boolean): void;
     private innerSearchCanceled;
-    searchCanceled(): void;
+    onSearchCanceled(): void;
     performSearch(searchConfig: UI.SearchableView.SearchConfig, shouldJump: boolean, jumpBackwards?: boolean): void;
     jumpToNextSearchResult(): void;
     jumpToPreviousSearchResult(): void;

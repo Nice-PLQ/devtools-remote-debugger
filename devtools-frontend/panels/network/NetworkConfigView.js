@@ -10,42 +10,50 @@ import * as EmulationComponents from '../settings/emulation/components/component
 import networkConfigViewStyles from './networkConfigView.css.js';
 const UIStrings = {
     /**
-    *@description Text in Network Config View of the Network panel
-    */
+     *@description Text in Network Config View of the Network panel
+     */
     custom: 'Custom...',
     /**
-    *@description Other user agent element placeholder in Network Config View of the Network panel
-    */
+     *@description Other user agent element placeholder in Network Config View of the Network panel
+     */
     enterACustomUserAgent: 'Enter a custom user agent',
     /**
-    *@description Error message for empty custom user agent input
-    */
+     *@description Error message for empty custom user agent input
+     */
     customUserAgentFieldIsRequired: 'Custom user agent field is required',
     /**
-    *@description Text in Network Config View of the Network panel
-    */
+     *@description Text in Network Config View of the Network panel
+     */
     caching: 'Caching',
     /**
-    *@description Text in Network Config View of the Network panel
-    */
+     *@description Text in Network Config View of the Network panel
+     */
     disableCache: 'Disable cache',
     /**
-    *@description Text in Network Config View of the Network panel
-    */
+     *@description Text in Network Config View of the Network panel
+     */
     networkThrottling: 'Network throttling',
     /**
-    *@description Text in Network Config View of the Network panel
-    */
+     *@description Text in Network Config View of the Network panel
+     */
     userAgent: 'User agent',
     /**
-    *@description Text in Network Config View of the Network panel
-    */
+     *@description Text in Network Config View of the Network panel
+     */
     selectAutomatically: 'Use browser default',
     /**
      * @description Title of a section in the Network conditions view that includes
      * a set of checkboxes to override the content encodings supported by the browser.
      */
     acceptedEncoding: 'Accepted `Content-Encoding`s',
+    /**
+     * @description Status text for successful update of client hints.
+     */
+    clientHintsStatusText: 'User agent updated.',
+    /**
+     * @description The aria alert message when the Network conditions panel is shown.
+     */
+    networkConditionsPanelShown: 'Network conditions shown',
 };
 const str_ = i18n.i18n.registerUIStrings('panels/network/NetworkConfigView.ts', UIStrings);
 const i18nString = i18n.i18n.getLocalizedString.bind(undefined, str_);
@@ -73,7 +81,7 @@ export class NetworkConfigView extends UI.Widget.VBox {
         const userAgentSetting = Common.Settings.Settings.instance().createSetting('customUserAgent', '');
         const userAgentMetadataSetting = Common.Settings.Settings.instance().createSetting('customUserAgentMetadata', null);
         const userAgentSelectElement = document.createElement('select');
-        UI.ARIAUtils.setAccessibleName(userAgentSelectElement, title);
+        UI.ARIAUtils.setLabel(userAgentSelectElement, title);
         const customOverride = { title: i18nString(UIStrings.custom), value: 'custom' };
         userAgentSelectElement.appendChild(new Option(customOverride.title, customOverride.value));
         for (const userAgentDescriptor of userAgentGroups) {
@@ -90,7 +98,7 @@ export class NetworkConfigView extends UI.Widget.VBox {
         UI.Tooltip.Tooltip.install(otherUserAgentElement, userAgentSetting.get());
         otherUserAgentElement.placeholder = i18nString(UIStrings.enterACustomUserAgent);
         otherUserAgentElement.required = true;
-        UI.ARIAUtils.setAccessibleName(otherUserAgentElement, otherUserAgentElement.placeholder);
+        UI.ARIAUtils.setLabel(otherUserAgentElement, otherUserAgentElement.placeholder);
         const errorElement = document.createElement('div');
         errorElement.classList.add('network-config-input-validation-error');
         UI.ARIAUtils.markAsAlert(errorElement);
@@ -165,7 +173,7 @@ export class NetworkConfigView extends UI.Widget.VBox {
         const section = this.createSection(title, 'network-config-throttling');
         const networkThrottlingSelect = section.createChild('select', 'chrome-select');
         MobileThrottling.ThrottlingManager.throttlingManager().decorateSelectWithNetworkThrottling(networkThrottlingSelect);
-        UI.ARIAUtils.setAccessibleName(networkThrottlingSelect, title);
+        UI.ARIAUtils.setLabel(networkThrottlingSelect, title);
     }
     createUserAgentSection() {
         const title = i18nString(UIStrings.userAgent);
@@ -208,16 +216,21 @@ export class NetworkConfigView extends UI.Widget.VBox {
                 showMobileCheckbox: true,
                 showSubmitButton: true,
             };
+            userAgentUpdateButtonStatusText.textContent = '';
         });
         clientHints.addEventListener('clienthintschange', () => {
             customSelectAndInput.select.value = 'custom';
+            userAgentUpdateButtonStatusText.textContent = '';
         });
         clientHints.addEventListener('clienthintssubmit', (event) => {
             const metaData = event.detail.value;
             const customUA = customUserAgentSetting.get();
             userAgentMetadataSetting.set(metaData);
             SDK.NetworkManager.MultitargetNetworkManager.instance().setCustomUserAgentOverride(customUA, metaData);
+            userAgentUpdateButtonStatusText.textContent = i18nString(UIStrings.clientHintsStatusText);
         });
+        const userAgentUpdateButtonStatusText = section.createChild('span', 'status-text');
+        userAgentUpdateButtonStatusText.textContent = '';
         userAgentSelectBoxChanged();
         function userAgentSelectBoxChanged() {
             const useCustomUA = !autoCheckbox.checked;
@@ -238,7 +251,7 @@ export class NetworkConfigView extends UI.Widget.VBox {
         section.appendChild(checkboxLabel);
         const autoCheckbox = checkboxLabel.checkboxElement;
         const useCustomAcceptedEncodingSetting = Common.Settings.Settings.instance().createSetting('useCustomAcceptedEncodings', false);
-        const customAcceptedEncodingSetting = Common.Settings.Settings.instance().createSetting('customAcceptedEncodings', `${"gzip" /* Gzip */},${"br" /* Br */},${"deflate" /* Deflate */}`);
+        const customAcceptedEncodingSetting = Common.Settings.Settings.instance().createSetting('customAcceptedEncodings', `${"gzip" /* Protocol.Network.ContentEncoding.Gzip */},${"br" /* Protocol.Network.ContentEncoding.Br */},${"deflate" /* Protocol.Network.ContentEncoding.Deflate */}`);
         function onSettingChange() {
             if (!useCustomAcceptedEncodingSetting.get()) {
                 SDK.NetworkManager.MultitargetNetworkManager.instance().clearCustomAcceptedEncodingsOverride();
@@ -256,9 +269,9 @@ export class NetworkConfigView extends UI.Widget.VBox {
         autoCheckbox.addEventListener('change', acceptedEncodingsChanged);
         const checkboxes = new Map();
         const contentEncodings = {
-            Deflate: "deflate" /* Deflate */,
-            Gzip: "gzip" /* Gzip */,
-            Br: "br" /* Br */,
+            Deflate: "deflate" /* Protocol.Network.ContentEncoding.Deflate */,
+            Gzip: "gzip" /* Protocol.Network.ContentEncoding.Gzip */,
+            Br: "br" /* Protocol.Network.ContentEncoding.Br */,
         };
         for (const encoding of Object.values(contentEncodings)) {
             const label = UI.UIUtils.CheckboxLabel.create(encoding, true);
@@ -285,6 +298,7 @@ export class NetworkConfigView extends UI.Widget.VBox {
     wasShown() {
         super.wasShown();
         this.registerCSSFiles([networkConfigViewStyles]);
+        UI.ARIAUtils.alert(i18nString(UIStrings.networkConditionsPanelShown));
     }
 }
 function getUserAgentMetadata(userAgent) {

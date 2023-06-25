@@ -13,50 +13,50 @@ import { TimelineRegExp } from './TimelineFilters.js';
 import { TimelineUIUtils } from './TimelineUIUtils.js';
 const UIStrings = {
     /**
-    *@description Text for the performance of something
-    */
+     *@description Text for the performance of something
+     */
     performance: 'Performance',
     /**
-    *@description Text to filter result items
-    */
+     *@description Text to filter result items
+     */
     filter: 'Filter',
     /**
-    *@description Time of a single activity, as opposed to the total time
-    */
+     *@description Time of a single activity, as opposed to the total time
+     */
     selfTime: 'Self Time',
     /**
-    *@description Text for the total time of something
-    */
+     *@description Text for the total time of something
+     */
     totalTime: 'Total Time',
     /**
-    *@description Text in Timeline Tree View of the Performance panel
-    */
+     *@description Text in Timeline Tree View of the Performance panel
+     */
     activity: 'Activity',
     /**
-    *@description Text of a DOM element in Timeline Tree View of the Performance panel
-    */
+     *@description Text of a DOM element in Timeline Tree View of the Performance panel
+     */
     selectItemForDetails: 'Select item for details.',
     /**
-    * @description This message is presented as a tooltip when developers investigate the performance
-    * of a page. The tooltip alerts developers that some parts of code in execution were not optimized
-    * (made to run faster) and that associated timing information must be considered with this in
-    * mind. The placeholder text is the reason the code was not optimized.
-    * @example {Optimized too many times} PH1
-    */
+     * @description This message is presented as a tooltip when developers investigate the performance
+     * of a page. The tooltip alerts developers that some parts of code in execution were not optimized
+     * (made to run faster) and that associated timing information must be considered with this in
+     * mind. The placeholder text is the reason the code was not optimized.
+     * @example {Optimized too many times} PH1
+     */
     notOptimizedS: 'Not optimized: {PH1}',
     /**
-    *@description Time in miliseconds
-    *@example {30.1} PH1
-    */
+     *@description Time in miliseconds
+     *@example {30.1} PH1
+     */
     fms: '{PH1} ms',
     /**
-    *@description Number followed by percent sign
-    *@example {20} PH1
-    */
+     *@description Number followed by percent sign
+     *@example {20} PH1
+     */
     percentPlaceholder: '{PH1} %',
     /**
-    *@description Text in Timeline Tree View of the Performance panel
-    */
+     *@description Text in Timeline Tree View of the Performance panel
+     */
     chromeExtensionsOverhead: '[`Chrome` extensions overhead]',
     /**
      * @description Text in Timeline Tree View of the Performance panel. The text is presented
@@ -65,83 +65,90 @@ const UIStrings = {
      */
     vRuntime: '[`V8` Runtime]',
     /**
-    *@description Text in Timeline Tree View of the Performance panel
-    */
+     *@description Text in Timeline Tree View of the Performance panel
+     */
     unattributed: '[unattributed]',
     /**
-    *@description Text in Timeline Tree View of the Performance panel
-    */
+     *@description Text in Timeline Tree View of the Performance panel
+     */
     javascript: 'JavaScript',
     /**
-    *@description Text that refers to one or a group of webpages
-    */
+     *@description Text that refers to one or a group of webpages
+     */
     page: 'Page',
     /**
-    *@description Text in Timeline Tree View of the Performance panel
-    */
+     *@description Text in Timeline Tree View of the Performance panel
+     */
     noGrouping: 'No Grouping',
     /**
-    *@description Text in Timeline Tree View of the Performance panel
-    */
+     *@description Text in Timeline Tree View of the Performance panel
+     */
     groupByActivity: 'Group by Activity',
     /**
-    *@description Text in Timeline Tree View of the Performance panel
-    */
+     *@description Text in Timeline Tree View of the Performance panel
+     */
     groupByCategory: 'Group by Category',
     /**
-    *@description Text in Timeline Tree View of the Performance panel
-    */
+     *@description Text in Timeline Tree View of the Performance panel
+     */
     groupByDomain: 'Group by Domain',
     /**
-    *@description Text in Timeline Tree View of the Performance panel
-    */
+     *@description Text in Timeline Tree View of the Performance panel
+     */
     groupByFrame: 'Group by Frame',
     /**
-    *@description Text in Timeline Tree View of the Performance panel
-    */
+     *@description Text in Timeline Tree View of the Performance panel
+     */
     groupBySubdomain: 'Group by Subdomain',
     /**
-    *@description Text in Timeline Tree View of the Performance panel
-    */
+     *@description Text in Timeline Tree View of the Performance panel
+     */
     groupByUrl: 'Group by URL',
     /**
-    *@description Aria-label for grouping combo box in Timeline Details View
-    */
+     *@description Aria-label for grouping combo box in Timeline Details View
+     */
     groupBy: 'Group by',
     /**
-    *@description Aria-label for filter bar in Call Tree view
-    */
+     *@description Aria-label for filter bar in Call Tree view
+     */
     filterCallTree: 'Filter call tree',
     /**
-    *@description Aria-label for the filter bar in Bottom-Up view
-    */
+     *@description Aria-label for the filter bar in Bottom-Up view
+     */
     filterBottomup: 'Filter bottom-up',
     /**
-    * @description Title of the sidebar pane in the Performance panel which shows the stack (call
-    * stack) where the program spent the most time (out of all the call stacks) while executing.
-    */
+     * @description Title of the sidebar pane in the Performance panel which shows the stack (call
+     * stack) where the program spent the most time (out of all the call stacks) while executing.
+     */
     heaviestStack: 'Heaviest stack',
     /**
-    * @description Tooltip for the the Heaviest stack sidebar toggle in the Timeline Tree View of the
-    * Performance panel. Command to open/show the sidebar.
-    */
+     * @description Tooltip for the the Heaviest stack sidebar toggle in the Timeline Tree View of the
+     * Performance panel. Command to open/show the sidebar.
+     */
     showHeaviestStack: 'Show Heaviest stack',
     /**
-    * @description Tooltip for the the Heaviest stack sidebar toggle in the Timeline Tree View of the
-    * Performance panel. Command to close/hide the sidebar.
-    */
+     * @description Tooltip for the the Heaviest stack sidebar toggle in the Timeline Tree View of the
+     * Performance panel. Command to close/hide the sidebar.
+     */
     hideHeaviestStack: 'Hide Heaviest stack',
     /**
-    *@description Data grid name for Timeline Stack data grids
-    */
+     * @description Screen reader announcement when the heaviest stack sidebar is shown in the Performance panel.
+     */
+    heaviestStackShown: 'Heaviest stack sidebar shown',
+    /**
+     * @description Screen reader announcement when the heaviest stack sidebar is hidden in the Performance panel.
+     */
+    heaviestStackHidden: 'Heaviest stack sidebar hidden',
+    /**
+     *@description Data grid name for Timeline Stack data grids
+     */
     timelineStack: 'Timeline Stack',
 };
 const str_ = i18n.i18n.registerUIStrings('panels/timeline/TimelineTreeView.ts', UIStrings);
 const i18nString = i18n.i18n.getLocalizedString.bind(undefined, str_);
 export class TimelineTreeView extends UI.Widget.VBox {
     modelInternal;
-    track;
-    tree;
+    #selectedEvents;
     searchResults;
     linkifier;
     dataGrid;
@@ -157,21 +164,19 @@ export class TimelineTreeView extends UI.Widget.VBox {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     currentThreadSetting;
     lastSelectedNodeInternal;
-    textFilterUI;
     root;
-    // TODO(crbug.com/1172300) Ignored during the jsdoc to ts migration
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     currentResult;
+    textFilterUI;
+    #traceParseData = null;
     constructor() {
         super();
         this.modelInternal = null;
-        this.track = null;
-        this.tree = null;
+        this.#selectedEvents = null;
         this.element.classList.add('timeline-tree-view');
         this.searchResults = [];
     }
     static eventNameForSorting(event) {
-        if (event.name === TimelineModel.TimelineModel.RecordType.JSFrame) {
+        if (TimelineModel.TimelineModel.TimelineModelImpl.isJsFrameEvent(event)) {
             const data = event.args['data'];
             return data['functionName'] + '@' + (data['scriptId'] || data['url'] || '');
         }
@@ -180,16 +185,28 @@ export class TimelineTreeView extends UI.Widget.VBox {
     setSearchableView(searchableView) {
         this.searchableView = searchableView;
     }
-    setModel(model, track) {
+    setModelWithEvents(model, selectedEvents, traceParseData = null) {
         this.modelInternal = model;
-        this.track = track;
+        this.#traceParseData = traceParseData;
+        this.#selectedEvents = selectedEvents;
         this.refreshTree();
+    }
+    /**
+     * This method is included only for preventing layout test failures.
+     * TODO(crbug.com/1433692): Port problematic layout tests to unit
+     * tests.
+     */
+    setModel(model, track) {
+        this.setModelWithEvents(model, track?.eventsForTreeView() || null);
     }
     getToolbarInputAccessiblePlaceHolder() {
         return '';
     }
     model() {
         return this.modelInternal;
+    }
+    traceParseData() {
+        return this.#traceParseData;
     }
     init() {
         this.linkifier = new Components.Linkifier.Linkifier();
@@ -231,7 +248,7 @@ export class TimelineTreeView extends UI.Widget.VBox {
         return this.lastSelectedNodeInternal;
     }
     updateContents(selection) {
-        this.setRange(selection.startTime(), selection.endTime());
+        this.setRange(selection.startTime, selection.endTime);
     }
     setRange(startTime, endTime) {
         this.startTime = startTime;
@@ -254,32 +271,18 @@ export class TimelineTreeView extends UI.Widget.VBox {
         const textFilterUI = new UI.Toolbar.ToolbarInput(i18nString(UIStrings.filter), this.getToolbarInputAccessiblePlaceHolder());
         textFilterUI.addEventListener(UI.Toolbar.ToolbarInput.Event.TextChanged, () => {
             const searchQuery = textFilterUI.value();
-            this.textFilterInternal.setRegExp(searchQuery ? createPlainTextSearchRegex(searchQuery, 'i') : null);
+            this.textFilterInternal.setRegExp(searchQuery ? Platform.StringUtilities.createPlainTextSearchRegex(searchQuery, 'i') : null);
             this.refreshTree();
         }, this);
         this.textFilterUI = textFilterUI;
         toolbar.appendToolbarItem(textFilterUI);
     }
     modelEvents() {
-        return this.track ? this.track.syncEvents() : [];
+        return this.#selectedEvents || [];
     }
     onHover(_node) {
     }
     appendContextMenuItems(_contextMenu, _node) {
-    }
-    linkifyLocation(event) {
-        if (!this.modelInternal) {
-            return null;
-        }
-        const target = this.modelInternal.timelineModel().targetByEvent(event);
-        if (!target) {
-            return null;
-        }
-        const frame = TimelineModel.TimelineProfileTree.eventStackFrame(event);
-        if (!frame) {
-            return null;
-        }
-        return this.linkifier.maybeLinkifyConsoleCallFrame(target, frame, { showColumnNumber: true, inlineFrameIndex: 0 });
     }
     selectProfileNode(treeNode, suppressSelectedEvent) {
         const pathToRoot = [];
@@ -370,8 +373,6 @@ export class TimelineTreeView extends UI.Widget.VBox {
             const nodeB = b;
             // TODO(crbug.com/1172300) Ignored during the jsdoc to ts migration
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            // TODO(crbug.com/1172300) Ignored during the jsdoc to ts migration
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             return nodeA.profileNode[field] - nodeB.profileNode[field];
         }
         function compareStartTime(a, b) {
@@ -445,7 +446,7 @@ export class TimelineTreeView extends UI.Widget.VBox {
         return profileNodeToTreeGridNode.get(treeNode) || null;
     }
     // UI.SearchableView.Searchable implementation
-    searchCanceled() {
+    onSearchCanceled() {
         this.searchResults = [];
         this.currentResult = 0;
     }
@@ -456,18 +457,18 @@ export class TimelineTreeView extends UI.Widget.VBox {
             return;
         }
         const searchRegex = searchConfig.toSearchRegex();
-        this.searchResults = this.root.searchTree(event => TimelineUIUtils.testContentMatching(event, searchRegex));
+        this.searchResults = this.root.searchTree(event => TimelineUIUtils.testContentMatching(event, searchRegex.regex));
         this.searchableView.updateSearchMatchesCount(this.searchResults.length);
     }
     jumpToNextSearchResult() {
-        if (!this.searchResults.length) {
+        if (!this.searchResults.length || this.currentResult === undefined) {
             return;
         }
         this.selectProfileNode(this.searchResults[this.currentResult], false);
         this.currentResult = Platform.NumberUtilities.mod(this.currentResult + 1, this.searchResults.length);
     }
     jumpToPreviousSearchResult() {
-        if (!this.searchResults.length) {
+        if (!this.searchResults.length || this.currentResult === undefined) {
             return;
         }
         this.selectProfileNode(this.searchResults[this.currentResult], false);
@@ -528,13 +529,16 @@ export class GridNode extends DataGrid.SortableDataGrid.SortableDataGridNode {
                     i18nString(UIStrings.notOptimizedS, { PH1: deoptReason });
             }
             name.textContent = TimelineUIUtils.eventTitle(event);
-            this.linkElement = this.treeView.linkifyLocation(event);
+            const target = this.treeView.modelInternal?.timelineModel().targetByEvent(event) || null;
+            const linkifier = this.treeView.linkifier;
+            const isFreshRecording = Boolean(this.treeView.modelInternal?.timelineModel().isFreshRecording());
+            this.linkElement = TimelineUIUtils.linkifyTopCallFrame(event, target, linkifier, isFreshRecording);
             if (this.linkElement) {
                 container.createChild('div', 'activity-link').appendChild(this.linkElement);
             }
             const eventStyle = TimelineUIUtils.eventStyle(event);
             const eventCategory = eventStyle.category;
-            UI.ARIAUtils.setAccessibleName(icon, eventCategory.title);
+            UI.ARIAUtils.setLabel(icon, eventCategory.title);
             icon.style.backgroundColor = eventCategory.color;
         }
         return cell;
@@ -555,7 +559,9 @@ export class GridNode extends DataGrid.SortableDataGrid.SortableDataGridNode {
                     if (!model) {
                         throw new Error('Unable to find model for tree view');
                     }
-                    value = (event ? event.startTime : 0) - model.timelineModel().minimumRecordTime();
+                    const timings = event && SDK.TracingModel.timesForEventInMilliseconds(event);
+                    const startTime = timings?.startTime ?? 0;
+                    value = startTime - model.timelineModel().minimumRecordTime();
                 }
                 break;
             case 'self':
@@ -573,6 +579,7 @@ export class GridNode extends DataGrid.SortableDataGrid.SortableDataGridNode {
         }
         const cell = this.createTD(columnId);
         cell.className = 'numeric-column';
+        cell.setAttribute('title', i18nString(UIStrings.fms, { PH1: value.toFixed(4) }));
         const textDiv = cell.createChild('div');
         textDiv.createChild('span').textContent = i18nString(UIStrings.fms, { PH1: value.toFixed(1) });
         if (showPercents && this.treeView.exposePercentages()) {
@@ -606,23 +613,12 @@ export class TreeGridNode extends GridNode {
             this.insertChildOrdered(gridNode);
         }
     }
-    // TODO(crbug.com/1172300) Ignored during the jsdoc to ts migration
-    // eslint-disable-next-line @typescript-eslint/naming-convention
-    static gridNodeSymbol = Symbol('treeGridNode');
 }
 const profileNodeToTreeGridNode = new WeakMap();
 export class AggregatedTimelineTreeView extends TimelineTreeView {
-    // TODO(crbug.com/1172300) Ignored during the jsdoc to ts migration
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     groupBySetting;
     stackView;
-    productByURLCache;
-    colorByURLCache;
-    // TODO(crbug.com/1172300) Ignored during the jsdoc to ts migration
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    // TODO(crbug.com/1172300) Ignored during the jsdoc to ts migration
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    executionContextNamesByOrigin;
+    executionContextNamesByOrigin = new Map();
     constructor() {
         super();
         this.groupBySetting = Common.Settings.Settings.instance().createSetting('timelineTreeGroupBy', AggregatedTimelineTreeView.GroupBy.None);
@@ -630,10 +626,18 @@ export class AggregatedTimelineTreeView extends TimelineTreeView {
         this.init();
         this.stackView = new TimelineStackView(this);
         this.stackView.addEventListener(TimelineStackView.Events.SelectionChanged, this.onStackViewSelectionChanged, this);
-        this.productByURLCache = new Map();
-        this.colorByURLCache = new Map();
-        this.executionContextNamesByOrigin = new Map();
     }
+    setGroupBySettingForTests(groupBy) {
+        this.groupBySetting.set(groupBy);
+    }
+    setModelWithEvents(model, selectedEvents, traceParseData = null) {
+        super.setModelWithEvents(model, selectedEvents, traceParseData);
+    }
+    /**
+     * This method is included only for preventing layout test failures.
+     * TODO(crbug.com/1433692): Port problematic layout tests to unit
+     * tests.
+     */
     setModel(model, track) {
         super.setModel(model, track);
     }
@@ -684,12 +688,12 @@ export class AggregatedTimelineTreeView extends TimelineTreeView {
                 if (!node.event) {
                     throw new Error('Unable to find event for group by operation');
                 }
-                const name = node.event.name === TimelineModel.TimelineModel.RecordType.JSFrame ?
+                const name = (TimelineModel.TimelineModel.TimelineModelImpl.isJsFrameEvent(node.event)) ?
                     i18nString(UIStrings.javascript) :
                     TimelineUIUtils.eventTitle(node.event);
                 return {
                     name: name,
-                    color: node.event.name === TimelineModel.TimelineModel.RecordType.JSFrame ?
+                    color: TimelineModel.TimelineModel.TimelineModelImpl.isJsFrameEvent(node.event) ?
                         TimelineUIUtils.eventStyle(node.event).category.color :
                         color,
                     icon: undefined,
@@ -724,7 +728,7 @@ export class AggregatedTimelineTreeView extends TimelineTreeView {
         ];
         toolbar.appendToolbarItem(new UI.Toolbar.ToolbarSettingComboBox(options, this.groupBySetting, i18nString(UIStrings.groupBy)));
         toolbar.appendSpacer();
-        toolbar.appendToolbarItem(this.splitWidget.createShowHideSidebarButton(i18nString(UIStrings.showHeaviestStack), i18nString(UIStrings.hideHeaviestStack)));
+        toolbar.appendToolbarItem(this.splitWidget.createShowHideSidebarButton(i18nString(UIStrings.showHeaviestStack), i18nString(UIStrings.hideHeaviestStack), i18nString(UIStrings.heaviestStackShown), i18nString(UIStrings.heaviestStackHidden)));
     }
     buildHeaviestStack(treeNode) {
         console.assert(Boolean(treeNode.parent), 'Attempt to build stack for tree root');
@@ -772,7 +776,7 @@ export class AggregatedTimelineTreeView extends TimelineTreeView {
             case GroupBy.URL:
                 return (event) => TimelineModel.TimelineProfileTree.eventURL(event) || '';
             case GroupBy.Frame:
-                return (event) => TimelineModel.TimelineModel.TimelineData.forEvent(event).frameId || '';
+                return (event) => TimelineModel.TimelineModel.EventOnTimelineData.forEvent(event).frameId || '';
             default:
                 console.assert(false, `Unexpected aggregation setting: ${groupBy}`);
                 return null;
@@ -827,10 +831,8 @@ export class AggregatedTimelineTreeView extends TimelineTreeView {
     static isV8NativeURL(url) {
         return url.startsWith(AggregatedTimelineTreeView.v8NativePrefix);
     }
-    // TODO(crbug.com/1172300) Ignored during the jsdoc to ts migration
     // eslint-disable-next-line @typescript-eslint/naming-convention
     static extensionInternalPrefix = 'extensions::';
-    // TODO(crbug.com/1172300) Ignored during the jsdoc to ts migration
     // eslint-disable-next-line @typescript-eslint/naming-convention
     static v8NativePrefix = 'native ';
 }

@@ -4,6 +4,7 @@
 import * as Common from '../../core/common/common.js';
 import * as Host from '../../core/host/host.js';
 import * as Diff from '../../third_party/diff/diff.js';
+import * as FormatterModule from '../formatter/formatter.js';
 import * as Persistence from '../persistence/persistence.js';
 import * as Workspace from '../workspace/workspace.js';
 export class WorkspaceDiffImpl extends Common.ObjectWrapper.ObjectWrapper {
@@ -22,8 +23,8 @@ export class WorkspaceDiffImpl extends Common.ObjectWrapper.ObjectWrapper {
         workspace.addEventListener(Workspace.Workspace.Events.ProjectRemoved, this.projectRemoved, this);
         workspace.uiSourceCodes().forEach(this.updateModifiedState.bind(this));
     }
-    requestDiff(uiSourceCode) {
-        return this.uiSourceCodeDiff(uiSourceCode).requestDiff();
+    requestDiff(uiSourceCode, diffRequestOptions) {
+        return this.uiSourceCodeDiff(uiSourceCode).requestDiff(diffRequestOptions);
     }
     subscribeToDiffChange(uiSourceCode, callback, thisObj) {
         this.uiSourceCodeDiff(uiSourceCode).addEventListener(UISourceCodeDiffEvents.DiffChanged, callback, thisObj);
@@ -47,11 +48,11 @@ export class WorkspaceDiffImpl extends Common.ObjectWrapper.ObjectWrapper {
     }
     uiSourceCodeChanged(event) {
         const uiSourceCode = event.data.uiSourceCode;
-        this.updateModifiedState(uiSourceCode);
+        void this.updateModifiedState(uiSourceCode);
     }
     uiSourceCodeAdded(event) {
         const uiSourceCode = event.data;
-        this.updateModifiedState(uiSourceCode);
+        void this.updateModifiedState(uiSourceCode);
     }
     uiSourceCodeRemoved(event) {
         const uiSourceCode = event.data;
@@ -74,7 +75,7 @@ export class WorkspaceDiffImpl extends Common.ObjectWrapper.ObjectWrapper {
     markAsUnmodified(uiSourceCode) {
         this.uiSourceCodeProcessedForTest();
         if (this.modifiedUISourceCodesInternal.delete(uiSourceCode)) {
-            this.dispatchEventToListeners("ModifiedStatusChanged" /* ModifiedStatusChanged */, { uiSourceCode, isModified: false });
+            this.dispatchEventToListeners("ModifiedStatusChanged" /* Events.ModifiedStatusChanged */, { uiSourceCode, isModified: false });
         }
     }
     markAsModified(uiSourceCode) {
@@ -83,7 +84,7 @@ export class WorkspaceDiffImpl extends Common.ObjectWrapper.ObjectWrapper {
             return;
         }
         this.modifiedUISourceCodesInternal.add(uiSourceCode);
-        this.dispatchEventToListeners("ModifiedStatusChanged" /* ModifiedStatusChanged */, { uiSourceCode, isModified: true });
+        this.dispatchEventToListeners("ModifiedStatusChanged" /* Events.ModifiedStatusChanged */, { uiSourceCode, isModified: true });
     }
     uiSourceCodeProcessedForTest() {
     }
@@ -163,9 +164,9 @@ export class UISourceCodeDiff extends Common.ObjectWrapper.ObjectWrapper {
             this.pendingChanges = null;
         }
     }
-    requestDiff() {
+    requestDiff(diffRequestOptions) {
         if (!this.requestDiffPromise) {
-            this.requestDiffPromise = this.innerRequestDiff();
+            this.requestDiffPromise = this.innerRequestDiff(diffRequestOptions);
         }
         return this.requestDiffPromise;
     }
@@ -177,11 +178,11 @@ export class UISourceCodeDiff extends Common.ObjectWrapper.ObjectWrapper {
         const content = await this.uiSourceCode.project().requestFileContent(this.uiSourceCode);
         return content.content || ('error' in content && content.error) || '';
     }
-    async innerRequestDiff() {
+    async innerRequestDiff({ shouldFormatDiff }) {
         if (this.dispose) {
             return null;
         }
-        const baseline = await this.originalContent();
+        let baseline = await this.originalContent();
         if (baseline === null) {
             return null;
         }
@@ -205,7 +206,20 @@ export class UISourceCodeDiff extends Common.ObjectWrapper.ObjectWrapper {
         if (current === null || baseline === null) {
             return null;
         }
-        return Diff.Diff.DiffWrapper.lineDiff(baseline.split(/\r\n|\n|\r/), current.split(/\r\n|\n|\r/));
+        let formattedCurrentMapping;
+        if (shouldFormatDiff) {
+            baseline = (await FormatterModule.ScriptFormatter.format(this.uiSourceCode.contentType(), this.uiSourceCode.mimeType(), baseline))
+                .formattedContent;
+            const formatCurrentResult = await FormatterModule.ScriptFormatter.format(this.uiSourceCode.contentType(), this.uiSourceCode.mimeType(), current);
+            current = formatCurrentResult.formattedContent;
+            formattedCurrentMapping = formatCurrentResult.formattedMapping;
+        }
+        const reNewline = /\r\n?|\n/;
+        const diff = Diff.Diff.DiffWrapper.lineDiff(baseline.split(reNewline), current.split(reNewline));
+        return {
+            diff,
+            formattedCurrentMapping,
+        };
     }
 }
 // TODO(crbug.com/1167717): Make this a const enum again

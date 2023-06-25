@@ -28,6 +28,7 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 import { GlassPane } from './GlassPane.js';
+import popoverStyles from './popover.css.legacy.js';
 export class PopoverHelper {
     disableOnClick;
     hasPadding;
@@ -89,8 +90,12 @@ export class PopoverHelper {
     }
     mouseMove(ev) {
         const event = ev;
-        // Pretend that nothing has happened.
         if (this.eventInScheduledContent(event)) {
+            // Reschedule showing popover since mouse moved and
+            // we only want to show the popover when the mouse is
+            // standing still on the container for some amount of time.
+            this.stopShowPopoverTimer();
+            this.startShowPopoverTimer(event, this.isPopoverVisible() ? this.showTimeout * 0.6 : this.showTimeout);
             return;
         }
         this.startHidePopoverTimer(this.hideTimeout);
@@ -127,7 +132,7 @@ export class PopoverHelper {
             return;
         }
         this.hidePopoverTimer = window.setTimeout(() => {
-            this.hidePopover();
+            this.hidePopoverInternal();
             this.hidePopoverTimer = null;
         }, timeout);
     }
@@ -167,14 +172,14 @@ export class PopoverHelper {
     }
     showPopover(document) {
         const popover = new GlassPane();
-        popover.registerRequiredCSS('ui/legacy/popover.css');
-        popover.setSizeBehavior("MeasureContent" /* MeasureContent */);
-        popover.setMarginBehavior("Arrow" /* Arrow */);
+        popover.registerRequiredCSS(popoverStyles);
+        popover.setSizeBehavior("MeasureContent" /* SizeBehavior.MeasureContent */);
+        popover.setMarginBehavior("Arrow" /* MarginBehavior.Arrow */);
         const request = this.scheduledRequest;
         if (!request) {
             return;
         }
-        request.show.call(null, popover).then(success => {
+        void request.show.call(null, popover).then(success => {
             if (!success) {
                 return;
             }

@@ -2,17 +2,17 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import '../test_runner/test_runner.js';
 import '../../panels/layer_viewer/layer_viewer-legacy.js';
 import '../../panels/elements/elements-legacy.js';
 import '../../ui/legacy/components/utils/utils-legacy.js';
 
 import * as Layers from '../../panels/layers/layers.js';
+import {TestRunner} from '../test_runner/test_runner.js';
 
 /**
  * @fileoverview using private properties isn't a Closure violation in tests.
  */
-self.LayersTestRunner = self.LayersTestRunner || {};
+export const LayersTestRunner = {};
 
 LayersTestRunner.layerTreeModel = function() {
   if (!LayersTestRunner.layerTreeModelInternal) {
@@ -114,7 +114,7 @@ LayersTestRunner.requestLayers = function() {
 };
 
 LayersTestRunner.dispatchMouseEvent = function(eventType, button, element, offsetX, offsetY) {
-  const totalOffset = element.totalOffset();
+  const totalOffset = element.getBoundingClientRect();
 
   const eventArguments = {
     bubbles: true,

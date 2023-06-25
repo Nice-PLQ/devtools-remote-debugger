@@ -38,7 +38,7 @@ export class ZoomManager extends Common.ObjectWrapper.ObjectWrapper {
         const oldZoomFactor = this.zoomFactorInternal;
         this.zoomFactorInternal = this.frontendHost.zoomFactor();
         if (oldZoomFactor !== this.zoomFactorInternal) {
-            this.dispatchEventToListeners("ZoomChanged" /* ZoomChanged */, { from: oldZoomFactor, to: this.zoomFactorInternal });
+            this.dispatchEventToListeners("ZoomChanged" /* Events.ZoomChanged */, { from: oldZoomFactor, to: this.zoomFactorInternal });
         }
     }
 }

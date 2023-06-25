@@ -107,7 +107,12 @@ export class CubicBezier {
         const raw = 'cubic-bezier(' + this.controlPoints.join(', ') + ')';
         const keywordValues = CubicBezier.KeywordValues;
         for (const [keyword, value] of keywordValues) {
-            if (raw === value) {
+            // We special case `linear` in here as we
+            // treat `linear` keyword as a CSSLinearEasingModel.
+            // We return its full value instead of the keyword
+            // since otherwise it will be parsed as a CSSLinearEasingModel
+            // instead of a cubic bezier.
+            if (raw === value && keyword !== 'linear') {
                 return keyword;
             }
         }
@@ -115,7 +120,7 @@ export class CubicBezier {
     }
     // TODO(crbug.com/1172300) Ignored during the jsdoc to ts migration
     // eslint-disable-next-line @typescript-eslint/naming-convention
-    static Regex = /((cubic-bezier\([^)]+\))|\b(linear(?!-)|ease-in-out|ease-in|ease-out|ease)\b)/g;
+    static Regex = /((cubic-bezier\([^)]+\))|\b(linear(?![-\(])|ease-in-out|ease-in|ease-out|ease)\b)|(linear\([^)]+\))/g;
     // TODO(crbug.com/1172300) Ignored during the jsdoc to ts migration
     // eslint-disable-next-line @typescript-eslint/naming-convention
     static KeywordValues = new Map([
@@ -126,6 +131,7 @@ export class CubicBezier {
         ['ease-out', 'cubic-bezier(0, 0, 0.58, 1)'],
     ]);
 }
+export const LINEAR_BEZIER = new CubicBezier(new Point(0, 0), new Point(1, 1));
 export class EulerAngles {
     alpha;
     beta;

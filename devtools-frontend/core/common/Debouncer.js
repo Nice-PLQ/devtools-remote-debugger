@@ -8,7 +8,7 @@ export const debounce = function (func, delay) {
     let timer = 0;
     const debounced = () => {
         clearTimeout(timer);
-        timer = setTimeout(() => func(), delay);
+        timer = window.setTimeout(() => func(), delay);
     };
     return debounced;
 };

@@ -5,6 +5,8 @@ import * as TextUtils from '../../models/text_utils/text_utils.js';
 import { CSSQuery } from './CSSQuery.js';
 export class CSSContainerQuery extends CSSQuery {
     name;
+    physicalAxes;
+    logicalAxes;
     static parseContainerQueriesPayload(cssModel, payload) {
         return payload.map(cq => new CSSContainerQuery(cssModel, cq));
     }
@@ -17,12 +19,14 @@ export class CSSContainerQuery extends CSSQuery {
         this.range = payload.range ? TextUtils.TextRange.TextRange.fromObject(payload.range) : null;
         this.styleSheetId = payload.styleSheetId;
         this.name = payload.name;
+        this.physicalAxes = payload.physicalAxes;
+        this.logicalAxes = payload.logicalAxes;
     }
     active() {
         return true;
     }
     async getContainerForNode(nodeId) {
-        const containerNode = await this.cssModel.domModel().getContainerForNode(nodeId, this.name);
+        const containerNode = await this.cssModel.domModel().getContainerForNode(nodeId, this.name, this.physicalAxes, this.logicalAxes);
         if (!containerNode) {
             return;
         }
@@ -35,7 +39,7 @@ export class CSSContainerQueryContainer {
         this.containerNode = containerNode;
     }
     async getContainerSizeDetails() {
-        const styles = await this.containerNode.domModel().cssModel().computedStylePromise(this.containerNode.id);
+        const styles = await this.containerNode.domModel().cssModel().getComputedStyle(this.containerNode.id);
         if (!styles) {
             return;
         }
@@ -49,10 +53,10 @@ export class CSSContainerQueryContainer {
         const queryAxis = getQueryAxis(`${containerType} ${contain}`);
         const physicalAxis = getPhysicalAxisFromQueryAxis(queryAxis, writingMode);
         let width, height;
-        if (physicalAxis === "Both" /* Both */ || physicalAxis === "Horizontal" /* Horizontal */) {
+        if (physicalAxis === "Both" /* PhysicalAxis.Both */ || physicalAxis === "Horizontal" /* PhysicalAxis.Horizontal */) {
             width = styles.get('width');
         }
-        if (physicalAxis === "Both" /* Both */ || physicalAxis === "Vertical" /* Vertical */) {
+        if (physicalAxis === "Both" /* PhysicalAxis.Both */ || physicalAxis === "Vertical" /* PhysicalAxis.Vertical */) {
             height = styles.get('height');
         }
         return {
@@ -69,33 +73,33 @@ export const getQueryAxis = (propertyValue) => {
     let isBlock = false;
     for (const segment of segments) {
         if (segment === 'size') {
-            return "size" /* Both */;
+            return "size" /* QueryAxis.Both */;
         }
         isInline = isInline || segment === 'inline-size';
         isBlock = isBlock || segment === 'block-size';
     }
     if (isInline && isBlock) {
-        return "size" /* Both */;
+        return "size" /* QueryAxis.Both */;
     }
     if (isInline) {
-        return "inline-size" /* Inline */;
+        return "inline-size" /* QueryAxis.Inline */;
     }
     if (isBlock) {
-        return "block-size" /* Block */;
+        return "block-size" /* QueryAxis.Block */;
     }
-    return "" /* None */;
+    return "" /* QueryAxis.None */;
 };
 export const getPhysicalAxisFromQueryAxis = (queryAxis, writingMode) => {
     const isVerticalWritingMode = writingMode.startsWith('vertical');
     switch (queryAxis) {
-        case "" /* None */:
-            return "" /* None */;
-        case "size" /* Both */:
-            return "Both" /* Both */;
-        case "inline-size" /* Inline */:
-            return isVerticalWritingMode ? "Vertical" /* Vertical */ : "Horizontal" /* Horizontal */;
-        case "block-size" /* Block */:
-            return isVerticalWritingMode ? "Horizontal" /* Horizontal */ : "Vertical" /* Vertical */;
+        case "" /* QueryAxis.None */:
+            return "" /* PhysicalAxis.None */;
+        case "size" /* QueryAxis.Both */:
+            return "Both" /* PhysicalAxis.Both */;
+        case "inline-size" /* QueryAxis.Inline */:
+            return isVerticalWritingMode ? "Vertical" /* PhysicalAxis.Vertical */ : "Horizontal" /* PhysicalAxis.Horizontal */;
+        case "block-size" /* QueryAxis.Block */:
+            return isVerticalWritingMode ? "Horizontal" /* PhysicalAxis.Horizontal */ : "Vertical" /* PhysicalAxis.Vertical */;
     }
 };
 //# sourceMappingURL=CSSContainerQuery.js.map

@@ -7,22 +7,22 @@ import * as SDK from '../../../../core/sdk/sdk.js';
 import * as UI from '../../legacy.js';
 const UIStrings = {
     /**
-    * @description Text shown in the console object preview. Shown when the user is inspecting a
-    * JavaScript object and there are multiple empty properties on the object (x =
-    * 'times'/'multiply').
-    * @example {3} PH1
-    */
+     * @description Text shown in the console object preview. Shown when the user is inspecting a
+     * JavaScript object and there are multiple empty properties on the object (x =
+     * 'times'/'multiply').
+     * @example {3} PH1
+     */
     emptyD: 'empty × {PH1}',
     /**
-    * @description Shown when the user is inspecting a JavaScript object in the console and there is
-    * an empty property on the object..
-    */
+     * @description Shown when the user is inspecting a JavaScript object in the console and there is
+     * an empty property on the object..
+     */
     empty: 'empty',
     /**
-    * @description Text shown when the user is inspecting a JavaScript object, but of the properties
-    * is not immediately available because it is a JavaScript 'getter' function, which means we have
-    * to run some code first in order to compute this property.
-    */
+     * @description Text shown when the user is inspecting a JavaScript object, but of the properties
+     * is not immediately available because it is a JavaScript 'getter' function, which means we have
+     * to run some code first in order to compute this property.
+     */
     thePropertyIsComputedWithAGetter: 'The property is computed with a getter',
 };
 const str_ = i18n.i18n.registerUIStrings('ui/legacy/components/object_ui/RemoteObjectPreviewFormatter.ts', UIStrings);
@@ -32,16 +32,17 @@ export class RemoteObjectPreviewFormatter {
         return sortValue(a) - sortValue(b);
         function sortValue(property) {
             // TODO(einbinder) expose whether preview properties are actually internal.
-            if (property.name === "[[PromiseState]]" /* PromiseState */) {
+            if (property.name === "[[PromiseState]]" /* InternalName.PromiseState */) {
                 return 1;
             }
-            if (property.name === "[[PromiseResult]]" /* PromiseResult */) {
+            if (property.name === "[[PromiseResult]]" /* InternalName.PromiseResult */) {
                 return 2;
             }
-            if (property.name === "[[GeneratorState]]" /* GeneratorState */ || property.name === "[[PrimitiveValue]]" /* PrimitiveValue */) {
+            if (property.name === "[[GeneratorState]]" /* InternalName.GeneratorState */ || property.name === "[[PrimitiveValue]]" /* InternalName.PrimitiveValue */ ||
+                property.name === "[[WeakRefTarget]]" /* InternalName.WeakRefTarget */) {
                 return 3;
             }
-            if (property.type !== "function" /* Function */ && !property.name.startsWith('#')) {
+            if (property.type !== "function" /* Protocol.Runtime.PropertyPreviewType.Function */ && !property.name.startsWith('#')) {
                 return 4;
             }
             return 5;
@@ -50,22 +51,22 @@ export class RemoteObjectPreviewFormatter {
     appendObjectPreview(parentElement, preview, isEntry) {
         const description = preview.description;
         const subTypesWithoutValuePreview = new Set([
-            "arraybuffer" /* Arraybuffer */,
-            "dataview" /* Dataview */,
-            "error" /* Error */,
-            "null" /* Null */,
-            "regexp" /* Regexp */,
-            "webassemblymemory" /* Webassemblymemory */,
+            "arraybuffer" /* Protocol.Runtime.ObjectPreviewSubtype.Arraybuffer */,
+            "dataview" /* Protocol.Runtime.ObjectPreviewSubtype.Dataview */,
+            "error" /* Protocol.Runtime.ObjectPreviewSubtype.Error */,
+            "null" /* Protocol.Runtime.ObjectPreviewSubtype.Null */,
+            "regexp" /* Protocol.Runtime.ObjectPreviewSubtype.Regexp */,
+            "webassemblymemory" /* Protocol.Runtime.ObjectPreviewSubtype.Webassemblymemory */,
             'internal#entry',
             'trustedtype',
         ]);
-        if (preview.type !== "object" /* Object */ ||
+        if (preview.type !== "object" /* Protocol.Runtime.ObjectPreviewType.Object */ ||
             (preview.subtype && subTypesWithoutValuePreview.has(preview.subtype)) || isEntry) {
             parentElement.appendChild(this.renderPropertyPreview(preview.type, preview.subtype, undefined, description));
             return;
         }
-        const isArrayOrTypedArray = preview.subtype === "array" /* Array */ ||
-            preview.subtype === "typedarray" /* Typedarray */;
+        const isArrayOrTypedArray = preview.subtype === "array" /* Protocol.Runtime.ObjectPreviewSubtype.Array */ ||
+            preview.subtype === "typedarray" /* Protocol.Runtime.ObjectPreviewSubtype.Typedarray */;
         if (description) {
             let text;
             if (isArrayOrTypedArray) {
@@ -116,10 +117,10 @@ export class RemoteObjectPreviewFormatter {
             const property = properties[i];
             const name = property.name;
             // Internal properties are given special formatting, e.g. Promises `<rejected>: 123`.
-            if (preview.subtype === "promise" /* Promise */ && name === "[[PromiseState]]" /* PromiseState */) {
+            if (preview.subtype === "promise" /* Protocol.Runtime.ObjectPreviewSubtype.Promise */ && name === "[[PromiseState]]" /* InternalName.PromiseState */) {
                 parentElement.appendChild(this.renderDisplayName('<' + property.value + '>'));
                 const nextProperty = i + 1 < properties.length ? properties[i + 1] : null;
-                if (nextProperty && nextProperty.name === "[[PromiseResult]]" /* PromiseResult */) {
+                if (nextProperty && nextProperty.name === "[[PromiseResult]]" /* InternalName.PromiseResult */) {
                     if (property.value !== 'pending') {
                         UI.UIUtils.createTextChild(parentElement, ': ');
                         parentElement.appendChild(this.renderPropertyPreviewOrAccessor([nextProperty]));
@@ -127,11 +128,19 @@ export class RemoteObjectPreviewFormatter {
                     i++;
                 }
             }
-            else if (preview.subtype === 'generator' && name === "[[GeneratorState]]" /* GeneratorState */) {
+            else if (preview.subtype === 'generator' && name === "[[GeneratorState]]" /* InternalName.GeneratorState */) {
                 parentElement.appendChild(this.renderDisplayName('<' + property.value + '>'));
             }
-            else if (name === "[[PrimitiveValue]]" /* PrimitiveValue */) {
+            else if (name === "[[PrimitiveValue]]" /* InternalName.PrimitiveValue */) {
                 parentElement.appendChild(this.renderPropertyPreviewOrAccessor([property]));
+            }
+            else if (name === "[[WeakRefTarget]]" /* InternalName.WeakRefTarget */) {
+                if (property.type === "undefined" /* Protocol.Runtime.PropertyPreviewType.Undefined */) {
+                    parentElement.appendChild(this.renderDisplayName('<cleared>'));
+                }
+                else {
+                    parentElement.appendChild(this.renderPropertyPreviewOrAccessor([property]));
+                }
             }
             else {
                 parentElement.appendChild(this.renderDisplayName(name));

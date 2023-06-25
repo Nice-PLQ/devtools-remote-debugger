@@ -6,27 +6,28 @@ import * as Host from '../../../../core/host/host.js';
 import * as i18n from '../../../../core/i18n/i18n.js';
 import * as Platform from '../../../../core/platform/platform.js';
 import * as UI from '../../legacy.js';
+import filmStripViewStyles from './filmStripView.css.legacy.js';
 const UIStrings = {
     /**
-    *@description Element title in Film Strip View of the Performance panel
-    */
+     *@description Element title in Film Strip View of the Performance panel
+     */
     doubleclickToZoomImageClickTo: 'Doubleclick to zoom image. Click to view preceding requests.',
     /**
-    *@description Aria label for captured screenshots in network panel.
-    *@example {3ms} PH1
-    */
+     *@description Aria label for captured screenshots in network panel.
+     *@example {3ms} PH1
+     */
     screenshotForSSelectToView: 'Screenshot for {PH1} - select to view preceding requests.',
     /**
-    *@description Text for one or a group of screenshots
-    */
+     *@description Text for one or a group of screenshots
+     */
     screenshot: 'Screenshot',
     /**
-    *@description Prev button title in Film Strip View of the Performance panel
-    */
+     *@description Prev button title in Film Strip View of the Performance panel
+     */
     previousFrame: 'Previous frame',
     /**
-    *@description Next button title in Film Strip View of the Performance panel
-    */
+     *@description Next button title in Film Strip View of the Performance panel
+     */
     nextFrame: 'Next frame',
 };
 const str_ = i18n.i18n.registerUIStrings('ui/legacy/components/perf_ui/FilmStripView.ts', UIStrings);
@@ -34,31 +35,22 @@ const i18nString = i18n.i18n.getLocalizedString.bind(undefined, str_);
 export class FilmStripView extends Common.ObjectWrapper.eventMixin(UI.Widget.HBox) {
     statusLabel;
     zeroTime;
-    spanTime;
     model;
-    mode;
     constructor() {
         super(true);
-        this.registerRequiredCSS('ui/legacy/components/perf_ui/filmStripView.css');
+        this.registerRequiredCSS(filmStripViewStyles);
         this.contentElement.classList.add('film-strip-view');
         this.statusLabel = this.contentElement.createChild('div', 'label');
         this.reset();
-        this.setMode(Modes.TimeBased);
     }
     static setImageData(imageElement, data) {
         if (data) {
             imageElement.src = 'data:image/jpg;base64,' + data;
         }
     }
-    setMode(mode) {
-        this.mode = mode;
-        this.contentElement.classList.toggle('time-based', mode === Modes.TimeBased);
-        this.update();
-    }
-    setModel(filmStripModel, zeroTime, spanTime) {
+    setModel(filmStripModel, zeroTime) {
         this.model = filmStripModel;
         this.zeroTime = zeroTime;
-        this.spanTime = spanTime;
         const frames = filmStripModel.frames();
         if (!frames.length) {
             this.reset();
@@ -112,41 +104,13 @@ export class FilmStripView extends Common.ObjectWrapper.eventMixin(UI.Widget.HBo
         if (!frames.length) {
             return;
         }
-        if (this.mode === Modes.FrameBased) {
-            Promise.all(frames.map(this.createFrameElement.bind(this))).then(appendElements.bind(this));
-            return;
-        }
-        const width = this.contentElement.clientWidth;
-        const scale = this.spanTime / width;
-        this.createFrameElement(frames[0]).then(continueWhenFrameImageLoaded.bind(this)); // Calculate frame width basing on the first frame.
-        function continueWhenFrameImageLoaded(element0) {
-            const frameWidth = Math.ceil(UI.UIUtils.measurePreferredSize(element0, this.contentElement).width);
-            if (!frameWidth) {
-                return;
-            }
-            const promises = [];
-            for (let pos = frameWidth; pos < width; pos += frameWidth) {
-                const time = pos * scale + this.zeroTime;
-                promises.push(this.createFrameElement(this.frameByTime(time)).then(fixWidth));
-            }
-            Promise.all(promises).then(appendElements.bind(this));
-            function fixWidth(element) {
-                element.style.width = frameWidth + 'px';
-                return element;
-            }
-        }
         function appendElements(elements) {
             this.contentElement.removeChildren();
             for (let i = 0; i < elements.length; ++i) {
                 this.contentElement.appendChild(elements[i]);
             }
         }
-    }
-    onResize() {
-        if (this.mode === Modes.FrameBased) {
-            return;
-        }
-        this.update();
+        void Promise.all(frames.map(this.createFrameElement.bind(this))).then(appendElements.bind(this));
     }
     onMouseEvent(eventName, timestamp) {
         // TODO(crbug.com/1228674): Use type-safe event dispatch and remove <any>.
@@ -173,10 +137,6 @@ export var Events;
     Events["FrameEnter"] = "FrameEnter";
     Events["FrameExit"] = "FrameExit";
 })(Events || (Events = {}));
-export const Modes = {
-    TimeBased: 'TimeBased',
-    FrameBased: 'FrameBased',
-};
 export class Dialog {
     fragment;
     widget;
@@ -208,7 +168,7 @@ export class Dialog {
         this.index = filmStripFrame.index;
         this.zeroTime = zeroTime || filmStripFrame.model().zeroTime();
         this.dialog = null;
-        this.render();
+        void this.render();
     }
     resize() {
         if (!this.dialog) {
@@ -221,7 +181,7 @@ export class Dialog {
             // @ts-ignore See above.
             this.dialog.show();
         }
-        this.dialog.setSizeBehavior("MeasureContent" /* MeasureContent */);
+        this.dialog.setSizeBehavior("MeasureContent" /* UI.GlassPane.SizeBehavior.MeasureContent */);
     }
     keyDown(event) {
         const keyboardEvent = event;
@@ -254,21 +214,21 @@ export class Dialog {
         if (this.index > 0) {
             --this.index;
         }
-        this.render();
+        void this.render();
     }
     onNextFrame() {
         if (this.index < this.frames.length - 1) {
             ++this.index;
         }
-        this.render();
+        void this.render();
     }
     onFirstFrame() {
         this.index = 0;
-        this.render();
+        void this.render();
     }
     onLastFrame() {
         this.index = this.frames.length - 1;
-        this.render();
+        void this.render();
     }
     render() {
         const frame = this.frames[this.index];

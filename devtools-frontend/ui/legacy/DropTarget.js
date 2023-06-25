@@ -1,6 +1,7 @@
 // Copyright (c) 2015 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
+import dropTargetStyles from './dropTarget.css.legacy.js';
 import * as Utils from './utils/utils.js';
 export class DropTarget {
     element;
@@ -55,7 +56,7 @@ export class DropTarget {
             return;
         }
         this.dragMaskElement = this.element.createChild('div', '');
-        const shadowRoot = Utils.createShadowRootWithCoreStyles(this.dragMaskElement, { cssFile: 'ui/legacy/dropTarget.css', delegatesFocus: undefined });
+        const shadowRoot = Utils.createShadowRootWithCoreStyles(this.dragMaskElement, { cssFile: dropTargetStyles, delegatesFocus: undefined });
         shadowRoot.createChild('div', 'drop-target-message').textContent = this.messageText;
         this.dragMaskElement.addEventListener('drop', this.onDrop.bind(this), true);
         this.dragMaskElement.addEventListener('dragleave', this.onDragLeave.bind(this), true);

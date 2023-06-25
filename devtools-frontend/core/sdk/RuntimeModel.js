@@ -34,7 +34,7 @@ import * as Common from '../common/common.js';
 import * as Host from '../host/host.js';
 import { DebuggerModel } from './DebuggerModel.js';
 import { HeapProfilerModel } from './HeapProfilerModel.js';
-import { RemoteFunction, RemoteObject, RemoteObjectImpl, RemoteObjectProperty, ScopeRemoteObject } from './RemoteObject.js';
+import { RemoteFunction, RemoteObject, RemoteObjectImpl, RemoteObjectProperty, ScopeRemoteObject, } from './RemoteObject.js';
 import { Capability, Type } from './Target.js';
 import { SDKModel } from './SDKModel.js';
 export class RuntimeModel extends SDKModel {
@@ -46,12 +46,12 @@ export class RuntimeModel extends SDKModel {
         super(target);
         this.agent = target.runtimeAgent();
         this.target().registerRuntimeDispatcher(new RuntimeDispatcher(this));
-        this.agent.invoke_enable();
+        void this.agent.invoke_enable();
         this.#executionContextById = new Map();
         this.#executionContextComparatorInternal = ExecutionContext.comparator;
         this.#hasSideEffectSupportInternal = null;
         if (Common.Settings.Settings.instance().moduleSetting('customFormatters').get()) {
-            this.agent.invoke_setCustomObjectFormatterEnabled({ enabled: true });
+            void this.agent.invoke_setCustomObjectFormatterEnabled({ enabled: true });
         }
         Common.Settings.Settings.instance()
             .moduleSetting('customFormatters')
@@ -75,7 +75,7 @@ export class RuntimeModel extends SDKModel {
         this.#executionContextComparatorInternal = comparator;
     }
     /** comparator
-       */
+     */
     executionContextComparator() {
         return this.#executionContextComparatorInternal;
     }
@@ -139,10 +139,10 @@ export class RuntimeModel extends SDKModel {
         return new RemoteObjectProperty(name, this.createRemoteObjectFromPrimitiveValue(value));
     }
     discardConsoleEntries() {
-        this.agent.invoke_discardConsoleEntries();
+        void this.agent.invoke_discardConsoleEntries();
     }
     releaseObjectGroup(objectGroup) {
-        this.agent.invoke_releaseObjectGroup({ objectGroup });
+        void this.agent.invoke_releaseObjectGroup({ objectGroup });
     }
     releaseEvaluationResult(result) {
         if ('object' in result && result.object) {
@@ -155,10 +155,10 @@ export class RuntimeModel extends SDKModel {
         }
     }
     runIfWaitingForDebugger() {
-        this.agent.invoke_runIfWaitingForDebugger();
+        void this.agent.invoke_runIfWaitingForDebugger();
     }
     customFormattersStateChanged({ data: enabled }) {
-        this.agent.invoke_setCustomObjectFormatterEnabled({ enabled });
+        void this.agent.invoke_setCustomObjectFormatterEnabled({ enabled });
     }
     async compileScript(expression, sourceURL, persistScript, executionContextId) {
         const response = await this.agent.invoke_compileScript({
@@ -223,15 +223,15 @@ export class RuntimeModel extends SDKModel {
             return;
         }
         if (hints && 'queryObjects' in hints && hints.queryObjects) {
-            this.queryObjectsRequested(object, executionContextId);
+            void this.queryObjectsRequested(object, executionContextId);
             return;
         }
         if (object.isNode()) {
-            Common.Revealer.reveal(object).then(object.release.bind(object));
+            void Common.Revealer.reveal(object).then(object.release.bind(object));
             return;
         }
         if (object.type === 'function') {
-            RemoteFunction.objectAsFunction(object).targetFunctionDetails().then(didGetDetails);
+            void RemoteFunction.objectAsFunction(object).targetFunctionDetails().then(didGetDetails);
             return;
         }
         function didGetDetails(response) {
@@ -239,7 +239,7 @@ export class RuntimeModel extends SDKModel {
             if (!response || !response.location) {
                 return;
             }
-            Common.Revealer.reveal(response.location);
+            void Common.Revealer.reveal(response.location);
         }
         object.release();
     }
@@ -255,7 +255,7 @@ export class RuntimeModel extends SDKModel {
             return;
         }
         const indent = Common.Settings.Settings.instance().moduleSetting('textEditorIndent').get();
-        object
+        void object
             // TODO(crbug.com/1172300) Ignored during the jsdoc to ts migration
             // @ts-expect-error
             .callFunctionJSON(toStringForClipboard, [{
@@ -357,6 +357,14 @@ export class RuntimeModel extends SDKModel {
     terminateExecution() {
         return this.agent.invoke_terminateExecution();
     }
+    async getExceptionDetails(errorObjectId) {
+        const response = await this.agent.invoke_getExceptionDetails({ errorObjectId });
+        if (response.getError()) {
+            // This CDP method errors if called with non-Error object ids. Swallow that.
+            return undefined;
+        }
+        return response.exceptionDetails;
+    }
 }
 /**
  * This expression:
@@ -439,7 +447,7 @@ export class ExecutionContext {
     }
     static comparator(a, b) {
         function targetWeight(target) {
-            if (!target.parentTarget()) {
+            if (target.parentTarget()?.type() !== Type.Frame) {
                 return 5;
             }
             if (target.type() === Type.Frame) {
@@ -505,7 +513,6 @@ export class ExecutionContext {
         if (!needsTerminationOptions || this.runtimeModel.hasSideEffectSupport()) {
             return this.evaluateGlobal(options, userGesture, awaitPromise);
         }
-        /** @type {!EvaluationResult} */
         if (this.runtimeModel.hasSideEffectSupport() !== false) {
             await this.runtimeModel.checkSideEffectSupport();
             if (this.runtimeModel.hasSideEffectSupport()) {

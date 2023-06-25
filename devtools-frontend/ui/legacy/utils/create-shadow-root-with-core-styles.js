@@ -1,7 +1,7 @@
 // Copyright 2019 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
-import { appendStyle } from './append-style.js';
+import * as ThemeSupport from '../theme_support/theme_support.js';
 import { focusChanged } from './focus-changed.js';
 import { injectCoreStyles } from './inject-core-styles.js';
 export function createShadowRootWithCoreStyles(element, options = {
@@ -11,11 +11,13 @@ export function createShadowRootWithCoreStyles(element, options = {
     const { cssFile, delegatesFocus, } = options;
     const shadowRoot = element.attachShadow({ mode: 'open', delegatesFocus });
     injectCoreStyles(shadowRoot);
-    if (typeof cssFile === 'string') {
-        appendStyle(shadowRoot, cssFile);
-    }
-    else if (cssFile) {
-        shadowRoot.adoptedStyleSheets = cssFile;
+    if (cssFile) {
+        if ('cssContent' in cssFile) {
+            ThemeSupport.ThemeSupport.instance().appendStyle(shadowRoot, cssFile);
+        }
+        else {
+            shadowRoot.adoptedStyleSheets = cssFile;
+        }
     }
     shadowRoot.addEventListener('focus', focusChanged, true);
     return shadowRoot;

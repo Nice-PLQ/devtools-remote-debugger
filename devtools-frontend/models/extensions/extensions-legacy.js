@@ -13,8 +13,4 @@ Extensions.ExtensionServer = ExtensionsModule.ExtensionServer.ExtensionServer;
 Extensions.ExtensionServer.Events = ExtensionsModule.ExtensionServer.Events;
 /** @constructor */
 Extensions.ExtensionStatus = ExtensionsModule.ExtensionServer.ExtensionStatus;
-/** @constructor */
-Extensions.ExtensionTraceProvider = ExtensionsModule.ExtensionTraceProvider.ExtensionTraceProvider;
-/** @interface */
-Extensions.TracingSession = ExtensionsModule.ExtensionTraceProvider.TracingSession;
 //# sourceMappingURL=extensions-legacy.js.map

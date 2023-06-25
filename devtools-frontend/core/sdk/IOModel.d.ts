@@ -1,5 +1,5 @@
 import { RemoteObject } from './RemoteObject.js';
-import type { Target } from './Target.js';
+import { type Target } from './Target.js';
 import { SDKModel } from './SDKModel.js';
 import type * as Protocol from '../../generated/protocol.js';
 export declare class IOModel extends SDKModel<void> {

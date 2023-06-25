@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 import * as UI from '../../../ui/legacy/legacy.js';
-import { BottomPaddingWithoutParam, BottomPaddingWithParam, LeftMarginOfText, LeftSideTopPadding, NodeLabelFontStyle, ParamLabelFontStyle, RightMarginOfText, TotalInputPortHeight, TotalOutputPortHeight, TotalParamPortHeight } from './GraphStyle.js';
+import { BottomPaddingWithoutParam, BottomPaddingWithParam, LeftMarginOfText, LeftSideTopPadding, NodeLabelFontStyle, ParamLabelFontStyle, RightMarginOfText, TotalInputPortHeight, TotalOutputPortHeight, TotalParamPortHeight, } from './GraphStyle.js';
 import { calculateInputPortXY, calculateOutputPortXY, calculateParamPortXY } from './NodeRendererUtility.js';
 // A class that represents a node of a graph, consisting of the information needed to layout the
 // node and display the node. Each node has zero or more ports, including input, output, and param ports.
@@ -47,12 +47,12 @@ export class NodeView {
      * when the whole NodeView will be gone.
      */
     addParamPort(paramId, paramType) {
-        const paramPorts = this.getPortsByType("Param" /* Param */);
+        const paramPorts = this.getPortsByType("Param" /* PortTypes.Param */);
         const numberOfParams = paramPorts.length;
         const { x, y } = calculateParamPortXY(numberOfParams, this.layout.inputPortSectionHeight);
         this.addPort({
             id: generateParamPortId(this.id, paramId),
-            type: "Param" /* Param */,
+            type: "Param" /* PortTypes.Param */,
             label: paramType,
             x,
             y,
@@ -116,7 +116,7 @@ export class NodeView {
     setupInputPorts() {
         for (let i = 0; i < this.numberOfInputs; i++) {
             const { x, y } = calculateInputPortXY(i);
-            this.addPort({ id: generateInputPortId(this.id, i), type: "In" /* In */, x, y, label: undefined });
+            this.addPort({ id: generateInputPortId(this.id, i), type: "In" /* PortTypes.In */, x, y, label: undefined });
         }
     }
     // Setup the properties of each output port.
@@ -134,7 +134,7 @@ export class NodeView {
                 port.y = y;
             }
             else {
-                this.addPort({ id: portId, type: "Out" /* Out */, x, y, label: undefined });
+                this.addPort({ id: portId, type: "Out" /* PortTypes.Out */, x, y, label: undefined });
             }
         }
     }

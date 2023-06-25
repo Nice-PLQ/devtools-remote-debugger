@@ -5,11 +5,11 @@ import * as I18n from '../../third_party/i18n/i18n.js';
 import * as Platform from '../platform/platform.js';
 import * as Root from '../root/root.js';
 import { DevToolsLocale } from './DevToolsLocale.js';
-const i18nInstance = new I18n.I18n.I18n();
+import { BUNDLED_LOCALES as BUNDLED_LOCALES_GENERATED, DEFAULT_LOCALE, LOCAL_FETCH_PATTERN, LOCALES, REMOTE_FETCH_PATTERN, } from './locales.js';
+const i18nInstance = new I18n.I18n.I18n(LOCALES, DEFAULT_LOCALE);
 // All the locales that are part of the DevTools bundle and should not be fetched
-// remotely. Keep this list in sync with "copied_devtools_locale_files" in
-// "all_devtools_files.gni" (except the pseudo locales).
-const BUNDLED_LOCALES = new Set(['en-US', 'en-XL', 'zh']);
+// remotely.
+const BUNDLED_LOCALES = new Set([...BUNDLED_LOCALES_GENERATED]);
 /**
  * Look up the best available locale for the requested language through these fall backs:
  * - exact match
@@ -32,12 +32,15 @@ export function getAllSupportedDevToolsLocales() {
  * specific locale, as some are bundled with DevTools while others
  * have to be fetched remotely.
  */
-function getLocaleFetchUrl(locale) {
-    const remoteBase = Root.Runtime.getRemoteBase();
-    if (remoteBase && remoteBase.base && !BUNDLED_LOCALES.has(locale)) {
-        return `${remoteBase.base}core/i18n/locales/${locale}.json`;
+function getLocaleFetchUrl(locale, location) {
+    const remoteBase = Root.Runtime.getRemoteBase(location);
+    if (remoteBase && remoteBase.version && !BUNDLED_LOCALES.has(locale)) {
+        return REMOTE_FETCH_PATTERN.replace('@HOST@', 'devtools://devtools')
+            .replace('@VERSION@', remoteBase.version)
+            .replace('@LOCALE@', locale);
     }
-    return new URL(`../../core/i18n/locales/${locale}.json`, import.meta.url).toString();
+    const path = LOCAL_FETCH_PATTERN.replace('@LOCALE@', locale);
+    return new URL(path, import.meta.url).toString();
 }
 /**
  * Fetches the locale data of the specified locale.
@@ -45,11 +48,10 @@ function getLocaleFetchUrl(locale) {
  * Depending whether a locale is present in `bundledLocales`, the data will be
  * fetched locally or remotely.
  */
-export async function fetchAndRegisterLocaleData(locale) {
-    const localeDataTextPromise = Root.Runtime.loadResourcePromise(getLocaleFetchUrl(locale));
-    const timeoutPromise = new Promise((resolve, reject) => setTimeout(() => reject(new Error('timed out fetching locale')), 5000));
-    const localeDataText = await Promise.race([timeoutPromise, localeDataTextPromise]);
-    const localeData = JSON.parse(localeDataText);
+export async function fetchAndRegisterLocaleData(locale, location = self.location.toString()) {
+    const localeDataTextPromise = fetch(getLocaleFetchUrl(locale, location)).then(result => result.json());
+    const timeoutPromise = new Promise((resolve, reject) => window.setTimeout(() => reject(new Error('timed out fetching locale')), 5000));
+    const localeData = await Promise.race([timeoutPromise, localeDataTextPromise]);
     i18nInstance.registerLocaleData(locale, localeData);
 }
 /**
@@ -79,36 +81,19 @@ export function registerUIStrings(path, stringStructure) {
  */
 export function getFormatLocalizedString(registeredStrings, stringId, placeholders) {
     const formatter = registeredStrings.getLocalizedStringSetFor(DevToolsLocale.instance().locale).getMessageFormatterFor(stringId);
-    const icuElements = formatter.getAst();
-    const args = [];
-    let formattedString = '';
-    for (const element of icuElements) {
-        if (element.type === /* argumentElement */ 1) {
-            const placeholderValue = placeholders[element.value];
+    const element = document.createElement('span');
+    for (const icuElement of formatter.getAst()) {
+        if (icuElement.type === /* argumentElement */ 1) {
+            const placeholderValue = placeholders[icuElement.value];
             if (placeholderValue) {
-                args.push(placeholderValue);
-                element.value = '%s'; // convert the {PH} back to %s to use Platform.UIString
+                element.append(placeholderValue);
             }
         }
-        if ('value' in element) {
-            formattedString += element.value;
+        else if ('value' in icuElement) {
+            element.append(String(icuElement.value));
         }
     }
-    return formatLocalized(formattedString, args);
-}
-export function formatLocalized(formattedString, args) {
-    const substitution = substitution => {
-        return substitution;
-    };
-    function append(a, b) {
-        if (b) {
-            a.appendChild(typeof b === 'string' ? document.createTextNode(b) : b);
-        }
-        return a;
-    }
-    const formatters = { s: substitution };
-    return Platform.StringUtilities.format(formattedString, args, formatters, document.createElement('span'), append)
-        .formattedResult;
+    return element;
 }
 export function serializeUIString(string, values = {}) {
     const serializedMessage = { string, values };
@@ -143,13 +128,15 @@ export function lockedLazyString(str) {
  * representation is written in English.
  */
 export function getLocalizedLanguageRegion(localeString, devtoolsLocale) {
-    // @ts-ignore TODO(crbug.com/1163928) Wait for Intl support.
     const locale = new Intl.Locale(localeString);
-    // @ts-ignore TODO(crbug.com/1163928) Wait for Intl support.
+    Platform.DCHECK(() => locale.language !== undefined);
+    Platform.DCHECK(() => locale.baseName !== undefined);
+    const localLanguage = locale.language || 'en';
+    const localBaseName = locale.baseName || 'en-US';
     const devtoolsLoc = new Intl.Locale(devtoolsLocale.locale);
-    const targetLanguage = locale.language === devtoolsLoc.language ? 'en' : locale.baseName;
-    const languageInCurrentLocale = new Intl.DisplayNames([devtoolsLocale.locale], { type: 'language' }).of(locale.language);
-    const languageInTargetLocale = new Intl.DisplayNames([targetLanguage], { type: 'language' }).of(locale.language);
+    const targetLanguage = localLanguage === devtoolsLoc.language ? 'en' : localBaseName;
+    const languageInCurrentLocale = new Intl.DisplayNames([devtoolsLocale.locale], { type: 'language' }).of(localLanguage);
+    const languageInTargetLocale = new Intl.DisplayNames([targetLanguage], { type: 'language' }).of(localLanguage);
     let wrappedRegionInCurrentLocale = '';
     let wrappedRegionInTargetLocale = '';
     if (locale.region) {

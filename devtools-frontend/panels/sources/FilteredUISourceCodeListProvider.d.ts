@@ -6,7 +6,7 @@ export declare class FilteredUISourceCodeListProvider extends QuickOpen.Filtered
     private defaultScores;
     private scorer;
     private uiSourceCodes;
-    private readonly uiSourceCodeUrls;
+    private readonly uiSourceCodeIds;
     private query;
     constructor();
     private projectRemoved;

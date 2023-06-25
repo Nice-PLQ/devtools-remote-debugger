@@ -2,22 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 import * as Common from '../../core/common/common.js';
-import * as i18n from '../../core/i18n/i18n.js';
-import * as Platform from '../../core/platform/platform.js';
+import * as Host from '../../core/host/host.js';
 import * as SDK from '../../core/sdk/sdk.js';
 import * as Bindings from '../bindings/bindings.js';
 import * as Workspace from '../workspace/workspace.js';
 import { FileSystemWorkspaceBinding } from './FileSystemWorkspaceBinding.js';
-import { PathEncoder, PersistenceImpl } from './PersistenceImpl.js';
-const UIStrings = {
-    /**
-    *@description Error message when attempting to create a binding from a malformed URI.
-    *@example {file://%E0%A4%A} PH1
-    */
-    theAttemptToBindSInTheWorkspace: 'The attempt to bind "{PH1}" in the workspace failed as this URI is malformed.',
-};
-const str_ = i18n.i18n.registerUIStrings('models/persistence/Automapping.ts', UIStrings);
-const i18nString = i18n.i18n.getLocalizedString.bind(undefined, str_);
+import { PersistenceImpl } from './PersistenceImpl.js';
 export class Automapping {
     workspace;
     onStatusAdded;
@@ -37,15 +27,14 @@ export class Automapping {
         this.onStatusAdded = onStatusAdded;
         this.onStatusRemoved = onStatusRemoved;
         this.statuses = new Set();
-        this.fileSystemUISourceCodes = new Map();
+        this.fileSystemUISourceCodes = new FileSystemUISourceCodes();
         this.sweepThrottler = new Common.Throttler.Throttler(100);
         this.sourceCodeToProcessingPromiseMap = new WeakMap();
         this.sourceCodeToAutoMappingStatusMap = new WeakMap();
         this.sourceCodeToMetadataMap = new WeakMap();
-        const pathEncoder = new PathEncoder();
-        this.filesIndex = new FilePathIndex(pathEncoder);
-        this.projectFoldersIndex = new FolderIndex(pathEncoder);
-        this.activeFoldersIndex = new FolderIndex(pathEncoder);
+        this.filesIndex = new FilePathIndex();
+        this.projectFoldersIndex = new FolderIndex();
+        this.activeFoldersIndex = new FolderIndex();
         this.interceptors = [];
         this.workspace.addEventListener(Workspace.Workspace.Events.UISourceCodeAdded, event => this.onUISourceCodeAdded(event.data));
         this.workspace.addEventListener(Workspace.Workspace.Events.UISourceCodeRemoved, event => this.onUISourceCodeRemoved(event.data));
@@ -70,12 +59,12 @@ export class Automapping {
         this.scheduleSweep();
     }
     scheduleSweep() {
-        this.sweepThrottler.schedule(sweepUnmapped.bind(this));
+        void this.sweepThrottler.schedule(sweepUnmapped.bind(this));
         function sweepUnmapped() {
             const networkProjects = this.workspace.projectsForType(Workspace.Workspace.projectTypes.Network);
             for (const networkProject of networkProjects) {
                 for (const uiSourceCode of networkProject.uiSourceCodes()) {
-                    this.computeNetworkStatus(uiSourceCode);
+                    void this.computeNetworkStatus(uiSourceCode);
                 }
             }
             this.onSweepHappenedForTest();
@@ -107,7 +96,9 @@ export class Automapping {
             this.projectFoldersIndex.addFolder(gitFolder);
         }
         this.projectFoldersIndex.addFolder(fileSystem.fileSystemPath());
-        project.uiSourceCodes().forEach(this.onUISourceCodeAdded.bind(this));
+        for (const uiSourceCode of project.uiSourceCodes()) {
+            this.onUISourceCodeAdded(uiSourceCode);
+        }
         this.scheduleRemap();
     }
     onUISourceCodeAdded(uiSourceCode) {
@@ -117,11 +108,11 @@ export class Automapping {
                 return;
             }
             this.filesIndex.addPath(uiSourceCode.url());
-            this.fileSystemUISourceCodes.set(uiSourceCode.url(), uiSourceCode);
+            this.fileSystemUISourceCodes.add(uiSourceCode);
             this.scheduleSweep();
         }
         else if (project.type() === Workspace.Workspace.projectTypes.Network) {
-            this.computeNetworkStatus(uiSourceCode);
+            void this.computeNetworkStatus(uiSourceCode);
         }
     }
     onUISourceCodeRemoved(uiSourceCode) {
@@ -149,22 +140,26 @@ export class Automapping {
             this.clearNetworkStatus(status.network);
         }
         this.filesIndex.addPath(uiSourceCode.url());
-        this.fileSystemUISourceCodes.set(uiSourceCode.url(), uiSourceCode);
+        this.fileSystemUISourceCodes.add(uiSourceCode);
         this.scheduleSweep();
     }
     computeNetworkStatus(networkSourceCode) {
-        if (this.sourceCodeToProcessingPromiseMap.has(networkSourceCode) ||
-            this.sourceCodeToAutoMappingStatusMap.has(networkSourceCode)) {
-            return;
+        const processingPromise = this.sourceCodeToProcessingPromiseMap.get(networkSourceCode);
+        if (processingPromise) {
+            return processingPromise;
+        }
+        if (this.sourceCodeToAutoMappingStatusMap.has(networkSourceCode)) {
+            return Promise.resolve();
         }
         if (this.interceptors.some(interceptor => interceptor(networkSourceCode))) {
-            return;
+            return Promise.resolve();
         }
         if (networkSourceCode.url().startsWith('wasm://')) {
-            return;
+            return Promise.resolve();
         }
         const createBindingPromise = this.createBinding(networkSourceCode).then(validateStatus.bind(this)).then(onStatus.bind(this));
         this.sourceCodeToProcessingPromiseMap.set(networkSourceCode, createBindingPromise);
+        return createBindingPromise;
         async function validateStatus(status) {
             if (!status) {
                 return null;
@@ -214,7 +209,7 @@ export class Automapping {
             else {
                 if (networkContent.content) {
                     // Trim trailing whitespaces because V8 adds trailing newline.
-                    isValid = fileContent.trimRight() === networkContent.content.trimRight();
+                    isValid = fileContent.trimEnd() === networkContent.content.trimEnd();
                 }
             }
             if (!isValid) {
@@ -223,18 +218,19 @@ export class Automapping {
             }
             return status;
         }
-        function onStatus(status) {
+        async function onStatus(status) {
             if (this.sourceCodeToProcessingPromiseMap.get(networkSourceCode) !== createBindingPromise) {
                 return;
             }
-            this.sourceCodeToProcessingPromiseMap.delete(networkSourceCode);
             if (!status) {
                 this.onBindingFailedForTest();
+                this.sourceCodeToProcessingPromiseMap.delete(networkSourceCode);
                 return;
             }
             // TODO(lushnikov): remove this check once there's a single uiSourceCode per url. @see crbug.com/670180
             if (this.sourceCodeToAutoMappingStatusMap.has(status.network) ||
                 this.sourceCodeToAutoMappingStatusMap.has(status.fileSystem)) {
+                this.sourceCodeToProcessingPromiseMap.delete(networkSourceCode);
                 return;
             }
             this.statuses.add(status);
@@ -247,7 +243,8 @@ export class Automapping {
                     this.scheduleSweep();
                 }
             }
-            this.onStatusAdded.call(null, status);
+            await this.onStatusAdded.call(null, status);
+            this.sourceCodeToProcessingPromiseMap.delete(networkSourceCode);
         }
     }
     prevalidationFailedForTest(_binding) {
@@ -272,70 +269,47 @@ export class Automapping {
                 this.activeFoldersIndex.removeFolder(projectFolder);
             }
         }
-        this.onStatusRemoved.call(null, status);
+        void this.onStatusRemoved.call(null, status);
     }
-    createBinding(networkSourceCode) {
+    async createBinding(networkSourceCode) {
         const url = networkSourceCode.url();
         if (url.startsWith('file://') || url.startsWith('snippet://')) {
-            const decodedUrl = sanitizeSourceUrl(url);
-            if (!decodedUrl) {
-                return Promise.resolve(null);
-            }
-            const fileSourceCode = this.fileSystemUISourceCodes.get(decodedUrl);
+            const fileSourceCode = this.fileSystemUISourceCodes.get(url);
             const status = fileSourceCode ? new AutomappingStatus(networkSourceCode, fileSourceCode, false) : null;
-            return Promise.resolve(status);
+            return status;
         }
         let networkPath = Common.ParsedURL.ParsedURL.extractPath(url);
         if (networkPath === null) {
-            return Promise.resolve(null);
+            return null;
         }
         if (networkPath.endsWith('/')) {
-            networkPath += 'index.html';
+            networkPath = Common.ParsedURL.ParsedURL.concatenate(networkPath, 'index.html');
         }
-        const urlDecodedNetworkPath = sanitizeSourceUrl(networkPath);
-        if (!urlDecodedNetworkPath) {
-            return Promise.resolve(null);
-        }
-        const similarFiles = this.filesIndex.similarFiles(urlDecodedNetworkPath).map(path => this.fileSystemUISourceCodes.get(path));
+        const similarFiles = this.filesIndex.similarFiles(networkPath).map(path => this.fileSystemUISourceCodes.get(path));
         if (!similarFiles.length) {
-            return Promise.resolve(null);
+            return null;
         }
-        return this.pullMetadatas(similarFiles.concat(networkSourceCode)).then(onMetadatas.bind(this));
-        function sanitizeSourceUrl(url) {
-            try {
-                const decodedUrl = decodeURI(url);
-                return decodedUrl;
-            }
-            catch (error) {
-                Common.Console.Console.instance().error(i18nString(UIStrings.theAttemptToBindSInTheWorkspace, { PH1: url }));
-                return null;
-            }
-        }
-        function onMetadatas() {
-            const activeFiles = similarFiles.filter(file => Boolean(file) && Boolean(this.activeFoldersIndex.closestParentFolder(file.url())));
-            const networkMetadata = this.sourceCodeToMetadataMap.get(networkSourceCode);
-            if (!networkMetadata || (!networkMetadata.modificationTime && typeof networkMetadata.contentSize !== 'number')) {
-                // If networkSourceCode does not have metadata, try to match against active folders.
-                if (activeFiles.length !== 1) {
-                    return null;
-                }
-                return new AutomappingStatus(networkSourceCode, activeFiles[0], false);
-            }
-            // Try to find exact matches, prioritizing active folders.
-            let exactMatches = this.filterWithMetadata(activeFiles, networkMetadata);
-            if (!exactMatches.length) {
-                exactMatches = this.filterWithMetadata(similarFiles, networkMetadata);
-            }
-            if (exactMatches.length !== 1) {
-                return null;
-            }
-            return new AutomappingStatus(networkSourceCode, exactMatches[0], true);
-        }
-    }
-    async pullMetadatas(uiSourceCodes) {
-        await Promise.all(uiSourceCodes.map(async (file) => {
-            this.sourceCodeToMetadataMap.set(file, await file.requestMetadata());
+        await Promise.all(similarFiles.concat(networkSourceCode).map(async (sourceCode) => {
+            this.sourceCodeToMetadataMap.set(sourceCode, await sourceCode.requestMetadata());
         }));
+        const activeFiles = similarFiles.filter(file => Boolean(this.activeFoldersIndex.closestParentFolder(file.url())));
+        const networkMetadata = this.sourceCodeToMetadataMap.get(networkSourceCode);
+        if (!networkMetadata || (!networkMetadata.modificationTime && typeof networkMetadata.contentSize !== 'number')) {
+            // If networkSourceCode does not have metadata, try to match against active folders.
+            if (activeFiles.length !== 1) {
+                return null;
+            }
+            return new AutomappingStatus(networkSourceCode, activeFiles[0], false);
+        }
+        // Try to find exact matches, prioritizing active folders.
+        let exactMatches = this.filterWithMetadata(activeFiles, networkMetadata);
+        if (!exactMatches.length) {
+            exactMatches = this.filterWithMetadata(similarFiles, networkMetadata);
+        }
+        if (exactMatches.length !== 1) {
+            return null;
+        }
+        return new AutomappingStatus(networkSourceCode, exactMatches[0], true);
     }
     filterWithMetadata(files, networkMetadata) {
         return files.filter(file => {
@@ -352,71 +326,82 @@ export class Automapping {
     }
 }
 class FilePathIndex {
-    encoder;
-    reversedIndex;
-    constructor(encoder) {
-        this.encoder = encoder;
-        this.reversedIndex = new Common.Trie.Trie();
-    }
+    #reversedIndex = Common.Trie.Trie.newArrayTrie();
     addPath(path) {
-        const encodedPath = this.encoder.encode(path);
-        this.reversedIndex.add(Platform.StringUtilities.reverse(encodedPath));
+        const reversePathParts = path.split('/').reverse();
+        this.#reversedIndex.add(reversePathParts);
     }
     removePath(path) {
-        const encodedPath = this.encoder.encode(path);
-        this.reversedIndex.remove(Platform.StringUtilities.reverse(encodedPath));
+        const reversePathParts = path.split('/').reverse();
+        this.#reversedIndex.remove(reversePathParts);
     }
     similarFiles(networkPath) {
-        const encodedPath = this.encoder.encode(networkPath);
-        const reversedEncodedPath = Platform.StringUtilities.reverse(encodedPath);
-        const longestCommonPrefix = this.reversedIndex.longestPrefix(reversedEncodedPath, false);
-        if (!longestCommonPrefix) {
+        const reversePathParts = networkPath.split('/').reverse();
+        const longestCommonPrefix = this.#reversedIndex.longestPrefix(reversePathParts, false);
+        if (longestCommonPrefix.length === 0) {
             return [];
         }
-        return this.reversedIndex.words(longestCommonPrefix)
-            .map(encodedPath => this.encoder.decode(Platform.StringUtilities.reverse(encodedPath)));
+        return this.#reversedIndex.words(longestCommonPrefix)
+            .map(reversePathParts => reversePathParts.reverse().join('/'));
     }
 }
 class FolderIndex {
-    encoder;
-    index;
-    folderCount;
-    constructor(encoder) {
-        this.encoder = encoder;
-        this.index = new Common.Trie.Trie();
-        this.folderCount = new Map();
-    }
+    #index = Common.Trie.Trie.newArrayTrie();
+    #folderCount = new Map();
     addFolder(path) {
-        if (path.endsWith('/')) {
-            path = path.substring(0, path.length - 1);
-        }
-        const encodedPath = this.encoder.encode(path);
-        this.index.add(encodedPath);
-        const count = this.folderCount.get(encodedPath) || 0;
-        this.folderCount.set(encodedPath, count + 1);
+        const pathParts = this.#removeTrailingSlash(path).split('/');
+        this.#index.add(pathParts);
+        const pathForCount = pathParts.join('/');
+        const count = this.#folderCount.get(pathForCount) ?? 0;
+        this.#folderCount.set(pathForCount, count + 1);
         return count === 0;
     }
     removeFolder(path) {
-        if (path.endsWith('/')) {
-            path = path.substring(0, path.length - 1);
-        }
-        const encodedPath = this.encoder.encode(path);
-        const count = this.folderCount.get(encodedPath) || 0;
+        const pathParts = this.#removeTrailingSlash(path).split('/');
+        const pathForCount = pathParts.join('/');
+        const count = this.#folderCount.get(pathForCount) ?? 0;
         if (!count) {
             return false;
         }
         if (count > 1) {
-            this.folderCount.set(encodedPath, count - 1);
+            this.#folderCount.set(pathForCount, count - 1);
             return false;
         }
-        this.index.remove(encodedPath);
-        this.folderCount.delete(encodedPath);
+        this.#index.remove(pathParts);
+        this.#folderCount.delete(pathForCount);
         return true;
     }
     closestParentFolder(path) {
-        const encodedPath = this.encoder.encode(path);
-        const commonPrefix = this.index.longestPrefix(encodedPath, true);
-        return this.encoder.decode(commonPrefix);
+        const pathParts = path.split('/');
+        const commonPrefix = this.#index.longestPrefix(pathParts, /* fullWordOnly */ true);
+        return commonPrefix.join('/');
+    }
+    #removeTrailingSlash(path) {
+        if (path.endsWith('/')) {
+            return Common.ParsedURL.ParsedURL.substring(path, 0, path.length - 1);
+        }
+        return path;
+    }
+}
+class FileSystemUISourceCodes {
+    sourceCodes;
+    constructor() {
+        this.sourceCodes = new Map();
+    }
+    getPlatformCanonicalFileUrl(path) {
+        return Host.Platform.isWin() ? Common.ParsedURL.ParsedURL.toLowerCase(path) : path;
+    }
+    add(sourceCode) {
+        const fileUrl = this.getPlatformCanonicalFileUrl(sourceCode.url());
+        this.sourceCodes.set(fileUrl, sourceCode);
+    }
+    get(fileUrl) {
+        fileUrl = this.getPlatformCanonicalFileUrl(fileUrl);
+        return this.sourceCodes.get(fileUrl);
+    }
+    delete(fileUrl) {
+        fileUrl = this.getPlatformCanonicalFileUrl(fileUrl);
+        this.sourceCodes.delete(fileUrl);
     }
 }
 export class AutomappingStatus {

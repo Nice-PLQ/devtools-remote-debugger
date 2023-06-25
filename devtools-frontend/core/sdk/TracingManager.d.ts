@@ -1,7 +1,8 @@
 import * as Protocol from '../../generated/protocol.js';
-import type { Target } from './Target.js';
+import { type Target } from './Target.js';
 import { SDKModel } from './SDKModel.js';
-import type { ObjectSnapshot } from './TracingModel.js';
+import { type ObjectSnapshot } from './TracingModel.js';
+import type * as TraceEngine from '../../models/trace/trace.js';
 export declare class TracingManager extends SDKModel<void> {
     #private;
     constructor(target: Target);
@@ -11,9 +12,6 @@ export declare class TracingManager extends SDKModel<void> {
     start(client: TracingManagerClient, categoryFilter: string, options: string): Promise<Protocol.ProtocolResponseWithError>;
     stop(): void;
 }
-/**
- * @interface
- */
 export interface TracingManagerClient {
     traceEventsCollected(events: EventPayload[]): void;
     tracingComplete(): void;
@@ -25,7 +23,7 @@ export interface EventPayload {
     pid: number;
     tid: number;
     ts: number;
-    ph: string;
+    ph: TraceEngine.Types.TraceEvents.Phase;
     name: string;
     args: {
         sort_index: number;
@@ -40,6 +38,4 @@ export interface EventPayload {
         local: (string | undefined);
     };
     scope: string;
-    bind_id: string;
-    s: string;
 }

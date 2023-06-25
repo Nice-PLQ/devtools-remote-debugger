@@ -11,7 +11,7 @@ export declare class SecurityModel extends SDK.SDKModel.SDKModel<EventTypes> {
 export declare enum Events {
     VisibleSecurityStateChanged = "VisibleSecurityStateChanged"
 }
-export declare type EventTypes = {
+export type EventTypes = {
     [Events.VisibleSecurityStateChanged]: PageVisibleSecurityState;
 };
 export declare const SummaryMessages: {

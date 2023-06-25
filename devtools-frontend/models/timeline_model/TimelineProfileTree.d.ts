@@ -1,28 +1,34 @@
-import type * as SDK from '../../core/sdk/sdk.js';
+import type * as Platform from '../../core/platform/platform.js';
+import * as SDK from '../../core/sdk/sdk.js';
 import type * as Protocol from '../../generated/protocol.js';
-import type { TimelineModelFilter } from './TimelineModelFilter.js';
+import type * as TraceEngine from '../../models/trace/trace.js';
+import { type TimelineModelFilter } from './TimelineModelFilter.js';
 export declare class Node {
     totalTime: number;
     selfTime: number;
     id: string | symbol;
-    event: SDK.TracingModel.Event | null;
+    event: SDK.TracingModel.CompatibleTraceEvent | null;
     parent: Node | null;
     groupId: string;
     isGroupNodeInternal: boolean;
     depth: number;
-    constructor(id: string | symbol, event: SDK.TracingModel.Event | null);
+    constructor(id: string | symbol, event: SDK.TracingModel.CompatibleTraceEvent | null);
     isGroupNode(): boolean;
     hasChildren(): boolean;
     setHasChildren(_value: boolean): void;
+    /**
+     * Returns the direct descendants of this node.
+     * @returns a map with ordered <nodeId, Node> tuples.
+     */
     children(): ChildrenCache;
-    searchTree(matchFunction: (arg0: SDK.TracingModel.Event) => boolean, results?: Node[]): Node[];
+    searchTree(matchFunction: (arg0: SDK.TracingModel.CompatibleTraceEvent) => boolean, results?: Node[]): Node[];
 }
 export declare class TopDownNode extends Node {
     root: TopDownRootNode | null;
     private hasChildrenInternal;
     childrenInternal: ChildrenCache | null;
     parent: TopDownNode | null;
-    constructor(id: string | symbol, event: SDK.TracingModel.Event | null, parent: TopDownNode | null);
+    constructor(id: string | symbol, event: SDK.TracingModel.CompatibleTraceEvent | null, parent: TopDownNode | null);
     hasChildren(): boolean;
     setHasChildren(value: boolean): void;
     children(): ChildrenCache;
@@ -30,29 +36,29 @@ export declare class TopDownNode extends Node {
     getRoot(): TopDownRootNode | null;
 }
 export declare class TopDownRootNode extends TopDownNode {
-    readonly events: SDK.TracingModel.Event[];
-    readonly filter: (e: SDK.TracingModel.Event) => boolean;
+    readonly filter: (e: SDK.TracingModel.CompatibleTraceEvent) => boolean;
+    readonly events: SDK.TracingModel.CompatibleTraceEvent[];
     readonly startTime: number;
     readonly endTime: number;
-    eventGroupIdCallback: ((arg0: SDK.TracingModel.Event) => string) | null | undefined;
+    eventGroupIdCallback: ((arg0: SDK.TracingModel.CompatibleTraceEvent) => string) | null | undefined;
     readonly doNotAggregate: boolean | undefined;
     totalTime: number;
     selfTime: number;
-    constructor(events: SDK.TracingModel.Event[], filters: TimelineModelFilter[], startTime: number, endTime: number, doNotAggregate?: boolean, eventGroupIdCallback?: ((arg0: SDK.TracingModel.Event) => string) | null);
+    constructor(events: SDK.TracingModel.CompatibleTraceEvent[], filters: TimelineModelFilter[], startTime: number, endTime: number, doNotAggregate?: boolean, eventGroupIdCallback?: ((arg0: SDK.TracingModel.CompatibleTraceEvent) => string) | null);
     children(): ChildrenCache;
     private grouppedTopNodes;
-    getEventGroupIdCallback(): ((arg0: SDK.TracingModel.Event) => string) | null | undefined;
+    getEventGroupIdCallback(): ((arg0: SDK.TracingModel.CompatibleTraceEvent) => string) | null | undefined;
 }
 export declare class BottomUpRootNode extends Node {
     private childrenInternal;
-    readonly events: SDK.TracingModel.Event[];
+    readonly events: SDK.TracingModel.CompatibleTraceEvent[];
     private textFilter;
-    readonly filter: (e: SDK.TracingModel.Event) => boolean;
+    readonly filter: (e: SDK.TracingModel.CompatibleTraceEvent) => boolean;
     readonly startTime: number;
     readonly endTime: number;
     private eventGroupIdCallback;
     totalTime: number;
-    constructor(events: SDK.TracingModel.Event[], textFilter: TimelineModelFilter, filters: TimelineModelFilter[], startTime: number, endTime: number, eventGroupIdCallback: ((arg0: SDK.TracingModel.Event) => string) | null);
+    constructor(events: SDK.TracingModel.CompatibleTraceEvent[], textFilter: TimelineModelFilter, filters: TimelineModelFilter[], startTime: number, endTime: number, eventGroupIdCallback: ((arg0: SDK.TracingModel.Event) => string) | null);
     hasChildren(): boolean;
     filterChildren(children: ChildrenCache): ChildrenCache;
     children(): ChildrenCache;
@@ -73,13 +79,13 @@ export declare class BottomUpNode extends Node {
     depth: number;
     private cachedChildren;
     private hasChildrenInternal;
-    constructor(root: BottomUpRootNode, id: string, event: SDK.TracingModel.Event, hasChildren: boolean, parent: Node);
+    constructor(root: BottomUpRootNode, id: string, event: SDK.TracingModel.CompatibleTraceEvent, hasChildren: boolean, parent: Node);
     hasChildren(): boolean;
     setHasChildren(value: boolean): void;
     children(): ChildrenCache;
-    searchTree(matchFunction: (arg0: SDK.TracingModel.Event) => boolean, results?: Node[]): Node[];
+    searchTree(matchFunction: (arg0: SDK.TracingModel.CompatibleTraceEvent) => boolean, results?: Node[]): Node[];
 }
-export declare function eventURL(event: SDK.TracingModel.Event): string | null;
-export declare function eventStackFrame(event: SDK.TracingModel.Event): Protocol.Runtime.CallFrame | null;
-export declare function _eventId(event: SDK.TracingModel.Event): string;
-export declare type ChildrenCache = Map<string | symbol, Node>;
+export declare function eventURL(event: SDK.TracingModel.Event | TraceEngine.Types.TraceEvents.TraceEventData): Platform.DevToolsPath.UrlString | null;
+export declare function eventStackFrame(event: SDK.TracingModel.Event | TraceEngine.Types.TraceEvents.TraceEventData): Protocol.Runtime.CallFrame | null;
+export declare function _eventId(event: SDK.TracingModel.CompatibleTraceEvent): string;
+export type ChildrenCache = Map<string | symbol, Node>;

@@ -20,26 +20,19 @@ export declare class FocusDebuggeeActionDelegate implements UI.ActionRegistratio
     handleAction(_context: UI.Context.Context, _actionId: string): boolean;
 }
 export declare class NodeIndicator implements UI.Toolbar.Provider {
-    private readonly element;
-    private readonly button;
+    #private;
     private constructor();
     static instance(opts?: {
         forceNew: boolean | null;
     }): NodeIndicator;
-    private update;
     item(): UI.Toolbar.ToolbarItem | null;
 }
 export declare class SourcesPanelIndicator {
     constructor();
 }
 export declare class BackendSettingsSync implements SDK.TargetManager.Observer {
-    private readonly autoAttachSetting;
-    private readonly adBlockEnabledSetting;
-    private readonly emulatePageFocusSetting;
+    #private;
     constructor();
-    private updateTarget;
-    private updateAutoAttach;
-    private update;
     targetAdded(target: SDK.Target.Target): void;
     targetRemoved(_target: SDK.Target.Target): void;
 }

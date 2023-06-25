@@ -73,8 +73,8 @@ export class MetricsSidebarPane extends ElementsSidebarPane {
             return Promise.resolve();
         }
         const promises = [
-            cssModel.computedStylePromise(node.id).then(callback.bind(this)),
-            cssModel.inlineStylesPromise(node.id).then(inlineStyleResult => {
+            cssModel.getComputedStyle(node.id).then(callback.bind(this)),
+            cssModel.getInlineStyles(node.id).then(inlineStyleResult => {
                 if (inlineStyleResult && this.node() === node) {
                     this.inlineStyle = inlineStyleResult.inlineStyle;
                 }
@@ -209,7 +209,7 @@ export class MetricsSidebarPane extends ElementsSidebarPane {
             Common.Color.PageHighlight.Padding,
             Common.Color.PageHighlight.Border,
             Common.Color.PageHighlight.Margin,
-            Common.Color.Color.fromRGBA([0, 0, 0, 0]),
+            Common.Color.Legacy.fromRGBA([0, 0, 0, 0]),
         ];
         const boxLabels = ['content', 'padding', 'border', 'margin', 'position'];
         let previousBox = null;
@@ -232,7 +232,7 @@ export class MetricsSidebarPane extends ElementsSidebarPane {
             }
             const boxElement = document.createElement('div');
             boxElement.className = `${name} highlighted`;
-            const backgroundColor = boxColors[i].asString(Common.Color.Format.RGBA) || '';
+            const backgroundColor = boxColors[i].asString("rgba" /* Common.Color.Format.RGBA */) || '';
             boxElement.style.backgroundColor = backgroundColor;
             boxElement.addEventListener('mouseover', this.highlightDOMNode.bind(this, true, name === 'position' ? 'all' : name), false);
             this.boxElements.push({ element: boxElement, name, backgroundColor });
@@ -313,11 +313,11 @@ export class MetricsSidebarPane extends ElementsSidebarPane {
                 // An added property, remove the last property in the style.
                 const pastLastSourcePropertyIndex = this.inlineStyle.pastLastSourcePropertyIndex();
                 if (pastLastSourcePropertyIndex) {
-                    this.inlineStyle.allProperties()[pastLastSourcePropertyIndex - 1].setText('', false);
+                    void this.inlineStyle.allProperties()[pastLastSourcePropertyIndex - 1].setText('', false);
                 }
             }
             else {
-                this.inlineStyle.allProperties()[this.originalPropertyData.index].setText(this.originalPropertyData.propertyText || '', false);
+                void this.inlineStyle.allProperties()[this.originalPropertyData.index].setText(this.originalPropertyData.propertyText || '', false);
             }
         }
         this.editingEnded(element, context);

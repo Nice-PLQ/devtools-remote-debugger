@@ -1,10 +1,14 @@
 import * as Protocol from '../../generated/protocol.js';
 import * as TextUtils from '../../models/text_utils/text_utils.js';
+import * as Platform from '../platform/platform.js';
 import { CSSContainerQuery } from './CSSContainerQuery.js';
+import { CSSLayer } from './CSSLayer.js';
 import { CSSMedia } from './CSSMedia.js';
-import type { CSSModel, Edit } from './CSSModel.js';
+import { CSSScope } from './CSSScope.js';
+import { CSSSupports } from './CSSSupports.js';
+import { type CSSModel, type Edit } from './CSSModel.js';
 import { CSSStyleDeclaration } from './CSSStyleDeclaration.js';
-import type { CSSStyleSheetHeader } from './CSSStyleSheetHeader.js';
+import { type CSSStyleSheetHeader } from './CSSStyleSheetHeader.js';
 export declare class CSSRule {
     readonly cssModelInternal: CSSModel;
     styleSheetId: Protocol.CSS.StyleSheetId | undefined;
@@ -17,7 +21,7 @@ export declare class CSSRule {
         origin: Protocol.CSS.StyleSheetOrigin;
     });
     rebase(edit: Edit): void;
-    resourceURL(): string;
+    resourceURL(): Platform.DevToolsPath.UrlString;
     isUserAgent(): boolean;
     isInjected(): boolean;
     isViaInspector(): boolean;
@@ -28,13 +32,18 @@ export declare class CSSRule {
 declare class CSSValue {
     text: string;
     range: TextUtils.TextRange.TextRange | undefined;
+    specificity: Protocol.CSS.Specificity | undefined;
     constructor(payload: Protocol.CSS.Value);
     rebase(edit: Edit): void;
 }
 export declare class CSSStyleRule extends CSSRule {
     selectors: CSSValue[];
+    nestingSelectors?: string[];
     media: CSSMedia[];
     containerQueries: CSSContainerQuery[];
+    supports: CSSSupports[];
+    scopes: CSSScope[];
+    layers: CSSLayer[];
     wasUsed: boolean;
     constructor(cssModel: CSSModel, payload: Protocol.CSS.CSSRule, wasUsed?: boolean);
     static createDummyRule(cssModel: CSSModel, selectorText: string): CSSStyleRule;
@@ -59,5 +68,11 @@ export declare class CSSKeyframeRule extends CSSRule {
     private reinitializeKey;
     rebase(edit: Edit): void;
     setKeyText(newKeyText: string): Promise<boolean>;
+}
+export declare class CSSPositionFallbackRule {
+    #private;
+    constructor(cssModel: CSSModel, payload: Protocol.CSS.CSSPositionFallbackRule);
+    name(): CSSValue;
+    tryRules(): CSSRule[];
 }
 export {};

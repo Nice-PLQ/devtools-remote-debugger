@@ -51,7 +51,7 @@ export declare const _minimumSpread = 0.1;
 export declare enum Events {
     BoundariesChanged = "BoundariesChanged"
 }
-export declare type EventTypes = {
+export type EventTypes = {
     [Events.BoundariesChanged]: void;
 };
 export declare class NetworkTransferTimeCalculator extends NetworkTimeCalculator {

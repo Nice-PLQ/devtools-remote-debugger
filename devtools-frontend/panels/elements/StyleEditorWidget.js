@@ -13,6 +13,7 @@ export class StyleEditorWidget extends UI.Widget.VBox {
     pane;
     section;
     editorContainer;
+    #triggerKey;
     constructor() {
         super(true);
         this.contentElement.tabIndex = 0;
@@ -49,6 +50,12 @@ export class StyleEditorWidget extends UI.Widget.VBox {
         this.editor?.addEventListener('propertyselected', this.onPropertySelected);
         this.editor?.addEventListener('propertydeselected', this.onPropertyDeselected);
     }
+    setTriggerKey(value) {
+        this.#triggerKey = value;
+    }
+    getTriggerKey() {
+        return this.#triggerKey;
+    }
     unbindContext() {
         this.pane = undefined;
         this.section = undefined;
@@ -78,7 +85,7 @@ export class StyleEditorWidget extends UI.Widget.VBox {
             this.contentElement.appendChild(this.editor);
         }
     }
-    static createTriggerButton(pane, section, editorClass, buttonTitle) {
+    static createTriggerButton(pane, section, editorClass, buttonTitle, triggerKey) {
         const triggerButton = createButton(buttonTitle);
         triggerButton.onclick = async (event) => {
             event.stopPropagation();
@@ -86,6 +93,7 @@ export class StyleEditorWidget extends UI.Widget.VBox {
             const widget = StyleEditorWidget.instance();
             widget.setEditor(editorClass);
             widget.bindContext(pane, section);
+            widget.setTriggerKey(triggerKey);
             await widget.render();
             const scrollerElement = triggerButton.enclosingNodeOrSelfWithClass('style-panes-wrapper');
             const onScroll = () => {
@@ -114,7 +122,7 @@ function createButton(buttonTitle) {
         event.stopPropagation();
     };
     const icon = new IconButton.Icon.Icon();
-    icon.data = { iconName: 'flex-wrap-icon', color: 'var(--color-text-secondary)', width: '12px', height: '12px' };
+    icon.data = { iconName: 'flex-wrap', color: 'var(--color-text-secondary)', width: '16px', height: '16px' };
     button.appendChild(icon);
     return button;
 }

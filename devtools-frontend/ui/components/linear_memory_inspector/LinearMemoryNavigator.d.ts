@@ -38,19 +38,10 @@ export declare const enum Mode {
     InvalidSubmit = "InvalidSubmit"
 }
 export declare class LinearMemoryNavigator extends HTMLElement {
+    #private;
     static readonly litTagName: import("../../lit-html/static.js").Static;
-    private readonly shadow;
-    private address;
-    private error;
-    private valid;
-    private canGoBackInHistory;
-    private canGoForwardInHistory;
     connectedCallback(): void;
     set data(data: LinearMemoryNavigatorData);
-    private render;
-    private createAddressInput;
-    private onAddressChange;
-    private createButton;
 }
 declare global {
     interface HTMLElementTagNameMap {

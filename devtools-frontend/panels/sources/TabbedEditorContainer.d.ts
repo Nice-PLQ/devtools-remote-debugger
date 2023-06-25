@@ -1,16 +1,15 @@
 import * as Common from '../../core/common/common.js';
+import * as Platform from '../../core/platform/platform.js';
 import * as TextUtils from '../../models/text_utils/text_utils.js';
 import * as Workspace from '../../models/workspace/workspace.js';
 import * as UI from '../../ui/legacy/legacy.js';
 import { UISourceCodeFrame } from './UISourceCodeFrame.js';
-/**
- * @interface
- */
 export interface TabbedEditorContainerDelegate {
     viewForFile(uiSourceCode: Workspace.UISourceCode.UISourceCode): UI.Widget.Widget;
     recycleUISourceCodeFrame(sourceFrame: UISourceCodeFrame, uiSourceCode: Workspace.UISourceCode.UISourceCode): void;
 }
 export declare class TabbedEditorContainer extends Common.ObjectWrapper.ObjectWrapper<EventTypes> {
+    #private;
     private readonly delegate;
     private readonly tabbedPane;
     private tabIds;
@@ -18,9 +17,11 @@ export declare class TabbedEditorContainer extends Common.ObjectWrapper.ObjectWr
     private readonly previouslyViewedFilesSetting;
     private readonly history;
     private readonly uriToUISourceCode;
+    private readonly idToUISourceCode;
     private currentFileInternal;
     private currentView;
     private scrollTimer?;
+    private reentrantShow;
     constructor(delegate: TabbedEditorContainerDelegate, setting: Common.Settings.Setting<SerializedHistoryItem[]>, placeholderElement: Element, focusedPlaceholderElement?: Element);
     private onBindingCreated;
     private onBindingRemoved;
@@ -34,10 +35,12 @@ export declare class TabbedEditorContainer extends Common.ObjectWrapper.ObjectWr
     closeFile(uiSourceCode: Workspace.UISourceCode.UISourceCode): void;
     closeAllFiles(): void;
     historyUISourceCodes(): Workspace.UISourceCode.UISourceCode[];
+    selectNextTab(): void;
+    selectPrevTab(): void;
     private addViewListeners;
     private removeViewListeners;
-    private scrollChanged;
-    private selectionChanged;
+    private onScrollChanged;
+    private onEditorUpdate;
     private innerShowFile;
     private titleForFile;
     private maybeCloseTab;
@@ -75,43 +78,42 @@ export interface EditorSelectedEvent {
     previousView: UI.Widget.Widget | null;
     userGesture: boolean | undefined;
 }
-export declare type EventTypes = {
+export type EventTypes = {
     [Events.EditorSelected]: EditorSelectedEvent;
     [Events.EditorClosed]: Workspace.UISourceCode.UISourceCode;
 };
-export declare let tabId: number;
-export declare const maximalPreviouslyViewedFilesCount = 30;
 interface SerializedHistoryItem {
     url: string;
+    resourceTypeName: string;
     selectionRange?: TextUtils.TextRange.SerializedTextRange;
     scrollLineNumber?: number;
 }
-export declare class HistoryItem {
-    url: string;
-    private isSerializable;
+interface HistoryItemKey {
+    url: Platform.DevToolsPath.UrlString;
+    resourceType: Common.ResourceType.ResourceType;
+}
+export declare class HistoryItem implements HistoryItemKey {
+    url: Platform.DevToolsPath.UrlString;
+    resourceType: Common.ResourceType.ResourceType;
     selectionRange: TextUtils.TextRange.TextRange | undefined;
     scrollLineNumber: number | undefined;
-    constructor(url: string, selectionRange?: TextUtils.TextRange.TextRange, scrollLineNumber?: number);
+    constructor(url: Platform.DevToolsPath.UrlString, resourceType: Common.ResourceType.ResourceType, selectionRange?: TextUtils.TextRange.TextRange, scrollLineNumber?: number);
     static fromObject(serializedHistoryItem: SerializedHistoryItem): HistoryItem;
-    serializeToObject(): SerializedHistoryItem | null;
-    static readonly serializableUrlLengthLimit = 4096;
+    toObject(): SerializedHistoryItem | null;
 }
 export declare class History {
     private items;
-    private itemsIndex;
     constructor(items: HistoryItem[]);
-    static fromObject(serializedHistory: SerializedHistoryItem[]): History;
-    index(url: string): number;
-    private rebuildItemIndex;
-    selectionRange(url: string): TextUtils.TextRange.TextRange | undefined;
-    updateSelectionRange(url: string, selectionRange?: TextUtils.TextRange.TextRange): void;
-    scrollLineNumber(url: string): number | undefined;
-    updateScrollLineNumber(url: string, scrollLineNumber: number): void;
-    update(urls: string[]): void;
-    remove(url: string): void;
-    save(setting: Common.Settings.Setting<SerializedHistoryItem[]>): void;
-    private serializeToObject;
-    urls(): string[];
+    static fromObject(serializedHistoryItems: SerializedHistoryItem[]): History;
+    index({ url, resourceType }: HistoryItemKey): number;
+    selectionRange(key: HistoryItemKey): TextUtils.TextRange.TextRange | undefined;
+    updateSelectionRange(key: HistoryItemKey, selectionRange?: TextUtils.TextRange.TextRange): void;
+    scrollLineNumber(key: HistoryItemKey): number | undefined;
+    updateScrollLineNumber(key: HistoryItemKey, scrollLineNumber: number): void;
+    update(keys: HistoryItemKey[]): void;
+    remove(key: HistoryItemKey): void;
+    toObject(): SerializedHistoryItem[];
+    keys(): ReadonlyArray<HistoryItemKey>;
 }
 export declare class EditorContainerTabDelegate implements UI.TabbedPane.TabbedPaneTabDelegate {
     private readonly editorContainer;

@@ -1,7 +1,7 @@
 import * as SDK from '../../core/sdk/sdk.js';
 import * as Protocol from '../../generated/protocol.js';
-import type { ContrastIssue } from './CSSOverviewCompletedView.js';
-import type { UnusedDeclaration } from './CSSOverviewUnusedDeclarations.js';
+import { type ContrastIssue } from './CSSOverviewCompletedView.js';
+import { type UnusedDeclaration } from './CSSOverviewUnusedDeclarations.js';
 interface NodeStyleStats {
     elementCount: number;
     backgroundColors: Map<string, Set<Protocol.DOM.BackendNodeId>>;

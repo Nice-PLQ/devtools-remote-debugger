@@ -10,16 +10,16 @@ import requestInitiatorViewStyles from './requestInitiatorView.css.js';
 import requestInitiatorViewTreeStyles from './requestInitiatorViewTree.css.js';
 const UIStrings = {
     /**
-    *@description Text in Request Initiator View of the Network panel
-    */
+     *@description Text in Request Initiator View of the Network panel
+     */
     thisRequestHasNoInitiatorData: 'This request has no initiator data.',
     /**
-    *@description Title of a section in Request Initiator view of the Network Panel
-    */
+     *@description Title of a section in Request Initiator view of the Network Panel
+     */
     requestCallStack: 'Request call stack',
     /**
-    *@description Title of a section in Request Initiator view of the Network Panel
-    */
+     *@description Title of a section in Request Initiator view of the Network Panel
+     */
     requestInitiatorChain: 'Request initiator chain',
 };
 const str_ = i18n.i18n.registerUIStrings('panels/network/RequestInitiatorView.ts', UIStrings);

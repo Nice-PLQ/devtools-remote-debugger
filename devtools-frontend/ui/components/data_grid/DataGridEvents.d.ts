@@ -1,4 +1,4 @@
-import type { Cell, Column, Row } from './DataGridUtils.js';
+import { type Cell, type Column, type Row } from './DataGridUtils.js';
 export declare class ColumnHeaderClickEvent extends Event {
     static readonly eventName = "columnheaderclick";
     data: {

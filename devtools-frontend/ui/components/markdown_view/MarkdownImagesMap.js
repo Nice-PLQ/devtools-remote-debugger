@@ -7,11 +7,11 @@
  * [
  *   'feedbackIcon',
  *   {
- *     src: 'Images/feedback_thin_16x16_icon.svg',
+ *     src: 'Images/review.svg',
  *     isIcon: true,
  *     width: '20px',
  *     height: '20px',
- *     color: 'var(--color-text-disabled)',
+ *     color: 'var(--icon-disabled)',
  *   },
  * ]
  *

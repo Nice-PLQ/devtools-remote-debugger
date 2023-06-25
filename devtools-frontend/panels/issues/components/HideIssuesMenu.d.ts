@@ -4,16 +4,11 @@ export interface HiddenIssuesMenuData {
     menuItemAction: () => void;
 }
 export declare class HideIssuesMenu extends HTMLElement {
+    #private;
     static readonly litTagName: import("../../../ui/lit-html/static.js").Static;
-    private readonly shadow;
-    private visible;
-    private menuItemLabel;
-    private menuItemAction;
     set data(data: HiddenIssuesMenuData);
     connectedCallback(): void;
-    setVisible(x: boolean): void;
     onMenuOpen(event: Event): void;
-    private render;
 }
 declare global {
     interface HTMLElementTagNameMap {

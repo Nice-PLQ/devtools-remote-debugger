@@ -35,45 +35,46 @@ import * as Platform from '../../../../core/platform/platform.js';
 import * as TextUtils from '../../../../models/text_utils/text_utils.js';
 import * as Workspace from '../../../../models/workspace/workspace.js';
 import * as UI from '../../legacy.js';
+import imageViewStyles from './imageView.css.legacy.js';
 const UIStrings = {
     /**
-    *@description Text in Image View of the Sources panel
-    */
+     *@description Text in Image View of the Sources panel
+     */
     image: 'Image',
     /**
-    *@description Text that appears when user drag and drop something (for example, a file) in Image View of the Sources panel
-    */
+     *@description Text that appears when user drag and drop something (for example, a file) in Image View of the Sources panel
+     */
     dropImageFileHere: 'Drop image file here',
     /**
-    *@description Text to indicate the source of an image
-    *@example {example.com} PH1
-    */
+     *@description Text to indicate the source of an image
+     *@example {example.com} PH1
+     */
     imageFromS: 'Image from {PH1}',
     /**
-    *@description Text in Image View of the Sources panel
-    *@example {2} PH1
-    *@example {2} PH2
-    */
+     *@description Text in Image View of the Sources panel
+     *@example {2} PH1
+     *@example {2} PH2
+     */
     dD: '{PH1} × {PH2}',
     /**
-    *@description A context menu item in the Image View of the Sources panel
-    */
+     *@description A context menu item in the Image View of the Sources panel
+     */
     copyImageUrl: 'Copy image URL',
     /**
-    *@description A context menu item in the Image View of the Sources panel
-    */
+     *@description A context menu item in the Image View of the Sources panel
+     */
     copyImageAsDataUri: 'Copy image as data URI',
     /**
-    *@description A context menu item in the Image View of the Sources panel
-    */
+     *@description A context menu item in the Image View of the Sources panel
+     */
     openImageInNewTab: 'Open image in new tab',
     /**
-    *@description A context menu item in the Image Preview
-    */
+     *@description A context menu item in the Image Preview
+     */
     saveImageAs: 'Save image as...',
     /**
-    *@description The default file name when downloading a file
-    */
+     *@description The default file name when downloading a file
+     */
     download: 'download',
 };
 const str_ = i18n.i18n.registerUIStrings('ui/legacy/components/source_frame/ImageView.ts', UIStrings);
@@ -93,7 +94,7 @@ export class ImageView extends UI.View.SimpleView {
     cachedContent;
     constructor(mimeType, contentProvider) {
         super(i18nString(UIStrings.image));
-        this.registerRequiredCSS('ui/legacy/components/source_frame/imageView.css');
+        this.registerRequiredCSS(imageViewStyles);
         this.element.tabIndex = -1;
         this.element.classList.add('image-view');
         this.url = contentProvider.contentURL();
@@ -128,7 +129,7 @@ export class ImageView extends UI.View.SimpleView {
         ];
     }
     wasShown() {
-        this.updateContentIfNeeded();
+        void this.updateContentIfNeeded();
     }
     disposeView() {
         if (this.uiSourceCode) {
@@ -136,22 +137,22 @@ export class ImageView extends UI.View.SimpleView {
         }
     }
     workingCopyCommitted() {
-        this.updateContentIfNeeded();
+        void this.updateContentIfNeeded();
     }
     async updateContentIfNeeded() {
-        const { content } = await this.contentProvider.requestContent();
-        if (this.cachedContent === content) {
+        const content = await this.contentProvider.requestContent();
+        if (this.cachedContent?.content === content.content) {
             return;
         }
-        const contentEncoded = await this.contentProvider.contentEncoded();
         this.cachedContent = content;
-        const imageSrc = TextUtils.ContentProvider.contentAsDataURL(content, this.mimeType, contentEncoded) || this.url;
+        const imageSrc = TextUtils.ContentProvider.contentAsDataURL(content.content, this.mimeType, content.isEncoded) || this.url;
         const loadPromise = new Promise(x => {
             this.imagePreviewElement.onload = x;
         });
         this.imagePreviewElement.src = imageSrc;
         this.imagePreviewElement.alt = i18nString(UIStrings.imageFromS, { PH1: this.url });
-        const size = content && !contentEncoded ? content.length : Platform.StringUtilities.base64ToSize(content);
+        const size = content.content && !content.isEncoded ? content.content.length :
+            Platform.StringUtilities.base64ToSize(content.content);
         this.sizeLabel.setText(Platform.NumberUtilities.bytesToString(size));
         await loadPromise;
         this.dimensionsLabel.setText(i18nString(UIStrings.dD, { PH1: this.imagePreviewElement.naturalWidth, PH2: this.imagePreviewElement.naturalHeight }));
@@ -170,7 +171,7 @@ export class ImageView extends UI.View.SimpleView {
         contextMenu.clipboardSection().appendItem(i18nString(UIStrings.saveImageAs), async () => {
             await this.saveImage();
         });
-        contextMenu.show();
+        void contextMenu.show();
     }
     copyImageAsDataURL() {
         Host.InspectorFrontendHost.InspectorFrontendHostInstance.copyText(this.imagePreviewElement.src);
@@ -179,12 +180,10 @@ export class ImageView extends UI.View.SimpleView {
         Host.InspectorFrontendHost.InspectorFrontendHostInstance.copyText(this.url);
     }
     async saveImage() {
-        const contentEncoded = await this.contentProvider.contentEncoded();
-        if (!this.cachedContent) {
+        if (!this.cachedContent || !this.cachedContent.content) {
             return;
         }
-        const cachedContent = this.cachedContent;
-        const imageDataURL = TextUtils.ContentProvider.contentAsDataURL(cachedContent, this.mimeType, contentEncoded, '', false);
+        const imageDataURL = TextUtils.ContentProvider.contentAsDataURL(this.cachedContent.content, this.mimeType, this.cachedContent.isEncoded, '', false);
         if (!imageDataURL) {
             return;
         }

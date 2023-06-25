@@ -1,7 +1,7 @@
-import type { Size } from './Geometry.js';
-import type { WidgetElement } from './Widget.js';
-import { Widget } from './Widget.js';
+import { type Size } from './Geometry.js';
+import { Widget, type WidgetElement } from './Widget.js';
 export declare class GlassPane {
+    #private;
     private readonly widgetInternal;
     element: WidgetElement;
     contentElement: HTMLDivElement;
@@ -17,7 +17,9 @@ export declare class GlassPane {
     private marginBehavior;
     constructor();
     isShowing(): boolean;
-    registerRequiredCSS(cssFile: string): void;
+    registerRequiredCSS(cssFile: {
+        cssContent: string;
+    }): void;
     registerCSSFiles(cssFiles: CSSStyleSheet[]): void;
     setDefaultFocusedElement(element: Element | null): void;
     setDimmed(dimmed: boolean): void;
@@ -29,6 +31,7 @@ export declare class GlassPane {
     setContentAnchorBox(anchorBox: AnchorBox | null): void;
     setAnchorBehavior(behavior: AnchorBehavior): void;
     setMarginBehavior(behavior: MarginBehavior): void;
+    setIgnoreLeftMargin(ignore: boolean): void;
     show(document: Document): void;
     hide(): void;
     private onMouseDown;

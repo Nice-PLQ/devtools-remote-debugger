@@ -6,6 +6,7 @@ import * as ComponentHelpers from '../../../ui/components/helpers/helpers.js';
 import * as i18n from '../../../core/i18n/i18n.js';
 import * as LitHtml from '../../../ui/lit-html/lit-html.js';
 import * as Settings from '../../../ui/components/settings/settings.js';
+import * as ChromeLink from '../../../ui/components/chrome_link/chrome_link.js';
 import syncSectionStyles from './syncSection.css.js';
 const UIStrings = {
     /**
@@ -33,49 +34,58 @@ const str_ = i18n.i18n.registerUIStrings('panels/settings/components/SyncSection
 const i18nString = i18n.i18n.getLocalizedString.bind(undefined, str_);
 export class SyncSection extends HTMLElement {
     static litTagName = LitHtml.literal `devtools-sync-section`;
-    shadow = this.attachShadow({ mode: 'open' });
-    syncInfo = { isSyncActive: false };
-    syncSetting;
-    boundRender = this.render.bind(this);
+    #shadow = this.attachShadow({ mode: 'open' });
+    #syncInfo = { isSyncActive: false };
+    #syncSetting;
+    #boundRender = this.#render.bind(this);
     connectedCallback() {
-        this.shadow.adoptedStyleSheets = [syncSectionStyles];
+        this.#shadow.adoptedStyleSheets = [syncSectionStyles];
     }
     set data(data) {
-        this.syncInfo = data.syncInfo;
-        this.syncSetting = data.syncSetting;
-        ComponentHelpers.ScheduledRender.scheduleRender(this, this.boundRender);
+        this.#syncInfo = data.syncInfo;
+        this.#syncSetting = data.syncSetting;
+        void ComponentHelpers.ScheduledRender.scheduleRender(this, this.#boundRender);
     }
-    render() {
-        if (!this.syncSetting) {
+    #render() {
+        if (!this.#syncSetting) {
             throw new Error('SyncSection not properly initialized');
         }
-        const checkboxDisabled = !this.syncInfo.isSyncActive || !this.syncInfo.arePreferencesSynced;
+        const checkboxDisabled = !this.#syncInfo.isSyncActive || !this.#syncInfo.arePreferencesSynced;
         // Disabled until https://crbug.com/1079231 is fixed.
         // clang-format off
         LitHtml.render(LitHtml.html `
       <fieldset>
         <legend>${Common.Settings.getLocalizedSettingsCategory(Common.Settings.SettingCategory.SYNC)}</legend>
-        ${renderAccountInfoOrWarning(this.syncInfo)}
-        <${Settings.SettingCheckbox.SettingCheckbox.litTagName} .data=${{ setting: this.syncSetting, disabled: checkboxDisabled }}>
+        ${renderAccountInfoOrWarning(this.#syncInfo)}
+        <${Settings.SettingCheckbox.SettingCheckbox.litTagName} .data=${{ setting: this.#syncSetting, disabled: checkboxDisabled }}>
         </${Settings.SettingCheckbox.SettingCheckbox.litTagName}>
       </fieldset>
-    `, this.shadow, { host: this });
+    `, this.#shadow, { host: this });
         // clang-format on
     }
 }
+/* x-link doesn't work with custom click/keydown handlers */
+/* eslint-disable rulesdir/ban_a_tags_in_lit_html */
 function renderAccountInfoOrWarning(syncInfo) {
     if (!syncInfo.isSyncActive) {
-        return LitHtml.html `
-      <span class="warning">
-        ${i18nString(UIStrings.syncDisabled)} <x-link href="chrome://settings/syncSetup" class="link">${i18nString(UIStrings.settings)}</x-link>
-      </span>`;
-    }
-    if (!syncInfo.arePreferencesSynced) {
+        const link = 'chrome://settings/syncSetup';
         // Disabled until https://crbug.com/1079231 is fixed.
         // clang-format off
         return LitHtml.html `
       <span class="warning">
-        ${i18nString(UIStrings.preferencesSyncDisabled)} <x-link href="chrome://settings/syncSetup/advanced" class="link">${i18nString(UIStrings.settings)}</x-link>
+        ${i18nString(UIStrings.syncDisabled)}
+        <${ChromeLink.ChromeLink.ChromeLink.litTagName} .href=${link}>${i18nString(UIStrings.settings)}</${ChromeLink.ChromeLink.ChromeLink.litTagName}>
+      </span>`;
+        // clang-format on
+    }
+    if (!syncInfo.arePreferencesSynced) {
+        const link = 'chrome://settings/syncSetup/advanced';
+        // Disabled until https://crbug.com/1079231 is fixed.
+        // clang-format off
+        return LitHtml.html `
+      <span class="warning">
+        ${i18nString(UIStrings.preferencesSyncDisabled)}
+        <${ChromeLink.ChromeLink.ChromeLink.litTagName} .href=${link}>${i18nString(UIStrings.settings)}</${ChromeLink.ChromeLink.ChromeLink.litTagName}>
       </span>`;
         // clang-format on
     }

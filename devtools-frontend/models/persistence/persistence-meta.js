@@ -8,45 +8,45 @@ import * as UI from '../../ui/legacy/legacy.js';
 import * as Workspace from '../workspace/workspace.js';
 const UIStrings = {
     /**
-    *@description Text of a DOM element in Workspace Settings Tab of the Workspace settings in Settings
-    */
+     *@description Text of a DOM element in Workspace Settings Tab of the Workspace settings in Settings
+     */
     workspace: 'Workspace',
     /**
-    *@description Command for showing the Workspace tool in Settings
-    */
+     *@description Command for showing the Workspace tool in Settings
+     */
     showWorkspace: 'Show Workspace',
     /**
-    *@description Title of a setting under the Persistence category in Settings
-    */
+     *@description Title of a setting under the Persistence category in Settings
+     */
     enableLocalOverrides: 'Enable Local Overrides',
     /**
      *@description A tag of Enable Local Overrides setting that can be searched in the command menu
-    */
+     */
     interception: 'interception',
     /**
      *@description A tag of Enable Local Overrides setting that can be searched in the command menu
-    */
+     */
     override: 'override',
     /**
      *@description A tag of Group Network by frame setting that can be searched in the command menu
-    */
+     */
     network: 'network',
     /**
      *@description A tag of Enable Local Overrides setting that can be searched in the command menu
-    */
+     */
     rewrite: 'rewrite',
     /**
      *@description A tag of Enable Local Overrides setting that can be searched in the command menu.
      *Noun for network request.
-    */
+     */
     request: 'request',
     /**
      *@description Title of a setting under the Persistence category that can be invoked through the Command Menu
-    */
+     */
     enableOverrideNetworkRequests: 'Enable override network requests',
     /**
      *@description Title of a setting under the Persistence category that can be invoked through the Command Menu
-    */
+     */
     disableOverrideNetworkRequests: 'Disable override network requests',
 };
 const str_ = i18n.i18n.registerUIStrings('models/persistence/persistence-meta.ts', UIStrings);
@@ -59,7 +59,7 @@ async function loadPersistenceModule() {
     return loadedPersistenceModule;
 }
 UI.ViewManager.registerViewExtension({
-    location: "settings-view" /* SETTINGS_VIEW */,
+    location: "settings-view" /* UI.ViewManager.ViewLocationValues.SETTINGS_VIEW */,
     id: 'workspace',
     title: i18nLazyString(UIStrings.workspace),
     commandPrompt: i18nLazyString(UIStrings.showWorkspace),

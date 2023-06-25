@@ -4,16 +4,16 @@ export declare enum PhysicalDirection {
     BOTTOM_TO_TOP = "bottom-to-top",
     TOP_TO_BOTTOM = "top-to-bottom"
 }
-declare type DirectionsDict = {
+type DirectionsDict = {
     [key: string]: PhysicalDirection;
 };
-export declare type IconInfo = {
+export type IconInfo = {
     iconName: string;
     rotate: number;
     scaleX: number;
     scaleY: number;
 };
-declare type ComputedStyles = Map<string, string>;
+type ComputedStyles = Map<string, string>;
 export declare function reverseDirection(direction: PhysicalDirection): PhysicalDirection;
 /**
  * Returns absolute directions for rows, columns,

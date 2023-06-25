@@ -9,13 +9,13 @@ import * as SDK from '../../../../core/sdk/sdk.js';
 import imagePreviewStyles from './imagePreview.css.js';
 const UIStrings = {
     /**
-    *@description Alt text description of an image's source
-    */
+     *@description Alt text description of an image's source
+     */
     unknownSource: 'unknown source',
     /**
-    *@description Text to indicate the source of an image
-    *@example {example.com} PH1
-    */
+     *@description Text to indicate the source of an image
+     *@example {example.com} PH1
+     */
     imageFromS: 'Image from {PH1}',
     /**
      * @description Title of the row that shows the file size of an image.
@@ -78,7 +78,7 @@ export class ImagePreview {
             if (imageAltText) {
                 imageElement.alt = imageAltText;
             }
-            imageResource.populateImageSource(imageElement);
+            void imageResource.populateImageSource(imageElement);
             function buildContent() {
                 const shadowBoundary = document.createElement('div');
                 const shadowRoot = shadowBoundary.attachShadow({ mode: 'open' });
@@ -143,11 +143,15 @@ export class ImagePreview {
         }
         // TODO(crbug.com/1172300) Ignored during the jsdoc to ts migration
         // @ts-expect-error
-        const featuresObject = object.callFunctionJSON(features, undefined);
+        const featuresObject = await object.callFunctionJSON(features, undefined);
         object.release();
         return featuresObject;
         function features() {
-            return { renderedWidth: this.width, renderedHeight: this.height, currentSrc: this.currentSrc };
+            return {
+                renderedWidth: this.width,
+                renderedHeight: this.height,
+                currentSrc: this.currentSrc,
+            };
         }
     }
     static defaultAltTextForImageURL(url) {

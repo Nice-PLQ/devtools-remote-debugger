@@ -1,8 +1,9 @@
 // Copyright 2016 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
+import * as SDK from '../../core/sdk/sdk.js';
 import { TimelineJSProfileProcessor } from './TimelineJSProfile.js';
-import { RecordType, TimelineData, TimelineModelImpl } from './TimelineModel.js';
+import { RecordType, EventOnTimelineData, TimelineModelImpl } from './TimelineModel.js';
 export class Node {
     totalTime;
     selfTime;
@@ -30,6 +31,10 @@ export class Node {
     setHasChildren(_value) {
         throw 'Not implemented';
     }
+    /**
+     * Returns the direct descendants of this node.
+     * @returns a map with ordered <nodeId, Node> tuples.
+     */
     children() {
         throw 'Not implemented';
     }
@@ -66,6 +71,7 @@ export class TopDownNode extends Node {
         return this.childrenInternal || this.buildChildren();
     }
     buildChildren() {
+        // Tracks the ancestor path of this node, includes the current node.
         const path = [];
         for (let node = this; node.parent && !node.isGroupNode(); node = node.parent) {
             path.push(node);
@@ -84,10 +90,14 @@ export class TopDownNode extends Node {
         const eventIdCallback = root.doNotAggregate ? undefined : _eventId;
         const eventGroupIdCallback = root.getEventGroupIdCallback();
         let depth = 0;
+        // The amount of ancestors found to match this node's ancestors
+        // during the event tree walk.
         let matchedDepth = 0;
         let currentDirectChild = null;
-        TimelineModelImpl.forEachEvent(root.events, onStartEvent, onEndEvent, instantEventCallback, startTime, endTime, root.filter);
+        // Walk on the full event tree to find this node's children.
+        TimelineModelImpl.forEachEvent(root.events, onStartEvent, onEndEvent, instantEventCallback, startTime, endTime, root.filter, false);
         function onStartEvent(e) {
+            const { startTime: currentStartTime, endTime: currentEndTime } = SDK.TracingModel.timesForEventInMilliseconds(e);
             ++depth;
             if (depth > path.length + 2) {
                 return;
@@ -95,8 +105,8 @@ export class TopDownNode extends Node {
             if (!matchPath(e)) {
                 return;
             }
-            const actualEndTime = e.endTime !== undefined ? Math.min(e.endTime, endTime) : endTime;
-            const duration = actualEndTime - Math.max(startTime, e.startTime);
+            const actualEndTime = currentEndTime !== undefined ? Math.min(currentEndTime, endTime) : endTime;
+            const duration = actualEndTime - Math.max(startTime, currentStartTime);
             if (duration < 0) {
                 console.error('Negative event duration');
             }
@@ -109,6 +119,9 @@ export class TopDownNode extends Node {
             }
             --depth;
         }
+        /**
+         * Creates a child node.
+         */
         function processEvent(e, duration) {
             if (depth === path.length + 2) {
                 if (!currentDirectChild) {
@@ -140,14 +153,21 @@ export class TopDownNode extends Node {
             node.totalTime += duration;
             currentDirectChild = node;
         }
+        /**
+         * Checks if the path of ancestors of an event matches the path of
+         * ancestors of the current node. In other words, checks if an event
+         * is a child of this node. As the check is done, the partial result
+         * is cached on `matchedDepth`, for future checks.
+         */
         function matchPath(e) {
+            const { endTime } = SDK.TracingModel.timesForEventInMilliseconds(e);
             if (matchedDepth === path.length) {
                 return true;
             }
             if (matchedDepth !== depth - 1) {
                 return false;
             }
-            if (!e.endTime) {
+            if (!endTime) {
                 return false;
             }
             if (!eventIdCallback) {
@@ -180,8 +200,8 @@ export class TopDownNode extends Node {
     }
 }
 export class TopDownRootNode extends TopDownNode {
-    events;
     filter;
+    events;
     startTime;
     endTime;
     eventGroupIdCallback;
@@ -273,10 +293,11 @@ export class BottomUpRootNode extends Node {
         const selfTimeStack = [endTime - startTime];
         const firstNodeStack = [];
         const totalTimeById = new Map();
-        TimelineModelImpl.forEachEvent(this.events, onStartEvent, onEndEvent, undefined, startTime, endTime, this.filter);
+        TimelineModelImpl.forEachEvent(this.events, onStartEvent, onEndEvent, undefined, startTime, endTime, this.filter, false);
         function onStartEvent(e) {
-            const actualEndTime = e.endTime !== undefined ? Math.min(e.endTime, endTime) : endTime;
-            const duration = actualEndTime - Math.max(e.startTime, startTime);
+            const { startTime: currentStartTime, endTime: currentEndTime } = SDK.TracingModel.timesForEventInMilliseconds(e);
+            const actualEndTime = currentEndTime !== undefined ? Math.min(currentEndTime, endTime) : endTime;
+            const duration = actualEndTime - Math.max(currentStartTime, startTime);
             selfTimeStack[selfTimeStack.length - 1] -= duration;
             selfTimeStack.push(duration);
             const id = _eventId(e);
@@ -382,10 +403,11 @@ export class BottomUpNode extends Node {
         const endTime = this.root.endTime;
         let lastTimeMarker = startTime;
         const self = this;
-        TimelineModelImpl.forEachEvent(this.root.events, onStartEvent, onEndEvent, undefined, startTime, endTime, this.root.filter);
+        TimelineModelImpl.forEachEvent(this.root.events, onStartEvent, onEndEvent, undefined, startTime, endTime, this.root.filter, false);
         function onStartEvent(e) {
-            const actualEndTime = e.endTime !== undefined ? Math.min(e.endTime, endTime) : endTime;
-            const duration = actualEndTime - Math.max(e.startTime, startTime);
+            const { startTime: currentStartTime, endTime: currentEndTime } = SDK.TracingModel.timesForEventInMilliseconds(e);
+            const actualEndTime = currentEndTime !== undefined ? Math.min(currentEndTime, endTime) : endTime;
+            const duration = actualEndTime - Math.max(currentStartTime, startTime);
             if (duration < 0) {
                 console.assert(false, 'Negative duration of an event');
             }
@@ -396,6 +418,7 @@ export class BottomUpNode extends Node {
             eventStack.push(e);
         }
         function onEndEvent(e) {
+            const { startTime: currentStartTime, endTime: currentEndTime } = SDK.TracingModel.timesForEventInMilliseconds(e);
             const selfTime = selfTimeStack.pop();
             const id = eventIdStack.pop();
             eventStack.pop();
@@ -416,8 +439,8 @@ export class BottomUpNode extends Node {
                 node = new BottomUpNode(self.root, childId, event, hasChildren, self);
                 nodeById.set(childId, node);
             }
-            const actualEndTime = e.endTime !== undefined ? Math.min(e.endTime, endTime) : endTime;
-            const totalTime = actualEndTime - Math.max(e.startTime, lastTimeMarker);
+            const actualEndTime = currentEndTime !== undefined ? Math.min(currentEndTime, endTime) : endTime;
+            const totalTime = actualEndTime - Math.max(currentStartTime, lastTimeMarker);
             node.selfTime += selfTime || 0;
             node.totalTime += totalTime;
             lastTimeMarker = actualEndTime;
@@ -451,17 +474,17 @@ export function eventURL(event) {
     return null;
 }
 export function eventStackFrame(event) {
-    if (event.name === RecordType.JSFrame) {
+    if (TimelineModelImpl.isJsFrameEvent(event)) {
         return event.args['data'] || null;
     }
-    return TimelineData.forEvent(event).topFrame();
+    return EventOnTimelineData.forEvent(event).topFrame();
 }
 // eslint-disable-next-line @typescript-eslint/naming-convention
 export function _eventId(event) {
     if (event.name === RecordType.TimeStamp) {
         return `${event.name}:${event.args.data.message}`;
     }
-    if (event.name !== RecordType.JSFrame) {
+    if (!TimelineModelImpl.isJsFrameEvent(event)) {
         return event.name;
     }
     const frame = event.args['data'];

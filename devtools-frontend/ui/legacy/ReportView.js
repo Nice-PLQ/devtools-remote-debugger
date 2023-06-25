@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 import * as ARIAUtils from './ARIAUtils.js';
+import reportViewStyles from './reportView.css.legacy.js';
 import { Toolbar } from './Toolbar.js';
 import { Tooltip } from './Tooltip.js';
 import { VBox } from './Widget.js';
@@ -18,7 +19,7 @@ export class ReportView extends VBox {
     urlElement;
     constructor(title) {
         super(true);
-        this.registerRequiredCSS('ui/legacy/reportView.css');
+        this.registerRequiredCSS(reportViewStyles);
         this.contentBox = this.contentElement.createChild('div', 'report-content-box');
         this.headerElement = this.contentBox.createChild('div', 'report-header vbox');
         this.titleElement = this.headerElement.createChild('div', 'report-title');
@@ -30,6 +31,9 @@ export class ReportView extends VBox {
         }
         ARIAUtils.markAsHeading(this.titleElement, 1);
         this.sectionList = this.contentBox.createChild('div', 'vbox');
+    }
+    getHeaderElement() {
+        return this.headerElement;
     }
     setTitle(title) {
         if (this.titleElement.textContent === title) {
@@ -106,6 +110,15 @@ export class Section extends VBox {
     title() {
         return this.titleElement.textContent || '';
     }
+    getTitleElement() {
+        return this.titleElement;
+    }
+    getFieldElement() {
+        return this.fieldList;
+    }
+    appendFieldWithCustomView(customElement) {
+        this.fieldList.append(customElement);
+    }
     setTitle(title, tooltip) {
         if (this.titleElement.textContent !== title) {
             this.titleElement.textContent = title;
@@ -118,7 +131,7 @@ export class Section extends VBox {
      */
     setUiGroupTitle(groupTitle) {
         ARIAUtils.markAsGroup(this.element);
-        ARIAUtils.setAccessibleName(this.element, groupTitle);
+        ARIAUtils.setLabel(this.element, groupTitle);
     }
     createToolbar() {
         const toolbar = new Toolbar('');
@@ -136,7 +149,7 @@ export class Section extends VBox {
         if (textValue && row.lastElementChild) {
             row.lastElementChild.textContent = textValue;
         }
-        return /** @type {!HTMLElement} */ row.lastElementChild;
+        return row.lastElementChild;
     }
     appendFlexedField(title, textValue) {
         const field = this.appendField(title, textValue);
@@ -161,10 +174,10 @@ export class Section extends VBox {
         return row ? row.lastElementChild : null;
     }
     appendRow() {
-        return /** @type {!HTMLElement} */ this.fieldList.createChild('div', 'report-row');
+        return this.fieldList.createChild('div', 'report-row');
     }
     appendSelectableRow() {
-        return /** @type {!HTMLElement} */ this.fieldList.createChild('div', 'report-row report-row-selectable');
+        return this.fieldList.createChild('div', 'report-row report-row-selectable');
     }
     clearContent() {
         this.fieldList.removeChildren();
@@ -172,7 +185,7 @@ export class Section extends VBox {
     }
     markFieldListAsGroup() {
         ARIAUtils.markAsGroup(this.fieldList);
-        ARIAUtils.setAccessibleName(this.fieldList, this.title());
+        ARIAUtils.setLabel(this.fieldList, this.title());
     }
     setIconMasked(masked) {
         this.element.classList.toggle('show-mask', masked);

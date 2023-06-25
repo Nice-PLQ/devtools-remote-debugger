@@ -31,19 +31,21 @@ import * as Common from '../../../../core/common/common.js';
 import * as i18n from '../../../../core/i18n/i18n.js';
 import * as Platform from '../../../../core/platform/platform.js';
 import * as UI from '../../legacy.js';
+import * as ThemeSupport from '../../theme_support/theme_support.js';
 import { TimelineGrid } from './TimelineGrid.js';
+import overviewGridStyles from './overviewGrid.css.legacy.js';
 const UIStrings = {
     /**
-    *@description Label for the window for Overview grids
-    */
+     *@description Label for the window for Overview grids
+     */
     overviewGridWindow: 'Overview grid window',
     /**
-    *@description Label for left window resizer for Overview grids
-    */
+     *@description Label for left window resizer for Overview grids
+     */
     leftResizer: 'Left Resizer',
     /**
-    *@description Label for right window resizer for Overview grids
-    */
+     *@description Label for right window resizer for Overview grids
+     */
     rightResizer: 'Right Resizer',
 };
 const str_ = i18n.i18n.registerUIStrings('ui/legacy/components/perf_ui/OverviewGrid.ts', UIStrings);
@@ -124,23 +126,23 @@ export class Window extends Common.ObjectWrapper.ObjectWrapper {
         this.parentElement = parentElement;
         UI.ARIAUtils.markAsGroup(this.parentElement);
         this.calculator = calculator;
-        UI.ARIAUtils.setAccessibleName(this.parentElement, i18nString(UIStrings.overviewGridWindow));
+        UI.ARIAUtils.setLabel(this.parentElement, i18nString(UIStrings.overviewGridWindow));
         UI.UIUtils.installDragHandle(this.parentElement, this.startWindowSelectorDragging.bind(this), this.windowSelectorDragging.bind(this), this.endWindowSelectorDragging.bind(this), 'text', null);
         if (dividersLabelBarElement) {
             UI.UIUtils.installDragHandle(dividersLabelBarElement, this.startWindowDragging.bind(this), this.windowDragging.bind(this), null, '-webkit-grabbing', '-webkit-grab');
         }
         this.parentElement.addEventListener('wheel', this.onMouseWheel.bind(this), true);
         this.parentElement.addEventListener('dblclick', this.resizeWindowMaximum.bind(this), true);
-        UI.Utils.appendStyle(this.parentElement, 'ui/legacy/components/perf_ui/overviewGrid.css');
+        ThemeSupport.ThemeSupport.instance().appendStyle(this.parentElement, overviewGridStyles);
         this.leftResizeElement = parentElement.createChild('div', 'overview-grid-window-resizer');
         UI.UIUtils.installDragHandle(this.leftResizeElement, this.resizerElementStartDragging.bind(this), this.leftResizeElementDragging.bind(this), null, 'ew-resize');
         this.rightResizeElement = parentElement.createChild('div', 'overview-grid-window-resizer');
         UI.UIUtils.installDragHandle(this.rightResizeElement, this.resizerElementStartDragging.bind(this), this.rightResizeElementDragging.bind(this), null, 'ew-resize');
-        UI.ARIAUtils.setAccessibleName(this.leftResizeElement, i18nString(UIStrings.leftResizer));
+        UI.ARIAUtils.setLabel(this.leftResizeElement, i18nString(UIStrings.leftResizer));
         UI.ARIAUtils.markAsSlider(this.leftResizeElement);
         const leftKeyDown = (event) => this.handleKeyboardResizing(event, false);
         this.leftResizeElement.addEventListener('keydown', leftKeyDown);
-        UI.ARIAUtils.setAccessibleName(this.rightResizeElement, i18nString(UIStrings.rightResizer));
+        UI.ARIAUtils.setLabel(this.rightResizeElement, i18nString(UIStrings.rightResizer));
         UI.ARIAUtils.markAsSlider(this.rightResizeElement);
         const rightKeyDown = (event) => this.handleKeyboardResizing(event, true);
         this.rightResizeElement.addEventListener('keydown', rightKeyDown);
@@ -227,7 +229,7 @@ export class Window extends Common.ObjectWrapper.ObjectWrapper {
             return false;
         }
         const mouseEvent = event;
-        this.offsetLeft = this.parentElement.totalOffsetLeft();
+        this.offsetLeft = this.parentElement.getBoundingClientRect().left;
         const position = mouseEvent.x - this.offsetLeft;
         this.overviewWindowSelector = new WindowSelector(this.parentElement, position);
         return true;

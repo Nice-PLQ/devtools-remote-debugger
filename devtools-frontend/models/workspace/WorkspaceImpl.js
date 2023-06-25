@@ -29,18 +29,6 @@
  */
 import * as Common from '../../core/common/common.js';
 import { UISourceCode } from './UISourceCode.js';
-export class Project {
-    rename(_uiSourceCode, _newName, _callback) {
-    }
-    excludeFolder(_path) {
-    }
-    deleteFile(_uiSourceCode) {
-    }
-    remove() {
-    }
-    indexContent(_progress) {
-    }
-}
 // TODO(crbug.com/1167717): Make this a const enum again
 // eslint-disable-next-line rulesdir/const_enum, @typescript-eslint/naming-convention
 export var projectTypes;
@@ -57,17 +45,13 @@ export class ProjectStore {
     idInternal;
     typeInternal;
     displayNameInternal;
-    uiSourceCodesMap;
-    uiSourceCodesList;
-    project;
+    #uiSourceCodes;
     constructor(workspace, id, type, displayName) {
         this.workspaceInternal = workspace;
         this.idInternal = id;
         this.typeInternal = type;
         this.displayNameInternal = displayName;
-        this.uiSourceCodesMap = new Map();
-        this.uiSourceCodesList = [];
-        this.project = this;
+        this.#uiSourceCodes = new Map();
     }
     id() {
         return this.idInternal;
@@ -82,55 +66,53 @@ export class ProjectStore {
         return this.workspaceInternal;
     }
     createUISourceCode(url, contentType) {
-        return new UISourceCode(this.project, url, contentType);
+        return new UISourceCode(this, url, contentType);
     }
     addUISourceCode(uiSourceCode) {
         const url = uiSourceCode.url();
         if (this.uiSourceCodeForURL(url)) {
             return false;
         }
-        this.uiSourceCodesMap.set(url, { uiSourceCode: uiSourceCode, index: this.uiSourceCodesList.length });
-        this.uiSourceCodesList.push(uiSourceCode);
+        this.#uiSourceCodes.set(url, uiSourceCode);
         this.workspaceInternal.dispatchEventToListeners(Events.UISourceCodeAdded, uiSourceCode);
         return true;
     }
     removeUISourceCode(url) {
-        const uiSourceCode = this.uiSourceCodeForURL(url);
-        if (!uiSourceCode) {
+        const uiSourceCode = this.#uiSourceCodes.get(url);
+        if (uiSourceCode === undefined) {
             return;
         }
-        const entry = this.uiSourceCodesMap.get(url);
-        if (!entry) {
-            return;
-        }
-        const movedUISourceCode = this.uiSourceCodesList[this.uiSourceCodesList.length - 1];
-        this.uiSourceCodesList[entry.index] = movedUISourceCode;
-        const movedEntry = this.uiSourceCodesMap.get(movedUISourceCode.url());
-        if (movedEntry) {
-            movedEntry.index = entry.index;
-        }
-        this.uiSourceCodesList.splice(this.uiSourceCodesList.length - 1, 1);
-        this.uiSourceCodesMap.delete(url);
-        this.workspaceInternal.dispatchEventToListeners(Events.UISourceCodeRemoved, entry.uiSourceCode);
+        this.#uiSourceCodes.delete(url);
+        this.workspaceInternal.dispatchEventToListeners(Events.UISourceCodeRemoved, uiSourceCode);
     }
     removeProject() {
-        this.workspaceInternal.removeProject(this.project);
-        this.uiSourceCodesMap = new Map();
-        this.uiSourceCodesList = [];
+        this.workspaceInternal.removeProject(this);
+        this.#uiSourceCodes.clear();
     }
     uiSourceCodeForURL(url) {
-        const entry = this.uiSourceCodesMap.get(url);
-        return entry ? entry.uiSourceCode : null;
+        return this.#uiSourceCodes.get(url) ?? null;
     }
     uiSourceCodes() {
-        return this.uiSourceCodesList;
+        return this.#uiSourceCodes.values();
     }
     renameUISourceCode(uiSourceCode, newName) {
         const oldPath = uiSourceCode.url();
-        const newPath = uiSourceCode.parentURL() ? uiSourceCode.parentURL() + '/' + newName : newName;
-        const value = this.uiSourceCodesMap.get(oldPath);
-        this.uiSourceCodesMap.set(newPath, value);
-        this.uiSourceCodesMap.delete(oldPath);
+        const newPath = uiSourceCode.parentURL() ?
+            Common.ParsedURL.ParsedURL.urlFromParentUrlAndName(uiSourceCode.parentURL(), newName) :
+            Common.ParsedURL.ParsedURL.preEncodeSpecialCharactersInPath(newName);
+        this.#uiSourceCodes.set(newPath, uiSourceCode);
+        this.#uiSourceCodes.delete(oldPath);
+    }
+    // No-op implementation for a handfull of interface methods.
+    rename(_uiSourceCode, _newName, _callback) {
+    }
+    excludeFolder(_path) {
+    }
+    deleteFile(_uiSourceCode) {
+    }
+    remove() {
+    }
+    indexContent(_progress) {
     }
 }
 let workspaceInstance;
@@ -164,6 +146,21 @@ export class WorkspaceImpl extends Common.ObjectWrapper.ObjectWrapper {
             }
         }
         return null;
+    }
+    findCompatibleUISourceCodes(uiSourceCode) {
+        const url = uiSourceCode.url();
+        const contentType = uiSourceCode.contentType();
+        const result = [];
+        for (const project of this.projectsInternal.values()) {
+            if (uiSourceCode.project().type() !== project.type()) {
+                continue;
+            }
+            const candidate = project.uiSourceCodeForURL(url);
+            if (candidate && candidate.url() === url && candidate.contentType() === contentType) {
+                result.push(candidate);
+            }
+        }
+        return result;
     }
     uiSourceCodesForProjectType(type) {
         const result = [];

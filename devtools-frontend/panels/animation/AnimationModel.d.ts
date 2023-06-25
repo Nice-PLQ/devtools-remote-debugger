@@ -25,7 +25,7 @@ export declare enum Events {
     AnimationGroupStarted = "AnimationGroupStarted",
     ModelReset = "ModelReset"
 }
-export declare type EventTypes = {
+export type EventTypes = {
     [Events.AnimationGroupStarted]: AnimationGroup;
     [Events.ModelReset]: void;
 };

@@ -1,15 +1,15 @@
 import * as Common from '../../core/common/common.js';
+import type * as Platform from '../../core/platform/platform.js';
 import type * as SDK from '../../core/sdk/sdk.js';
 import type * as Protocol from '../../generated/protocol.js';
-import type { MarkdownIssueDescription } from './MarkdownIssueDescription.js';
+import { type MarkdownIssueDescription } from './MarkdownIssueDescription.js';
 export declare enum IssueCategory {
     CrossOriginEmbedderPolicy = "CrossOriginEmbedderPolicy",
     Generic = "Generic",
     MixedContent = "MixedContent",
-    SameSiteCookie = "SameSiteCookie",
+    Cookie = "Cookie",
     HeavyAd = "HeavyAd",
     ContentSecurityPolicy = "ContentSecurityPolicy",
-    TrustedWebActivity = "TrustedWebActivity",
     LowTextContrast = "LowTextContrast",
     Cors = "Cors",
     AttributionReporting = "AttributionReporting",
@@ -49,10 +49,8 @@ export interface AffectedElement {
     target: SDK.Target.Target | null;
 }
 export declare abstract class Issue<IssueCode extends string = string> {
-    private issueCode;
-    private issuesModel;
+    #private;
     protected issueId: Protocol.Audits.IssueId | undefined;
-    private hidden;
     constructor(code: IssueCode | {
         code: IssueCode;
         umaCode: string;
@@ -68,6 +66,7 @@ export declare abstract class Issue<IssueCode extends string = string> {
     elements(): Iterable<AffectedElement>;
     requests(): Iterable<Protocol.Audits.AffectedRequest>;
     sources(): Iterable<Protocol.Audits.SourceCodeLocation>;
+    trackingSites(): Iterable<string>;
     isAssociatedWithRequestId(requestId: string): boolean;
     /**
      * The model might be unavailable or belong to a target that has already been disposed.
@@ -79,7 +78,7 @@ export declare abstract class Issue<IssueCode extends string = string> {
     setHidden(hidden: boolean): void;
 }
 export declare function toZeroBasedLocation(location: Protocol.Audits.SourceCodeLocation | undefined): {
-    url: string;
+    url: Platform.DevToolsPath.UrlString;
     scriptId: Protocol.Runtime.ScriptId | undefined;
     lineNumber: number;
     columnNumber: number | undefined;

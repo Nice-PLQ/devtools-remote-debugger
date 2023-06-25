@@ -1,8 +1,9 @@
+import * as Common from '../../core/common/common.js';
 import type * as Platform from '../../core/platform/platform.js';
 import * as SDK from '../../core/sdk/sdk.js';
 import * as UI from '../../ui/legacy/legacy.js';
 import type * as Protocol from '../../generated/protocol.js';
-declare type ParsedSize = {
+type ParsedSize = {
     any: 'any';
     formatted: string;
 } | {
@@ -18,6 +19,8 @@ export declare class AppManifestView extends UI.Widget.VBox implements SDK.Targe
     private readonly identitySection;
     private readonly presentationSection;
     private readonly iconsSection;
+    private readonly windowsControlsOverlaySection;
+    private readonly protocolHandlersSection;
     private readonly shortcutSections;
     private readonly screenshotsSections;
     private nameField;
@@ -26,6 +29,10 @@ export declare class AppManifestView extends UI.Widget.VBox implements SDK.Targe
     private readonly startURLField;
     private readonly themeColorSwatch;
     private readonly backgroundColorSwatch;
+    private readonly darkThemeColorField;
+    private readonly darkThemeColorSwatch;
+    private readonly darkBackgroundColorField;
+    private readonly darkBackgroundColorSwatch;
     private orientationField;
     private displayField;
     private readonly newNoteUrlField;
@@ -34,7 +41,11 @@ export declare class AppManifestView extends UI.Widget.VBox implements SDK.Targe
     private target?;
     private resourceTreeModel?;
     private serviceWorkerManager?;
-    constructor();
+    private protocolHandlersView;
+    private manifestLink?;
+    constructor(emptyView: UI.EmptyWidget.EmptyWidget, reportView: UI.ReportView.ReportView, throttler: Common.Throttler.Throttler);
+    getStaticSections(): UI.ReportView.Section[];
+    getManifestElement(): Element;
     targetAdded(target: SDK.Target.Target): void;
     targetRemoved(target: SDK.Target.Target): void;
     private updateManifest;

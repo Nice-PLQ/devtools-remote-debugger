@@ -30,7 +30,7 @@ export declare class Event {
     private colorInternal;
     private fontColorInternal;
     private readonly hoverData;
-    constructor(timelineData: PerfUI.FlameChart.TimelineData, eventHandlers: EventHandlers, eventProperties?: EventProperties | undefined);
+    constructor(timelineData: PerfUI.FlameChart.FlameChartTimelineData, eventHandlers: EventHandlers, eventProperties?: EventProperties | undefined);
     /**
      * Render hovertext into the |htmlElement|
      */

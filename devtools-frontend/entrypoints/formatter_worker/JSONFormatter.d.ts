@@ -1,4 +1,4 @@
-import type { FormattedContentBuilder } from './FormattedContentBuilder.js';
+import { type FormattedContentBuilder } from './FormattedContentBuilder.js';
 export declare class JSONFormatter {
     builder: FormattedContentBuilder;
     toOffset: number;

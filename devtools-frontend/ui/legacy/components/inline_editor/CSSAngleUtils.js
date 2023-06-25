@@ -17,13 +17,13 @@ export const parseText = (text) => {
 export const getAngleFromRadians = (rad, targetUnit) => {
     let value = rad;
     switch (targetUnit) {
-        case "grad" /* Grad */:
+        case "grad" /* AngleUnit.Grad */:
             value = UI.Geometry.radiansToGradians(rad);
             break;
-        case "deg" /* Deg */:
+        case "deg" /* AngleUnit.Deg */:
             value = UI.Geometry.radiansToDegrees(rad);
             break;
-        case "turn" /* Turn */:
+        case "turn" /* AngleUnit.Turn */:
             value = UI.Geometry.radiansToTurns(rad);
             break;
     }
@@ -34,11 +34,11 @@ export const getAngleFromRadians = (rad, targetUnit) => {
 };
 export const getRadiansFromAngle = (angle) => {
     switch (angle.unit) {
-        case "deg" /* Deg */:
+        case "deg" /* AngleUnit.Deg */:
             return UI.Geometry.degreesToRadians(angle.value);
-        case "grad" /* Grad */:
+        case "grad" /* AngleUnit.Grad */:
             return UI.Geometry.gradiansToRadians(angle.value);
-        case "turn" /* Turn */:
+        case "turn" /* AngleUnit.Turn */:
             return UI.Geometry.turnsToRadians(angle.value);
     }
     return angle.value;
@@ -53,16 +53,16 @@ export const get2DTranslationsForAngle = (angle, radius) => {
 export const roundAngleByUnit = (angle) => {
     let roundedValue = angle.value;
     switch (angle.unit) {
-        case "deg" /* Deg */:
-        case "grad" /* Grad */:
+        case "deg" /* AngleUnit.Deg */:
+        case "grad" /* AngleUnit.Grad */:
             // Round to nearest whole unit.
             roundedValue = Math.round(angle.value);
             break;
-        case "rad" /* Rad */:
+        case "rad" /* AngleUnit.Rad */:
             // Allow up to 4 decimals.
             roundedValue = Math.round(angle.value * 10000) / 10000;
             break;
-        case "turn" /* Turn */:
+        case "turn" /* AngleUnit.Turn */:
             // Allow up to 2 decimals.
             roundedValue = Math.round(angle.value * 100) / 100;
             break;
@@ -76,14 +76,14 @@ export const roundAngleByUnit = (angle) => {
 };
 export const getNextUnit = (currentUnit) => {
     switch (currentUnit) {
-        case "deg" /* Deg */:
-            return "grad" /* Grad */;
-        case "grad" /* Grad */:
-            return "rad" /* Rad */;
-        case "rad" /* Rad */:
-            return "turn" /* Turn */;
+        case "deg" /* AngleUnit.Deg */:
+            return "grad" /* AngleUnit.Grad */;
+        case "grad" /* AngleUnit.Grad */:
+            return "rad" /* AngleUnit.Rad */;
+        case "rad" /* AngleUnit.Rad */:
+            return "turn" /* AngleUnit.Turn */;
         default:
-            return "deg" /* Deg */;
+            return "deg" /* AngleUnit.Deg */;
     }
 };
 export const convertAngleUnit = (angle, newUnit) => {

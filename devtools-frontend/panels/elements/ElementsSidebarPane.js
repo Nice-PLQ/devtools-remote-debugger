@@ -12,7 +12,7 @@ export class ElementsSidebarPane extends UI.Widget.VBox {
         super(true, delegatesFocus);
         this.element.classList.add('flex-none');
         this.computedStyleModelInternal = new ComputedStyleModel();
-        this.computedStyleModelInternal.addEventListener("ComputedStyleChanged" /* ComputedStyleChanged */, this.onCSSModelChanged, this);
+        this.computedStyleModelInternal.addEventListener("ComputedStyleChanged" /* Events.ComputedStyleChanged */, this.onCSSModelChanged, this);
         this.updateThrottler = new Common.Throttler.Throttler(100);
         this.updateWhenVisible = false;
     }
@@ -33,7 +33,7 @@ export class ElementsSidebarPane extends UI.Widget.VBox {
         if (this.updateWhenVisible) {
             return;
         }
-        this.updateThrottler.schedule(innerUpdate.bind(this));
+        void this.updateThrottler.schedule(innerUpdate.bind(this));
         function innerUpdate() {
             return this.isShowing() ? this.doUpdate() : Promise.resolve();
         }

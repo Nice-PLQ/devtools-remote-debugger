@@ -1,4 +1,4 @@
-import type { Action } from './ActionRegistration.js';
+import { type Action } from './ActionRegistration.js';
 import { Context } from './Context.js';
 export declare class ActionRegistry {
     private readonly actionsById;
@@ -7,6 +7,7 @@ export declare class ActionRegistry {
         forceNew: boolean | null;
     }): ActionRegistry;
     static removeInstance(): void;
+    static reset(): void;
     private registerActions;
     availableActions(): Action[];
     actions(): Action[];

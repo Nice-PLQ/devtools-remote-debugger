@@ -17,6 +17,9 @@ export class Context {
         }
         return contextInstance;
     }
+    static removeInstance() {
+        contextInstance = undefined;
+    }
     setFlavor(flavorType, flavorValue) {
         const value = this.flavorsInternal.get(flavorType) || null;
         if (value === flavorValue) {
@@ -33,7 +36,7 @@ export class Context {
     dispatchFlavorChange(flavorType, flavorValue) {
         for (const extension of getRegisteredListeners()) {
             if (extension.contextTypes().includes(flavorType)) {
-                extension.loadListener().then(instance => instance.flavorChanged(flavorValue));
+                void extension.loadListener().then(instance => instance.flavorChanged(flavorValue));
             }
         }
         const dispatcher = this.eventDispatchers.get(flavorType);

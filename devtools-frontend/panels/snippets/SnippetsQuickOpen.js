@@ -6,16 +6,16 @@ import * as QuickOpen from '../../ui/legacy/components/quick_open/quick_open.js'
 import { evaluateScriptSnippet, findSnippetsProject } from './ScriptSnippetFileSystem.js';
 const UIStrings = {
     /**
-    *@description Text in Snippets Quick Open of the Sources panel when opening snippets
-    */
+     *@description Text in Snippets Quick Open of the Sources panel when opening snippets
+     */
     noSnippetsFound: 'No snippets found.',
     /**
-    *@description Text for command prefix of run a code snippet
-    */
+     *@description Text for command prefix of run a code snippet
+     */
     run: 'Run',
     /**
-    *@description Text for suggestion of run a code snippet
-    */
+     *@description Text for suggestion of run a code snippet
+     */
     snippet: 'Snippet',
 };
 const str_ = i18n.i18n.registerUIStrings('panels/snippets/SnippetsQuickOpen.ts', UIStrings);
@@ -39,16 +39,20 @@ export class SnippetsQuickOpen extends QuickOpen.FilteredListWidget.Provider {
         if (itemIndex === null) {
             return;
         }
-        evaluateScriptSnippet(this.snippets[itemIndex]);
+        void evaluateScriptSnippet(this.snippets[itemIndex]);
     }
     notFoundText(_query) {
         return i18nString(UIStrings.noSnippetsFound);
     }
     attach() {
-        this.snippets = findSnippetsProject().uiSourceCodes();
+        this.snippets = [...findSnippetsProject().uiSourceCodes()];
     }
     detach() {
         this.snippets = [];
+    }
+    itemScoreAt(itemIndex, query) {
+        // Prefer short matches over long matches
+        return query.length / this.snippets[itemIndex].name().length;
     }
     itemCount() {
         return this.snippets.length;
@@ -57,14 +61,15 @@ export class SnippetsQuickOpen extends QuickOpen.FilteredListWidget.Provider {
         return this.snippets[itemIndex].name();
     }
     renderItem(itemIndex, query, titleElement, _subtitleElement) {
-        titleElement.textContent = unescape(this.snippets[itemIndex].name());
+        titleElement.textContent = this.snippets[itemIndex].name();
         titleElement.classList.add('monospace');
         QuickOpen.FilteredListWidget.FilteredListWidget.highlightRanges(titleElement, query, true);
     }
 }
 QuickOpen.FilteredListWidget.registerProvider({
     prefix: '!',
-    iconName: 'ic_command_run_snippet',
+    iconName: 'exclamation',
+    iconWidth: '20px',
     provider: () => Promise.resolve(SnippetsQuickOpen.instance()),
     titlePrefix: i18nLazyString(UIStrings.run),
     titleSuggestion: i18nLazyString(UIStrings.snippet),

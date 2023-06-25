@@ -1,9 +1,6 @@
 import type * as TextUtils from '../../models/text_utils/text_utils.js';
 import { AnchorBehavior } from './GlassPane.js';
-import type { ListDelegate } from './ListControl.js';
-/**
- * @interface
- */
+import { type ListDelegate } from './ListControl.js';
 export interface SuggestBoxDelegate {
     applySuggestion(suggestion: Suggestion | null, isIntermediateSuggestion?: boolean): void;
     /**
@@ -51,7 +48,6 @@ export interface Suggestion {
     text: string;
     title?: string;
     subtitle?: string;
-    iconType?: string;
     priority?: number;
     isSecondary?: boolean;
     subtitleRenderer?: (() => Element);
@@ -62,7 +58,7 @@ export interface Suggestion {
     hideGhostText?: boolean;
     iconElement?: HTMLElement;
 }
-export declare type Suggestions = Suggestion[];
+export type Suggestions = Suggestion[];
 export interface AutocompleteConfig {
     substituteRangeCallback?: ((arg0: number, arg1: number) => TextUtils.TextRange.TextRange | null);
     tooltipCallback?: ((arg0: number, arg1: number) => Promise<Element | null>);

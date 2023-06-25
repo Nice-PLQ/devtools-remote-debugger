@@ -1,7 +1,6 @@
 import type * as SDK from '../../core/sdk/sdk.js';
 import type * as UI from '../../ui/legacy/legacy.js';
-import type { Formatter } from './ProfileDataGrid.js';
-import { ProfileDataGridNode, ProfileDataGridTree } from './ProfileDataGrid.js';
+import { ProfileDataGridNode, ProfileDataGridTree, type Formatter } from './ProfileDataGrid.js';
 export declare class TopDownProfileDataGridNode extends ProfileDataGridNode {
     remainingChildren: SDK.ProfileTreeModel.ProfileNode[];
     constructor(profileNode: SDK.ProfileTreeModel.ProfileNode, owningTree: TopDownProfileDataGridTree);

@@ -1,7 +1,6 @@
 // Copyright (c) 2020 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
-import * as StringUtilities from './string-utilities.js';
 export const clamp = (num, min, max) => {
     let clampedNumber = num;
     if (num < min) {
@@ -17,20 +16,20 @@ export const mod = (m, n) => {
 };
 export const bytesToString = (bytes) => {
     if (bytes < 1000) {
-        return StringUtilities.vsprintf('%.0f\xA0B', [bytes]);
+        return `${bytes.toFixed(0)}\xA0B`;
     }
     const kilobytes = bytes / 1000;
     if (kilobytes < 100) {
-        return StringUtilities.vsprintf('%.1f\xA0kB', [kilobytes]);
+        return `${kilobytes.toFixed(1)}\xA0kB`;
     }
     if (kilobytes < 1000) {
-        return StringUtilities.vsprintf('%.0f\xA0kB', [kilobytes]);
+        return `${kilobytes.toFixed(0)}\xA0kB`;
     }
     const megabytes = kilobytes / 1000;
     if (megabytes < 100) {
-        return StringUtilities.vsprintf('%.1f\xA0MB', [megabytes]);
+        return `${megabytes.toFixed(1)}\xA0MB`;
     }
-    return StringUtilities.vsprintf('%.0f\xA0MB', [megabytes]);
+    return `${megabytes.toFixed(0)}\xA0MB`;
 };
 export const toFixedIfFloating = (value) => {
     if (!value || Number.isNaN(Number(value))) {

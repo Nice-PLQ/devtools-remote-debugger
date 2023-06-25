@@ -1,1 +1,1 @@
-export {};
+import '../shell/shell.js';

@@ -1,8 +1,5 @@
 import { AffectedElementsView } from './AffectedElementsView.js';
 export declare class AffectedElementsWithLowContrastView extends AffectedElementsView {
-    private runningUpdatePromise;
+    #private;
     update(): void;
-    private doUpdate;
-    private appendLowContrastElement;
-    private appendLowContrastElements;
 }

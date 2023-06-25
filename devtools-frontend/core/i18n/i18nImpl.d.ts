@@ -21,7 +21,7 @@ export declare function getAllSupportedDevToolsLocales(): string[];
  * Depending whether a locale is present in `bundledLocales`, the data will be
  * fetched locally or remotely.
  */
-export declare function fetchAndRegisterLocaleData(locale: Intl.UnicodeBCP47LocaleIdentifier): Promise<void>;
+export declare function fetchAndRegisterLocaleData(locale: Intl.UnicodeBCP47LocaleIdentifier, location?: string): Promise<void>;
 /**
  * Returns an anonymous function that wraps a call to retrieve a localized string.
  * This is introduced so that localized strings can be declared in environments where
@@ -44,7 +44,6 @@ export declare function registerUIStrings(path: string, stringStructure: {
  * Returns a span element that may contains other DOM element as placeholders
  */
 export declare function getFormatLocalizedString(registeredStrings: I18n.LocalizedStringSet.RegisteredFileStrings, stringId: string, placeholders: Record<string, Object>): Element;
-export declare function formatLocalized(formattedString: string, args: Array<Object>): Element;
 export declare function serializeUIString(string: string, values?: Record<string, Object>): string;
 export declare function deserializeUIString(serializedMessage: string): i18nTypes.SerializedMessage;
 /**

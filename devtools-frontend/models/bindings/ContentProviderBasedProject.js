@@ -31,28 +31,44 @@ import * as i18n from '../../core/i18n/i18n.js';
 import * as Workspace from '../workspace/workspace.js';
 const UIStrings = {
     /**
-    * @description Error message that is displayed in the Sources panel when can't be loaded.
-    */
+     * @description Error message that is displayed in the Sources panel when can't be loaded.
+     */
     unknownErrorLoadingFile: 'Unknown error loading file',
 };
 const str_ = i18n.i18n.registerUIStrings('models/bindings/ContentProviderBasedProject.ts', UIStrings);
 const i18nString = i18n.i18n.getLocalizedString.bind(undefined, str_);
 export class ContentProviderBasedProject extends Workspace.Workspace.ProjectStore {
-    #contentProviders;
     #isServiceProjectInternal;
     #uiSourceCodeToData;
     constructor(workspace, id, type, displayName, isServiceProject) {
         super(workspace, id, type, displayName);
-        this.#contentProviders = new Map();
         this.#isServiceProjectInternal = isServiceProject;
         this.#uiSourceCodeToData = new WeakMap();
         workspace.addProject(this);
     }
     async requestFileContent(uiSourceCode) {
-        const contentProvider = this.#contentProviders.get(uiSourceCode.url());
+        const { contentProvider } = this.#uiSourceCodeToData.get(uiSourceCode);
         try {
-            const [content, isEncoded] = await Promise.all([contentProvider.requestContent(), contentProvider.contentEncoded()]);
-            return { content: content.content, isEncoded, error: 'error' in content && content.error || '' };
+            const content = await contentProvider.requestContent();
+            if ('error' in content) {
+                return {
+                    error: content.error,
+                    isEncoded: content.isEncoded,
+                    content: null,
+                };
+            }
+            const wasmDisassemblyInfo = 'wasmDisassemblyInfo' in content ? content.wasmDisassemblyInfo : undefined;
+            if (wasmDisassemblyInfo && content.isEncoded === false) {
+                return {
+                    content: '',
+                    wasmDisassemblyInfo,
+                    isEncoded: false,
+                };
+            }
+            return {
+                content: content.content,
+                isEncoded: content.isEncoded,
+            };
         }
         catch (err) {
             // TODO(rob.paveza): CRBug 1013683 - Consider propagating exceptions full-stack
@@ -93,19 +109,12 @@ export class ContentProviderBasedProject extends Workspace.Workspace.ProjectStor
     }
     rename(uiSourceCode, newName, callback) {
         const path = uiSourceCode.url();
-        this.performRename(path, newName, innerCallback.bind(this));
-        function innerCallback(success, newName) {
+        this.performRename(path, newName, (success, newName) => {
             if (success && newName) {
-                const copyOfPath = path.split('/');
-                copyOfPath[copyOfPath.length - 1] = newName;
-                const newPath = copyOfPath.join('/');
-                const contentProvider = this.#contentProviders.get(path);
-                this.#contentProviders.set(newPath, contentProvider);
-                this.#contentProviders.delete(path);
                 this.renameUISourceCode(uiSourceCode, newName);
             }
             callback(success, newName);
-        }
+        });
     }
     excludeFolder(_path) {
     }
@@ -126,37 +135,38 @@ export class ContentProviderBasedProject extends Workspace.Workspace.ProjectStor
         callback(false);
     }
     searchInFileContent(uiSourceCode, query, caseSensitive, isRegex) {
-        const contentProvider = this.#contentProviders.get(uiSourceCode.url());
+        const { contentProvider } = this.#uiSourceCodeToData.get(uiSourceCode);
         return contentProvider.searchInContent(query, caseSensitive, isRegex);
     }
-    async findFilesMatchingSearchRequest(searchConfig, filesMathingFileQuery, progress) {
+    async findFilesMatchingSearchRequest(searchConfig, filesMatchingFileQuery, progress) {
         const result = [];
-        progress.setTotalWork(filesMathingFileQuery.length);
-        await Promise.all(filesMathingFileQuery.map(searchInContent.bind(this)));
+        progress.setTotalWork(filesMatchingFileQuery.length);
+        await Promise.all(filesMatchingFileQuery.map(searchInContent.bind(this)));
         progress.done();
         return result;
         async function searchInContent(path) {
-            const contentProvider = this.#contentProviders.get(path);
-            let allMatchesFound = true;
-            for (const query of searchConfig.queries().slice()) {
-                const searchMatches = await contentProvider.searchInContent(query, !searchConfig.ignoreCase(), searchConfig.isRegex());
-                if (!searchMatches.length) {
-                    allMatchesFound = false;
-                    break;
+            const uiSourceCode = this.uiSourceCodeForURL(path);
+            if (uiSourceCode) {
+                let allMatchesFound = true;
+                for (const query of searchConfig.queries().slice()) {
+                    const searchMatches = await this.searchInFileContent(uiSourceCode, query, !searchConfig.ignoreCase(), searchConfig.isRegex());
+                    if (!searchMatches.length) {
+                        allMatchesFound = false;
+                        break;
+                    }
                 }
-            }
-            if (allMatchesFound) {
-                result.push(path);
+                if (allMatchesFound) {
+                    result.push(path);
+                }
             }
             progress.incrementWorked(1);
         }
     }
     indexContent(progress) {
-        Promise.resolve().then(progress.done.bind(progress));
+        queueMicrotask(progress.done.bind(progress));
     }
     addUISourceCodeWithProvider(uiSourceCode, contentProvider, metadata, mimeType) {
-        this.#contentProviders.set(uiSourceCode.url(), contentProvider);
-        this.#uiSourceCodeToData.set(uiSourceCode, { mimeType, metadata });
+        this.#uiSourceCodeToData.set(uiSourceCode, { mimeType, metadata, contentProvider });
         this.addUISourceCode(uiSourceCode);
     }
     addContentProvider(url, contentProvider, mimeType) {
@@ -164,17 +174,11 @@ export class ContentProviderBasedProject extends Workspace.Workspace.ProjectStor
         this.addUISourceCodeWithProvider(uiSourceCode, contentProvider, null, mimeType);
         return uiSourceCode;
     }
-    removeFile(path) {
-        this.#contentProviders.delete(path);
-        this.removeUISourceCode(path);
-    }
     reset() {
-        this.#contentProviders.clear();
         this.removeProject();
         this.workspace().addProject(this);
     }
     dispose() {
-        this.#contentProviders.clear();
         this.removeProject();
     }
 }

@@ -10,22 +10,22 @@ export declare class ContrastInfo extends Common.ObjectWrapper.ObjectWrapper<Eve
     private colorFormatInternal;
     constructor(contrastInfo: ContrastInfoType | null);
     isNull(): boolean;
-    setColor(fgColor: Common.Color.Color, colorFormat?: string): void;
-    colorFormat(): string | undefined;
-    color(): Common.Color.Color | null;
+    setColor(fgColor: Common.Color.Legacy, colorFormat?: Common.Color.Format): void;
+    colorFormat(): Common.Color.Format | undefined;
+    color(): Common.Color.Legacy | null;
     contrastRatio(): number | null;
     contrastRatioAPCA(): number | null;
     contrastRatioAPCAThreshold(): number | null;
-    setBgColor(bgColor: Common.Color.Color): void;
+    setBgColor(bgColor: Common.Color.Legacy): void;
     private setBgColorInternal;
-    bgColor(): Common.Color.Color | null;
+    bgColor(): Common.Color.Legacy | null;
     private updateContrastRatio;
     contrastRatioThreshold(level: string): number | null;
 }
 export declare const enum Events {
     ContrastInfoUpdated = "ContrastInfoUpdated"
 }
-export declare type EventTypes = {
+export type EventTypes = {
     [Events.ContrastInfoUpdated]: void;
 };
 export interface ContrastInfoType {

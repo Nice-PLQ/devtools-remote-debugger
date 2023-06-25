@@ -63,6 +63,8 @@ export class SizeInputElement extends HTMLElement {
           max-height: 18px;
           margin: 0 2px;
           text-align: center;
+          font-size: inherit;
+          font-family: inherit;
         }
 
         input:disabled {
@@ -81,20 +83,23 @@ export class SizeInputElement extends HTMLElement {
              placeholder=${this.#placeholder}
              ?disabled=${this.#disabled}
              .value=${this.#size}
-             @change=${this.fireSizeChange}
-             @keydown=${this.handleModifierKeys} />
+             @change=${this.#fireSizeChange}
+             @keydown=${this.#handleModifierKeys} />
     `, this.#root, { host: this });
     }
-    fireSizeChange(event) {
+    #fireSizeChange(event) {
         this.dispatchEvent(new SizeChangedEvent(getInputValue(event)));
     }
-    handleModifierKeys(event) {
-        const modifiedValue = UILegacy.UIUtils.modifiedFloatNumber(getInputValue(event), event);
+    #handleModifierKeys(event) {
+        let modifiedValue = UILegacy.UIUtils.modifiedFloatNumber(getInputValue(event), event);
         if (modifiedValue === null) {
             return;
         }
+        modifiedValue = Math.min(modifiedValue, EmulationModel.DeviceModeModel.MaxDeviceSize);
+        modifiedValue = Math.max(modifiedValue, EmulationModel.DeviceModeModel.MinDeviceSize);
         event.preventDefault();
         event.target.value = String(modifiedValue);
+        this.dispatchEvent(new SizeChangedEvent(modifiedValue));
     }
 }
 ComponentHelpers.CustomElements.defineComponent('device-mode-emulation-size-input', SizeInputElement);

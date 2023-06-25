@@ -4,9 +4,8 @@ import * as PerfUI from '../../ui/legacy/components/perf_ui/perf_ui.js';
 import * as UI from '../../ui/legacy/legacy.js';
 import type * as Protocol from '../../generated/protocol.js';
 import { ProfileFlameChartDataProvider } from './CPUProfileFlameChart.js';
-import type { Formatter, ProfileDataGridNode } from './ProfileDataGrid.js';
-import type { ProfileHeader } from './ProfileHeader.js';
-import { ProfileType } from './ProfileHeader.js';
+import { type Formatter, type ProfileDataGridNode } from './ProfileDataGrid.js';
+import { ProfileType, type ProfileHeader } from './ProfileHeader.js';
 import { ProfileView, WritableProfileHeader } from './ProfileView.js';
 export declare class CPUProfileView extends ProfileView implements UI.SearchableView.Searchable {
     profileHeader: CPUProfileHeader;
@@ -26,7 +25,7 @@ export declare class CPUProfileType extends ProfileType {
     buttonClicked(): boolean;
     get treeItemTitle(): Common.UIString.LocalizedString;
     get description(): Common.UIString.LocalizedString;
-    consoleProfileFinished(event: Common.EventTarget.EventTargetEvent<SDK.CPUProfilerModel.ProfileFinishedData>): void;
+    consoleProfileFinished(data: SDK.CPUProfilerModel.ProfileFinishedData): void;
     startRecordingProfile(): void;
     stopRecordingProfile(): Promise<void>;
     createProfileLoadedFromFile(title: string): ProfileHeader;
@@ -58,7 +57,7 @@ export declare class CPUFlameChartDataProvider extends ProfileFlameChartDataProv
     minimumBoundary(): number;
     totalTime(): number;
     entryHasDeoptReason(entryIndex: number): boolean;
-    calculateTimelineData(): PerfUI.FlameChart.TimelineData;
+    calculateTimelineData(): PerfUI.FlameChart.FlameChartTimelineData;
     prepareHighlightedEntryInfo(entryIndex: number): Element | null;
 }
 export declare namespace CPUFlameChartDataProvider {

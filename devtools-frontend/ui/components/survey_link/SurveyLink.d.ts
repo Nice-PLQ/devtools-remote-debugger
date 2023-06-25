@@ -1,7 +1,7 @@
 import * as Common from '../../../core/common/common.js';
 import type * as Host from '../../../core/host/host.js';
-export declare type CanShowSurveyCallback = (result: Host.InspectorFrontendHostAPI.CanShowSurveyResult) => void;
-export declare type ShowSurveyCallback = (result: Host.InspectorFrontendHostAPI.ShowSurveyResult) => void;
+export type CanShowSurveyCallback = (result: Host.InspectorFrontendHostAPI.CanShowSurveyResult) => void;
+export type ShowSurveyCallback = (result: Host.InspectorFrontendHostAPI.ShowSurveyResult) => void;
 export interface SurveyLinkData {
     trigger: string;
     promptText: Common.UIString.LocalizedString;
@@ -9,18 +9,10 @@ export interface SurveyLinkData {
     showSurvey: (trigger: string, callback: ShowSurveyCallback) => void;
 }
 export declare class SurveyLink extends HTMLElement {
+    #private;
     static readonly litTagName: import("../../lit-html/static.js").Static;
-    private readonly shadow;
-    private trigger;
-    private promptText;
-    private canShowSurvey;
-    private showSurvey;
-    private state;
     connectedCallback(): void;
     set data(data: SurveyLinkData);
-    private checkSurvey;
-    private sendSurvey;
-    private render;
 }
 declare global {
     interface HTMLElementTagNameMap {

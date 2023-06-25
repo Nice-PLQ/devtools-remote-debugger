@@ -1,33 +1,33 @@
 export const generatedProperties: ({
-    name: string;
-    inherited: boolean;
-    keywords?: undefined;
-    longhands?: undefined;
-} | {
-    name: string;
-    inherited?: undefined;
-    keywords?: undefined;
-    longhands?: undefined;
-} | {
-    name: string;
-    keywords: string[];
-    inherited?: undefined;
-    longhands?: undefined;
-} | {
-    name: string;
-    inherited: boolean;
-    keywords: string[];
-    longhands?: undefined;
-} | {
     longhands: string[];
     name: string;
     inherited?: undefined;
     keywords?: undefined;
 } | {
+    inherited: boolean;
     longhands: string[];
     name: string;
-    inherited: boolean;
     keywords?: undefined;
+} | {
+    inherited: boolean;
+    name: string;
+    longhands?: undefined;
+    keywords?: undefined;
+} | {
+    name: string;
+    longhands?: undefined;
+    inherited?: undefined;
+    keywords?: undefined;
+} | {
+    keywords: string[];
+    name: string;
+    longhands?: undefined;
+    inherited?: undefined;
+} | {
+    inherited: boolean;
+    keywords: string[];
+    name: string;
+    longhands?: undefined;
 } | {
     keywords: string[];
     longhands: string[];
@@ -35,184 +35,199 @@ export const generatedProperties: ({
     inherited?: undefined;
 })[];
 export const generatedPropertyValues: {
-    '-webkit-box-align': {
+    "-webkit-box-align": {
         values: string[];
     };
-    '-webkit-box-decoration-break': {
+    "-webkit-box-decoration-break": {
         values: string[];
     };
-    '-webkit-box-direction': {
+    "-webkit-box-direction": {
         values: string[];
     };
-    '-webkit-box-orient': {
+    "-webkit-box-orient": {
         values: string[];
     };
-    '-webkit-box-pack': {
+    "-webkit-box-pack": {
         values: string[];
     };
-    '-webkit-line-break': {
+    "-webkit-line-break": {
         values: string[];
     };
-    '-webkit-print-color-adjust': {
+    "-webkit-print-color-adjust": {
         values: string[];
     };
-    '-webkit-rtl-ordering': {
+    "-webkit-rtl-ordering": {
         values: string[];
     };
-    '-webkit-ruby-position': {
+    "-webkit-ruby-position": {
         values: string[];
     };
-    '-webkit-text-security': {
+    "-webkit-text-security": {
         values: string[];
     };
-    '-webkit-user-drag': {
+    "-webkit-user-drag": {
         values: string[];
     };
-    '-webkit-user-modify': {
+    "-webkit-user-modify": {
         values: string[];
     };
-    'accent-color': {
+    "accent-color": {
         values: string[];
     };
-    'alignment-baseline': {
+    "alignment-baseline": {
         values: string[];
     };
-    'animation-direction': {
+    "anchor-default": {
         values: string[];
     };
-    'animation-fill-mode': {
+    "anchor-name": {
         values: string[];
     };
-    'animation-iteration-count': {
+    "anchor-scroll": {
         values: string[];
     };
-    'animation-name': {
+    "animation-composition": {
         values: string[];
     };
-    'animation-play-state': {
+    "animation-direction": {
         values: string[];
     };
-    'animation-timeline': {
+    "animation-fill-mode": {
         values: string[];
     };
-    'animation-timing-function': {
+    "animation-iteration-count": {
         values: string[];
     };
-    'app-region': {
+    "animation-name": {
         values: string[];
     };
-    'aspect-ratio': {
+    "animation-play-state": {
         values: string[];
     };
-    'backdrop-filter': {
+    "animation-timeline": {
         values: string[];
     };
-    'backface-visibility': {
+    "animation-timing-function": {
         values: string[];
     };
-    'background-attachment': {
+    "app-region": {
         values: string[];
     };
-    'background-blend-mode': {
+    "aspect-ratio": {
         values: string[];
     };
-    'background-clip': {
+    "backdrop-filter": {
         values: string[];
     };
-    'background-color': {
+    "backface-visibility": {
         values: string[];
     };
-    'background-image': {
+    "background-attachment": {
         values: string[];
     };
-    'background-origin': {
+    "background-blend-mode": {
         values: string[];
     };
-    'background-size': {
+    "background-clip": {
         values: string[];
     };
-    'baseline-shift': {
+    "background-color": {
         values: string[];
     };
-    'block-size': {
+    "background-image": {
         values: string[];
     };
-    'border-bottom-color': {
+    "background-origin": {
         values: string[];
     };
-    'border-bottom-style': {
+    "background-size": {
         values: string[];
     };
-    'border-bottom-width': {
+    "baseline-shift": {
         values: string[];
     };
-    'border-collapse': {
+    "baseline-source": {
         values: string[];
     };
-    'border-image-repeat': {
+    "block-size": {
         values: string[];
     };
-    'border-image-source': {
+    "border-bottom-color": {
         values: string[];
     };
-    'border-image-width': {
+    "border-bottom-style": {
         values: string[];
     };
-    'border-left-color': {
+    "border-bottom-width": {
         values: string[];
     };
-    'border-left-style': {
+    "border-collapse": {
         values: string[];
     };
-    'border-left-width': {
+    "border-image-repeat": {
         values: string[];
     };
-    'border-right-color': {
+    "border-image-source": {
         values: string[];
     };
-    'border-right-style': {
+    "border-image-width": {
         values: string[];
     };
-    'border-right-width': {
+    "border-left-color": {
         values: string[];
     };
-    'border-style': {
+    "border-left-style": {
         values: string[];
     };
-    'border-top-color': {
+    "border-left-width": {
         values: string[];
     };
-    'border-top-style': {
+    "border-right-color": {
         values: string[];
     };
-    'border-top-width': {
+    "border-right-style": {
+        values: string[];
+    };
+    "border-right-width": {
+        values: string[];
+    };
+    "border-style": {
+        values: string[];
+    };
+    "border-top-color": {
+        values: string[];
+    };
+    "border-top-style": {
+        values: string[];
+    };
+    "border-top-width": {
         values: string[];
     };
     bottom: {
         values: string[];
     };
-    'box-shadow': {
+    "box-shadow": {
         values: string[];
     };
-    'box-sizing': {
+    "box-sizing": {
         values: string[];
     };
-    'break-after': {
+    "break-after": {
         values: string[];
     };
-    'break-before': {
+    "break-before": {
         values: string[];
     };
-    'break-inside': {
+    "break-inside": {
         values: string[];
     };
-    'buffered-rendering': {
+    "buffered-rendering": {
         values: string[];
     };
-    'caption-side': {
+    "caption-side": {
         values: string[];
     };
-    'caret-color': {
+    "caret-color": {
         values: string[];
     };
     clear: {
@@ -221,73 +236,73 @@ export const generatedPropertyValues: {
     clip: {
         values: string[];
     };
-    'clip-path': {
+    "clip-path": {
         values: string[];
     };
-    'clip-rule': {
+    "clip-rule": {
         values: string[];
     };
     color: {
         values: string[];
     };
-    'color-interpolation': {
+    "color-interpolation": {
         values: string[];
     };
-    'color-interpolation-filters': {
+    "color-interpolation-filters": {
         values: string[];
     };
-    'color-rendering': {
+    "color-rendering": {
         values: string[];
     };
-    'column-count': {
+    "column-count": {
         values: string[];
     };
-    'column-fill': {
+    "column-fill": {
         values: string[];
     };
-    'column-gap': {
+    "column-gap": {
         values: string[];
     };
-    'column-rule-color': {
+    "column-rule-color": {
         values: string[];
     };
-    'column-rule-style': {
+    "column-rule-style": {
         values: string[];
     };
-    'column-rule-width': {
+    "column-rule-width": {
         values: string[];
     };
-    'column-span': {
+    "column-span": {
         values: string[];
     };
-    'column-width': {
+    "column-width": {
         values: string[];
     };
     contain: {
         values: string[];
     };
-    'contain-intrinsic-height': {
+    "contain-intrinsic-height": {
         values: string[];
     };
-    'contain-intrinsic-width': {
+    "contain-intrinsic-width": {
         values: string[];
     };
-    'container-name': {
+    "container-name": {
         values: string[];
     };
-    'container-type': {
+    "container-type": {
         values: string[];
     };
-    'content-visibility': {
+    "content-visibility": {
         values: string[];
     };
-    'counter-increment': {
+    "counter-increment": {
         values: string[];
     };
-    'counter-reset': {
+    "counter-reset": {
         values: string[];
     };
-    'counter-set': {
+    "counter-set": {
         values: string[];
     };
     cursor: {
@@ -302,124 +317,139 @@ export const generatedPropertyValues: {
     display: {
         values: string[];
     };
-    'dominant-baseline': {
+    "dominant-baseline": {
         values: string[];
     };
-    'empty-cells': {
+    "empty-cells": {
         values: string[];
     };
-    'fill-rule': {
+    "fill-rule": {
         values: string[];
     };
     filter: {
         values: string[];
     };
-    'flex-basis': {
+    "flex-basis": {
         values: string[];
     };
-    'flex-direction': {
+    "flex-direction": {
         values: string[];
     };
-    'flex-wrap': {
+    "flex-wrap": {
         values: string[];
     };
     float: {
         values: string[];
     };
-    'flood-color': {
+    "flood-color": {
         values: string[];
     };
-    'font-feature-settings': {
+    "font-feature-settings": {
         values: string[];
     };
-    'font-kerning': {
+    "font-kerning": {
         values: string[];
     };
-    'font-optical-sizing': {
+    "font-optical-sizing": {
         values: string[];
     };
-    'font-size': {
+    "font-palette": {
         values: string[];
     };
-    'font-size-adjust': {
+    "font-size": {
         values: string[];
     };
-    'font-stretch': {
+    "font-size-adjust": {
         values: string[];
     };
-    'font-style': {
+    "font-stretch": {
         values: string[];
     };
-    'font-synthesis-small-caps': {
+    "font-style": {
         values: string[];
     };
-    'font-synthesis-style': {
+    "font-synthesis-small-caps": {
         values: string[];
     };
-    'font-synthesis-weight': {
+    "font-synthesis-style": {
         values: string[];
     };
-    'font-variant-caps': {
+    "font-synthesis-weight": {
         values: string[];
     };
-    'font-variant-east-asian': {
+    "font-variant-alternates": {
         values: string[];
     };
-    'font-variant-ligatures': {
+    "font-variant-caps": {
         values: string[];
     };
-    'font-variant-numeric': {
+    "font-variant-east-asian": {
         values: string[];
     };
-    'font-variation-settings': {
+    "font-variant-ligatures": {
         values: string[];
     };
-    'font-weight': {
+    "font-variant-numeric": {
         values: string[];
     };
-    'forced-color-adjust': {
+    "font-variant-position": {
         values: string[];
     };
-    'grid-auto-columns': {
+    "font-variation-settings": {
         values: string[];
     };
-    'grid-auto-flow': {
+    "font-weight": {
         values: string[];
     };
-    'grid-auto-rows': {
+    "forced-color-adjust": {
         values: string[];
     };
-    'grid-column-end': {
+    "grid-auto-columns": {
         values: string[];
     };
-    'grid-column-start': {
+    "grid-auto-flow": {
         values: string[];
     };
-    'grid-row-end': {
+    "grid-auto-rows": {
         values: string[];
     };
-    'grid-row-start': {
+    "grid-column-end": {
         values: string[];
     };
-    'grid-template-areas': {
+    "grid-column-start": {
         values: string[];
     };
-    'grid-template-columns': {
+    "grid-row-end": {
         values: string[];
     };
-    'grid-template-rows': {
+    "grid-row-start": {
+        values: string[];
+    };
+    "grid-template-areas": {
+        values: string[];
+    };
+    "grid-template-columns": {
+        values: string[];
+    };
+    "grid-template-rows": {
         values: string[];
     };
     height: {
         values: string[];
     };
+    "hyphenate-limit-chars": {
+        values: string[];
+    };
     hyphens: {
         values: string[];
     };
-    'image-rendering': {
+    "image-rendering": {
         values: string[];
     };
-    'inline-size': {
+    "initial-letter": {
+        values: string[];
+    };
+    "inline-size": {
         values: string[];
     };
     isolation: {
@@ -428,142 +458,154 @@ export const generatedPropertyValues: {
     left: {
         values: string[];
     };
-    'letter-spacing': {
+    "letter-spacing": {
         values: string[];
     };
-    'lighting-color': {
+    "lighting-color": {
         values: string[];
     };
-    'line-break': {
+    "line-break": {
         values: string[];
     };
-    'line-height': {
+    "line-height": {
         values: string[];
     };
-    'list-style-image': {
+    "list-style-image": {
         values: string[];
     };
-    'list-style-position': {
+    "list-style-position": {
         values: string[];
     };
-    'list-style-type': {
+    "list-style-type": {
         values: string[];
     };
-    'margin-block-end': {
+    "margin-block-end": {
         values: string[];
     };
-    'margin-block-start': {
+    "margin-block-start": {
         values: string[];
     };
-    'margin-bottom': {
+    "margin-bottom": {
         values: string[];
     };
-    'margin-inline-end': {
+    "margin-inline-end": {
         values: string[];
     };
-    'margin-inline-start': {
+    "margin-inline-start": {
         values: string[];
     };
-    'margin-left': {
+    "margin-left": {
         values: string[];
     };
-    'margin-right': {
+    "margin-right": {
         values: string[];
     };
-    'margin-top': {
+    "margin-top": {
         values: string[];
     };
-    'marker-end': {
+    "marker-end": {
         values: string[];
     };
-    'marker-mid': {
+    "marker-mid": {
         values: string[];
     };
-    'marker-start': {
+    "marker-start": {
         values: string[];
     };
-    'mask-type': {
+    "mask-type": {
         values: string[];
     };
-    'math-shift': {
+    "math-shift": {
         values: string[];
     };
-    'math-style': {
+    "math-style": {
         values: string[];
     };
-    'max-block-size': {
+    "max-block-size": {
         values: string[];
     };
-    'max-height': {
+    "max-height": {
         values: string[];
     };
-    'max-inline-size': {
+    "max-inline-size": {
         values: string[];
     };
-    'max-width': {
+    "max-width": {
         values: string[];
     };
-    'mix-blend-mode': {
+    "mix-blend-mode": {
         values: string[];
     };
-    'object-fit': {
+    "object-fit": {
         values: string[];
     };
-    'offset-anchor': {
+    "object-view-box": {
         values: string[];
     };
-    'offset-path': {
+    "offset-anchor": {
         values: string[];
     };
-    'offset-position': {
+    "offset-path": {
         values: string[];
     };
-    'offset-rotate': {
+    "offset-position": {
         values: string[];
     };
-    'origin-trial-test-property': {
+    "offset-rotate": {
         values: string[];
     };
-    'outline-color': {
+    "origin-trial-test-property": {
         values: string[];
     };
-    'outline-style': {
+    "outline-color": {
         values: string[];
     };
-    'outline-width': {
+    "outline-style": {
         values: string[];
     };
-    'overflow-anchor': {
+    "outline-width": {
         values: string[];
     };
-    'overflow-wrap': {
+    "overflow-anchor": {
         values: string[];
     };
-    'overflow-x': {
+    "overflow-clip-margin": {
         values: string[];
     };
-    'overflow-y': {
+    "overflow-wrap": {
         values: string[];
     };
-    'overscroll-behavior-x': {
+    "overflow-x": {
         values: string[];
     };
-    'overscroll-behavior-y': {
+    "overflow-y": {
+        values: string[];
+    };
+    overlay: {
+        values: string[];
+    };
+    "overscroll-behavior-x": {
+        values: string[];
+    };
+    "overscroll-behavior-y": {
         values: string[];
     };
     page: {
         values: string[];
     };
-    'paint-order': {
+    "paint-order": {
         values: string[];
     };
     perspective: {
         values: string[];
     };
-    'pointer-events': {
+    "pointer-events": {
         values: string[];
     };
     position: {
+        values: string[];
+    };
+    "position-fallback": {
         values: string[];
     };
     quotes: {
@@ -575,7 +617,7 @@ export const generatedPropertyValues: {
     right: {
         values: string[];
     };
-    'row-gap': {
+    "row-gap": {
         values: string[];
     };
     rx: {
@@ -584,184 +626,232 @@ export const generatedPropertyValues: {
     ry: {
         values: string[];
     };
-    'scroll-behavior': {
+    "scroll-behavior": {
         values: string[];
     };
-    'scroll-padding-block-end': {
+    "scroll-padding-block-end": {
         values: string[];
     };
-    'scroll-padding-block-start': {
+    "scroll-padding-block-start": {
         values: string[];
     };
-    'scroll-padding-bottom': {
+    "scroll-padding-bottom": {
         values: string[];
     };
-    'scroll-padding-inline-end': {
+    "scroll-padding-inline-end": {
         values: string[];
     };
-    'scroll-padding-inline-start': {
+    "scroll-padding-inline-start": {
         values: string[];
     };
-    'scroll-padding-left': {
+    "scroll-padding-left": {
         values: string[];
     };
-    'scroll-padding-right': {
+    "scroll-padding-right": {
         values: string[];
     };
-    'scroll-padding-top': {
+    "scroll-padding-top": {
         values: string[];
     };
-    'scroll-snap-align': {
+    "scroll-snap-align": {
         values: string[];
     };
-    'scroll-snap-stop': {
+    "scroll-snap-stop": {
         values: string[];
     };
-    'scroll-snap-type': {
+    "scroll-snap-type": {
         values: string[];
     };
-    'scrollbar-gutter': {
+    "scroll-start-block": {
         values: string[];
     };
-    'scrollbar-width': {
+    "scroll-start-inline": {
         values: string[];
     };
-    'shape-margin': {
+    "scroll-start-target-block": {
         values: string[];
     };
-    'shape-outside': {
+    "scroll-start-target-inline": {
         values: string[];
     };
-    'shape-rendering': {
+    "scroll-start-target-x": {
+        values: string[];
+    };
+    "scroll-start-target-y": {
+        values: string[];
+    };
+    "scrollbar-color": {
+        values: string[];
+    };
+    "scrollbar-gutter": {
+        values: string[];
+    };
+    "scrollbar-width": {
+        values: string[];
+    };
+    "shape-margin": {
+        values: string[];
+    };
+    "shape-outside": {
+        values: string[];
+    };
+    "shape-rendering": {
         values: string[];
     };
     speak: {
         values: string[];
     };
-    'stop-color': {
+    "stop-color": {
         values: string[];
     };
-    'stroke-dasharray': {
+    "stroke-dasharray": {
         values: string[];
     };
-    'stroke-linecap': {
+    "stroke-linecap": {
         values: string[];
     };
-    'stroke-linejoin': {
+    "stroke-linejoin": {
         values: string[];
     };
-    'table-layout': {
+    "table-layout": {
         values: string[];
     };
-    'text-align': {
+    "text-align": {
         values: string[];
     };
-    'text-align-last': {
+    "text-align-last": {
         values: string[];
     };
-    'text-anchor': {
+    "text-anchor": {
         values: string[];
     };
-    'text-combine-upright': {
+    "text-box-trim": {
         values: string[];
     };
-    'text-decoration-color': {
+    "text-combine-upright": {
         values: string[];
     };
-    'text-decoration-line': {
+    "text-decoration-color": {
         values: string[];
     };
-    'text-decoration-skip-ink': {
+    "text-decoration-line": {
         values: string[];
     };
-    'text-decoration-style': {
+    "text-decoration-skip-ink": {
         values: string[];
     };
-    'text-decoration-thickness': {
+    "text-decoration-style": {
         values: string[];
     };
-    'text-justify': {
+    "text-decoration-thickness": {
         values: string[];
     };
-    'text-orientation': {
+    "text-emphasis-color": {
         values: string[];
     };
-    'text-overflow': {
+    "text-orientation": {
         values: string[];
     };
-    'text-rendering': {
+    "text-overflow": {
         values: string[];
     };
-    'text-shadow': {
+    "text-rendering": {
         values: string[];
     };
-    'text-size-adjust': {
+    "text-shadow": {
         values: string[];
     };
-    'text-transform': {
+    "text-size-adjust": {
         values: string[];
     };
-    'text-underline-offset': {
+    "text-transform": {
         values: string[];
     };
-    'text-underline-position': {
+    "text-underline-offset": {
+        values: string[];
+    };
+    "text-underline-position": {
+        values: string[];
+    };
+    "text-wrap": {
+        values: string[];
+    };
+    "toggle-group": {
+        values: string[];
+    };
+    "toggle-root": {
+        values: string[];
+    };
+    "toggle-trigger": {
+        values: string[];
+    };
+    "toggle-visibility": {
         values: string[];
     };
     top: {
         values: string[];
     };
-    'touch-action': {
+    "touch-action": {
         values: string[];
     };
     transform: {
         values: string[];
     };
-    'transform-box': {
+    "transform-box": {
         values: string[];
     };
-    'transform-style': {
+    "transform-style": {
         values: string[];
     };
-    'transition-property': {
+    "transition-property": {
         values: string[];
     };
-    'transition-timing-function': {
+    "transition-timing-function": {
         values: string[];
     };
-    'unicode-bidi': {
+    "unicode-bidi": {
         values: string[];
     };
-    'user-select': {
+    "user-select": {
         values: string[];
     };
-    'vector-effect': {
+    "vector-effect": {
         values: string[];
     };
-    'vertical-align': {
+    "vertical-align": {
+        values: string[];
+    };
+    "view-transition-name": {
         values: string[];
     };
     visibility: {
         values: string[];
     };
-    'white-space': {
+    "white-space": {
+        values: string[];
+    };
+    "white-space-collapse": {
         values: string[];
     };
     width: {
         values: string[];
     };
-    'will-change': {
+    "will-change": {
         values: string[];
     };
-    'word-break': {
+    "word-boundary-detection": {
         values: string[];
     };
-    'word-spacing': {
+    "word-break": {
         values: string[];
     };
-    'writing-mode': {
+    "word-spacing": {
         values: string[];
     };
-    'z-index': {
+    "writing-mode": {
+        values: string[];
+    };
+    "z-index": {
         values: string[];
     };
 };

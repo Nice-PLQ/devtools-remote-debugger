@@ -5,9 +5,10 @@ export declare class Console extends ObjectWrapper<EventTypes> {
      * Instantiable via the instance() factory below.
      */
     private constructor();
-    static instance({ forceNew }?: {
+    static instance(opts?: {
         forceNew: boolean;
     }): Console;
+    static removeInstance(): void;
     addMessage(text: string, level: MessageLevel, show?: boolean): void;
     log(text: string): void;
     warn(text: string): void;
@@ -19,7 +20,7 @@ export declare class Console extends ObjectWrapper<EventTypes> {
 export declare enum Events {
     MessageAdded = "messageAdded"
 }
-export declare type EventTypes = {
+export type EventTypes = {
     [Events.MessageAdded]: Message;
 };
 export declare enum MessageLevel {

@@ -1,16 +1,9 @@
 export const NativeFunctions: ({
     name: string;
     signatures: string[][];
-    receiver: string;
-    static?: undefined;
+    receivers?: undefined;
 } | {
     name: string;
     signatures: string[][];
-    receiver?: undefined;
-    static?: undefined;
-} | {
-    name: string;
-    signatures: string[][];
-    static: boolean;
-    receiver: string;
+    receivers: string[];
 })[];

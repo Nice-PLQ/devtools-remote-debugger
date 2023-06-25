@@ -1,19 +1,14 @@
 import * as Protocol from '../../generated/protocol.js';
-import * as Common from '../common/common.js';
+import * as Platform from '../platform/platform.js';
 import { FrontendMessageSource, FrontendMessageType } from './ConsoleModelTypes.js';
 export { FrontendMessageSource, FrontendMessageType } from './ConsoleModelTypes.js';
 import { RemoteObject } from './RemoteObject.js';
-import type { ExecutionContext } from './RuntimeModel.js';
-import { RuntimeModel } from './RuntimeModel.js';
-import type { Target } from './Target.js';
-import type { Observer } from './TargetManager.js';
-export declare class ConsoleModel extends Common.ObjectWrapper.ObjectWrapper<EventTypes> implements Observer {
+import { RuntimeModel, type ExecutionContext } from './RuntimeModel.js';
+import { type Target } from './Target.js';
+import { SDKModel } from './SDKModel.js';
+export declare class ConsoleModel extends SDKModel<EventTypes> {
     #private;
-    private constructor();
-    static instance(opts?: {
-        forceNew: boolean | null;
-    }): ConsoleModel;
-    targetAdded(target: Target): void;
+    constructor(target: Target);
     private initTarget;
     targetRemoved(target: Target): void;
     evaluateCommandInConsole(executionContext: ExecutionContext, originatingMessage: ConsoleMessage, expression: string, useCommandLineAPI: boolean): Promise<void>;
@@ -24,17 +19,21 @@ export declare class ConsoleModel extends Common.ObjectWrapper.ObjectWrapper<Eve
     private consoleAPICalled;
     private queryObjectRequested;
     private clearIfNecessary;
-    private mainFrameNavigated;
+    private primaryPageChanged;
     private consoleProfileStarted;
     private consoleProfileFinished;
     private addConsoleProfileMessage;
     private incrementErrorWarningCount;
     messages(): ConsoleMessage[];
-    requestClearMessages(): void;
+    static allMessagesUnordered(): ConsoleMessage[];
+    static requestClearMessages(): void;
     private clear;
     errors(): number;
+    static allErrors(): number;
     warnings(): number;
+    static allWarnings(): number;
     violations(): number;
+    static allViolations(): number;
     saveToTempVariable(currentExecutionContext: ExecutionContext | null, remoteObject: RemoteObject | null): Promise<void>;
 }
 export declare enum Events {
@@ -48,7 +47,7 @@ export interface CommandEvaluatedEvent {
     commandMessage: ConsoleMessage;
     exceptionDetails?: Protocol.Runtime.ExceptionDetails | undefined;
 }
-export declare type EventTypes = {
+export type EventTypes = {
     [Events.ConsoleCleared]: void;
     [Events.MessageAdded]: ConsoleMessage;
     [Events.MessageUpdated]: ConsoleMessage;
@@ -60,7 +59,7 @@ export interface AffectedResources {
 }
 export interface ConsoleMessageDetails {
     type?: MessageType;
-    url?: string;
+    url?: Platform.DevToolsPath.UrlString;
     line?: number;
     column?: number;
     parameters?: (string | RemoteObject | Protocol.Runtime.RemoteObject)[];
@@ -79,7 +78,7 @@ export declare class ConsoleMessage {
     level: Protocol.Log.LogEntryLevel | null;
     messageText: string;
     readonly type: MessageType;
-    url: string | undefined;
+    url: Platform.DevToolsPath.UrlString | undefined;
     line: number;
     column: number;
     parameters: (string | RemoteObject | Protocol.Runtime.RemoteObject)[] | undefined;
@@ -89,10 +88,18 @@ export declare class ConsoleMessage {
     workerId?: string;
     context?: string;
     category?: Protocol.Log.LogEntryCategory;
+    /**
+     * The parent frame of the `console.log` call of logpoints or conditional breakpoints
+     * if they called `console.*` explicitly. The parent frame is where V8 paused
+     * and consequently where the logpoint is set.
+     *
+     * Is `null` for page console.logs, commands, command results, etc.
+     */
+    readonly stackFrameWithBreakpoint: Protocol.Runtime.CallFrame | null;
     constructor(runtimeModel: RuntimeModel | null, source: MessageSource, level: Protocol.Log.LogEntryLevel | null, messageText: string, details?: ConsoleMessageDetails);
     getAffectedResources(): AffectedResources | undefined;
     setPageLoadSequenceNumber(pageLoadSequenceNumber: number): void;
-    static fromException(runtimeModel: RuntimeModel, exceptionDetails: Protocol.Runtime.ExceptionDetails, messageType?: Protocol.Runtime.ConsoleAPICalledEventType | FrontendMessageType, timestamp?: number, forceUrl?: string, affectedResources?: AffectedResources): ConsoleMessage;
+    static fromException(runtimeModel: RuntimeModel, exceptionDetails: Protocol.Runtime.ExceptionDetails, messageType?: Protocol.Runtime.ConsoleAPICalledEventType | FrontendMessageType, timestamp?: number, forceUrl?: Platform.DevToolsPath.UrlString, affectedResources?: AffectedResources): ConsoleMessage;
     runtimeModel(): RuntimeModel | null;
     target(): Target | null;
     setOriginatingMessage(originatingMessage: ConsoleMessage): void;
@@ -107,9 +114,11 @@ export declare class ConsoleMessage {
     isGroupable(): boolean;
     groupCategoryKey(): string;
     isEqual(msg: ConsoleMessage | null): boolean;
-    private isEqualStackTraces;
+    get originatesFromLogpoint(): boolean;
+    /** @returns true, iff this was a console.* call in a conditional breakpoint */
+    get originatesFromConditionalBreakpoint(): boolean;
 }
-export declare type MessageSource = Protocol.Log.LogEntrySource | FrontendMessageSource;
-export declare type MessageLevel = Protocol.Log.LogEntryLevel;
-export declare type MessageType = Protocol.Runtime.ConsoleAPICalledEventType | FrontendMessageType;
+export type MessageSource = Protocol.Log.LogEntrySource | FrontendMessageSource;
+export type MessageLevel = Protocol.Log.LogEntryLevel;
+export type MessageType = Protocol.Runtime.ConsoleAPICalledEventType | FrontendMessageType;
 export declare const MessageSourceDisplayName: Map<MessageSource, string>;

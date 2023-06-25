@@ -18,16 +18,35 @@ export class ScreenCaptureModel extends SDKModel {
     startScreencast(format, quality, maxWidth, maxHeight, everyNthFrame, onFrame, onVisibilityChanged) {
         this.#onScreencastFrame = onFrame;
         this.#onScreencastVisibilityChanged = onVisibilityChanged;
-        this.#agent.invoke_startScreencast({ format, quality, maxWidth, maxHeight, everyNthFrame });
+        void this.#agent.invoke_startScreencast({ format, quality, maxWidth, maxHeight, everyNthFrame });
     }
     stopScreencast() {
         this.#onScreencastFrame = null;
         this.#onScreencastVisibilityChanged = null;
-        this.#agent.invoke_stopScreencast();
+        void this.#agent.invoke_stopScreencast();
     }
-    async captureScreenshot(format, quality, clip) {
+    async captureScreenshot(format, quality, mode, clip) {
+        const properties = {
+            format: format,
+            quality: quality,
+            fromSurface: true,
+        };
+        switch (mode) {
+            case "fromClip" /* ScreenshotMode.FROM_CLIP */:
+                properties.captureBeyondViewport = true;
+                properties.clip = clip;
+                break;
+            case "fullpage" /* ScreenshotMode.FULLPAGE */:
+                properties.captureBeyondViewport = true;
+                break;
+            case "fromViewport" /* ScreenshotMode.FROM_VIEWPORT */:
+                properties.captureBeyondViewport = false;
+                break;
+            default:
+                throw new Error('Unexpected or unspecified screnshotMode');
+        }
         await OverlayModel.muteHighlight();
-        const result = await this.#agent.invoke_captureScreenshot({ format, quality, clip, fromSurface: true, captureBeyondViewport: true });
+        const result = await this.#agent.invoke_captureScreenshot(properties);
         await OverlayModel.unmuteHighlight();
         return result.data;
     }
@@ -45,7 +64,7 @@ export class ScreenCaptureModel extends SDKModel {
         };
     }
     screencastFrame({ data, metadata, sessionId }) {
-        this.#agent.invoke_screencastFrameAck({ sessionId });
+        void this.#agent.invoke_screencastFrameAck({ sessionId });
         if (this.#onScreencastFrame) {
             this.#onScreencastFrame.call(null, data, metadata);
         }
@@ -102,6 +121,12 @@ export class ScreenCaptureModel extends SDKModel {
     downloadWillBegin(_params) {
     }
     downloadProgress() {
+    }
+    prerenderAttemptCompleted(_params) {
+    }
+    prefetchStatusUpdated(_params) {
+    }
+    prerenderStatusUpdated(_params) {
     }
 }
 SDKModel.register(ScreenCaptureModel, { capabilities: Capability.ScreenCapture, autostart: false });

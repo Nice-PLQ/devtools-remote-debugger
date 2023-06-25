@@ -29,26 +29,74 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-import propertiesWidgetStyles from './propertiesWidget.css.js';
+import * as Common from '../../core/common/common.js';
 import * as Host from '../../core/host/host.js';
+import * as i18n from '../../core/i18n/i18n.js';
 import * as SDK from '../../core/sdk/sdk.js';
 import * as ObjectUI from '../../ui/legacy/components/object_ui/object_ui.js';
 import * as UI from '../../ui/legacy/legacy.js';
+import propertiesWidgetStyles from './propertiesWidget.css.js';
+import { StylesSidebarPane } from './StylesSidebarPane.js';
 const OBJECT_GROUP_NAME = 'properties-sidebar-pane';
+const UIStrings = {
+    /**
+     * @description Placeholder text for a text input used to filter which DOM element properties show up in
+     * the Properties tab of the Elements panel.
+     */
+    filter: 'Filter',
+    /**
+     * @description ARIA accessible name for the text input used to filter which DOM element properties show up
+     * in the Properties tab of the Elements panel.
+     */
+    filterProperties: 'Filter Properties',
+    /**
+     * @description Text on the checkbox in the Properties tab of the Elements panel, which controls whether
+     * all properties of the currently selected DOM element are shown, or only meaningful properties (i.e.
+     * excluding properties whose values aren't set for example).
+     */
+    showAll: 'Show all',
+    /**
+     * @description Tooltip on the checkbox in the Properties tab of the Elements panel, which controls whether
+     * all properties of the currently selected DOM element are shown, or only meaningful properties (i.e.
+     * excluding properties whose values aren't set for example).
+     */
+    showAllTooltip: 'When unchecked, only properties whose values are neither null nor undefined will be shown',
+    /**
+     * @description Text shown to the user when a filter is applied in the Properties tab of the Elements panel, but
+     * no properties matched the filter and thus no results were returned.
+     */
+    noMatchingProperty: 'No matching property',
+};
+const str_ = i18n.i18n.registerUIStrings('panels/elements/PropertiesWidget.ts', UIStrings);
+const i18nString = i18n.i18n.getLocalizedString.bind(undefined, str_);
 let propertiesWidgetInstance;
 export class PropertiesWidget extends UI.ThrottledWidget.ThrottledWidget {
     node;
+    showAllPropertiesSetting;
+    filterRegex = null;
+    noMatchesElement;
     treeOutline;
     expandController;
     lastRequestedNode;
-    constructor() {
-        super(true /* isWebComponent */);
-        SDK.TargetManager.TargetManager.instance().addModelListener(SDK.DOMModel.DOMModel, SDK.DOMModel.Events.AttrModified, this.onNodeChange, this);
-        SDK.TargetManager.TargetManager.instance().addModelListener(SDK.DOMModel.DOMModel, SDK.DOMModel.Events.AttrRemoved, this.onNodeChange, this);
-        SDK.TargetManager.TargetManager.instance().addModelListener(SDK.DOMModel.DOMModel, SDK.DOMModel.Events.CharacterDataModified, this.onNodeChange, this);
-        SDK.TargetManager.TargetManager.instance().addModelListener(SDK.DOMModel.DOMModel, SDK.DOMModel.Events.ChildNodeCountUpdated, this.onNodeChange, this);
+    constructor(throttlingTimeout) {
+        super(true /* isWebComponent */, throttlingTimeout);
+        this.showAllPropertiesSetting = Common.Settings.Settings.instance().createSetting('showAllProperties', false);
+        this.showAllPropertiesSetting.addChangeListener(this.filterList.bind(this));
+        SDK.TargetManager.TargetManager.instance().addModelListener(SDK.DOMModel.DOMModel, SDK.DOMModel.Events.AttrModified, this.onNodeChange, this, { scoped: true });
+        SDK.TargetManager.TargetManager.instance().addModelListener(SDK.DOMModel.DOMModel, SDK.DOMModel.Events.AttrRemoved, this.onNodeChange, this, { scoped: true });
+        SDK.TargetManager.TargetManager.instance().addModelListener(SDK.DOMModel.DOMModel, SDK.DOMModel.Events.CharacterDataModified, this.onNodeChange, this, { scoped: true });
+        SDK.TargetManager.TargetManager.instance().addModelListener(SDK.DOMModel.DOMModel, SDK.DOMModel.Events.ChildNodeCountUpdated, this.onNodeChange, this, { scoped: true });
         UI.Context.Context.instance().addFlavorChangeListener(SDK.DOMModel.DOMNode, this.setNode, this);
         this.node = UI.Context.Context.instance().flavor(SDK.DOMModel.DOMNode);
+        const hbox = this.contentElement.createChild('div', 'hbox properties-widget-toolbar');
+        const filterContainerElement = hbox.createChild('div', 'properties-widget-filter-box');
+        const filterInput = StylesSidebarPane.createPropertyFilterElement(i18nString(UIStrings.filter), hbox, this.filterProperties.bind(this));
+        UI.ARIAUtils.setLabel(filterInput, i18nString(UIStrings.filterProperties));
+        filterContainerElement.appendChild(filterInput);
+        const toolbar = new UI.Toolbar.Toolbar('styles-pane-toolbar', hbox);
+        toolbar.appendToolbarItem(new UI.Toolbar.ToolbarSettingCheckbox(this.showAllPropertiesSetting, i18nString(UIStrings.showAllTooltip), i18nString(UIStrings.showAll)));
+        this.noMatchesElement = this.contentElement.createChild('div', 'gray-info-message hidden');
+        this.noMatchesElement.textContent = i18nString(UIStrings.noMatchingProperty);
         this.treeOutline = new ObjectUI.ObjectPropertiesSection.ObjectPropertiesSectionsTreeOutline({ readOnly: true });
         this.treeOutline.setShowSelectionOnKeyboardFocus(/* show */ true, /* preventTabOrder */ false);
         this.expandController =
@@ -59,12 +107,30 @@ export class PropertiesWidget extends UI.ThrottledWidget.ThrottledWidget {
         });
         this.update();
     }
-    static instance(opts = { forceNew: null }) {
-        const { forceNew } = opts;
-        if (!propertiesWidgetInstance || forceNew) {
-            propertiesWidgetInstance = new PropertiesWidget();
+    static instance(opts) {
+        if (!propertiesWidgetInstance || opts?.forceNew) {
+            propertiesWidgetInstance = new PropertiesWidget(opts?.throttlingTimeout);
         }
         return propertiesWidgetInstance;
+    }
+    filterProperties(regex) {
+        this.filterRegex = regex;
+        this.filterList();
+    }
+    filterList() {
+        let noMatches = true;
+        for (const element of this.treeOutline.rootElement().children()) {
+            const { property } = element;
+            const hidden = !property?.match({
+                includeNullOrUndefinedValues: this.showAllPropertiesSetting.get(),
+                regex: this.filterRegex,
+            });
+            if (!hidden) {
+                noMatches = false;
+            }
+            element.hidden = hidden;
+        }
+        this.noMatchesElement.classList.toggle('hidden', !noMatches);
     }
     setNode(event) {
         this.node = event.data;
@@ -84,7 +150,14 @@ export class PropertiesWidget extends UI.ThrottledWidget.ThrottledWidget {
         if (!object) {
             return;
         }
-        await ObjectUI.ObjectPropertiesSection.ObjectPropertyTreeElement.populate(this.treeOutline.rootElement(), object, true, true, undefined, undefined);
+        const treeElement = this.treeOutline.rootElement();
+        let { properties } = await SDK.RemoteObject.RemoteObject.loadFromObjectPerProto(object, true /* generatePreview */);
+        treeElement.removeChildren();
+        if (properties === null) {
+            properties = [];
+        }
+        ObjectUI.ObjectPropertiesSection.ObjectPropertyTreeElement.populateWithProperties(treeElement, properties, null, true /* skipProto */, true /* skipGettersAndSetters */, object);
+        this.filterList();
     }
     onNodeChange(event) {
         if (!this.node) {

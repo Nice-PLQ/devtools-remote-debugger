@@ -32,15 +32,15 @@ import * as Common from '../../core/common/common.js';
 import * as i18n from '../../core/i18n/i18n.js';
 import * as Platform from '../../core/platform/platform.js';
 import * as TextUtils from '../text_utils/text_utils.js';
-import { Events as WorkspaceImplEvents, projectTypes } from './WorkspaceImpl.js';
+import { Events as WorkspaceImplEvents } from './WorkspaceImpl.js';
 const UIStrings = {
     /**
-    *@description Text for the index of something
-    */
+     *@description Text for the index of something
+     */
     index: '(index)',
     /**
-    *@description Text in UISource Code of the DevTools local workspace
-    */
+     *@description Text in UISource Code of the DevTools local workspace
+     */
     thisFileWasChangedExternally: 'This file was changed externally. Would you like to reload it?',
 };
 const str_ = i18n.i18n.registerUIStrings('models/workspace/UISourceCode.ts', UIStrings);
@@ -53,7 +53,7 @@ export class UISourceCode extends Common.ObjectWrapper.ObjectWrapper {
     nameInternal;
     contentTypeInternal;
     requestContentPromise;
-    decorations;
+    decorations = new Map();
     hasCommitsInternal;
     messagesInternal;
     contentLoadedInternal;
@@ -65,6 +65,8 @@ export class UISourceCode extends Common.ObjectWrapper.ObjectWrapper {
     workingCopyGetter;
     disableEditInternal;
     contentEncodedInternal;
+    isKnownThirdPartyInternal;
+    isUnconditionallyIgnoreListedInternal;
     constructor(project, url, contentType) {
         super();
         this.projectInternal = project;
@@ -72,20 +74,25 @@ export class UISourceCode extends Common.ObjectWrapper.ObjectWrapper {
         const parsedURL = Common.ParsedURL.ParsedURL.fromString(url);
         if (parsedURL) {
             this.originInternal = parsedURL.securityOrigin();
-            this.parentURLInternal = this.originInternal + parsedURL.folderPathComponents;
-            this.nameInternal = parsedURL.lastPathComponent;
-            if (parsedURL.queryParams) {
-                this.nameInternal += '?' + parsedURL.queryParams;
+            this.parentURLInternal =
+                Common.ParsedURL.ParsedURL.concatenate(this.originInternal, parsedURL.folderPathComponents);
+            if (parsedURL.queryParams && !(parsedURL.lastPathComponent && contentType.isFromSourceMap())) {
+                // If there is a query param, display it like a URL. Unless it is from a source map,
+                // in which case the query param is probably a hash that is best left hidden.
+                this.nameInternal = parsedURL.lastPathComponent + '?' + parsedURL.queryParams;
+            }
+            else {
+                // file name looks best decoded
+                this.nameInternal = decodeURIComponent(parsedURL.lastPathComponent);
             }
         }
         else {
-            this.originInternal = '';
-            this.parentURLInternal = '';
+            this.originInternal = Platform.DevToolsPath.EmptyUrlString;
+            this.parentURLInternal = Platform.DevToolsPath.EmptyUrlString;
             this.nameInternal = url;
         }
         this.contentTypeInternal = contentType;
         this.requestContentPromise = null;
-        this.decorations = null;
         this.hasCommitsInternal = false;
         this.messagesInternal = null;
         this.contentLoadedInternal = false;
@@ -96,6 +103,8 @@ export class UISourceCode extends Common.ObjectWrapper.ObjectWrapper {
         this.workingCopyInternal = null;
         this.workingCopyGetter = null;
         this.disableEditInternal = false;
+        this.isKnownThirdPartyInternal = false;
+        this.isUnconditionallyIgnoreListedInternal = false;
     }
     requestMetadata() {
         return this.projectInternal.requestMetadata(this);
@@ -108,6 +117,12 @@ export class UISourceCode extends Common.ObjectWrapper.ObjectWrapper {
     }
     url() {
         return this.urlInternal;
+    }
+    // Identifier used for deduplicating scripts that are considered by the
+    // DevTools UI to be the same script. For now this is just the url but this
+    // is likely to change in the future.
+    canononicalScriptId() {
+        return `${this.contentTypeInternal.name()},${this.urlInternal}`;
     }
     parentURL() {
         return this.parentURLInternal;
@@ -122,17 +137,7 @@ export class UISourceCode extends Common.ObjectWrapper.ObjectWrapper {
         if (!this.nameInternal) {
             return i18nString(UIStrings.index);
         }
-        let name = this.nameInternal;
-        try {
-            if (this.project().type() === projectTypes.FileSystem) {
-                name = unescape(name);
-            }
-            else {
-                name = decodeURI(name);
-            }
-        }
-        catch (error) {
-        }
+        const name = this.nameInternal;
         return skipTrim ? name : Platform.StringUtilities.trimEndWithMaxLength(name, 100);
     }
     canRename() {
@@ -157,10 +162,12 @@ export class UISourceCode extends Common.ObjectWrapper.ObjectWrapper {
     }
     updateName(name, url, contentType) {
         const oldURL = this.urlInternal;
-        this.urlInternal = this.urlInternal.substring(0, this.urlInternal.length - this.nameInternal.length) + name;
         this.nameInternal = name;
         if (url) {
             this.urlInternal = url;
+        }
+        else {
+            this.urlInternal = Common.ParsedURL.ParsedURL.relativePathToUrlString(name, oldURL);
         }
         if (contentType) {
             this.contentTypeInternal = contentType;
@@ -168,26 +175,24 @@ export class UISourceCode extends Common.ObjectWrapper.ObjectWrapper {
         this.dispatchEventToListeners(Events.TitleChanged, this);
         this.project().workspace().dispatchEventToListeners(WorkspaceImplEvents.UISourceCodeRenamed, { oldURL: oldURL, uiSourceCode: this });
     }
-    // TODO(crbug.com/1253323): Cast to RawPathString will be removed when migration to branded types is complete.
     contentURL() {
         return this.url();
     }
     contentType() {
         return this.contentTypeInternal;
     }
-    async contentEncoded() {
-        await this.requestContent();
-        return this.contentEncodedInternal || false;
-    }
     project() {
         return this.projectInternal;
     }
-    requestContent() {
+    requestContent({ cachedWasmOnly } = {}) {
         if (this.requestContentPromise) {
             return this.requestContentPromise;
         }
         if (this.contentLoadedInternal) {
             return Promise.resolve(this.contentInternal);
+        }
+        if (cachedWasmOnly && this.mimeType() === 'application/wasm') {
+            return Promise.resolve({ content: '', isEncoded: false, wasmDisassemblyInfo: new Common.WasmDisassembly.WasmDisassembly([], [], []) });
         }
         this.requestContentPromise = this.requestContentImpl();
         return this.requestContentPromise;
@@ -206,6 +211,12 @@ export class UISourceCode extends Common.ObjectWrapper.ObjectWrapper {
             this.contentInternal = { content: null, error: err ? String(err) : '', isEncoded: false };
         }
         return this.contentInternal;
+    }
+    #decodeContent(content) {
+        if (!content) {
+            return null;
+        }
+        return content.isEncoded && content.content ? window.atob(content.content) : content.content;
     }
     async checkContentUpdated() {
         if (!this.contentLoadedInternal && !this.forceLoadOnCheckContentInternal) {
@@ -229,8 +240,7 @@ export class UISourceCode extends Common.ObjectWrapper.ObjectWrapper {
         if (this.lastAcceptedContent === updatedContent.content) {
             return;
         }
-        if (this.contentInternal && 'content' in this.contentInternal &&
-            this.contentInternal.content === updatedContent.content) {
+        if (this.#decodeContent(this.contentInternal) === this.#decodeContent(updatedContent)) {
             this.lastAcceptedContent = null;
             return;
         }
@@ -240,7 +250,7 @@ export class UISourceCode extends Common.ObjectWrapper.ObjectWrapper {
         }
         await Common.Revealer.reveal(this);
         // Make sure we are in the next frame before stopping the world with confirm
-        await new Promise(resolve => setTimeout(resolve, 0));
+        await new Promise(resolve => window.setTimeout(resolve, 0));
         const shouldUpdate = window.confirm(i18nString(UIStrings.thisFileWasChangedExternally));
         if (shouldUpdate) {
             this.contentCommitted(updatedContent.content, false);
@@ -254,7 +264,7 @@ export class UISourceCode extends Common.ObjectWrapper.ObjectWrapper {
     }
     commitContent(content) {
         if (this.projectInternal.canSetFileContent()) {
-            this.projectInternal.setFileContent(this, content, false);
+            void this.projectInternal.setFileContent(this, content, false);
         }
         this.contentCommitted(content, true);
     }
@@ -279,14 +289,20 @@ export class UISourceCode extends Common.ObjectWrapper.ObjectWrapper {
         return this.hasCommitsInternal;
     }
     workingCopy() {
+        return this.workingCopyContent().content || '';
+    }
+    workingCopyContent() {
         if (this.workingCopyGetter) {
             this.workingCopyInternal = this.workingCopyGetter();
             this.workingCopyGetter = null;
         }
         if (this.isDirty()) {
-            return this.workingCopyInternal;
+            return { content: this.workingCopyInternal, isEncoded: false };
         }
-        return (this.contentInternal && 'content' in this.contentInternal && this.contentInternal.content) || '';
+        if (this.contentInternal) {
+            return this.contentInternal;
+        }
+        return { content: '', isEncoded: false };
     }
     resetWorkingCopy() {
         this.innerResetWorkingCopy();
@@ -304,7 +320,7 @@ export class UISourceCode extends Common.ObjectWrapper.ObjectWrapper {
     setContent(content, isBase64) {
         this.contentEncodedInternal = isBase64;
         if (this.projectInternal.canSetFileContent()) {
-            this.projectInternal.setFileContent(this, content, isBase64);
+            void this.projectInternal.setFileContent(this, content, isBase64);
         }
         this.contentCommitted(content, true);
     }
@@ -332,11 +348,30 @@ export class UISourceCode extends Common.ObjectWrapper.ObjectWrapper {
     isDirty() {
         return this.workingCopyInternal !== null || this.workingCopyGetter !== null;
     }
+    isKnownThirdParty() {
+        return this.isKnownThirdPartyInternal;
+    }
+    markKnownThirdParty() {
+        this.isKnownThirdPartyInternal = true;
+    }
+    /**
+     * {@link markAsUnconditionallyIgnoreListed}
+     */
+    isUnconditionallyIgnoreListed() {
+        return this.isUnconditionallyIgnoreListedInternal;
+    }
+    /**
+     * Unconditionally ignore list this UISourcecode, ignoring any user
+     * setting. We use this to mark breakpoint/logpoint condition scripts for now.
+     */
+    markAsUnconditionallyIgnoreListed() {
+        this.isUnconditionallyIgnoreListedInternal = true;
+    }
     extension() {
         return Common.ParsedURL.ParsedURL.extractExtension(this.nameInternal);
     }
     content() {
-        return (this.contentInternal && 'content' in this.contentInternal && this.contentInternal.content) || '';
+        return this.contentInternal?.content || '';
     }
     loadError() {
         return (this.contentInternal && 'error' in this.contentInternal && this.contentInternal.error) || null;
@@ -371,7 +406,7 @@ export class UISourceCode extends Common.ObjectWrapper.ObjectWrapper {
         this.dispatchEventToListeners(Events.MessageAdded, message);
     }
     removeMessage(message) {
-        if (this.messagesInternal && this.messagesInternal.delete(message)) {
+        if (this.messagesInternal?.delete(message)) {
             this.dispatchEventToListeners(Events.MessageRemoved, message);
         }
     }
@@ -384,40 +419,14 @@ export class UISourceCode extends Common.ObjectWrapper.ObjectWrapper {
         }
         this.messagesInternal = null;
     }
-    addLineDecoration(lineNumber, type, data) {
-        this.addDecoration(TextUtils.TextRange.TextRange.createFromLocation(lineNumber, 0), type, data);
-    }
-    addDecoration(range, type, data) {
-        const marker = new LineMarker(range, type, data);
-        if (!this.decorations) {
-            this.decorations = new Platform.MapUtilities.Multimap();
+    setDecorationData(type, data) {
+        if (data !== this.decorations.get(type)) {
+            this.decorations.set(type, data);
+            this.dispatchEventToListeners(Events.DecorationChanged, type);
         }
-        this.decorations.set(type, marker);
-        this.dispatchEventToListeners(Events.LineDecorationAdded, marker);
     }
-    removeDecorationsForType(type) {
-        if (!this.decorations) {
-            return;
-        }
-        const markers = this.decorations.get(type);
-        this.decorations.deleteAll(type);
-        markers.forEach(marker => {
-            this.dispatchEventToListeners(Events.LineDecorationRemoved, marker);
-        });
-    }
-    allDecorations() {
-        return this.decorations ? this.decorations.valuesArray() : [];
-    }
-    removeAllDecorations() {
-        if (!this.decorations) {
-            return;
-        }
-        const decorationList = this.decorations.valuesArray();
-        this.decorations.clear();
-        decorationList.forEach(marker => this.dispatchEventToListeners(Events.LineDecorationRemoved, marker));
-    }
-    decorationsForType(type) {
-        return this.decorations ? this.decorations.get(type) : null;
+    getDecorationData(type) {
+        return this.decorations.get(type);
     }
     disableEdit() {
         this.disableEditInternal = true;
@@ -435,8 +444,7 @@ export var Events;
     Events["TitleChanged"] = "TitleChanged";
     Events["MessageAdded"] = "MessageAdded";
     Events["MessageRemoved"] = "MessageRemoved";
-    Events["LineDecorationAdded"] = "LineDecorationAdded";
-    Events["LineDecorationRemoved"] = "LineDecorationRemoved";
+    Events["DecorationChanged"] = "DecorationChanged";
 })(Events || (Events = {}));
 export class UILocation {
     uiSourceCode;
@@ -447,22 +455,27 @@ export class UILocation {
         this.lineNumber = lineNumber;
         this.columnNumber = columnNumber;
     }
-    linkText(skipTrim, showColumnNumber) {
-        let linkText = this.uiSourceCode.displayName(skipTrim);
+    linkText(skipTrim = false, showColumnNumber = false) {
+        const displayName = this.uiSourceCode.displayName(skipTrim);
+        const lineAndColumnText = this.lineAndColumnText(showColumnNumber);
+        return lineAndColumnText ? displayName + ':' + lineAndColumnText : displayName;
+    }
+    lineAndColumnText(showColumnNumber = false) {
+        let lineAndColumnText;
         if (this.uiSourceCode.mimeType() === 'application/wasm') {
             // For WebAssembly locations, we follow the conventions described in
             // github.com/WebAssembly/design/blob/master/Web.md#developer-facing-display-conventions
             if (typeof this.columnNumber === 'number') {
-                linkText += `:0x${this.columnNumber.toString(16)}`;
+                lineAndColumnText = `0x${this.columnNumber.toString(16)}`;
             }
         }
         else {
-            linkText += ':' + (this.lineNumber + 1);
+            lineAndColumnText = `${this.lineNumber + 1}`;
             if (showColumnNumber && typeof this.columnNumber === 'number') {
-                linkText += ':' + (this.columnNumber + 1);
+                lineAndColumnText += ':' + (this.columnNumber + 1);
             }
         }
-        return linkText;
+        return lineAndColumnText;
     }
     id() {
         if (typeof this.columnNumber === 'number') {

@@ -1,8 +1,7 @@
 import * as SDK from '../../core/sdk/sdk.js';
 import * as UI from '../../ui/legacy/legacy.js';
 import type * as Protocol from '../../generated/protocol.js';
-import type { PlayerEvent } from './MediaModel.js';
-import { MediaModel } from './MediaModel.js';
+import { MediaModel, type PlayerEvent } from './MediaModel.js';
 export interface TriggerHandler {
     onProperty(property: Protocol.Media.PlayerProperty): void;
     onError(error: Protocol.Media.PlayerError): void;
@@ -15,14 +14,31 @@ export interface TriggerDispatcher {
     onMessage(playerID: string, message: Protocol.Media.PlayerMessage): void;
     onEvent(playerID: string, event: PlayerEvent): void;
 }
+export declare class PlayerDataDownloadManager implements TriggerDispatcher {
+    private readonly playerDataCollection;
+    constructor();
+    addPlayer(playerID: string): void;
+    onProperty(playerID: string, property: Protocol.Media.PlayerProperty): void;
+    onError(playerID: string, error: Protocol.Media.PlayerError): void;
+    onMessage(playerID: string, message: Protocol.Media.PlayerMessage): void;
+    onEvent(playerID: string, event: PlayerEvent): void;
+    exportPlayerData(playerID: string): {
+        properties: Map<string, string>;
+        messages: Protocol.Media.PlayerMessage[];
+        events: PlayerEvent[];
+        errors: Protocol.Media.PlayerError[];
+    };
+    deletePlayer(playerID: string): void;
+}
 export declare class MainView extends UI.Panel.PanelWithSidebar implements SDK.TargetManager.SDKModelObserver<MediaModel> {
     private detailPanels;
     private deletedPlayers;
     private readonly downloadStore;
     private readonly sidebar;
-    constructor();
+    constructor(downloadStore: PlayerDataDownloadManager);
     static instance(opts?: {
-        forceNew: null;
+        forceNew: boolean;
+        downloadStore?: PlayerDataDownloadManager;
     }): MainView;
     renderMainPanel(playerID: string): void;
     wasShown(): void;

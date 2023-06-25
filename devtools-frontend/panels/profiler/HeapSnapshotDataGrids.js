@@ -33,105 +33,105 @@ import * as HeapSnapshotModel from '../../models/heap_snapshot_model/heap_snapsh
 import * as DataGrid from '../../ui/legacy/components/data_grid/data_grid.js';
 import * as Components from '../../ui/legacy/components/utils/utils.js';
 import * as UI from '../../ui/legacy/legacy.js';
-import { AllocationGridNode, HeapSnapshotConstructorNode, HeapSnapshotGenericObjectNode, HeapSnapshotRetainingObjectNode, HeapSnapshotObjectNode, HeapSnapshotDiffNode } from './HeapSnapshotGridNodes.js';
+import { AllocationGridNode, HeapSnapshotConstructorNode, HeapSnapshotGenericObjectNode, HeapSnapshotRetainingObjectNode, HeapSnapshotObjectNode, HeapSnapshotDiffNode, } from './HeapSnapshotGridNodes.js';
 const UIStrings = {
     /**
-    *@description Text in Heap Snapshot Data Grids of a profiler tool
-    */
+     *@description Text in Heap Snapshot Data Grids of a profiler tool
+     */
     distanceFromWindowObject: 'Distance from window object',
     /**
-    *@description Text in Heap Snapshot Data Grids of a profiler tool
-    */
+     *@description Text in Heap Snapshot Data Grids of a profiler tool
+     */
     sizeOfTheObjectItselfInBytes: 'Size of the object itself in bytes',
     /**
-    *@description Text in Heap Snapshot Data Grids of a profiler tool
-    */
+     *@description Text in Heap Snapshot Data Grids of a profiler tool
+     */
     sizeOfTheObjectPlusTheGraphIt: 'Size of the object plus the graph it retains in bytes',
     /**
-    *@description Text in Heap Snapshot Data Grids of a profiler tool
-    */
+     *@description Text in Heap Snapshot Data Grids of a profiler tool
+     */
     object: 'Object',
     /**
-    *@description Text in Heap Snapshot Data Grids of a profiler tool
-    */
+     *@description Text in Heap Snapshot Data Grids of a profiler tool
+     */
     distance: 'Distance',
     /**
-    *@description Text in Heap Snapshot Data Grids of a profiler tool. Shallow size is the size of just this node, not including children/retained size.
-    */
+     *@description Text in Heap Snapshot Data Grids of a profiler tool. Shallow size is the size of just this node, not including children/retained size.
+     */
     shallowSize: 'Shallow Size',
     /**
-    *@description Text in Heap Snapshot Data Grids of a profiler tool
-    */
+     *@description Text in Heap Snapshot Data Grids of a profiler tool
+     */
     retainedSize: 'Retained Size',
     /**
-    * @description Title for a section in the Heap Snapshot view. This title is for a table which
-    * shows retaining relationships between JavaScript objects. One object retains another if it holds
-    * a reference to it, keeping it alive.
-    */
+     * @description Title for a section in the Heap Snapshot view. This title is for a table which
+     * shows retaining relationships between JavaScript objects. One object retains another if it holds
+     * a reference to it, keeping it alive.
+     */
     heapSnapshotRetainment: 'Heap Snapshot Retainment',
     /**
-    *@description Text in Heap Snapshot Data Grids of a profiler tool
-    */
+     *@description Text in Heap Snapshot Data Grids of a profiler tool
+     */
     constructorString: 'Constructor',
     /**
-    *@description Data grid name for Heap Snapshot Constructors data grids
-    */
+     *@description Data grid name for Heap Snapshot Constructors data grids
+     */
     heapSnapshotConstructors: 'Heap Snapshot Constructors',
     /**
-    *@description Column header in a table displaying the diff between two Heap Snapshots. This
-    * column is number of new objects in snapshot #2 compared to snapshot #1.
-    */
+     *@description Column header in a table displaying the diff between two Heap Snapshots. This
+     * column is number of new objects in snapshot #2 compared to snapshot #1.
+     */
     New: '# New',
     /**
-    *@description Column header in a table displaying the diff between two Heap Snapshots. This
-    * column is number of deleted objects in snapshot #2 compared to snapshot #1.
-    */
+     *@description Column header in a table displaying the diff between two Heap Snapshots. This
+     * column is number of deleted objects in snapshot #2 compared to snapshot #1.
+     */
     Deleted: '# Deleted',
     /**
-    * @description Column header in a table displaying the diff between two Heap Snapshots. This
-    * column is the difference (delta) between the # New and # Deleted objects in the snapshot.
-    */
+     * @description Column header in a table displaying the diff between two Heap Snapshots. This
+     * column is the difference (delta) between the # New and # Deleted objects in the snapshot.
+     */
     Delta: '# Delta',
     /**
-    *@description Text in Heap Snapshot Data Grids of a profiler tool
-    */
+     *@description Text in Heap Snapshot Data Grids of a profiler tool
+     */
     allocSize: 'Alloc. Size',
     /**
-    *@description Text in Heap Snapshot Data Grids of a profiler tool
-    */
+     *@description Text in Heap Snapshot Data Grids of a profiler tool
+     */
     freedSize: 'Freed Size',
     /**
-    * @description Title of a column in a table in the Heap Snapshot tool. 'Delta' here means
-    * difference, so the whole string means 'difference in size'.
-    */
+     * @description Title of a column in a table in the Heap Snapshot tool. 'Delta' here means
+     * difference, so the whole string means 'difference in size'.
+     */
     sizeDelta: 'Size Delta',
     /**
-    *@description Data grid name for Heap Snapshot Diff data grids
-    */
+     *@description Data grid name for Heap Snapshot Diff data grids
+     */
     heapSnapshotDiff: 'Heap Snapshot Diff',
     /**
-    *@description Text in Heap Snapshot Data Grids of a profiler tool
-    */
+     *@description Text in Heap Snapshot Data Grids of a profiler tool
+     */
     liveCount: 'Live Count',
     /**
-    *@description Text in Heap Snapshot Data Grids of a profiler tool
-    */
+     *@description Text in Heap Snapshot Data Grids of a profiler tool
+     */
     count: 'Count',
     /**
-    *@description Text in Heap Snapshot Data Grids of a profiler tool
-    */
+     *@description Text in Heap Snapshot Data Grids of a profiler tool
+     */
     liveSize: 'Live Size',
     /**
-    *@description Text for the size of something
-    */
+     *@description Text for the size of something
+     */
     size: 'Size',
     /**
-    *@description Text for a programming function
-    */
+     *@description Text for a programming function
+     */
     function: 'Function',
     /**
-    *@description Text in Heap Snapshot View of a profiler tool
-    */
+     *@description Text in Heap Snapshot View of a profiler tool
+     */
     allocation: 'Allocation',
 };
 const str_ = i18n.i18n.registerUIStrings('panels/profiler/HeapSnapshotDataGrids.ts', UIStrings);
@@ -310,7 +310,7 @@ export class HeapSnapshotSortableDataGrid extends Common.ObjectWrapper.eventMixi
             const child = children[i];
             this.appendChildAfterSorting(child);
             if (child.expanded) {
-                child.sort();
+                void child.sort();
             }
         }
         this.recursiveSortingLeave();
@@ -403,7 +403,6 @@ export class HeapSnapshotViewportDataGrid extends HeapSnapshotSortableDataGrid {
                 selectedNode.select(true);
             }
             else {
-                /** @type {?HeapSnapshotGridNode} */
                 this.selectedNode = selectedNode;
             }
         }
@@ -582,7 +581,7 @@ export class HeapSnapshotContainmentDataGrid extends HeapSnapshotSortableDataGri
         this.snapshot = snapshot;
         const node = new HeapSnapshotModel.HeapSnapshotModel.Node(-1, 'root', 0, nodeIndex || snapshot.rootNodeIndex, 0, 0, '');
         this.setRootNode(this.createRootNode(snapshot, node));
-        this.rootNode().sort();
+        void this.rootNode().sort();
     }
     createRootNode(snapshot, node) {
         const fakeEdge = new HeapSnapshotModel.HeapSnapshotModel.Edge('', node, '', -1);
@@ -591,7 +590,7 @@ export class HeapSnapshotContainmentDataGrid extends HeapSnapshotSortableDataGri
     sortingChanged() {
         const rootNode = this.rootNode();
         if (rootNode.hasChildren()) {
-            rootNode.sort();
+            void rootNode.sort();
         }
     }
 }
@@ -712,26 +711,26 @@ export class HeapSnapshotConstructorsDataGrid extends HeapSnapshotViewportDataGr
     async setDataSource(snapshot, _nodeIndex) {
         this.snapshot = snapshot;
         if (this.profileIndex === -1) {
-            this.populateChildren();
+            void this.populateChildren();
         }
         if (this.objectIdToSelect) {
-            this.revealObjectByHeapSnapshotId(this.objectIdToSelect);
+            void this.revealObjectByHeapSnapshotId(this.objectIdToSelect);
             this.objectIdToSelect = null;
         }
     }
     setSelectionRange(minNodeId, maxNodeId) {
         this.nodeFilterInternal = new HeapSnapshotModel.HeapSnapshotModel.NodeFilter(minNodeId, maxNodeId);
-        this.populateChildren(this.nodeFilterInternal);
+        void this.populateChildren(this.nodeFilterInternal);
     }
     setAllocationNodeId(allocationNodeId) {
         this.nodeFilterInternal = new HeapSnapshotModel.HeapSnapshotModel.NodeFilter();
         this.nodeFilterInternal.allocationNodeId = allocationNodeId;
-        this.populateChildren(this.nodeFilterInternal);
+        void this.populateChildren(this.nodeFilterInternal);
     }
     aggregatesReceived(nodeFilter, aggregates) {
         this.filterInProgress = null;
         if (this.nextRequestedFilter && this.snapshot) {
-            this.snapshot.aggregatesWithFilter(this.nextRequestedFilter)
+            void this.snapshot.aggregatesWithFilter(this.nextRequestedFilter)
                 .then(this.aggregatesReceived.bind(this, this.nextRequestedFilter));
             this.filterInProgress = this.nextRequestedFilter;
             this.nextRequestedFilter = null;
@@ -767,7 +766,7 @@ export class HeapSnapshotConstructorsDataGrid extends HeapSnapshotViewportDataGr
             const maxNodeId = profiles[profileIndex].maxJSObjectId;
             this.nodeFilterInternal = new HeapSnapshotModel.HeapSnapshotModel.NodeFilter(minNodeId, maxNodeId);
         }
-        this.populateChildren(this.nodeFilterInternal);
+        void this.populateChildren(this.nodeFilterInternal);
     }
 }
 export class HeapSnapshotDiffDataGrid extends HeapSnapshotViewportDataGrid {
@@ -825,7 +824,7 @@ export class HeapSnapshotDiffDataGrid extends HeapSnapshotViewportDataGrid {
             this.dispatchEventToListeners(HeapSnapshotSortableDataGridEvents.SortingComplete);
             return;
         }
-        this.populateChildren();
+        void this.populateChildren();
     }
     async populateChildren() {
         if (this.snapshot === null || this.baseSnapshot === undefined || this.baseSnapshot.uid === undefined) {

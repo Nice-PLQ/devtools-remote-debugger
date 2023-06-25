@@ -30,14 +30,14 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 import * as Common from '../../core/common/common.js';
-import * as DOMExtension from '../../core/dom_extension/dom_extension.js';
 import * as Platform from '../../core/platform/platform.js';
 import * as TextUtils from '../../models/text_utils/text_utils.js';
 import * as ARIAUtils from './ARIAUtils.js';
-import * as Utils from './utils/utils.js';
+import * as ThemeSupport from './theme_support/theme_support.js';
 import { SuggestBox } from './SuggestBox.js';
 import { Tooltip } from './Tooltip.js';
 import { ElementFocusRestorer } from './UIUtils.js';
+import textPromptStyles from './textPrompt.css.legacy.js';
 export class TextPrompt extends Common.ObjectWrapper.ObjectWrapper {
     proxyElement;
     proxyElementDisplay;
@@ -119,7 +119,7 @@ export class TextPrompt extends Common.ObjectWrapper.ObjectWrapper {
         this.boundOnMouseWheel = this.onMouseWheel.bind(this);
         this.boundClearAutocomplete = this.clearAutocomplete.bind(this);
         this.proxyElement = element.ownerDocument.createElement('span');
-        Utils.appendStyle(this.proxyElement, 'ui/legacy/textPrompt.css');
+        ThemeSupport.ThemeSupport.instance().appendStyle(this.proxyElement, textPromptStyles);
         this.contentElement = this.proxyElement.createChild('div', 'text-prompt-root');
         this.proxyElement.style.display = this.proxyElementDisplay;
         if (element.parentElement) {
@@ -129,7 +129,7 @@ export class TextPrompt extends Common.ObjectWrapper.ObjectWrapper {
         this.elementInternal.classList.add('text-prompt');
         ARIAUtils.markAsTextBox(this.elementInternal);
         ARIAUtils.setAutocomplete(this.elementInternal, ARIAUtils.AutocompleteInteractionModel.both);
-        ARIAUtils.setHasPopup(this.elementInternal, "listbox" /* ListBox */);
+        ARIAUtils.setHasPopup(this.elementInternal, "listbox" /* ARIAUtils.PopupRole.ListBox */);
         this.elementInternal.setAttribute('contenteditable', 'plaintext-only');
         this.element().addEventListener('keydown', this.boundOnKeyDown, false);
         this.elementInternal.addEventListener('input', this.boundOnInput, false);
@@ -146,7 +146,7 @@ export class TextPrompt extends Common.ObjectWrapper.ObjectWrapper {
         if (!this.elementInternal) {
             throw new Error('Expected an already attached element!');
         }
-        return /** @type {!HTMLElement} */ this.elementInternal;
+        return this.elementInternal;
     }
     detach() {
         this.removeFromElement();
@@ -162,7 +162,7 @@ export class TextPrompt extends Common.ObjectWrapper.ObjectWrapper {
         this.element().removeAttribute('contenteditable');
         this.element().removeAttribute('role');
         ARIAUtils.clearAutocomplete(this.element());
-        ARIAUtils.setHasPopup(this.element(), "false" /* False */);
+        ARIAUtils.setHasPopup(this.element(), "false" /* ARIAUtils.PopupRole.False */);
     }
     textWithCurrentSuggestion() {
         const text = this.text();
@@ -434,7 +434,8 @@ export class TextPrompt extends Common.ObjectWrapper.ObjectWrapper {
     autoCompleteSoon(force) {
         const immediately = this.isSuggestBoxVisible() || force;
         if (!this.completeTimeout) {
-            this.completeTimeout = setTimeout(this.complete.bind(this, force), immediately ? 0 : this.autocompletionTimeout);
+            this.completeTimeout =
+                window.setTimeout(this.complete.bind(this, force), immediately ? 0 : this.autocompletionTimeout);
         }
     }
     async complete(force) {
@@ -455,7 +456,7 @@ export class TextPrompt extends Common.ObjectWrapper.ObjectWrapper {
             this.clearAutocomplete();
             return;
         }
-        const wordQueryRange = DOMExtension.DOMExtension.rangeOfWord(selectionRange.startContainer, selectionRange.startOffset, this.completionStopCharacters, this.element(), 'backward');
+        const wordQueryRange = Platform.DOMUtilities.rangeOfWord(selectionRange.startContainer, selectionRange.startOffset, this.completionStopCharacters, this.element(), 'backward');
         const expressionRange = wordQueryRange.cloneRange();
         expressionRange.collapse(true);
         expressionRange.setStartBefore(this.element());
@@ -619,7 +620,7 @@ export class TextPrompt extends Common.ObjectWrapper.ObjectWrapper {
         }
     }
     /** -1 if no caret can be found in text prompt
-       */
+     */
     getCaretPosition() {
         if (!this.element().hasFocus()) {
             return -1;
@@ -666,6 +667,9 @@ export class TextPrompt extends Common.ObjectWrapper.ObjectWrapper {
                 leftParenthesesIndices.push(i);
             }
         }
+    }
+    suggestBoxForTest() {
+        return this.suggestBox;
     }
 }
 const DefaultAutocompletionTimeout = 250;

@@ -16,6 +16,7 @@ export var UIRequestTabs;
     UIRequestTabs["Cookies"] = "cookies";
     UIRequestTabs["EventSource"] = "eventSource";
     UIRequestTabs["Headers"] = "headers";
+    UIRequestTabs["HeadersComponent"] = "headersComponent";
     UIRequestTabs["Payload"] = "payload";
     UIRequestTabs["Initiator"] = "initiator";
     UIRequestTabs["Preview"] = "preview";

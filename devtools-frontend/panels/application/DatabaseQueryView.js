@@ -27,17 +27,19 @@
  */
 import * as Common from '../../core/common/common.js';
 import * as i18n from '../../core/i18n/i18n.js';
+import * as Platform from '../../core/platform/platform.js';
+import * as IconButton from '../../ui/components/icon_button/icon_button.js';
 import * as DataGrid from '../../ui/legacy/components/data_grid/data_grid.js';
 import * as UI from '../../ui/legacy/legacy.js';
 const UIStrings = {
     /**
-    *@description Data grid name for Database Query data grids
-    */
+     *@description Data grid name for Database Query data grids
+     */
     databaseQuery: 'Database Query',
     /**
-    *@description Aria text for table selected in WebSQL DatabaseQueryView in Application panel
-    *@example {"SELECT * FROM LOGS"} PH1
-    */
+     *@description Aria text for table selected in WebSQL DatabaseQueryView in Application panel
+     *@example {"SELECT * FROM LOGS"} PH1
+     */
     queryS: 'Query: {PH1}',
 };
 const str_ = i18n.i18n.registerUIStrings('panels/application/DatabaseQueryView.ts', UIStrings);
@@ -64,7 +66,10 @@ export class DatabaseQueryView extends Common.ObjectWrapper.eventMixin(UI.Widget
         this.queryWrapper.addEventListener('keydown', this.onKeyDown.bind(this));
         this.queryWrapper.tabIndex = -1;
         this.promptContainer = this.element.createChild('div', 'database-query-prompt-container');
-        this.promptContainer.appendChild(UI.Icon.Icon.create('smallicon-text-prompt', 'prompt-icon'));
+        const promptIcon = new IconButton.Icon.Icon();
+        promptIcon.data = { iconName: 'chevron-right', color: 'var(--icon-action)', width: '16px', height: '16px' };
+        promptIcon.classList.add('prompt-icon');
+        this.promptContainer.appendChild(promptIcon);
         this.promptElement = this.promptContainer.createChild('div');
         this.promptElement.className = 'database-query-prompt';
         this.promptElement.addEventListener('keydown', this.promptKeyDown.bind(this));
@@ -140,7 +145,7 @@ export class DatabaseQueryView extends Common.ObjectWrapper.eventMixin(UI.Widget
         }
         const selectedElement = index >= 0 ? this.queryResults[index] : null;
         const changed = this.lastSelectedElement !== selectedElement;
-        const containerHasFocus = this.queryWrapper === this.element.ownerDocument.deepActiveElement();
+        const containerHasFocus = this.queryWrapper === Platform.DOMUtilities.deepActiveElement(this.element.ownerDocument);
         if (selectedElement && (changed || containerHasFocus) && this.element.hasFocus()) {
             if (!selectedElement.hasFocus()) {
                 selectedElement.focus();
@@ -181,7 +186,7 @@ export class DatabaseQueryView extends Common.ObjectWrapper.eventMixin(UI.Widget
     }
     promptKeyDown(event) {
         if (event.key === 'Enter') {
-            this.enterKeyPressed(event);
+            void this.enterKeyPressed(event);
             return;
         }
     }
@@ -197,7 +202,7 @@ export class DatabaseQueryView extends Common.ObjectWrapper.eventMixin(UI.Widget
             // TODO(crbug.com/1172300) Ignored during the jsdoc to ts migration)
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             const result = await new Promise((resolve, reject) => {
-                this.database.executeSql(query, (columnNames, values) => resolve({ columnNames, values }), errorText => reject(errorText));
+                void this.database.executeSql(query, (columnNames, values) => resolve({ columnNames, values }), errorText => reject(errorText));
             });
             this.queryFinished(query, result.columnNames, result.values);
         }
@@ -239,7 +244,10 @@ export class DatabaseQueryView extends Common.ObjectWrapper.eventMixin(UI.Widget
     appendErrorQueryResult(query, errorText) {
         const resultElement = this.appendQueryResult(query);
         resultElement.classList.add('error');
-        resultElement.appendChild(UI.Icon.Icon.create('smallicon-error', 'prompt-icon'));
+        const errorIcon = new IconButton.Icon.Icon();
+        errorIcon.data = { iconName: 'cross-circle-filled', color: 'var(--icon-error)', width: '14px', height: '14px' };
+        errorIcon.classList.add('prompt-icon');
+        resultElement.appendChild(errorIcon);
         UI.UIUtils.createTextChild(resultElement, errorText);
         this.scrollResultIntoView();
     }
@@ -251,10 +259,13 @@ export class DatabaseQueryView extends Common.ObjectWrapper.eventMixin(UI.Widget
         const element = document.createElement('div');
         element.className = 'database-user-query';
         element.tabIndex = -1;
-        UI.ARIAUtils.setAccessibleName(element, i18nString(UIStrings.queryS, { PH1: query }));
+        UI.ARIAUtils.setLabel(element, i18nString(UIStrings.queryS, { PH1: query }));
         this.queryResults.push(element);
         this.updateFocusedItem();
-        element.appendChild(UI.Icon.Icon.create('smallicon-user-command', 'prompt-icon'));
+        const userCommandIcon = new IconButton.Icon.Icon();
+        userCommandIcon.data = { iconName: 'chevron-right', color: 'var(--icon-default)', width: '16px', height: '16px' };
+        userCommandIcon.classList.add('prompt-icon');
+        element.appendChild(userCommandIcon);
         const commandTextElement = document.createElement('span');
         commandTextElement.className = 'database-query-text';
         commandTextElement.textContent = query;

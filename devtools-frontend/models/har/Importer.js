@@ -23,6 +23,8 @@ export class Importer {
                     type: initiatorEntry.type,
                     url: initiatorEntry.url,
                     lineNumber: initiatorEntry.lineNumber,
+                    requestId: initiatorEntry.requestId,
+                    stack: initiatorEntry.stack,
                 };
             }
             const request = SDK.NetworkRequest.NetworkRequest.createWithoutBackendRequest('har-' + requests.length, entry.request.url, documentURL, initiator);
@@ -183,6 +185,7 @@ export class Importer {
             sendEnd: accumulateTime(timings.send),
             pushStart: 0,
             pushEnd: 0,
+            receiveHeadersStart: timings.wait && (timings.wait >= 0) ? lastEntry : -1,
             receiveHeadersEnd: accumulateTime(timings.wait),
         };
         accumulateTime(timings.receive);

@@ -13,15 +13,15 @@ export interface BaseSetting {
     type: Common.Settings.SettingType.BOOLEAN | Common.Settings.SettingType.ENUM;
     title: string;
 }
-export declare type BooleanSetting = BaseSetting & {
+export type BooleanSetting = BaseSetting & {
     options: BooleanSettingOption[];
     value: boolean;
 };
-export declare type EnumSetting = BaseSetting & {
+export type EnumSetting = BaseSetting & {
     options: EnumSettingOption[];
     value: string;
 };
-export declare type Setting = EnumSetting | BooleanSetting;
+export type Setting = EnumSetting | BooleanSetting;
 export interface LayoutElement {
     id: number;
     color: string;

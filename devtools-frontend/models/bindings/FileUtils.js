@@ -57,7 +57,11 @@ export class ChunkedFileReader {
             this.#chunkTransferredCallback(this);
         }
         if (this.#file?.type.endsWith('gzip')) {
-            const stream = this.decompressStream(this.#file.stream());
+            // TypeScript can't tell if to use @types/node or lib.webworker.d.ts
+            // types, so we force it to here.
+            // crbug.com/1392092
+            const fileStream = this.#file.stream();
+            const stream = this.decompressStream(fileStream);
             this.#streamReader = stream.getReader();
         }
         else {
@@ -66,7 +70,7 @@ export class ChunkedFileReader {
             this.#reader.onerror = this.onError.bind(this);
         }
         this.#output = output;
-        this.loadChunk();
+        void this.loadChunk();
         return new Promise(resolve => {
             this.#transferFinished = resolve;
         });
@@ -109,7 +113,7 @@ export class ChunkedFileReader {
         const buffer = this.#reader.result;
         this.#loadedSizeInternal += buffer.byteLength;
         const endOfFile = this.#loadedSizeInternal === this.#fileSizeInternal;
-        this.decodeChunkBuffer(buffer, endOfFile);
+        void this.decodeChunkBuffer(buffer, endOfFile);
     }
     async decodeChunkBuffer(buffer, endOfFile) {
         if (!this.#output) {
@@ -124,18 +128,18 @@ export class ChunkedFileReader {
             this.#chunkTransferredCallback(this);
         }
         if (endOfFile) {
-            this.finishRead();
+            void this.finishRead();
             return;
         }
-        this.loadChunk();
+        void this.loadChunk();
     }
-    finishRead() {
+    async finishRead() {
         if (!this.#output) {
             return;
         }
         this.#file = null;
         this.#reader = null;
-        this.#output.close();
+        await this.#output.close();
         this.#transferFinished(!this.#errorInternal);
     }
     async loadChunk() {
@@ -147,7 +151,7 @@ export class ChunkedFileReader {
             if (done || !value) {
                 return this.finishRead();
             }
-            this.decodeChunkBuffer(value.buffer, false);
+            void this.decodeChunkBuffer(value.buffer, false);
         }
         if (this.#reader) {
             const chunkStart = this.#loadedSizeInternal;
@@ -171,7 +175,6 @@ export class FileOutputStream {
     }
     async open(fileName) {
         this.#closed = false;
-        /** @type {!Array<function():void>} */
         this.#writeCallbacks = [];
         this.#fileName = fileName;
         const saveResponse = await Workspace.FileManager.FileManager.instance().save(this.#fileName, '', true);

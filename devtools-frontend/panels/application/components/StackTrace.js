@@ -10,100 +10,106 @@ import stackTraceRowStyles from './stackTraceRow.css.js';
 import stackTraceLinkButtonStyles from './stackTraceLinkButton.css.js';
 const UIStrings = {
     /**
-    *@description Error message stating that something went wrong when tring to render stack trace
-    */
+     *@description Error message stating that something went wrong when tring to render stack trace
+     */
     cannotRenderStackTrace: 'Cannot render stack trace',
     /**
-    *@description A link to show more frames in the stack trace if more are available. Never 0.
-    */
+     *@description A link to show more frames in the stack trace if more are available. Never 0.
+     */
     showSMoreFrames: '{n, plural, =1 {Show # more frame} other {Show # more frames}}',
+    /**
+     *@description A link to rehide frames that are by default hidden.
+     */
+    showLess: 'Show less',
 };
 const str_ = i18n.i18n.registerUIStrings('panels/application/components/StackTrace.ts', UIStrings);
 const i18nString = i18n.i18n.getLocalizedString.bind(undefined, str_);
 export class StackTraceRow extends HTMLElement {
     static litTagName = LitHtml.literal `devtools-stack-trace-row`;
-    shadow = this.attachShadow({ mode: 'open' });
-    stackTraceRowItem = null;
+    #shadow = this.attachShadow({ mode: 'open' });
+    #stackTraceRowItem = null;
     set data(data) {
-        this.stackTraceRowItem = data.stackTraceRowItem;
-        this.render();
+        this.#stackTraceRowItem = data.stackTraceRowItem;
+        this.#render();
     }
     connectedCallback() {
-        this.shadow.adoptedStyleSheets = [stackTraceRowStyles];
+        this.#shadow.adoptedStyleSheets = [stackTraceRowStyles];
     }
-    render() {
-        if (!this.stackTraceRowItem) {
+    #render() {
+        if (!this.#stackTraceRowItem) {
             return;
         }
         LitHtml.render(LitHtml.html `
       <div class="stack-trace-row">
-              <div class="stack-trace-function-name text-ellipsis" title="${this.stackTraceRowItem.functionName}">
-                ${this.stackTraceRowItem.functionName}
+              <div class="stack-trace-function-name text-ellipsis" title=${this.#stackTraceRowItem.functionName}>
+                ${this.#stackTraceRowItem.functionName}
               </div>
               <div class="stack-trace-source-location">
-                ${this.stackTraceRowItem.link ?
-            LitHtml.html `<div class="text-ellipsis">\xA0@\xA0${this.stackTraceRowItem.link}</div>` :
+                ${this.#stackTraceRowItem.link ?
+            LitHtml.html `<div class="text-ellipsis">\xA0@\xA0${this.#stackTraceRowItem.link}</div>` :
             LitHtml.nothing}
               </div>
             </div>
-    `, this.shadow, { host: this });
+    `, this.#shadow, { host: this });
     }
 }
 export class StackTraceLinkButton extends HTMLElement {
     static litTagName = LitHtml.literal `devtools-stack-trace-link-button`;
-    shadow = this.attachShadow({ mode: 'open' });
-    onShowAllClick = () => { };
-    hiddenCallFramesCount = null;
+    #shadow = this.attachShadow({ mode: 'open' });
+    #onShowAllClick = () => { };
+    #hiddenCallFramesCount = null;
+    #expandedView = false;
     set data(data) {
-        this.onShowAllClick = data.onShowAllClick;
-        this.hiddenCallFramesCount = data.hiddenCallFramesCount;
-        this.render();
+        this.#onShowAllClick = data.onShowAllClick;
+        this.#hiddenCallFramesCount = data.hiddenCallFramesCount;
+        this.#expandedView = data.expandedView;
+        this.#render();
     }
     connectedCallback() {
-        this.shadow.adoptedStyleSheets = [stackTraceLinkButtonStyles];
+        this.#shadow.adoptedStyleSheets = [stackTraceLinkButtonStyles];
     }
-    render() {
-        if (!this.hiddenCallFramesCount) {
+    #render() {
+        if (!this.#hiddenCallFramesCount) {
             return;
         }
+        const linkText = this.#expandedView ? i18nString(UIStrings.showLess) :
+            i18nString(UIStrings.showSMoreFrames, { n: this.#hiddenCallFramesCount });
         LitHtml.render(LitHtml.html `
       <div class="stack-trace-row">
-          <button class="link" @click=${() => this.onShowAllClick()}>
-            ${i18nString(UIStrings.showSMoreFrames, {
-            n: this.hiddenCallFramesCount,
-        })}
+          <button class="link" @click=${() => this.#onShowAllClick()}>
+            ${linkText}
           </button>
         </div>
-    `, this.shadow, { host: this });
+    `, this.#shadow, { host: this });
     }
 }
 export class StackTrace extends HTMLElement {
     static litTagName = LitHtml.literal `devtools-resources-stack-trace`;
-    shadow = this.attachShadow({ mode: 'open' });
-    linkifier = new Components.Linkifier.Linkifier();
-    stackTraceRows = [];
-    showHidden = false;
+    #shadow = this.attachShadow({ mode: 'open' });
+    #linkifier = new Components.Linkifier.Linkifier();
+    #stackTraceRows = [];
+    #showHidden = false;
     set data(data) {
         const frame = data.frame;
         const { creationStackTrace, creationStackTraceTarget } = frame.getCreationStackTraceData();
         if (creationStackTrace) {
-            this.stackTraceRows = data.buildStackTraceRows(creationStackTrace, creationStackTraceTarget, this.linkifier, true, this.onStackTraceRowsUpdated.bind(this));
+            this.#stackTraceRows = data.buildStackTraceRows(creationStackTrace, creationStackTraceTarget, this.#linkifier, true, this.#onStackTraceRowsUpdated.bind(this));
         }
-        this.render();
+        this.#render();
     }
-    onStackTraceRowsUpdated(stackTraceRows) {
-        this.stackTraceRows = stackTraceRows;
-        this.render();
+    #onStackTraceRowsUpdated(stackTraceRows) {
+        this.#stackTraceRows = stackTraceRows;
+        this.#render();
     }
-    onShowAllClick() {
-        this.showHidden = true;
-        this.render();
+    #onToggleShowAllClick() {
+        this.#showHidden = !this.#showHidden;
+        this.#render();
     }
     createRowTemplates() {
         const expandableRows = [];
         let hiddenCallFramesCount = 0;
-        for (const item of this.stackTraceRows) {
-            if (this.showHidden || (!item.ignoreListHide && !item.rowCountHide)) {
+        for (const item of this.#stackTraceRows) {
+            if (this.#showHidden || !item.ignoreListHide) {
                 if ('functionName' in item) {
                     expandableRows.push(LitHtml.html `
           <${StackTraceRow.litTagName} data-stack-trace-row .data=${{
@@ -116,7 +122,7 @@ export class StackTrace extends HTMLElement {
           `);
                 }
             }
-            if (!this.showHidden && 'functionName' in item && (item.ignoreListHide || item.rowCountHide)) {
+            if ('functionName' in item && item.ignoreListHide) {
                 hiddenCallFramesCount++;
             }
         }
@@ -124,19 +130,19 @@ export class StackTrace extends HTMLElement {
             // Disabled until https://crbug.com/1079231 is fixed.
             // clang-format off
             expandableRows.push(LitHtml.html `
-      <${StackTraceLinkButton.litTagName} data-stack-trace-row .data=${{ onShowAllClick: this.onShowAllClick.bind(this), hiddenCallFramesCount: hiddenCallFramesCount }}></${StackTraceLinkButton.litTagName}>
+      <${StackTraceLinkButton.litTagName} data-stack-trace-row .data=${{ onShowAllClick: this.#onToggleShowAllClick.bind(this), hiddenCallFramesCount, expandedView: this.#showHidden }}></${StackTraceLinkButton.litTagName}>
       `);
             // clang-format on
         }
         return expandableRows;
     }
-    render() {
-        if (!this.stackTraceRows.length) {
+    #render() {
+        if (!this.#stackTraceRows.length) {
             // Disabled until https://crbug.com/1079231 is fixed.
             // clang-format off
             LitHtml.render(LitHtml.html `
           <span>${i18nString(UIStrings.cannotRenderStackTrace)}</span>
-        `, this.shadow, { host: this });
+        `, this.#shadow, { host: this });
             return;
         }
         const expandableRows = this.createRowTemplates();
@@ -145,7 +151,7 @@ export class StackTrace extends HTMLElement {
             rows: expandableRows,
         }}>
         </${ExpandableList.ExpandableList.ExpandableList.litTagName}>
-      `, this.shadow, { host: this });
+      `, this.#shadow, { host: this });
         // clang-format on
     }
 }

@@ -1,7 +1,6 @@
 import * as UI from '../../ui/legacy/legacy.js';
 export declare class CSPViolationsView extends UI.Widget.VBox {
-    private listView;
-    private issuesManager;
+    #private;
     /**
      * @private
      */
@@ -9,8 +8,5 @@ export declare class CSPViolationsView extends UI.Widget.VBox {
     static instance(opts?: {
         forceNew: null;
     }): CSPViolationsView;
-    private onIssueAdded;
-    private onFullUpdateRequired;
-    private addAllIssues;
     wasShown(): void;
 }

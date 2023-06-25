@@ -33,60 +33,62 @@
  */
 import * as Common from '../../core/common/common.js';
 import * as i18n from '../../core/i18n/i18n.js';
+import * as Platform from '../../core/platform/platform.js';
 import * as ARIAUtils from './ARIAUtils.js';
 import { HistoryInput } from './HistoryInput.js';
 import { InspectorView } from './InspectorView.js';
+import searchableViewStyles from './searchableView.css.legacy.js';
 import { Toolbar, ToolbarButton, ToolbarToggle } from './Toolbar.js';
 import { Tooltip } from './Tooltip.js';
 import { createTextButton } from './UIUtils.js';
 import { VBox } from './Widget.js';
 const UIStrings = {
     /**
-    *@description Text on a button to replace one instance with input text for the ctrl+F search bar
-    */
+     *@description Text on a button to replace one instance with input text for the ctrl+F search bar
+     */
     replace: 'Replace',
     /**
-    *@description Text to find an item
-    */
+     *@description Text to find an item
+     */
     findString: 'Find',
     /**
-    *@description Text on a button to search previous instance for the ctrl+F search bar
-    */
+     *@description Text on a button to search previous instance for the ctrl+F search bar
+     */
     searchPrevious: 'Search previous',
     /**
-    *@description Text on a button to search next instance for the ctrl+F search bar
-    */
+     *@description Text on a button to search next instance for the ctrl+F search bar
+     */
     searchNext: 'Search next',
     /**
-    *@description Text to search by matching case of the input
-    */
+     *@description Text to search by matching case of the input
+     */
     matchCase: 'Match Case',
     /**
-    *@description Text for searching with regular expressinn
-    */
+     *@description Text for searching with regular expressinn
+     */
     useRegularExpression: 'Use Regular Expression',
     /**
-    *@description Text to cancel something
-    */
+     *@description Text to cancel something
+     */
     cancel: 'Cancel',
     /**
-    *@description Text on a button to replace all instances with input text for the ctrl+F search bar
-    */
+     *@description Text on a button to replace all instances with input text for the ctrl+F search bar
+     */
     replaceAll: 'Replace all',
     /**
-    *@description Text to indicate the current match index and the total number of matches for the ctrl+F search bar
-    *@example {2} PH1
-    *@example {3} PH2
-    */
+     *@description Text to indicate the current match index and the total number of matches for the ctrl+F search bar
+     *@example {2} PH1
+     *@example {3} PH2
+     */
     dOfD: '{PH1} of {PH2}',
     /**
-    *@description Text to indicate search result for the ctrl+F search bar
-    */
+     *@description Text to indicate search result for the ctrl+F search bar
+     */
     matchString: '1 match',
     /**
-    *@description Text to indicate search result for the ctrl+F search bar
-    *@example {2} PH1
-    */
+     *@description Text to indicate search result for the ctrl+F search bar
+     *@example {2} PH1
+     */
     dMatches: '{PH1} matches',
 };
 const str_ = i18n.i18n.registerUIStrings('ui/legacy/SearchableView.ts', UIStrings);
@@ -118,19 +120,18 @@ export class SearchableView extends VBox {
     valueChangedTimeoutId;
     constructor(searchable, replaceable, settingName) {
         super(true);
-        this.registerRequiredCSS('ui/legacy/searchableView.css');
+        this.registerRequiredCSS(searchableViewStyles);
         searchableViewsByElement.set(this.element, this);
         this.searchProvider = searchable;
         this.replaceProvider = replaceable;
-        this.setting =
-            settingName ? Common.Settings.Settings.instance().createSetting(settingName, /** @type {*} */ ({})) : null;
+        this.setting = settingName ? Common.Settings.Settings.instance().createSetting(settingName, {}) : null;
         this.replaceable = false;
         this.contentElement.createChild('slot');
         this.footerElementContainer = this.contentElement.createChild('div', 'search-bar hidden');
         this.footerElementContainer.style.order = '100';
         this.footerElement = this.footerElementContainer.createChild('div', 'toolbar-search');
         const replaceToggleToolbar = new Toolbar('replace-toggle-toolbar', this.footerElement);
-        this.replaceToggleButton = new ToolbarToggle(i18nString(UIStrings.replace), 'mediumicon-replace');
+        this.replaceToggleButton = new ToolbarToggle(i18nString(UIStrings.replace), 'replace');
         this.replaceToggleButton.addEventListener(ToolbarButton.Events.Click, this.toggleReplace, this);
         replaceToggleToolbar.appendToolbarItem(this.replaceToggleButton);
         const searchInputElements = this.footerElement.createChild('div', 'toolbar-search-inputs');
@@ -148,12 +149,12 @@ export class SearchableView extends VBox {
             searchNavigationElement.createChild('div', 'toolbar-search-navigation toolbar-search-navigation-prev');
         this.searchNavigationPrevElement.addEventListener('click', this.onPrevButtonSearch.bind(this), false);
         Tooltip.install(this.searchNavigationPrevElement, i18nString(UIStrings.searchPrevious));
-        ARIAUtils.setAccessibleName(this.searchNavigationPrevElement, i18nString(UIStrings.searchPrevious));
+        ARIAUtils.setLabel(this.searchNavigationPrevElement, i18nString(UIStrings.searchPrevious));
         this.searchNavigationNextElement =
             searchNavigationElement.createChild('div', 'toolbar-search-navigation toolbar-search-navigation-next');
         this.searchNavigationNextElement.addEventListener('click', this.onNextButtonSearch.bind(this), false);
         Tooltip.install(this.searchNavigationNextElement, i18nString(UIStrings.searchNext));
-        ARIAUtils.setAccessibleName(this.searchNavigationNextElement, i18nString(UIStrings.searchNext));
+        ARIAUtils.setLabel(this.searchNavigationNextElement, i18nString(UIStrings.searchNext));
         this.searchInputElement.addEventListener('keydown', this.onSearchKeyDown.bind(this), true);
         this.searchInputElement.addEventListener('input', this.onInput.bind(this), false);
         this.replaceInputElement =
@@ -243,7 +244,7 @@ export class SearchableView extends VBox {
     setPlaceholder(placeholder, ariaLabel) {
         this.searchInputElement.placeholder = placeholder;
         if (ariaLabel) {
-            ARIAUtils.setAccessibleName(this.searchInputElement, ariaLabel);
+            ARIAUtils.setLabel(this.searchInputElement, ariaLabel);
         }
     }
     setReplaceable(replaceable) {
@@ -273,6 +274,7 @@ export class SearchableView extends VBox {
         if (this.footerElementContainer.hasFocus()) {
             this.focus();
         }
+        this.searchProvider.onSearchClosed?.();
     }
     toggleSearchBar(toggled) {
         this.footerElementContainer.classList.toggle('hidden', !toggled);
@@ -374,7 +376,7 @@ export class SearchableView extends VBox {
     }
     onSearchKeyDown(ev) {
         const event = ev;
-        if (isEscKey(event)) {
+        if (Platform.KeyboardUtilities.isEscKey(event)) {
             this.closeSearch();
             event.consume(true);
             return;
@@ -419,24 +421,6 @@ export class SearchableView extends VBox {
         this.jumpToNextSearchResult(true);
         this.searchInputElement.focus();
     }
-    onFindClick(_event) {
-        if (!this.currentQuery) {
-            this.performSearch(true, true);
-        }
-        else {
-            this.jumpToNextSearchResult();
-        }
-        this.searchInputElement.focus();
-    }
-    onPreviousClick(_event) {
-        if (!this.currentQuery) {
-            this.performSearch(true, true, true);
-        }
-        else {
-            this.jumpToNextSearchResult(true);
-        }
-        this.searchInputElement.focus();
-    }
     clearSearch() {
         // TODO(crbug.com/1172300) Ignored during the jsdoc to ts migration
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -444,7 +428,7 @@ export class SearchableView extends VBox {
         delete this.currentQuery;
         if (Boolean(untypedSearchProvider.currentQuery)) {
             delete untypedSearchProvider.currentQuery;
-            this.searchProvider.searchCanceled();
+            this.searchProvider.onSearchCanceled();
         }
         this.updateSearchMatchesCountAndCurrentMatchIndex(0, -1);
     }
@@ -497,11 +481,15 @@ export class SearchableView extends VBox {
         this.replaceProvider.replaceAllWith(searchConfig, this.replaceInputElement.value);
     }
     onInput(_event) {
+        if (!Common.Settings.Settings.instance().moduleSetting('searchAsYouType').get()) {
+            this.clearSearch();
+            return;
+        }
         if (this.valueChangedTimeoutId) {
             clearTimeout(this.valueChangedTimeoutId);
         }
         const timeout = this.searchInputElement.value.length < 3 ? 200 : 0;
-        this.valueChangedTimeoutId = setTimeout(this.onValueChanged.bind(this), timeout);
+        this.valueChangedTimeoutId = window.setTimeout(this.onValueChanged.bind(this), timeout);
     }
     onValueChanged() {
         if (!this.searchIsVisible) {
@@ -531,11 +519,12 @@ export class SearchConfig {
         }
         const query = this.isRegex ? '/' + this.query + '/' : this.query;
         let regex;
+        let fromQuery = false;
         // First try creating regex if user knows the / / hint.
         try {
             if (/^\/.+\/$/.test(query)) {
                 regex = new RegExp(query.substring(1, query.length - 1), modifiers);
-                regex.__fromRegExpQuery = true;
+                fromQuery = true;
             }
         }
         catch (e) {
@@ -543,9 +532,12 @@ export class SearchConfig {
         }
         // Otherwise just do a plain text search.
         if (!regex) {
-            regex = createPlainTextSearchRegex(query, modifiers);
+            regex = Platform.StringUtilities.createPlainTextSearchRegex(query, modifiers);
         }
-        return regex;
+        return {
+            regex,
+            fromQuery,
+        };
     }
 }
 //# sourceMappingURL=SearchableView.js.map

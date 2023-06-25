@@ -1,6 +1,6 @@
 import * as Common from '../../core/common/common.js';
 import * as SDK from '../../core/sdk/sdk.js';
-import type { NetworkThrottlingConditionsGroup } from './ThrottlingPresets.js';
+import { type NetworkThrottlingConditionsGroup } from './ThrottlingPresets.js';
 export declare class NetworkThrottlingSelector {
     private populateCallback;
     private readonly selectCallback;

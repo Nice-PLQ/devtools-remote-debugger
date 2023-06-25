@@ -9,14 +9,12 @@ import { CSSOverviewUnusedDeclarations } from './CSSOverviewUnusedDeclarations.j
 export class CSSOverviewModel extends SDK.SDKModel.SDKModel {
     #runtimeAgent;
     #cssAgent;
-    #domAgent;
     #domSnapshotAgent;
     #overlayAgent;
     constructor(target) {
         super(target);
         this.#runtimeAgent = target.runtimeAgent();
         this.#cssAgent = target.cssAgent();
-        this.#domAgent = target.domAgent();
         this.#domSnapshotAgent = target.domsnapshotAgent();
         this.#overlayAgent = target.overlayAgent();
     }
@@ -24,11 +22,11 @@ export class CSSOverviewModel extends SDK.SDKModel.SDKModel {
         const highlightConfig = {
             contentColor: Common.Color.PageHighlight.Content.toProtocolRGBA(),
             showInfo: true,
-            contrastAlgorithm: Root.Runtime.experiments.isEnabled('APCA') ? "apca" /* Apca */ :
-                "aa" /* Aa */,
+            contrastAlgorithm: Root.Runtime.experiments.isEnabled('APCA') ? "apca" /* Protocol.Overlay.ContrastAlgorithm.Apca */ :
+                "aa" /* Protocol.Overlay.ContrastAlgorithm.Aa */,
         };
-        this.#overlayAgent.invoke_hideHighlight();
-        this.#overlayAgent.invoke_highlightNode({ backendNodeId: node, highlightConfig });
+        void this.#overlayAgent.invoke_hideHighlight();
+        void this.#overlayAgent.invoke_highlightNode({ backendNodeId: node, highlightConfig });
     }
     async getNodeStyleStats() {
         const backgroundColors = new Map();
@@ -69,7 +67,10 @@ export class CSSOverviewModel extends SDK.SDKModel.SDKModel {
             includeBlendedBackgroundColors: true,
         };
         const formatColor = (color) => {
-            return color.hasAlpha() ? color.asString(Common.Color.Format.HEXA) : color.asString(Common.Color.Format.HEX);
+            if (color instanceof Common.Color.Legacy) {
+                return color.hasAlpha() ? color.asString("hexa" /* Common.Color.Format.HEXA */) : color.asString("hex" /* Common.Color.Format.HEX */);
+            }
+            return color.asString();
         };
         const storeColor = (id, nodeId, target) => {
             if (id === -1) {
@@ -80,8 +81,8 @@ export class CSSOverviewModel extends SDK.SDKModel.SDKModel {
             if (!colorText) {
                 return;
             }
-            const color = Common.Color.Color.parse(colorText);
-            if (!color || color.rgba()[3] === 0) {
+            const color = Common.Color.parse(colorText);
+            if (!color || color.asLegacyColor().rgba()[3] === 0) {
                 return;
             }
             // Format the color and use as the key.
@@ -195,24 +196,24 @@ export class CSSOverviewModel extends SDK.SDKModel.SDKModel {
                     fontInfo.set(fontFamily, fontFamilyInfo);
                 }
                 const blendedBackgroundColor = textColor && layout.blendedBackgroundColors && layout.blendedBackgroundColors[idx] !== -1 ?
-                    Common.Color.Color.parse(strings[layout.blendedBackgroundColors[idx]]) :
+                    Common.Color.parse(strings[layout.blendedBackgroundColors[idx]]) :
                     null;
                 if (textColor && blendedBackgroundColor) {
                     const contrastInfo = new ColorPicker.ContrastInfo.ContrastInfo({
-                        backgroundColors: [blendedBackgroundColor.asString(Common.Color.Format.HEXA)],
+                        backgroundColors: [blendedBackgroundColor.asString("hexa" /* Common.Color.Format.HEXA */)],
                         computedFontSize: fontSizeIdx !== -1 ? strings[fontSizeIdx] : '',
                         computedFontWeight: fontWeightIdx !== -1 ? strings[fontWeightIdx] : '',
                     });
-                    const blendedTextColor = textColor.blendWithAlpha(layout.textColorOpacities ? layout.textColorOpacities[idx] : 1);
+                    const blendedTextColor = textColor.asLegacyColor().blendWithAlpha(layout.textColorOpacities ? layout.textColorOpacities[idx] : 1);
                     contrastInfo.setColor(blendedTextColor);
                     const formattedTextColor = formatColor(blendedTextColor);
-                    const formattedBackgroundColor = formatColor(blendedBackgroundColor);
+                    const formattedBackgroundColor = formatColor(blendedBackgroundColor.asLegacyColor());
                     const key = `${formattedTextColor}_${formattedBackgroundColor}`;
                     if (Root.Runtime.experiments.isEnabled('APCA')) {
                         const contrastRatio = contrastInfo.contrastRatioAPCA();
                         const threshold = contrastInfo.contrastRatioAPCAThreshold();
                         const passes = contrastRatio && threshold ? Math.abs(contrastRatio) >= threshold : false;
-                        if (!passes) {
+                        if (!passes && contrastRatio) {
                             const issue = {
                                 nodeId,
                                 contrastRatio,

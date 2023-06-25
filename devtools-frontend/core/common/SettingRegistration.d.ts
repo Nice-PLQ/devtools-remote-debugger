@@ -1,6 +1,6 @@
 import type * as Platform from '../platform/platform.js';
 import * as Root from '../root/root.js';
-import type { SettingStorageType } from './Settings.js';
+import { type SettingStorageType } from './Settings.js';
 export declare function registerSettingExtension(registration: SettingRegistration): void;
 export declare function getRegisteredSettings(): Array<SettingRegistration>;
 export declare function registerSettingsForTest(settings: Array<SettingRegistration>, forceReset?: boolean): void;
@@ -26,7 +26,7 @@ export declare enum SettingCategory {
     ADORNER = "ADORNER",
     SYNC = "SYNC"
 }
-export declare function getLocalizedSettingsCategory(category: SettingCategory): string | Platform.UIString.LocalizedString;
+export declare function getLocalizedSettingsCategory(category: SettingCategory): Platform.UIString.LocalizedString;
 export declare enum SettingType {
     ARRAY = "array",
     REGEX = "regex",
@@ -34,8 +34,21 @@ export declare enum SettingType {
     BOOLEAN = "boolean"
 }
 export interface RegExpSettingItem {
+    /**
+     * A regular expression matched against URLs for ignore listing.
+     */
     pattern: string;
+    /**
+     * If true, ignore this rule.
+     */
     disabled?: boolean;
+    /**
+     * When a rule is disabled due to requesting through a script's context menu
+     * that it no longer be ignore listed, this field is set to the URL of that
+     * script, so that if the user requests through the same context menu to
+     * enable ignore listing, the rule can be reenabled.
+     */
+    disabledForUrl?: Platform.DevToolsPath.UrlString;
 }
 export interface SettingRegistration {
     /**
@@ -105,6 +118,17 @@ export interface SettingRegistration {
      * property and in that case the behaviour of the setting's availability will be inverted.
      */
     condition?: Root.Runtime.ConditionName;
+    /**
+     * If a setting is deprecated, define this notice to show an appropriate warning according to the `warning` propertiy.
+     * If `disabled` is set, the setting will be disabled in the settings UI. In that case, `experiment` optionally can be
+     * set to link to an experiment (by experiment name). The information icon in the settings UI can then be clicked to
+     * jump to the experiment. If a setting is not disabled, the experiment entry will be ignored.
+     */
+    deprecationNotice?: {
+        disabled: boolean;
+        warning: () => Platform.UIString.LocalizedString;
+        experiment?: string;
+    };
 }
 interface LocalizedSettingExtensionOption {
     value: boolean | string;
@@ -121,5 +145,5 @@ interface RawSettingExtensionOption {
     text?: string;
     raw: true;
 }
-export declare type SettingExtensionOption = LocalizedSettingExtensionOption | RawSettingExtensionOption;
+export type SettingExtensionOption = LocalizedSettingExtensionOption | RawSettingExtensionOption;
 export {};

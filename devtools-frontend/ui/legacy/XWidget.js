@@ -2,7 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 import * as ComponentHelpers from '../components/helpers/helpers.js';
-import * as Utils from './utils/utils.js';
 import { XElement } from './XElement.js';
 let observer = null;
 const storedScrollPositions = new WeakMap();
@@ -39,9 +38,6 @@ export class XWidget extends XElement {
     }
     isShowing() {
         return this.visible;
-    }
-    registerRequiredCSS(cssFile) {
-        Utils.appendStyle(this.shadowRootInternal || this, cssFile);
     }
     setOnShown(callback) {
         this.onShownCallback = callback;

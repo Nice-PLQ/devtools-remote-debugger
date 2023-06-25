@@ -30,390 +30,1564 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 import * as Platform from '../platform/platform.js';
-import { blendColors, contrastRatioAPCA, desiredLuminanceAPCA, luminance, luminanceAPCA, rgbaToHsla } from './ColorUtils.js';
-export class Color {
-    #hslaInternal;
-    #rgbaInternal;
-    #originalText;
-    #originalTextIsValid;
-    #formatInternal;
-    constructor(rgba, format, originalText) {
-        this.#hslaInternal = undefined;
-        this.#rgbaInternal = rgba;
-        this.#originalText = originalText || null;
-        this.#originalTextIsValid = Boolean(this.#originalText);
-        this.#formatInternal = format;
-        if (typeof this.#rgbaInternal[3] === 'undefined') {
-            this.#rgbaInternal[3] = 1;
-        }
-        for (let i = 0; i < 4; ++i) {
-            if (this.#rgbaInternal[i] < 0) {
-                this.#rgbaInternal[i] = 0;
-                this.#originalTextIsValid = false;
-            }
-            if (this.#rgbaInternal[i] > 1) {
-                this.#rgbaInternal[i] = 1;
-                this.#originalTextIsValid = false;
-            }
-        }
+import { ColorConverter } from './ColorConverter.js';
+import { blendColors, contrastRatioAPCA, desiredLuminanceAPCA, luminance, luminanceAPCA, rgbToHsl, rgbToHwb, } from './ColorUtils.js';
+// <hue> is defined as a <number> or <angle>
+// and we hold this in degrees. However, after
+// the conversions, these degrees can result in
+// negative values. That's why we normalize the hue to be
+// between [0 - 360].
+function normalizeHue(hue) {
+    // Even though it is highly unlikely, hue can be
+    // very negative like -400. The initial modulo
+    // operation makes sure that the if the number is
+    // negative, it is between [-360, 0].
+    return ((hue % 360) + 360) % 360;
+}
+// Parses angle in the form of
+// `<angle>deg`, `<angle>turn`, `<angle>grad and `<angle>rad`
+// and returns the canonicalized `degree`.
+function parseAngle(angleText) {
+    const angle = angleText.replace(/(deg|g?rad|turn)$/, '');
+    // @ts-ignore: isNaN can accept strings
+    if (isNaN(angle) || angleText.match(/\s+(deg|g?rad|turn)/)) {
+        return null;
     }
-    static parse(text) {
-        // Simple - #hex, nickname
-        const value = text.toLowerCase().replace(/\s+/g, '');
-        const simple = /^(?:#([0-9a-f]{3,4}|[0-9a-f]{6}|[0-9a-f]{8})|(\w+))$/i;
-        let match = value.match(simple);
-        if (match) {
-            if (match[1]) { // hex
-                let hex = match[1].toLowerCase();
-                let format;
-                if (hex.length === 3) {
-                    format = Format.ShortHEX;
-                    hex = hex.charAt(0) + hex.charAt(0) + hex.charAt(1) + hex.charAt(1) + hex.charAt(2) + hex.charAt(2);
-                }
-                else if (hex.length === 4) {
-                    format = Format.ShortHEXA;
-                    hex = hex.charAt(0) + hex.charAt(0) + hex.charAt(1) + hex.charAt(1) + hex.charAt(2) + hex.charAt(2) +
-                        hex.charAt(3) + hex.charAt(3);
-                }
-                else if (hex.length === 6) {
-                    format = Format.HEX;
-                }
-                else {
-                    format = Format.HEXA;
-                }
-                const r = parseInt(hex.substring(0, 2), 16);
-                const g = parseInt(hex.substring(2, 4), 16);
-                const b = parseInt(hex.substring(4, 6), 16);
-                let a = 1;
-                if (hex.length === 8) {
-                    a = parseInt(hex.substring(6, 8), 16) / 255;
-                }
-                return new Color([r / 255, g / 255, b / 255, a], format, text);
-            }
-            if (match[2]) { // nickname
-                const nickname = match[2].toLowerCase();
-                const rgba = Nicknames.get(nickname);
-                if (rgba !== undefined) {
-                    const color = Color.fromRGBA(rgba);
-                    color.#formatInternal = Format.Nickname;
-                    color.#originalText = text;
-                    return color;
-                }
-                return null;
-            }
-            return null;
+    const number = parseFloat(angle);
+    if (angleText.includes('turn')) {
+        // 1turn === 360deg
+        return number * 360;
+    }
+    if (angleText.includes('grad')) {
+        // 1grad === 0.9deg
+        return number * 9 / 10;
+    }
+    if (angleText.includes('rad')) {
+        // πrad === 180deg
+        return number * 180 / Math.PI;
+    }
+    // 1deg === 1deg ^_^
+    return number;
+}
+// Returns the `Format` equivalent from the format text
+export function getFormat(formatText) {
+    switch (formatText) {
+        case "nickname" /* Format.Nickname */:
+            return "nickname" /* Format.Nickname */;
+        case "hex" /* Format.HEX */:
+            return "hex" /* Format.HEX */;
+        case "shorthex" /* Format.ShortHEX */:
+            return "shorthex" /* Format.ShortHEX */;
+        case "hexa" /* Format.HEXA */:
+            return "hexa" /* Format.HEXA */;
+        case "shorthexa" /* Format.ShortHEXA */:
+            return "shorthexa" /* Format.ShortHEXA */;
+        case "rgb" /* Format.RGB */:
+            return "rgb" /* Format.RGB */;
+        case "rgba" /* Format.RGBA */:
+            return "rgba" /* Format.RGBA */;
+        case "hsl" /* Format.HSL */:
+            return "hsl" /* Format.HSL */;
+        case "hsla" /* Format.HSLA */:
+            return "hsla" /* Format.HSLA */;
+        case "hwb" /* Format.HWB */:
+            return "hwb" /* Format.HWB */;
+        case "hwba" /* Format.HWBA */:
+            return "hwba" /* Format.HWBA */;
+        case "lch" /* Format.LCH */:
+            return "lch" /* Format.LCH */;
+        case "oklch" /* Format.OKLCH */:
+            return "oklch" /* Format.OKLCH */;
+        case "lab" /* Format.LAB */:
+            return "lab" /* Format.LAB */;
+        case "oklab" /* Format.OKLAB */:
+            return "oklab" /* Format.OKLAB */;
+    }
+    return getColorSpace(formatText);
+}
+function getColorSpace(colorSpaceText) {
+    switch (colorSpaceText) {
+        case "srgb" /* Format.SRGB */:
+            return "srgb" /* Format.SRGB */;
+        case "srgb-linear" /* Format.SRGB_LINEAR */:
+            return "srgb-linear" /* Format.SRGB_LINEAR */;
+        case "display-p3" /* Format.DISPLAY_P3 */:
+            return "display-p3" /* Format.DISPLAY_P3 */;
+        case "a98-rgb" /* Format.A98_RGB */:
+            return "a98-rgb" /* Format.A98_RGB */;
+        case "prophoto-rgb" /* Format.PROPHOTO_RGB */:
+            return "prophoto-rgb" /* Format.PROPHOTO_RGB */;
+        case "rec2020" /* Format.REC_2020 */:
+            return "rec2020" /* Format.REC_2020 */;
+        case "xyz" /* Format.XYZ */:
+            return "xyz" /* Format.XYZ */;
+        case "xyz-d50" /* Format.XYZ_D50 */:
+            return "xyz-d50" /* Format.XYZ_D50 */;
+        case "xyz-d65" /* Format.XYZ_D65 */:
+            return "xyz-d65" /* Format.XYZ_D65 */;
+    }
+    return null;
+}
+/**
+ * Percents in color spaces are mapped to ranges.
+ * These ranges change based on the syntax.
+ * For example, for 'C' in lch() c: 0% = 0, 100% = 150.
+ * See: https://www.w3.org/TR/css-color-4/#funcdef-lch
+ * Some percentage values can be negative
+ * though their ranges don't change depending on the sign
+ * (for now, according to spec).
+ * @param percent % value of the number. 42 for 42%.
+ * @param range Range of [min, max]. Including `min` and `max`.
+ */
+function mapPercentToRange(percent, range) {
+    const sign = Math.sign(percent);
+    const absPercent = Math.abs(percent);
+    const [outMin, outMax] = range;
+    return sign * (absPercent * (outMax - outMin) / 100 + outMin);
+}
+export function parse(text) {
+    // Simple - #hex, nickname
+    const value = text.toLowerCase().replace(/\s+/g, '');
+    const simple = /^(?:#([0-9a-f]{3,4}|[0-9a-f]{6}|[0-9a-f]{8})|(\w+))$/i;
+    let match = value.match(simple);
+    if (match) {
+        if (match[1]) {
+            return Legacy.fromHex(match[1], text);
         }
-        // rgb/rgba(), hsl/hsla()
-        match = text.toLowerCase().match(/^\s*(?:(rgba?)|(hsla?))\((.*)\)\s*$/);
-        if (match) {
-            const components = match[3].trim();
-            let values = components.split(/\s*,\s*/);
-            if (values.length === 1) {
-                values = components.split(/\s+/);
-                if (values[3] === '/') {
-                    values.splice(3, 1);
-                    if (values.length !== 4) {
-                        return null;
-                    }
-                }
-                else if ((values.length > 2 && values[2].indexOf('/') !== -1) ||
-                    (values.length > 3 && values[3].indexOf('/') !== -1)) {
-                    const alpha = values.slice(2, 4).join('');
-                    values = values.slice(0, 2).concat(alpha.split(/\//)).concat(values.slice(4));
-                }
-                else if (values.length >= 4) {
-                    return null;
-                }
-            }
-            if (values.length !== 3 && values.length !== 4 || values.indexOf('') > -1) {
-                return null;
-            }
-            const hasAlpha = (values[3] !== undefined);
-            if (match[1]) { // rgb/rgba
-                const rgba = [
-                    Color.parseRgbNumeric(values[0]),
-                    Color.parseRgbNumeric(values[1]),
-                    Color.parseRgbNumeric(values[2]),
-                    hasAlpha ? Color.parseAlphaNumeric(values[3]) : 1,
-                ];
-                if (rgba.indexOf(null) > -1) {
-                    return null;
-                }
-                return new Color(rgba, hasAlpha ? Format.RGBA : Format.RGB, text);
-            }
-            if (match[2]) { // hsl/hsla
-                const hsla = [
-                    Color.parseHueNumeric(values[0]),
-                    Color.parseSatLightNumeric(values[1]),
-                    Color.parseSatLightNumeric(values[2]),
-                    hasAlpha ? Color.parseAlphaNumeric(values[3]) : 1,
-                ];
-                if (hsla.indexOf(null) > -1) {
-                    return null;
-                }
-                const rgba = [];
-                Color.hsl2rgb(hsla, rgba);
-                return new Color(rgba, hasAlpha ? Format.HSLA : Format.HSL, text);
-            }
+        if (match[2]) {
+            return Legacy.fromName(match[2], text);
         }
         return null;
     }
-    static fromRGBA(rgba) {
-        return new Color([rgba[0] / 255, rgba[1] / 255, rgba[2] / 255, rgba[3]], Format.RGBA);
-    }
-    static fromHSVA(hsva) {
-        const rgba = [];
-        Color.hsva2rgba(hsva, rgba);
-        return new Color(rgba, Format.HSLA);
-    }
-    static parsePercentOrNumber(value) {
-        // @ts-ignore: isNaN can accept strings
-        if (isNaN(value.replace('%', ''))) {
+    // rgb/rgba(), hsl/hsla(), hwb/hwba(), lch(), oklch(), lab(), oklab() and color()
+    match = text.toLowerCase().match(/^\s*(?:(rgba?)|(hsla?)|(hwba?)|(lch)|(oklch)|(lab)|(oklab)|(color))\((.*)\)\s*$/);
+    if (match) {
+        const isRgbaMatch = Boolean(match[1]); // rgb/rgba()
+        const isHslaMatch = Boolean(match[2]); // hsl/hsla()
+        const isHwbaMatch = Boolean(match[3]); // hwb/hwba()
+        const isLchMatch = Boolean(match[4]); // lch()
+        const isOklchMatch = Boolean(match[5]); // oklch()
+        const isLabMatch = Boolean(match[6]); // lab()
+        const isOklabMatch = Boolean(match[7]); // oklab()
+        const isColorMatch = Boolean(match[8]); // color()
+        const valuesText = match[9];
+        // Parse color function first because extracting values for
+        // this function is not the same as the other ones
+        // so, we're not using any of the logic below.
+        if (isColorMatch) {
+            return ColorFunction.fromSpec(text, valuesText);
+        }
+        const isOldSyntax = isRgbaMatch || isHslaMatch || isHwbaMatch;
+        const allowCommas = isRgbaMatch || isHslaMatch;
+        const convertNoneToZero = !isOldSyntax; // Convert 'none' keyword to zero in new syntaxes
+        const values = splitColorFunctionParameters(valuesText, { allowCommas, convertNoneToZero });
+        if (!values) {
             return null;
         }
-        const parsed = parseFloat(value);
-        if (value.indexOf('%') !== -1) {
-            if (value.indexOf('%') !== value.length - 1) {
+        const spec = [values[0], values[1], values[2], values[3]];
+        if (isRgbaMatch) {
+            return Legacy.fromRGBAFunction(values[0], values[1], values[2], values[3], text);
+        }
+        if (isHslaMatch) {
+            return HSL.fromSpec(spec, text);
+        }
+        if (isHwbaMatch) {
+            return HWB.fromSpec(spec, text);
+        }
+        if (isLchMatch) {
+            return LCH.fromSpec(spec, text);
+        }
+        if (isOklchMatch) {
+            return Oklch.fromSpec(spec, text);
+        }
+        if (isLabMatch) {
+            return Lab.fromSpec(spec, text);
+        }
+        if (isOklabMatch) {
+            return Oklab.fromSpec(spec, text);
+        }
+    }
+    return null;
+}
+/**
+ * Split the color parameters of (e.g.) rgb(a), hsl(a), hwb(a) functions.
+ */
+function splitColorFunctionParameters(content, { allowCommas, convertNoneToZero }) {
+    const components = content.trim();
+    let values = [];
+    if (allowCommas) {
+        values = components.split(/\s*,\s*/);
+    }
+    if (!allowCommas || values.length === 1) {
+        values = components.split(/\s+/);
+        if (values[3] === '/') {
+            values.splice(3, 1);
+            if (values.length !== 4) {
                 return null;
             }
-            return parsed / 100;
         }
+        else if ((values.length > 2 && values[2].indexOf('/') !== -1) || (values.length > 3 && values[3].indexOf('/') !== -1)) {
+            const alpha = values.slice(2, 4).join('');
+            values = values.slice(0, 2).concat(alpha.split(/\//)).concat(values.slice(4));
+        }
+        else if (values.length >= 4) {
+            return null;
+        }
+    }
+    if (values.length !== 3 && values.length !== 4 || values.indexOf('') > -1) {
+        return null;
+    }
+    // Question: what should we do with `alpha` being none?
+    if (convertNoneToZero) {
+        return values.map(value => value === 'none' ? '0' : value);
+    }
+    return values;
+}
+function clamp(value, { min, max }) {
+    if (value === null) {
+        return value;
+    }
+    if (min !== undefined) {
+        value = Math.max(value, min);
+    }
+    if (max !== undefined) {
+        value = Math.min(value, max);
+    }
+    return value;
+}
+function parsePercentage(value, range) {
+    if (!value.endsWith('%')) {
+        return null;
+    }
+    const percentage = parseFloat(value.substr(0, value.length - 1));
+    return isNaN(percentage) ? null : mapPercentToRange(percentage, range);
+}
+function parseNumber(value) {
+    const number = parseFloat(value);
+    return isNaN(number) ? null : number;
+}
+function parseAlpha(value) {
+    if (value === undefined) {
+        return null;
+    }
+    return clamp(parsePercentage(value, [0, 1]) ?? parseNumber(value), { min: 0, max: 1 });
+}
+/**
+ *
+ * @param value Text value to be parsed in the form of 'number|percentage'.
+ * @param range Range to map the percentage.
+ * @returns If it is not percentage, returns number directly; otherwise,
+ * maps the percentage to the range. For example:
+ * - 30% in range [0, 100] is 30
+ * - 20% in range [0, 1] is 0.5
+ */
+function parsePercentOrNumber(value, range = [0, 1]) {
+    // @ts-ignore: isNaN can accept strings
+    if (isNaN(value.replace('%', ''))) {
+        return null;
+    }
+    const parsed = parseFloat(value);
+    if (value.indexOf('%') !== -1) {
+        if (value.indexOf('%') !== value.length - 1) {
+            return null;
+        }
+        return mapPercentToRange(parsed, range);
+    }
+    return parsed;
+}
+function parseRgbNumeric(value) {
+    const parsed = parsePercentOrNumber(value);
+    if (parsed === null) {
+        return null;
+    }
+    if (value.indexOf('%') !== -1) {
         return parsed;
     }
-    static parseRgbNumeric(value) {
-        const parsed = Color.parsePercentOrNumber(value);
-        if (parsed === null) {
-            return null;
-        }
-        if (value.indexOf('%') !== -1) {
-            return parsed;
-        }
-        return parsed / 255;
+    return parsed / 255;
+}
+function parseHueNumeric(value) {
+    const angle = value.replace(/(deg|g?rad|turn)$/, '');
+    // @ts-ignore: isNaN can accept strings
+    if (isNaN(angle) || value.match(/\s+(deg|g?rad|turn)/)) {
+        return null;
     }
-    static parseHueNumeric(value) {
-        const angle = value.replace(/(deg|g?rad|turn)$/, '');
-        // @ts-ignore: isNaN can accept strings
-        if (isNaN(angle) || value.match(/\s+(deg|g?rad|turn)/)) {
-            return null;
-        }
-        const number = parseFloat(angle);
-        if (value.indexOf('turn') !== -1) {
-            return number % 1;
-        }
-        if (value.indexOf('grad') !== -1) {
-            return (number / 400) % 1;
-        }
-        if (value.indexOf('rad') !== -1) {
-            return (number / (2 * Math.PI)) % 1;
-        }
-        return (number / 360) % 1;
+    const number = parseFloat(angle);
+    if (value.indexOf('turn') !== -1) {
+        return number % 1;
     }
-    static parseSatLightNumeric(value) {
-        // @ts-ignore: isNaN can accept strings
-        if (value.indexOf('%') !== value.length - 1 || isNaN(value.replace('%', ''))) {
-            return null;
-        }
-        const parsed = parseFloat(value);
-        return Math.min(1, parsed / 100);
+    if (value.indexOf('grad') !== -1) {
+        return (number / 400) % 1;
     }
-    static parseAlphaNumeric(value) {
-        return Color.parsePercentOrNumber(value);
+    if (value.indexOf('rad') !== -1) {
+        return (number / (2 * Math.PI)) % 1;
     }
-    // TODO(crbug.com/1172300) Ignored during the jsdoc to ts migration
-    // eslint-disable-next-line @typescript-eslint/naming-convention
-    static hsva2hsla(hsva, out_hsla) {
-        const h = hsva[0];
-        let s = hsva[1];
-        const v = hsva[2];
-        const t = (2 - s) * v;
-        if (v === 0 || s === 0) {
-            s = 0;
-        }
-        else {
-            s *= v / (t < 1 ? t : 2 - t);
-        }
-        out_hsla[0] = h;
-        out_hsla[1] = s;
-        out_hsla[2] = t / 2;
-        out_hsla[3] = hsva[3];
+    return (number / 360) % 1;
+}
+function parseSatLightNumeric(value) {
+    // @ts-ignore: isNaN can accept strings
+    if (value.indexOf('%') !== value.length - 1 || isNaN(value.replace('%', ''))) {
+        return null;
     }
-    // TODO(crbug.com/1172300) Ignored during the jsdoc to ts migration
-    // eslint-disable-next-line @typescript-eslint/naming-convention
-    static hsl2rgb(hsl, out_rgb) {
-        const h = hsl[0];
-        let s = hsl[1];
-        const l = hsl[2];
-        function hue2rgb(p, q, h) {
-            if (h < 0) {
-                h += 1;
-            }
-            else if (h > 1) {
-                h -= 1;
-            }
-            if ((h * 6) < 1) {
-                return p + (q - p) * h * 6;
-            }
-            if ((h * 2) < 1) {
-                return q;
-            }
-            if ((h * 3) < 2) {
-                return p + (q - p) * ((2 / 3) - h) * 6;
-            }
-            return p;
-        }
-        if (s < 0) {
-            s = 0;
-        }
-        let q;
-        if (l <= 0.5) {
-            q = l * (1 + s);
-        }
-        else {
-            q = l + s - (l * s);
-        }
-        const p = 2 * l - q;
-        const tr = h + (1 / 3);
-        const tg = h;
-        const tb = h - (1 / 3);
-        out_rgb[0] = hue2rgb(p, q, tr);
-        out_rgb[1] = hue2rgb(p, q, tg);
-        out_rgb[2] = hue2rgb(p, q, tb);
-        out_rgb[3] = hsl[3];
+    const parsed = parseFloat(value);
+    return parsed / 100;
+}
+function parseAlphaNumeric(value) {
+    return parsePercentOrNumber(value);
+}
+// TODO(crbug.com/1172300) Ignored during the jsdoc to ts migration
+// eslint-disable-next-line @typescript-eslint/naming-convention
+function hsva2hsla(hsva, out_hsla) {
+    const h = hsva[0];
+    let s = hsva[1];
+    const v = hsva[2];
+    const t = (2 - s) * v;
+    if (v === 0 || s === 0) {
+        s = 0;
     }
-    // TODO(crbug.com/1172300) Ignored during the jsdoc to ts migration
-    // eslint-disable-next-line @typescript-eslint/naming-convention
-    static hsva2rgba(hsva, out_rgba) {
-        Color.hsva2hsla(hsva, _tmpHSLA);
-        Color.hsl2rgb(_tmpHSLA, out_rgba);
-        for (let i = 0; i < _tmpHSLA.length; i++) {
-            _tmpHSLA[i] = 0;
+    else {
+        s *= v / (t < 1 ? t : 2 - t);
+    }
+    out_hsla[0] = h;
+    out_hsla[1] = s;
+    out_hsla[2] = t / 2;
+    out_hsla[3] = hsva[3];
+}
+// eslint-disable-next-line @typescript-eslint/naming-convention
+export function hsl2rgb(hsl, out_rgb) {
+    const h = hsl[0];
+    let s = hsl[1];
+    const l = hsl[2];
+    function hue2rgb(p, q, h) {
+        if (h < 0) {
+            h += 1;
+        }
+        else if (h > 1) {
+            h -= 1;
+        }
+        if ((h * 6) < 1) {
+            return p + (q - p) * h * 6;
+        }
+        if ((h * 2) < 1) {
+            return q;
+        }
+        if ((h * 3) < 2) {
+            return p + (q - p) * ((2 / 3) - h) * 6;
+        }
+        return p;
+    }
+    if (s < 0) {
+        s = 0;
+    }
+    let q;
+    if (l <= 0.5) {
+        q = l * (1 + s);
+    }
+    else {
+        q = l + s - (l * s);
+    }
+    const p = 2 * l - q;
+    const tr = h + (1 / 3);
+    const tg = h;
+    const tb = h - (1 / 3);
+    out_rgb[0] = hue2rgb(p, q, tr);
+    out_rgb[1] = hue2rgb(p, q, tg);
+    out_rgb[2] = hue2rgb(p, q, tb);
+    out_rgb[3] = hsl[3];
+}
+// eslint-disable-next-line @typescript-eslint/naming-convention
+function hwb2rgb(hwb, out_rgb) {
+    const h = hwb[0];
+    const w = hwb[1];
+    const b = hwb[2];
+    if (w + b >= 1) {
+        out_rgb[0] = out_rgb[1] = out_rgb[2] = w / (w + b);
+        out_rgb[3] = hwb[3];
+    }
+    else {
+        hsl2rgb([h, 1, 0.5, hwb[3]], out_rgb);
+        for (let i = 0; i < 3; ++i) {
+            out_rgb[i] += w - (w + b) * out_rgb[i];
         }
     }
-    /**
-     * Compute a desired luminance given a given luminance and a desired contrast
-     * ratio.
-     */
-    static desiredLuminance(luminance, contrast, lighter) {
-        function computeLuminance() {
-            if (lighter) {
-                return (luminance + 0.05) * contrast - 0.05;
-            }
-            return (luminance + 0.05) / contrast - 0.05;
+}
+// eslint-disable-next-line @typescript-eslint/naming-convention
+export function hsva2rgba(hsva, out_rgba) {
+    const tmpHSLA = [0, 0, 0, 0];
+    hsva2hsla(hsva, tmpHSLA);
+    hsl2rgb(tmpHSLA, out_rgba);
+}
+export function rgb2hsv(rgba) {
+    const hsla = rgbToHsl(rgba);
+    const h = hsla[0];
+    let s = hsla[1];
+    const l = hsla[2];
+    s *= l < 0.5 ? l : 1 - l;
+    return [h, s !== 0 ? 2 * s / (l + s) : 0, (l + s)];
+}
+/**
+ * Compute a desired luminance given a given luminance and a desired contrast
+ * ratio.
+ */
+export function desiredLuminance(luminance, contrast, lighter) {
+    function computeLuminance() {
+        if (lighter) {
+            return (luminance + 0.05) * contrast - 0.05;
         }
-        let desiredLuminance = computeLuminance();
-        if (desiredLuminance < 0 || desiredLuminance > 1) {
-            lighter = !lighter;
-            desiredLuminance = computeLuminance();
-        }
-        return desiredLuminance;
+        return (luminance + 0.05) / contrast - 0.05;
     }
-    /**
-     * Approach a value of the given component of `candidateHSVA` such that the
-     * calculated luminance of `candidateHSVA` approximates `desiredLuminance`.
-     */
-    static approachColorValue(candidateHSVA, bgRGBA, index, desiredLuminance, candidateLuminance) {
-        const epsilon = 0.0002;
-        let x = candidateHSVA[index];
-        let multiplier = 1;
-        let dLuminance = candidateLuminance(candidateHSVA) - desiredLuminance;
-        let previousSign = Math.sign(dLuminance);
-        for (let guard = 100; guard; guard--) {
-            if (Math.abs(dLuminance) < epsilon) {
-                candidateHSVA[index] = x;
-                return x;
-            }
-            const sign = Math.sign(dLuminance);
-            if (sign !== previousSign) {
-                // If `x` overshoots the correct value, halve the step size.
-                multiplier /= 2;
-                previousSign = sign;
-            }
-            else if (x < 0 || x > 1) {
-                // If there is no overshoot and `x` is out of bounds, there is no
-                // acceptable value for `x`.
-                return null;
-            }
-            // Adjust `x` by a multiple of `dLuminance` to decrease step size as
-            // the computed luminance converges on `desiredLuminance`.
-            x += multiplier * (index === 2 ? -dLuminance : dLuminance);
+    let desiredLuminance = computeLuminance();
+    if (desiredLuminance < 0 || desiredLuminance > 1) {
+        lighter = !lighter;
+        desiredLuminance = computeLuminance();
+    }
+    return desiredLuminance;
+}
+/**
+ * Approach a value of the given component of `candidateHSVA` such that the
+ * calculated luminance of `candidateHSVA` approximates `desiredLuminance`.
+ */
+export function approachColorValue(candidateHSVA, bgRGBA, index, desiredLuminance, candidateLuminance) {
+    const epsilon = 0.0002;
+    let x = candidateHSVA[index];
+    let multiplier = 1;
+    let dLuminance = candidateLuminance(candidateHSVA) - desiredLuminance;
+    let previousSign = Math.sign(dLuminance);
+    for (let guard = 100; guard; guard--) {
+        if (Math.abs(dLuminance) < epsilon) {
             candidateHSVA[index] = x;
-            dLuminance = candidateLuminance(candidateHSVA) - desiredLuminance;
+            return x;
+        }
+        const sign = Math.sign(dLuminance);
+        if (sign !== previousSign) {
+            // If `x` overshoots the correct value, halve the step size.
+            multiplier /= 2;
+            previousSign = sign;
+        }
+        else if (x < 0 || x > 1) {
+            // If there is no overshoot and `x` is out of bounds, there is no
+            // acceptable value for `x`.
+            return null;
+        }
+        // Adjust `x` by a multiple of `dLuminance` to decrease step size as
+        // the computed luminance converges on `desiredLuminance`.
+        x += multiplier * (index === 2 ? -dLuminance : dLuminance);
+        candidateHSVA[index] = x;
+        dLuminance = candidateLuminance(candidateHSVA) - desiredLuminance;
+    }
+    return null;
+}
+export function findFgColorForContrast(fgColor, bgColor, requiredContrast) {
+    const candidateHSVA = fgColor.as("hsl" /* Format.HSL */).hsva();
+    const bgRGBA = bgColor.rgba();
+    const candidateLuminance = (candidateHSVA) => {
+        return luminance(blendColors(Legacy.fromHSVA(candidateHSVA).rgba(), bgRGBA));
+    };
+    const bgLuminance = luminance(bgColor.rgba());
+    const fgLuminance = candidateLuminance(candidateHSVA);
+    const fgIsLighter = fgLuminance > bgLuminance;
+    const desired = desiredLuminance(bgLuminance, requiredContrast, fgIsLighter);
+    const saturationComponentIndex = 1;
+    const valueComponentIndex = 2;
+    if (approachColorValue(candidateHSVA, bgRGBA, valueComponentIndex, desired, candidateLuminance)) {
+        return Legacy.fromHSVA(candidateHSVA);
+    }
+    candidateHSVA[valueComponentIndex] = 1;
+    if (approachColorValue(candidateHSVA, bgRGBA, saturationComponentIndex, desired, candidateLuminance)) {
+        return Legacy.fromHSVA(candidateHSVA);
+    }
+    return null;
+}
+export function findFgColorForContrastAPCA(fgColor, bgColor, requiredContrast) {
+    const candidateHSVA = fgColor.as("hsl" /* Format.HSL */).hsva();
+    const bgRGBA = bgColor.rgba();
+    const candidateLuminance = (candidateHSVA) => {
+        return luminanceAPCA(Legacy.fromHSVA(candidateHSVA).rgba());
+    };
+    const bgLuminance = luminanceAPCA(bgColor.rgba());
+    const fgLuminance = candidateLuminance(candidateHSVA);
+    const fgIsLighter = fgLuminance >= bgLuminance;
+    const desiredLuminance = desiredLuminanceAPCA(bgLuminance, requiredContrast, fgIsLighter);
+    const saturationComponentIndex = 1;
+    const valueComponentIndex = 2;
+    if (approachColorValue(candidateHSVA, bgRGBA, valueComponentIndex, desiredLuminance, candidateLuminance)) {
+        const candidate = Legacy.fromHSVA(candidateHSVA);
+        if (Math.abs(contrastRatioAPCA(bgColor.rgba(), candidate.rgba())) >= requiredContrast) {
+            return candidate;
+        }
+    }
+    candidateHSVA[valueComponentIndex] = 1;
+    if (approachColorValue(candidateHSVA, bgRGBA, saturationComponentIndex, desiredLuminance, candidateLuminance)) {
+        const candidate = Legacy.fromHSVA(candidateHSVA);
+        if (Math.abs(contrastRatioAPCA(bgColor.rgba(), candidate.rgba())) >= requiredContrast) {
+            return candidate;
+        }
+    }
+    return null;
+}
+const EPSILON = 0.01;
+const WIDE_RANGE_EPSILON = 1; // For comparisons on channels with a wider range than [0,1]
+function equals(a, b, accuracy = EPSILON) {
+    if (Array.isArray(a) && Array.isArray(b)) {
+        if (a.length !== b.length) {
+            return false;
+        }
+        for (const i in a) {
+            if (!equals(a[i], b[i])) {
+                return false;
+            }
+        }
+        return true;
+    }
+    if (Array.isArray(a) || Array.isArray(b)) {
+        return false;
+    }
+    if (a === null || b === null) {
+        return a === b;
+    }
+    return Math.abs(a - b) < accuracy;
+}
+function lessOrEquals(a, b, accuracy = EPSILON) {
+    return a - b <= accuracy;
+}
+export class Lab {
+    l;
+    a;
+    b;
+    alpha;
+    #authoredText;
+    #rawParams;
+    static #conversions = {
+        ["nickname" /* Format.Nickname */]: (self) => new Legacy(self.#getRGBArray(/* withAlpha= */ false), "nickname" /* Format.Nickname */),
+        ["hex" /* Format.HEX */]: (self) => new Legacy(self.#getRGBArray(/* withAlpha= */ false), "hex" /* Format.HEX */),
+        ["shorthex" /* Format.ShortHEX */]: (self) => new Legacy(self.#getRGBArray(/* withAlpha= */ false), "shorthex" /* Format.ShortHEX */),
+        ["hexa" /* Format.HEXA */]: (self) => new Legacy(self.#getRGBArray(/* withAlpha= */ true), "hexa" /* Format.HEXA */),
+        ["shorthexa" /* Format.ShortHEXA */]: (self) => new Legacy(self.#getRGBArray(/* withAlpha= */ true), "shorthexa" /* Format.ShortHEXA */),
+        ["rgb" /* Format.RGB */]: (self) => new Legacy(self.#getRGBArray(/* withAlpha= */ false), "rgb" /* Format.RGB */),
+        ["rgba" /* Format.RGBA */]: (self) => new Legacy(self.#getRGBArray(/* withAlpha= */ true), "rgba" /* Format.RGBA */),
+        ["hsl" /* Format.HSL */]: (self) => new HSL(...rgbToHsl(self.#getRGBArray(/* withAlpha= */ false)), self.alpha),
+        ["hsla" /* Format.HSLA */]: (self) => new HSL(...rgbToHsl(self.#getRGBArray(/* withAlpha= */ false)), self.alpha),
+        ["hwb" /* Format.HWB */]: (self) => new HWB(...rgbToHwb(self.#getRGBArray(/* withAlpha= */ false)), self.alpha),
+        ["hwba" /* Format.HWBA */]: (self) => new HWB(...rgbToHwb(self.#getRGBArray(/* withAlpha= */ false)), self.alpha),
+        ["lch" /* Format.LCH */]: (self) => new LCH(...ColorConverter.labToLch(self.l, self.a, self.b), self.alpha),
+        ["oklch" /* Format.OKLCH */]: (self) => new Oklch(...ColorConverter.xyzd50ToOklch(...self.#toXyzd50()), self.alpha),
+        ["lab" /* Format.LAB */]: (self) => self,
+        ["oklab" /* Format.OKLAB */]: (self) => new Oklab(...ColorConverter.xyzd65ToOklab(...ColorConverter.xyzd50ToD65(...self.#toXyzd50())), self.alpha),
+        ["srgb" /* Format.SRGB */]: (self) => new ColorFunction("srgb" /* Format.SRGB */, ...ColorConverter.xyzd50ToSrgb(...self.#toXyzd50()), self.alpha),
+        ["srgb-linear" /* Format.SRGB_LINEAR */]: (self) => new ColorFunction("srgb-linear" /* Format.SRGB_LINEAR */, ...ColorConverter.xyzd50TosRGBLinear(...self.#toXyzd50()), self.alpha),
+        ["display-p3" /* Format.DISPLAY_P3 */]: (self) => new ColorFunction("display-p3" /* Format.DISPLAY_P3 */, ...ColorConverter.xyzd50ToDisplayP3(...self.#toXyzd50()), self.alpha),
+        ["a98-rgb" /* Format.A98_RGB */]: (self) => new ColorFunction("a98-rgb" /* Format.A98_RGB */, ...ColorConverter.xyzd50ToAdobeRGB(...self.#toXyzd50()), self.alpha),
+        ["prophoto-rgb" /* Format.PROPHOTO_RGB */]: (self) => new ColorFunction("prophoto-rgb" /* Format.PROPHOTO_RGB */, ...ColorConverter.xyzd50ToProPhoto(...self.#toXyzd50()), self.alpha),
+        ["rec2020" /* Format.REC_2020 */]: (self) => new ColorFunction("rec2020" /* Format.REC_2020 */, ...ColorConverter.xyzd50ToRec2020(...self.#toXyzd50()), self.alpha),
+        ["xyz" /* Format.XYZ */]: (self) => new ColorFunction("xyz" /* Format.XYZ */, ...ColorConverter.xyzd50ToD65(...self.#toXyzd50()), self.alpha),
+        ["xyz-d50" /* Format.XYZ_D50 */]: (self) => new ColorFunction("xyz-d50" /* Format.XYZ_D50 */, ...self.#toXyzd50(), self.alpha),
+        ["xyz-d65" /* Format.XYZ_D65 */]: (self) => new ColorFunction("xyz-d65" /* Format.XYZ_D65 */, ...ColorConverter.xyzd50ToD65(...self.#toXyzd50()), self.alpha),
+    };
+    #toXyzd50() {
+        return ColorConverter.labToXyzd50(this.l, this.a, this.b);
+    }
+    #getRGBArray(withAlpha = true) {
+        const params = ColorConverter.xyzd50ToSrgb(...this.#toXyzd50());
+        if (withAlpha) {
+            return [...params, this.alpha ?? undefined];
+        }
+        return params;
+    }
+    constructor(l, a, b, alpha, authoredText) {
+        this.#rawParams = [l, a, b];
+        this.l = clamp(l, { min: 0, max: 100 });
+        if (equals(this.l, 0, WIDE_RANGE_EPSILON) || equals(this.l, 100, WIDE_RANGE_EPSILON)) {
+            a = b = 0;
+        }
+        this.a = a;
+        this.b = b;
+        this.alpha = clamp(alpha, { min: 0, max: 1 });
+        this.#authoredText = authoredText;
+    }
+    as(format) {
+        return Lab.#conversions[format](this);
+    }
+    asLegacyColor() {
+        return this.as("rgba" /* Format.RGBA */);
+    }
+    equal(color) {
+        const lab = color.as("lab" /* Format.LAB */);
+        return equals(lab.l, this.l, WIDE_RANGE_EPSILON) && equals(lab.a, this.a) && equals(lab.b, this.b) &&
+            equals(lab.alpha, this.alpha);
+    }
+    format() {
+        return "lab" /* Format.LAB */;
+    }
+    setAlpha(alpha) {
+        return new Lab(this.l, this.a, this.b, alpha, undefined);
+    }
+    asString(format) {
+        if (format) {
+            return this.as(format).asString();
+        }
+        return this.#stringify(this.l, this.a, this.b);
+    }
+    #stringify(l, a, b) {
+        const alpha = this.alpha === null || equals(this.alpha, 1) ?
+            '' :
+            ` / ${Platform.StringUtilities.stringifyWithPrecision(this.alpha)}`;
+        return `lab(${Platform.StringUtilities.stringifyWithPrecision(l, 0)} ${Platform.StringUtilities.stringifyWithPrecision(a)} ${Platform.StringUtilities.stringifyWithPrecision(b)}${alpha})`;
+    }
+    getAuthoredText() {
+        return this.#authoredText ?? null;
+    }
+    getRawParameters() {
+        return [...this.#rawParams];
+    }
+    getAsRawString(format) {
+        if (format) {
+            return this.as(format).getAsRawString();
+        }
+        return this.#stringify(...this.#rawParams);
+    }
+    isGamutClipped() {
+        return false;
+    }
+    static fromSpec(spec, text) {
+        const L = parsePercentage(spec[0], [0, 100]) ?? parseNumber(spec[0]);
+        if (L === null) {
+            return null;
+        }
+        const a = parsePercentage(spec[1], [0, 125]) ?? parseNumber(spec[1]);
+        if (a === null) {
+            return null;
+        }
+        const b = parsePercentage(spec[2], [0, 125]) ?? parseNumber(spec[2]);
+        if (b === null) {
+            return null;
+        }
+        const alpha = parseAlpha(spec[3]);
+        return new Lab(L, a, b, alpha, text);
+    }
+}
+export class LCH {
+    #rawParams;
+    l;
+    c;
+    h;
+    alpha;
+    #authoredText;
+    static #conversions = {
+        ["nickname" /* Format.Nickname */]: (self) => new Legacy(self.#getRGBArray(/* withAlpha= */ false), "nickname" /* Format.Nickname */),
+        ["hex" /* Format.HEX */]: (self) => new Legacy(self.#getRGBArray(/* withAlpha= */ false), "hex" /* Format.HEX */),
+        ["shorthex" /* Format.ShortHEX */]: (self) => new Legacy(self.#getRGBArray(/* withAlpha= */ false), "shorthex" /* Format.ShortHEX */),
+        ["hexa" /* Format.HEXA */]: (self) => new Legacy(self.#getRGBArray(/* withAlpha= */ true), "hexa" /* Format.HEXA */),
+        ["shorthexa" /* Format.ShortHEXA */]: (self) => new Legacy(self.#getRGBArray(/* withAlpha= */ true), "shorthexa" /* Format.ShortHEXA */),
+        ["rgb" /* Format.RGB */]: (self) => new Legacy(self.#getRGBArray(/* withAlpha= */ false), "rgb" /* Format.RGB */),
+        ["rgba" /* Format.RGBA */]: (self) => new Legacy(self.#getRGBArray(/* withAlpha= */ true), "rgba" /* Format.RGBA */),
+        ["hsl" /* Format.HSL */]: (self) => new HSL(...rgbToHsl(self.#getRGBArray(/* withAlpha= */ false)), self.alpha),
+        ["hsla" /* Format.HSLA */]: (self) => new HSL(...rgbToHsl(self.#getRGBArray(/* withAlpha= */ false)), self.alpha),
+        ["hwb" /* Format.HWB */]: (self) => new HWB(...rgbToHwb(self.#getRGBArray(/* withAlpha= */ false)), self.alpha),
+        ["hwba" /* Format.HWBA */]: (self) => new HWB(...rgbToHwb(self.#getRGBArray(/* withAlpha= */ false)), self.alpha),
+        ["lch" /* Format.LCH */]: (self) => self,
+        ["oklch" /* Format.OKLCH */]: (self) => new Oklch(...ColorConverter.xyzd50ToOklch(...self.#toXyzd50()), self.alpha),
+        ["lab" /* Format.LAB */]: (self) => new Lab(...ColorConverter.lchToLab(self.l, self.c, self.h), self.alpha),
+        ["oklab" /* Format.OKLAB */]: (self) => new Oklab(...ColorConverter.xyzd65ToOklab(...ColorConverter.xyzd50ToD65(...self.#toXyzd50())), self.alpha),
+        ["srgb" /* Format.SRGB */]: (self) => new ColorFunction("srgb" /* Format.SRGB */, ...ColorConverter.xyzd50ToSrgb(...self.#toXyzd50()), self.alpha),
+        ["srgb-linear" /* Format.SRGB_LINEAR */]: (self) => new ColorFunction("srgb-linear" /* Format.SRGB_LINEAR */, ...ColorConverter.xyzd50TosRGBLinear(...self.#toXyzd50()), self.alpha),
+        ["display-p3" /* Format.DISPLAY_P3 */]: (self) => new ColorFunction("display-p3" /* Format.DISPLAY_P3 */, ...ColorConverter.xyzd50ToDisplayP3(...self.#toXyzd50()), self.alpha),
+        ["a98-rgb" /* Format.A98_RGB */]: (self) => new ColorFunction("a98-rgb" /* Format.A98_RGB */, ...ColorConverter.xyzd50ToAdobeRGB(...self.#toXyzd50()), self.alpha),
+        ["prophoto-rgb" /* Format.PROPHOTO_RGB */]: (self) => new ColorFunction("prophoto-rgb" /* Format.PROPHOTO_RGB */, ...ColorConverter.xyzd50ToProPhoto(...self.#toXyzd50()), self.alpha),
+        ["rec2020" /* Format.REC_2020 */]: (self) => new ColorFunction("rec2020" /* Format.REC_2020 */, ...ColorConverter.xyzd50ToRec2020(...self.#toXyzd50()), self.alpha),
+        ["xyz" /* Format.XYZ */]: (self) => new ColorFunction("xyz" /* Format.XYZ */, ...ColorConverter.xyzd50ToD65(...self.#toXyzd50()), self.alpha),
+        ["xyz-d50" /* Format.XYZ_D50 */]: (self) => new ColorFunction("xyz-d50" /* Format.XYZ_D50 */, ...self.#toXyzd50(), self.alpha),
+        ["xyz-d65" /* Format.XYZ_D65 */]: (self) => new ColorFunction("xyz-d65" /* Format.XYZ_D65 */, ...ColorConverter.xyzd50ToD65(...self.#toXyzd50()), self.alpha),
+    };
+    #toXyzd50() {
+        return ColorConverter.labToXyzd50(...ColorConverter.lchToLab(this.l, this.c, this.h));
+    }
+    #getRGBArray(withAlpha = true) {
+        const params = ColorConverter.xyzd50ToSrgb(...this.#toXyzd50());
+        if (withAlpha) {
+            return [...params, this.alpha ?? undefined];
+        }
+        return params;
+    }
+    constructor(l, c, h, alpha, authoredText) {
+        this.#rawParams = [l, c, h];
+        this.l = clamp(l, { min: 0, max: 100 });
+        c = equals(this.l, 0, WIDE_RANGE_EPSILON) || equals(this.l, 100, WIDE_RANGE_EPSILON) ? 0 : c;
+        this.c = clamp(c, { min: 0 });
+        h = equals(c, 0) ? 0 : h;
+        this.h = normalizeHue(h);
+        this.alpha = clamp(alpha, { min: 0, max: 1 });
+        this.#authoredText = authoredText;
+    }
+    asLegacyColor() {
+        return this.as("rgba" /* Format.RGBA */);
+    }
+    as(format) {
+        return LCH.#conversions[format](this);
+    }
+    equal(color) {
+        const lch = color.as("lch" /* Format.LCH */);
+        return equals(lch.l, this.l, WIDE_RANGE_EPSILON) && equals(lch.c, this.c) && equals(lch.h, this.h) &&
+            equals(lch.alpha, this.alpha);
+    }
+    format() {
+        return "lch" /* Format.LCH */;
+    }
+    setAlpha(alpha) {
+        return new LCH(this.l, this.c, this.h, alpha);
+    }
+    asString(format) {
+        if (format) {
+            return this.as(format).asString();
+        }
+        return this.#stringify(this.l, this.c, this.h);
+    }
+    #stringify(l, c, h) {
+        const alpha = this.alpha === null || equals(this.alpha, 1) ?
+            '' :
+            ` / ${Platform.StringUtilities.stringifyWithPrecision(this.alpha)}`;
+        return `lch(${Platform.StringUtilities.stringifyWithPrecision(l, 0)} ${Platform.StringUtilities.stringifyWithPrecision(c)} ${Platform.StringUtilities.stringifyWithPrecision(h)}${alpha})`;
+    }
+    getAuthoredText() {
+        return this.#authoredText ?? null;
+    }
+    getRawParameters() {
+        return [...this.#rawParams];
+    }
+    getAsRawString(format) {
+        if (format) {
+            return this.as(format).getAsRawString();
+        }
+        return this.#stringify(...this.#rawParams);
+    }
+    isGamutClipped() {
+        return false;
+    }
+    // See "powerless" component definitions in
+    // https://www.w3.org/TR/css-color-4/#specifying-lab-lch
+    isHuePowerless() {
+        return equals(this.c, 0);
+    }
+    static fromSpec(spec, text) {
+        const L = parsePercentage(spec[0], [0, 100]) ?? parseNumber(spec[0]);
+        if (L === null) {
+            return null;
+        }
+        const c = parsePercentage(spec[1], [0, 150]) ?? parseNumber(spec[1]);
+        if (c === null) {
+            return null;
+        }
+        const h = parseAngle(spec[2]);
+        if (h === null) {
+            return null;
+        }
+        const alpha = parseAlpha(spec[3]);
+        return new LCH(L, c, h, alpha, text);
+    }
+}
+export class Oklab {
+    #rawParams;
+    l;
+    a;
+    b;
+    alpha;
+    #authoredText;
+    static #conversions = {
+        ["nickname" /* Format.Nickname */]: (self) => new Legacy(self.#getRGBArray(/* withAlpha= */ false), "nickname" /* Format.Nickname */),
+        ["hex" /* Format.HEX */]: (self) => new Legacy(self.#getRGBArray(/* withAlpha= */ false), "hex" /* Format.HEX */),
+        ["shorthex" /* Format.ShortHEX */]: (self) => new Legacy(self.#getRGBArray(/* withAlpha= */ false), "shorthex" /* Format.ShortHEX */),
+        ["hexa" /* Format.HEXA */]: (self) => new Legacy(self.#getRGBArray(/* withAlpha= */ true), "hexa" /* Format.HEXA */),
+        ["shorthexa" /* Format.ShortHEXA */]: (self) => new Legacy(self.#getRGBArray(/* withAlpha= */ true), "shorthexa" /* Format.ShortHEXA */),
+        ["rgb" /* Format.RGB */]: (self) => new Legacy(self.#getRGBArray(/* withAlpha= */ false), "rgb" /* Format.RGB */),
+        ["rgba" /* Format.RGBA */]: (self) => new Legacy(self.#getRGBArray(/* withAlpha= */ true), "rgba" /* Format.RGBA */),
+        ["hsl" /* Format.HSL */]: (self) => new HSL(...rgbToHsl(self.#getRGBArray(/* withAlpha= */ false)), self.alpha),
+        ["hsla" /* Format.HSLA */]: (self) => new HSL(...rgbToHsl(self.#getRGBArray(/* withAlpha= */ false)), self.alpha),
+        ["hwb" /* Format.HWB */]: (self) => new HWB(...rgbToHwb(self.#getRGBArray(/* withAlpha= */ false)), self.alpha),
+        ["hwba" /* Format.HWBA */]: (self) => new HWB(...rgbToHwb(self.#getRGBArray(/* withAlpha= */ false)), self.alpha),
+        ["lch" /* Format.LCH */]: (self) => new LCH(...ColorConverter.labToLch(...ColorConverter.xyzd50ToLab(...self.#toXyzd50())), self.alpha),
+        ["oklch" /* Format.OKLCH */]: (self) => new Oklch(...ColorConverter.xyzd50ToOklch(...self.#toXyzd50()), self.alpha),
+        ["lab" /* Format.LAB */]: (self) => new Lab(...ColorConverter.xyzd50ToLab(...self.#toXyzd50()), self.alpha),
+        ["oklab" /* Format.OKLAB */]: (self) => self,
+        ["srgb" /* Format.SRGB */]: (self) => new ColorFunction("srgb" /* Format.SRGB */, ...ColorConverter.xyzd50ToSrgb(...self.#toXyzd50()), self.alpha),
+        ["srgb-linear" /* Format.SRGB_LINEAR */]: (self) => new ColorFunction("srgb-linear" /* Format.SRGB_LINEAR */, ...ColorConverter.xyzd50TosRGBLinear(...self.#toXyzd50()), self.alpha),
+        ["display-p3" /* Format.DISPLAY_P3 */]: (self) => new ColorFunction("display-p3" /* Format.DISPLAY_P3 */, ...ColorConverter.xyzd50ToDisplayP3(...self.#toXyzd50()), self.alpha),
+        ["a98-rgb" /* Format.A98_RGB */]: (self) => new ColorFunction("a98-rgb" /* Format.A98_RGB */, ...ColorConverter.xyzd50ToAdobeRGB(...self.#toXyzd50()), self.alpha),
+        ["prophoto-rgb" /* Format.PROPHOTO_RGB */]: (self) => new ColorFunction("prophoto-rgb" /* Format.PROPHOTO_RGB */, ...ColorConverter.xyzd50ToProPhoto(...self.#toXyzd50()), self.alpha),
+        ["rec2020" /* Format.REC_2020 */]: (self) => new ColorFunction("rec2020" /* Format.REC_2020 */, ...ColorConverter.xyzd50ToRec2020(...self.#toXyzd50()), self.alpha),
+        ["xyz" /* Format.XYZ */]: (self) => new ColorFunction("xyz" /* Format.XYZ */, ...ColorConverter.xyzd50ToD65(...self.#toXyzd50()), self.alpha),
+        ["xyz-d50" /* Format.XYZ_D50 */]: (self) => new ColorFunction("xyz-d50" /* Format.XYZ_D50 */, ...self.#toXyzd50(), self.alpha),
+        ["xyz-d65" /* Format.XYZ_D65 */]: (self) => new ColorFunction("xyz-d65" /* Format.XYZ_D65 */, ...ColorConverter.xyzd50ToD65(...self.#toXyzd50()), self.alpha),
+    };
+    #toXyzd50() {
+        return ColorConverter.xyzd65ToD50(...ColorConverter.oklabToXyzd65(this.l, this.a, this.b));
+    }
+    #getRGBArray(withAlpha = true) {
+        const params = ColorConverter.xyzd50ToSrgb(...this.#toXyzd50());
+        if (withAlpha) {
+            return [...params, this.alpha ?? undefined];
+        }
+        return params;
+    }
+    constructor(l, a, b, alpha, authoredText) {
+        this.#rawParams = [l, a, b];
+        this.l = clamp(l, { min: 0, max: 1 });
+        if (equals(this.l, 0) || equals(this.l, 1)) {
+            a = b = 0;
+        }
+        this.a = a;
+        this.b = b;
+        this.alpha = clamp(alpha, { min: 0, max: 1 });
+        this.#authoredText = authoredText;
+    }
+    asLegacyColor() {
+        return this.as("rgba" /* Format.RGBA */);
+    }
+    as(format) {
+        return Oklab.#conversions[format](this);
+    }
+    equal(color) {
+        const oklab = color.as("oklab" /* Format.OKLAB */);
+        return equals(oklab.l, this.l) && equals(oklab.a, this.a) && equals(oklab.b, this.b) &&
+            equals(oklab.alpha, this.alpha);
+    }
+    format() {
+        return "oklab" /* Format.OKLAB */;
+    }
+    setAlpha(alpha) {
+        return new Oklab(this.l, this.a, this.b, alpha);
+    }
+    asString(format) {
+        if (format) {
+            return this.as(format).asString();
+        }
+        return this.#stringify(this.l, this.a, this.b);
+    }
+    #stringify(l, a, b) {
+        const alpha = this.alpha === null || equals(this.alpha, 1) ?
+            '' :
+            ` / ${Platform.StringUtilities.stringifyWithPrecision(this.alpha)}`;
+        return `oklab(${Platform.StringUtilities.stringifyWithPrecision(l)} ${Platform.StringUtilities.stringifyWithPrecision(a)} ${Platform.StringUtilities.stringifyWithPrecision(b)}${alpha})`;
+    }
+    getAuthoredText() {
+        return this.#authoredText ?? null;
+    }
+    getRawParameters() {
+        return [...this.#rawParams];
+    }
+    getAsRawString(format) {
+        if (format) {
+            return this.as(format).getAsRawString();
+        }
+        return this.#stringify(...this.#rawParams);
+    }
+    isGamutClipped() {
+        return false;
+    }
+    static fromSpec(spec, text) {
+        const L = parsePercentage(spec[0], [0, 1]) ?? parseNumber(spec[0]);
+        if (L === null) {
+            return null;
+        }
+        const a = parsePercentage(spec[1], [0, 0.4]) ?? parseNumber(spec[1]);
+        if (a === null) {
+            return null;
+        }
+        const b = parsePercentage(spec[2], [0, 0.4]) ?? parseNumber(spec[2]);
+        if (b === null) {
+            return null;
+        }
+        const alpha = parseAlpha(spec[3]);
+        return new Oklab(L, a, b, alpha, text);
+    }
+}
+export class Oklch {
+    #rawParams;
+    l;
+    c;
+    h;
+    alpha;
+    #authoredText;
+    static #conversions = {
+        ["nickname" /* Format.Nickname */]: (self) => new Legacy(self.#getRGBArray(/* withAlpha= */ false), "nickname" /* Format.Nickname */),
+        ["hex" /* Format.HEX */]: (self) => new Legacy(self.#getRGBArray(/* withAlpha= */ false), "hex" /* Format.HEX */),
+        ["shorthex" /* Format.ShortHEX */]: (self) => new Legacy(self.#getRGBArray(/* withAlpha= */ false), "shorthex" /* Format.ShortHEX */),
+        ["hexa" /* Format.HEXA */]: (self) => new Legacy(self.#getRGBArray(/* withAlpha= */ true), "hexa" /* Format.HEXA */),
+        ["shorthexa" /* Format.ShortHEXA */]: (self) => new Legacy(self.#getRGBArray(/* withAlpha= */ true), "shorthexa" /* Format.ShortHEXA */),
+        ["rgb" /* Format.RGB */]: (self) => new Legacy(self.#getRGBArray(/* withAlpha= */ false), "rgb" /* Format.RGB */),
+        ["rgba" /* Format.RGBA */]: (self) => new Legacy(self.#getRGBArray(/* withAlpha= */ true), "rgba" /* Format.RGBA */),
+        ["hsl" /* Format.HSL */]: (self) => new HSL(...rgbToHsl(self.#getRGBArray(/* withAlpha= */ false)), self.alpha),
+        ["hsla" /* Format.HSLA */]: (self) => new HSL(...rgbToHsl(self.#getRGBArray(/* withAlpha= */ false)), self.alpha),
+        ["hwb" /* Format.HWB */]: (self) => new HWB(...rgbToHwb(self.#getRGBArray(/* withAlpha= */ false)), self.alpha),
+        ["hwba" /* Format.HWBA */]: (self) => new HWB(...rgbToHwb(self.#getRGBArray(/* withAlpha= */ false)), self.alpha),
+        ["lch" /* Format.LCH */]: (self) => new LCH(...ColorConverter.labToLch(...ColorConverter.xyzd50ToLab(...self.#toXyzd50())), self.alpha),
+        ["oklch" /* Format.OKLCH */]: (self) => self,
+        ["lab" /* Format.LAB */]: (self) => new Lab(...ColorConverter.xyzd50ToLab(...self.#toXyzd50()), self.alpha),
+        ["oklab" /* Format.OKLAB */]: (self) => new Oklab(...ColorConverter.xyzd65ToOklab(...ColorConverter.xyzd50ToD65(...self.#toXyzd50())), self.alpha),
+        ["srgb" /* Format.SRGB */]: (self) => new ColorFunction("srgb" /* Format.SRGB */, ...ColorConverter.xyzd50ToSrgb(...self.#toXyzd50()), self.alpha),
+        ["srgb-linear" /* Format.SRGB_LINEAR */]: (self) => new ColorFunction("srgb-linear" /* Format.SRGB_LINEAR */, ...ColorConverter.xyzd50TosRGBLinear(...self.#toXyzd50()), self.alpha),
+        ["display-p3" /* Format.DISPLAY_P3 */]: (self) => new ColorFunction("display-p3" /* Format.DISPLAY_P3 */, ...ColorConverter.xyzd50ToDisplayP3(...self.#toXyzd50()), self.alpha),
+        ["a98-rgb" /* Format.A98_RGB */]: (self) => new ColorFunction("a98-rgb" /* Format.A98_RGB */, ...ColorConverter.xyzd50ToAdobeRGB(...self.#toXyzd50()), self.alpha),
+        ["prophoto-rgb" /* Format.PROPHOTO_RGB */]: (self) => new ColorFunction("prophoto-rgb" /* Format.PROPHOTO_RGB */, ...ColorConverter.xyzd50ToProPhoto(...self.#toXyzd50()), self.alpha),
+        ["rec2020" /* Format.REC_2020 */]: (self) => new ColorFunction("rec2020" /* Format.REC_2020 */, ...ColorConverter.xyzd50ToRec2020(...self.#toXyzd50()), self.alpha),
+        ["xyz" /* Format.XYZ */]: (self) => new ColorFunction("xyz" /* Format.XYZ */, ...ColorConverter.xyzd50ToD65(...self.#toXyzd50()), self.alpha),
+        ["xyz-d50" /* Format.XYZ_D50 */]: (self) => new ColorFunction("xyz-d50" /* Format.XYZ_D50 */, ...self.#toXyzd50(), self.alpha),
+        ["xyz-d65" /* Format.XYZ_D65 */]: (self) => new ColorFunction("xyz-d65" /* Format.XYZ_D65 */, ...ColorConverter.xyzd50ToD65(...self.#toXyzd50()), self.alpha),
+    };
+    #toXyzd50() {
+        return ColorConverter.oklchToXyzd50(this.l, this.c, this.h);
+    }
+    #getRGBArray(withAlpha = true) {
+        const params = ColorConverter.xyzd50ToSrgb(...this.#toXyzd50());
+        if (withAlpha) {
+            return [...params, this.alpha ?? undefined];
+        }
+        return params;
+    }
+    constructor(l, c, h, alpha, authoredText) {
+        this.#rawParams = [l, c, h];
+        this.l = clamp(l, { min: 0, max: 1 });
+        c = equals(this.l, 0) || equals(this.l, 1) ? 0 : c;
+        this.c = clamp(c, { min: 0 });
+        h = equals(c, 0) ? 0 : h;
+        this.h = normalizeHue(h);
+        this.alpha = clamp(alpha, { min: 0, max: 1 });
+        this.#authoredText = authoredText;
+    }
+    asLegacyColor() {
+        return this.as("rgba" /* Format.RGBA */);
+    }
+    as(format) {
+        return Oklch.#conversions[format](this);
+    }
+    equal(color) {
+        const oklch = color.as("oklch" /* Format.OKLCH */);
+        return equals(oklch.l, this.l) && equals(oklch.c, this.c) && equals(oklch.h, this.h) &&
+            equals(oklch.alpha, this.alpha);
+    }
+    format() {
+        return "oklch" /* Format.OKLCH */;
+    }
+    setAlpha(alpha) {
+        return new Oklch(this.l, this.c, this.h, alpha);
+    }
+    asString(format) {
+        if (format) {
+            return this.as(format).asString();
+        }
+        return this.#stringify(this.l, this.c, this.h);
+    }
+    #stringify(l, c, h) {
+        const alpha = this.alpha === null || equals(this.alpha, 1) ?
+            '' :
+            ` / ${Platform.StringUtilities.stringifyWithPrecision(this.alpha)}`;
+        return `oklch(${Platform.StringUtilities.stringifyWithPrecision(l)} ${Platform.StringUtilities.stringifyWithPrecision(c)} ${Platform.StringUtilities.stringifyWithPrecision(h)}${alpha})`;
+    }
+    getAuthoredText() {
+        return this.#authoredText ?? null;
+    }
+    getRawParameters() {
+        return [...this.#rawParams];
+    }
+    getAsRawString(format) {
+        if (format) {
+            return this.as(format).getAsRawString();
+        }
+        return this.#stringify(...this.#rawParams);
+    }
+    isGamutClipped() {
+        return false;
+    }
+    static fromSpec(spec, text) {
+        const L = parsePercentage(spec[0], [0, 1]) ?? parseNumber(spec[0]);
+        if (L === null) {
+            return null;
+        }
+        const c = parsePercentage(spec[1], [0, 0.4]) ?? parseNumber(spec[1]);
+        if (c === null) {
+            return null;
+        }
+        const h = parseAngle(spec[2]);
+        if (h === null) {
+            return null;
+        }
+        const alpha = parseAlpha(spec[3]);
+        return new Oklch(L, c, h, alpha, text);
+    }
+}
+export class ColorFunction {
+    #rawParams;
+    p0;
+    p1;
+    p2;
+    alpha;
+    colorSpace;
+    #authoredText;
+    static #conversions = {
+        ["nickname" /* Format.Nickname */]: (self) => new Legacy(self.#getRGBArray(/* withAlpha= */ false), "nickname" /* Format.Nickname */),
+        ["hex" /* Format.HEX */]: (self) => new Legacy(self.#getRGBArray(/* withAlpha= */ false), "hex" /* Format.HEX */),
+        ["shorthex" /* Format.ShortHEX */]: (self) => new Legacy(self.#getRGBArray(/* withAlpha= */ false), "shorthex" /* Format.ShortHEX */),
+        ["hexa" /* Format.HEXA */]: (self) => new Legacy(self.#getRGBArray(/* withAlpha= */ true), "hexa" /* Format.HEXA */),
+        ["shorthexa" /* Format.ShortHEXA */]: (self) => new Legacy(self.#getRGBArray(/* withAlpha= */ true), "shorthexa" /* Format.ShortHEXA */),
+        ["rgb" /* Format.RGB */]: (self) => new Legacy(self.#getRGBArray(/* withAlpha= */ false), "rgb" /* Format.RGB */),
+        ["rgba" /* Format.RGBA */]: (self) => new Legacy(self.#getRGBArray(/* withAlpha= */ true), "rgba" /* Format.RGBA */),
+        ["hsl" /* Format.HSL */]: (self) => new HSL(...rgbToHsl(self.#getRGBArray(/* withAlpha= */ false)), self.alpha),
+        ["hsla" /* Format.HSLA */]: (self) => new HSL(...rgbToHsl(self.#getRGBArray(/* withAlpha= */ false)), self.alpha),
+        ["hwb" /* Format.HWB */]: (self) => new HWB(...rgbToHwb(self.#getRGBArray(/* withAlpha= */ false)), self.alpha),
+        ["hwba" /* Format.HWBA */]: (self) => new HWB(...rgbToHwb(self.#getRGBArray(/* withAlpha= */ false)), self.alpha),
+        ["lch" /* Format.LCH */]: (self) => new LCH(...ColorConverter.labToLch(...ColorConverter.xyzd50ToLab(...self.#toXyzd50())), self.alpha),
+        ["oklch" /* Format.OKLCH */]: (self) => new Oklch(...ColorConverter.xyzd50ToOklch(...self.#toXyzd50()), self.alpha),
+        ["lab" /* Format.LAB */]: (self) => new Lab(...ColorConverter.xyzd50ToLab(...self.#toXyzd50()), self.alpha),
+        ["oklab" /* Format.OKLAB */]: (self) => new Oklab(...ColorConverter.xyzd65ToOklab(...ColorConverter.xyzd50ToD65(...self.#toXyzd50())), self.alpha),
+        ["srgb" /* Format.SRGB */]: (self) => new ColorFunction("srgb" /* Format.SRGB */, ...ColorConverter.xyzd50ToSrgb(...self.#toXyzd50()), self.alpha),
+        ["srgb-linear" /* Format.SRGB_LINEAR */]: (self) => new ColorFunction("srgb-linear" /* Format.SRGB_LINEAR */, ...ColorConverter.xyzd50TosRGBLinear(...self.#toXyzd50()), self.alpha),
+        ["display-p3" /* Format.DISPLAY_P3 */]: (self) => new ColorFunction("display-p3" /* Format.DISPLAY_P3 */, ...ColorConverter.xyzd50ToDisplayP3(...self.#toXyzd50()), self.alpha),
+        ["a98-rgb" /* Format.A98_RGB */]: (self) => new ColorFunction("a98-rgb" /* Format.A98_RGB */, ...ColorConverter.xyzd50ToAdobeRGB(...self.#toXyzd50()), self.alpha),
+        ["prophoto-rgb" /* Format.PROPHOTO_RGB */]: (self) => new ColorFunction("prophoto-rgb" /* Format.PROPHOTO_RGB */, ...ColorConverter.xyzd50ToProPhoto(...self.#toXyzd50()), self.alpha),
+        ["rec2020" /* Format.REC_2020 */]: (self) => new ColorFunction("rec2020" /* Format.REC_2020 */, ...ColorConverter.xyzd50ToRec2020(...self.#toXyzd50()), self.alpha),
+        ["xyz" /* Format.XYZ */]: (self) => new ColorFunction("xyz" /* Format.XYZ */, ...ColorConverter.xyzd50ToD65(...self.#toXyzd50()), self.alpha),
+        ["xyz-d50" /* Format.XYZ_D50 */]: (self) => new ColorFunction("xyz-d50" /* Format.XYZ_D50 */, ...self.#toXyzd50(), self.alpha),
+        ["xyz-d65" /* Format.XYZ_D65 */]: (self) => new ColorFunction("xyz-d65" /* Format.XYZ_D65 */, ...ColorConverter.xyzd50ToD65(...self.#toXyzd50()), self.alpha),
+    };
+    #toXyzd50() {
+        // With color(), out-of-gamut inputs are to be used for intermediate computations
+        const [p0, p1, p2] = this.#rawParams;
+        switch (this.colorSpace) {
+            case "srgb" /* Format.SRGB */:
+                return ColorConverter.srgbToXyzd50(p0, p1, p2);
+            case "srgb-linear" /* Format.SRGB_LINEAR */:
+                return ColorConverter.srgbLinearToXyzd50(p0, p1, p2);
+            case "display-p3" /* Format.DISPLAY_P3 */:
+                return ColorConverter.displayP3ToXyzd50(p0, p1, p2);
+            case "a98-rgb" /* Format.A98_RGB */:
+                return ColorConverter.adobeRGBToXyzd50(p0, p1, p2);
+            case "prophoto-rgb" /* Format.PROPHOTO_RGB */:
+                return ColorConverter.proPhotoToXyzd50(p0, p1, p2);
+            case "rec2020" /* Format.REC_2020 */:
+                return ColorConverter.rec2020ToXyzd50(p0, p1, p2);
+            case "xyz-d50" /* Format.XYZ_D50 */:
+                return [p0, p1, p2];
+            case "xyz" /* Format.XYZ */:
+            case "xyz-d65" /* Format.XYZ_D65 */:
+                return ColorConverter.xyzd65ToD50(p0, p1, p2);
+        }
+        throw new Error('Invalid color space');
+    }
+    #getRGBArray(withAlpha = true) {
+        // With color(), out-of-gamut inputs are to be used for intermediate computations
+        const [p0, p1, p2] = this.#rawParams;
+        const params = this.colorSpace === "srgb" /* Format.SRGB */ ? [p0, p1, p2] : [...ColorConverter.xyzd50ToSrgb(...this.#toXyzd50())];
+        if (withAlpha) {
+            return [...params, this.alpha ?? undefined];
+        }
+        return params;
+    }
+    constructor(colorSpace, p0, p1, p2, alpha, authoredText) {
+        this.#rawParams = [p0, p1, p2];
+        this.colorSpace = colorSpace;
+        this.#authoredText = authoredText;
+        if (this.colorSpace !== "xyz-d50" /* Format.XYZ_D50 */ && this.colorSpace !== "xyz-d65" /* Format.XYZ_D65 */ && this.colorSpace !== "xyz" /* Format.XYZ */) {
+            p0 = clamp(p0, { min: 0, max: 1 });
+            p1 = clamp(p1, { min: 0, max: 1 });
+            p2 = clamp(p2, { min: 0, max: 1 });
+        }
+        this.p0 = p0;
+        this.p1 = p1;
+        this.p2 = p2;
+        this.alpha = clamp(alpha, { min: 0, max: 1 });
+    }
+    asLegacyColor() {
+        return this.as("rgba" /* Format.RGBA */);
+    }
+    as(format) {
+        if (this.colorSpace === format) {
+            return this;
+        }
+        return ColorFunction.#conversions[format](this);
+    }
+    equal(color) {
+        const space = color.as(this.colorSpace);
+        return equals(this.p0, space.p0) && equals(this.p1, space.p1) && equals(this.p2, space.p2) &&
+            equals(this.alpha, space.alpha);
+    }
+    format() {
+        return this.colorSpace;
+    }
+    setAlpha(alpha) {
+        return new ColorFunction(this.colorSpace, this.p0, this.p1, this.p2, alpha);
+    }
+    asString(format) {
+        if (format) {
+            return this.as(format).asString();
+        }
+        return this.#stringify(this.p0, this.p1, this.p2);
+    }
+    #stringify(p0, p1, p2) {
+        const alpha = this.alpha === null || equals(this.alpha, 1) ?
+            '' :
+            ` / ${Platform.StringUtilities.stringifyWithPrecision(this.alpha)}`;
+        return `color(${this.colorSpace} ${Platform.StringUtilities.stringifyWithPrecision(p0)} ${Platform.StringUtilities.stringifyWithPrecision(p1)} ${Platform.StringUtilities.stringifyWithPrecision(p2)}${alpha})`;
+    }
+    getAuthoredText() {
+        return this.#authoredText ?? null;
+    }
+    getRawParameters() {
+        return [...this.#rawParams];
+    }
+    getAsRawString(format) {
+        if (format) {
+            return this.as(format).getAsRawString();
+        }
+        return this.#stringify(...this.#rawParams);
+    }
+    isGamutClipped() {
+        if (this.colorSpace !== "xyz-d50" /* Format.XYZ_D50 */ && this.colorSpace !== "xyz-d65" /* Format.XYZ_D65 */ && this.colorSpace !== "xyz" /* Format.XYZ */) {
+            return !equals(this.#rawParams, [this.p0, this.p1, this.p2]);
+        }
+        return false;
+    }
+    /**
+     * Parses given `color()` function definition and returns the `Color` object.
+     * We want to special case its parsing here because it's a bit different
+     * than other color functions: rgb, lch etc. accepts 3 arguments with
+     * optional alpha. This accepts 4 arguments with optional alpha.
+     *
+     * Instead of making `splitColorFunctionParameters` work for this case too
+     * I've decided to implement it specifically.
+     * @param authoredText Original definition of the color with `color`
+     * @param parametersText Inside of the `color()` function. ex, `display-p3 0.1 0.2 0.3 / 0%`
+     * @returns `Color` object
+     */
+    static fromSpec(authoredText, parametersWithAlphaText) {
+        const [parametersText, alphaText] = parametersWithAlphaText.split('/', 2);
+        const parameters = parametersText.trim().split(/\s+/);
+        const [colorSpaceText, ...remainingParams] = parameters;
+        const colorSpace = getColorSpace(colorSpaceText);
+        // Color space is not known to us, do not parse the Color.
+        if (!colorSpace) {
+            return null;
+        }
+        // `color(<color-space>)` is a valid syntax
+        if (remainingParams.length === 0 && alphaText === undefined) {
+            return new ColorFunction(colorSpace, 0, 0, 0, null, authoredText);
+        }
+        // Check if it contains `/ <alpha>` part, if so, it should be at the end
+        if (remainingParams.length === 0 && alphaText !== undefined && alphaText.trim().split(/\s+/).length > 1) {
+            // Invalid syntax: like `color(<space> / <alpha> <number>)`
+            return null;
+        }
+        // `color` cannot contain more than 3 parameters without alpha
+        if (remainingParams.length > 3) {
+            return null;
+        }
+        // Replace `none`s with 0s
+        const nonesReplacedParams = remainingParams.map(param => param === 'none' ? '0' : param);
+        // At this point, we know that all the values are there so we can
+        // safely try to parse all the values as number or percentage
+        const values = nonesReplacedParams.map(param => parsePercentOrNumber(param, [0, 1]));
+        const containsNull = values.includes(null);
+        // At least one value is malformatted (not a number or percentage)
+        if (containsNull) {
+            return null;
+        }
+        const alphaValue = alphaText ? parsePercentOrNumber(alphaText, [0, 1]) ?? 1 : 1;
+        // Depending on the color space
+        // this either reflects `rgb` parameters in that color space
+        // or `xyz` parameters in the given `xyz` space.
+        const rgbOrXyza = [
+            values[0] ?? 0,
+            values[1] ?? 0,
+            values[2] ?? 0,
+            alphaValue,
+        ];
+        return new ColorFunction(colorSpace, ...rgbOrXyza, authoredText);
+    }
+}
+export class HSL {
+    h;
+    s;
+    l;
+    alpha;
+    #rawParams;
+    #authoredText;
+    static #conversions = {
+        ["nickname" /* Format.Nickname */]: (self) => new Legacy(self.#getRGBArray(/* withAlpha= */ false), "nickname" /* Format.Nickname */),
+        ["hex" /* Format.HEX */]: (self) => new Legacy(self.#getRGBArray(/* withAlpha= */ false), "hex" /* Format.HEX */),
+        ["shorthex" /* Format.ShortHEX */]: (self) => new Legacy(self.#getRGBArray(/* withAlpha= */ false), "shorthex" /* Format.ShortHEX */),
+        ["hexa" /* Format.HEXA */]: (self) => new Legacy(self.#getRGBArray(/* withAlpha= */ true), "hexa" /* Format.HEXA */),
+        ["shorthexa" /* Format.ShortHEXA */]: (self) => new Legacy(self.#getRGBArray(/* withAlpha= */ true), "shorthexa" /* Format.ShortHEXA */),
+        ["rgb" /* Format.RGB */]: (self) => new Legacy(self.#getRGBArray(/* withAlpha= */ false), "rgb" /* Format.RGB */),
+        ["rgba" /* Format.RGBA */]: (self) => new Legacy(self.#getRGBArray(/* withAlpha= */ true), "rgba" /* Format.RGBA */),
+        ["hsl" /* Format.HSL */]: (self) => self,
+        ["hsla" /* Format.HSLA */]: (self) => self,
+        ["hwb" /* Format.HWB */]: (self) => new HWB(...rgbToHwb(self.#getRGBArray(/* withAlpha= */ false)), self.alpha),
+        ["hwba" /* Format.HWBA */]: (self) => new HWB(...rgbToHwb(self.#getRGBArray(/* withAlpha= */ false)), self.alpha),
+        ["lch" /* Format.LCH */]: (self) => new LCH(...ColorConverter.labToLch(...ColorConverter.xyzd50ToLab(...self.#toXyzd50())), self.alpha),
+        ["oklch" /* Format.OKLCH */]: (self) => new Oklch(...ColorConverter.xyzd50ToOklch(...self.#toXyzd50()), self.alpha),
+        ["lab" /* Format.LAB */]: (self) => new Lab(...ColorConverter.xyzd50ToLab(...self.#toXyzd50()), self.alpha),
+        ["oklab" /* Format.OKLAB */]: (self) => new Oklab(...ColorConverter.xyzd65ToOklab(...ColorConverter.xyzd50ToD65(...self.#toXyzd50())), self.alpha),
+        ["srgb" /* Format.SRGB */]: (self) => new ColorFunction("srgb" /* Format.SRGB */, ...ColorConverter.xyzd50ToSrgb(...self.#toXyzd50()), self.alpha),
+        ["srgb-linear" /* Format.SRGB_LINEAR */]: (self) => new ColorFunction("srgb-linear" /* Format.SRGB_LINEAR */, ...ColorConverter.xyzd50TosRGBLinear(...self.#toXyzd50()), self.alpha),
+        ["display-p3" /* Format.DISPLAY_P3 */]: (self) => new ColorFunction("display-p3" /* Format.DISPLAY_P3 */, ...ColorConverter.xyzd50ToDisplayP3(...self.#toXyzd50()), self.alpha),
+        ["a98-rgb" /* Format.A98_RGB */]: (self) => new ColorFunction("a98-rgb" /* Format.A98_RGB */, ...ColorConverter.xyzd50ToAdobeRGB(...self.#toXyzd50()), self.alpha),
+        ["prophoto-rgb" /* Format.PROPHOTO_RGB */]: (self) => new ColorFunction("prophoto-rgb" /* Format.PROPHOTO_RGB */, ...ColorConverter.xyzd50ToProPhoto(...self.#toXyzd50()), self.alpha),
+        ["rec2020" /* Format.REC_2020 */]: (self) => new ColorFunction("rec2020" /* Format.REC_2020 */, ...ColorConverter.xyzd50ToRec2020(...self.#toXyzd50()), self.alpha),
+        ["xyz" /* Format.XYZ */]: (self) => new ColorFunction("xyz" /* Format.XYZ */, ...ColorConverter.xyzd50ToD65(...self.#toXyzd50()), self.alpha),
+        ["xyz-d50" /* Format.XYZ_D50 */]: (self) => new ColorFunction("xyz-d50" /* Format.XYZ_D50 */, ...self.#toXyzd50(), self.alpha),
+        ["xyz-d65" /* Format.XYZ_D65 */]: (self) => new ColorFunction("xyz-d65" /* Format.XYZ_D65 */, ...ColorConverter.xyzd50ToD65(...self.#toXyzd50()), self.alpha),
+    };
+    #getRGBArray(withAlpha = true) {
+        const rgb = [0, 0, 0, 0];
+        hsl2rgb([this.h, this.s, this.l, 0], rgb);
+        if (withAlpha) {
+            return [rgb[0], rgb[1], rgb[2], this.alpha ?? undefined];
+        }
+        return [rgb[0], rgb[1], rgb[2]];
+    }
+    #toXyzd50() {
+        const rgb = this.#getRGBArray(false);
+        return ColorConverter.srgbToXyzd50(rgb[0], rgb[1], rgb[2]);
+    }
+    constructor(h, s, l, alpha, authoredText) {
+        this.#rawParams = [h, s, l];
+        this.l = clamp(l, { min: 0, max: 1 });
+        s = equals(this.l, 0) || equals(this.l, 1) ? 0 : s;
+        this.s = clamp(s, { min: 0, max: 1 });
+        h = equals(this.s, 0) ? 0 : h;
+        this.h = normalizeHue(h * 360) / 360;
+        this.alpha = clamp(alpha ?? null, { min: 0, max: 1 });
+        this.#authoredText = authoredText;
+    }
+    equal(color) {
+        const hsl = color.as("hsl" /* Format.HSL */);
+        return equals(this.h, hsl.h) && equals(this.s, hsl.s) && equals(this.l, hsl.l) && equals(this.alpha, hsl.alpha);
+    }
+    asString(format) {
+        if (format) {
+            return this.as(format).asString();
+        }
+        return this.#stringify(this.h, this.s, this.l);
+    }
+    #stringify(h, s, l) {
+        const start = Platform.StringUtilities.sprintf('hsl(%sdeg %s% %s%', Platform.StringUtilities.stringifyWithPrecision(h * 360), Platform.StringUtilities.stringifyWithPrecision(s * 100), Platform.StringUtilities.stringifyWithPrecision(l * 100));
+        if (this.alpha !== null && this.alpha !== 1) {
+            return start +
+                Platform.StringUtilities.sprintf(' / %s%)', Platform.StringUtilities.stringifyWithPrecision(this.alpha * 100));
+        }
+        return start + ')';
+    }
+    setAlpha(alpha) {
+        return new HSL(this.h, this.s, this.l, alpha);
+    }
+    format() {
+        return this.alpha === null || this.alpha === 1 ? "hsl" /* Format.HSL */ : "hsla" /* Format.HSLA */;
+    }
+    as(format) {
+        if (format === this.format()) {
+            return this;
+        }
+        return HSL.#conversions[format](this);
+    }
+    asLegacyColor() {
+        return this.as("rgba" /* Format.RGBA */);
+    }
+    getAuthoredText() {
+        return this.#authoredText ?? null;
+    }
+    getRawParameters() {
+        return [...this.#rawParams];
+    }
+    getAsRawString(format) {
+        if (format) {
+            return this.as(format).getAsRawString();
+        }
+        return this.#stringify(...this.#rawParams);
+    }
+    isGamutClipped() {
+        return !lessOrEquals(this.#rawParams[1], 1) || !lessOrEquals(0, this.#rawParams[1]);
+    }
+    static fromSpec(spec, text) {
+        const h = parseHueNumeric(spec[0]);
+        if (h === null) {
+            return null;
+        }
+        const s = parseSatLightNumeric(spec[1]);
+        if (s === null) {
+            return null;
+        }
+        const l = parseSatLightNumeric(spec[2]);
+        if (l === null) {
+            return null;
+        }
+        const alpha = parseAlpha(spec[3]);
+        return new HSL(h, s, l, alpha, text);
+    }
+    hsva() {
+        const s = this.s * (this.l < 0.5 ? this.l : 1 - this.l);
+        return [this.h, s !== 0 ? 2 * s / (this.l + s) : 0, (this.l + s), this.alpha ?? 1];
+    }
+    canonicalHSLA() {
+        return [Math.round(this.h * 360), Math.round(this.s * 100), Math.round(this.l * 100), this.alpha ?? 1];
+    }
+}
+export class HWB {
+    h;
+    w;
+    b;
+    alpha;
+    #rawParams;
+    #authoredText;
+    static #conversions = {
+        ["nickname" /* Format.Nickname */]: (self) => new Legacy(self.#getRGBArray(/* withAlpha= */ false), "nickname" /* Format.Nickname */),
+        ["hex" /* Format.HEX */]: (self) => new Legacy(self.#getRGBArray(/* withAlpha= */ false), "hex" /* Format.HEX */),
+        ["shorthex" /* Format.ShortHEX */]: (self) => new Legacy(self.#getRGBArray(/* withAlpha= */ false), "shorthex" /* Format.ShortHEX */),
+        ["hexa" /* Format.HEXA */]: (self) => new Legacy(self.#getRGBArray(/* withAlpha= */ true), "hexa" /* Format.HEXA */),
+        ["shorthexa" /* Format.ShortHEXA */]: (self) => new Legacy(self.#getRGBArray(/* withAlpha= */ true), "shorthexa" /* Format.ShortHEXA */),
+        ["rgb" /* Format.RGB */]: (self) => new Legacy(self.#getRGBArray(/* withAlpha= */ false), "rgb" /* Format.RGB */),
+        ["rgba" /* Format.RGBA */]: (self) => new Legacy(self.#getRGBArray(/* withAlpha= */ true), "rgba" /* Format.RGBA */),
+        ["hsl" /* Format.HSL */]: (self) => new HSL(...rgbToHsl(self.#getRGBArray(/* withAlpha= */ false)), self.alpha),
+        ["hsla" /* Format.HSLA */]: (self) => new HSL(...rgbToHsl(self.#getRGBArray(/* withAlpha= */ false)), self.alpha),
+        ["hwb" /* Format.HWB */]: (self) => self,
+        ["hwba" /* Format.HWBA */]: (self) => self,
+        ["lch" /* Format.LCH */]: (self) => new LCH(...ColorConverter.labToLch(...ColorConverter.xyzd50ToLab(...self.#toXyzd50())), self.alpha),
+        ["oklch" /* Format.OKLCH */]: (self) => new Oklch(...ColorConverter.xyzd50ToOklch(...self.#toXyzd50()), self.alpha),
+        ["lab" /* Format.LAB */]: (self) => new Lab(...ColorConverter.xyzd50ToLab(...self.#toXyzd50()), self.alpha),
+        ["oklab" /* Format.OKLAB */]: (self) => new Oklab(...ColorConverter.xyzd65ToOklab(...ColorConverter.xyzd50ToD65(...self.#toXyzd50())), self.alpha),
+        ["srgb" /* Format.SRGB */]: (self) => new ColorFunction("srgb" /* Format.SRGB */, ...ColorConverter.xyzd50ToSrgb(...self.#toXyzd50()), self.alpha),
+        ["srgb-linear" /* Format.SRGB_LINEAR */]: (self) => new ColorFunction("srgb-linear" /* Format.SRGB_LINEAR */, ...ColorConverter.xyzd50TosRGBLinear(...self.#toXyzd50()), self.alpha),
+        ["display-p3" /* Format.DISPLAY_P3 */]: (self) => new ColorFunction("display-p3" /* Format.DISPLAY_P3 */, ...ColorConverter.xyzd50ToDisplayP3(...self.#toXyzd50()), self.alpha),
+        ["a98-rgb" /* Format.A98_RGB */]: (self) => new ColorFunction("a98-rgb" /* Format.A98_RGB */, ...ColorConverter.xyzd50ToAdobeRGB(...self.#toXyzd50()), self.alpha),
+        ["prophoto-rgb" /* Format.PROPHOTO_RGB */]: (self) => new ColorFunction("prophoto-rgb" /* Format.PROPHOTO_RGB */, ...ColorConverter.xyzd50ToProPhoto(...self.#toXyzd50()), self.alpha),
+        ["rec2020" /* Format.REC_2020 */]: (self) => new ColorFunction("rec2020" /* Format.REC_2020 */, ...ColorConverter.xyzd50ToRec2020(...self.#toXyzd50()), self.alpha),
+        ["xyz" /* Format.XYZ */]: (self) => new ColorFunction("xyz" /* Format.XYZ */, ...ColorConverter.xyzd50ToD65(...self.#toXyzd50()), self.alpha),
+        ["xyz-d50" /* Format.XYZ_D50 */]: (self) => new ColorFunction("xyz-d50" /* Format.XYZ_D50 */, ...self.#toXyzd50(), self.alpha),
+        ["xyz-d65" /* Format.XYZ_D65 */]: (self) => new ColorFunction("xyz-d65" /* Format.XYZ_D65 */, ...ColorConverter.xyzd50ToD65(...self.#toXyzd50()), self.alpha),
+    };
+    #getRGBArray(withAlpha = true) {
+        const rgb = [0, 0, 0, 0];
+        hwb2rgb([this.h, this.w, this.b, 0], rgb);
+        if (withAlpha) {
+            return [rgb[0], rgb[1], rgb[2], this.alpha ?? undefined];
+        }
+        return [rgb[0], rgb[1], rgb[2]];
+    }
+    #toXyzd50() {
+        const rgb = this.#getRGBArray(false);
+        return ColorConverter.srgbToXyzd50(rgb[0], rgb[1], rgb[2]);
+    }
+    constructor(h, w, b, alpha, authoredText) {
+        this.#rawParams = [h, w, b];
+        this.w = clamp(w, { min: 0, max: 1 });
+        this.b = clamp(b, { min: 0, max: 1 });
+        h = lessOrEquals(1, this.w + this.b) ? 0 : h;
+        this.h = normalizeHue(h * 360) / 360;
+        this.alpha = clamp(alpha, { min: 0, max: 1 });
+        if (lessOrEquals(1, this.w + this.b)) {
+            // normalize to a sum of 100% respecting the ratio, see https://www.w3.org/TR/css-color-4/#the-hwb-notation
+            const ratio = this.w / this.b;
+            this.b = 1 / (1 + ratio);
+            this.w = 1 - this.b;
+        }
+        this.#authoredText = authoredText;
+    }
+    equal(color) {
+        const hwb = color.as("hwb" /* Format.HWB */);
+        return equals(this.h, hwb.h) && equals(this.w, hwb.w) && equals(this.b, hwb.b) && equals(this.alpha, hwb.alpha);
+    }
+    asString(format) {
+        if (format) {
+            return this.as(format).asString();
+        }
+        return this.#stringify(this.h, this.w, this.b);
+    }
+    #stringify(h, w, b) {
+        const start = Platform.StringUtilities.sprintf('hwb(%sdeg %s% %s%', Platform.StringUtilities.stringifyWithPrecision(h * 360), Platform.StringUtilities.stringifyWithPrecision(w * 100), Platform.StringUtilities.stringifyWithPrecision(b * 100));
+        if (this.alpha !== null && this.alpha !== 1) {
+            return start +
+                Platform.StringUtilities.sprintf(' / %s%)', Platform.StringUtilities.stringifyWithPrecision(this.alpha * 100));
+        }
+        return start + ')';
+    }
+    setAlpha(alpha) {
+        return new HWB(this.h, this.w, this.b, alpha, this.#authoredText);
+    }
+    format() {
+        return this.alpha !== null && !equals(this.alpha, 1) ? "hwba" /* Format.HWBA */ : "hwb" /* Format.HWB */;
+    }
+    as(format) {
+        if (format === this.format()) {
+            return this;
+        }
+        return HWB.#conversions[format](this);
+    }
+    asLegacyColor() {
+        return this.as("rgba" /* Format.RGBA */);
+    }
+    getAuthoredText() {
+        return this.#authoredText ?? null;
+    }
+    canonicalHWBA() {
+        return [
+            Math.round(this.h * 360),
+            Math.round(this.w * 100),
+            Math.round(this.b * 100),
+            this.alpha ?? 1,
+        ];
+    }
+    getRawParameters() {
+        return [...this.#rawParams];
+    }
+    getAsRawString(format) {
+        if (format) {
+            return this.as(format).getAsRawString();
+        }
+        return this.#stringify(...this.#rawParams);
+    }
+    isGamutClipped() {
+        return !lessOrEquals(this.#rawParams[1], 1) || !lessOrEquals(0, this.#rawParams[1]) ||
+            !lessOrEquals(this.#rawParams[2], 1) || !lessOrEquals(0, this.#rawParams[2]);
+    }
+    static fromSpec(spec, text) {
+        const h = parseHueNumeric(spec[0]);
+        if (h === null) {
+            return null;
+        }
+        const w = parseSatLightNumeric(spec[1]);
+        if (w === null) {
+            return null;
+        }
+        const b = parseSatLightNumeric(spec[2]);
+        if (b === null) {
+            return null;
+        }
+        const alpha = parseAlpha(spec[3]);
+        return new HWB(h, w, b, alpha, text);
+    }
+}
+function toRgbValue(value) {
+    return Math.round(value * 255);
+}
+export class Legacy {
+    #rawParams;
+    #rgbaInternal;
+    #authoredText;
+    #formatInternal;
+    static #conversions = {
+        ["nickname" /* Format.Nickname */]: (self) => new Legacy(self.#rgbaInternal, "nickname" /* Format.Nickname */),
+        ["hex" /* Format.HEX */]: (self) => new Legacy(self.#rgbaInternal, "hex" /* Format.HEX */),
+        ["shorthex" /* Format.ShortHEX */]: (self) => new Legacy(self.#rgbaInternal, "shorthex" /* Format.ShortHEX */),
+        ["hexa" /* Format.HEXA */]: (self) => new Legacy(self.#rgbaInternal, "hexa" /* Format.HEXA */),
+        ["shorthexa" /* Format.ShortHEXA */]: (self) => new Legacy(self.#rgbaInternal, "shorthexa" /* Format.ShortHEXA */),
+        ["rgb" /* Format.RGB */]: (self) => new Legacy(self.#rgbaInternal, "rgb" /* Format.RGB */),
+        ["rgba" /* Format.RGBA */]: (self) => new Legacy(self.#rgbaInternal, "rgba" /* Format.RGBA */),
+        ["hsl" /* Format.HSL */]: (self) => new HSL(...rgbToHsl([self.#rgbaInternal[0], self.#rgbaInternal[1], self.#rgbaInternal[2]]), self.alpha),
+        ["hsla" /* Format.HSLA */]: (self) => new HSL(...rgbToHsl([self.#rgbaInternal[0], self.#rgbaInternal[1], self.#rgbaInternal[2]]), self.alpha),
+        ["hwb" /* Format.HWB */]: (self) => new HWB(...rgbToHwb([self.#rgbaInternal[0], self.#rgbaInternal[1], self.#rgbaInternal[2]]), self.alpha),
+        ["hwba" /* Format.HWBA */]: (self) => new HWB(...rgbToHwb([self.#rgbaInternal[0], self.#rgbaInternal[1], self.#rgbaInternal[2]]), self.alpha),
+        ["lch" /* Format.LCH */]: (self) => new LCH(...ColorConverter.labToLch(...ColorConverter.xyzd50ToLab(...self.#toXyzd50())), self.alpha),
+        ["oklch" /* Format.OKLCH */]: (self) => new Oklch(...ColorConverter.xyzd50ToOklch(...self.#toXyzd50()), self.alpha),
+        ["lab" /* Format.LAB */]: (self) => new Lab(...ColorConverter.xyzd50ToLab(...self.#toXyzd50()), self.alpha),
+        ["oklab" /* Format.OKLAB */]: (self) => new Oklab(...ColorConverter.xyzd65ToOklab(...ColorConverter.xyzd50ToD65(...self.#toXyzd50())), self.alpha),
+        ["srgb" /* Format.SRGB */]: (self) => new ColorFunction("srgb" /* Format.SRGB */, ...ColorConverter.xyzd50ToSrgb(...self.#toXyzd50()), self.alpha),
+        ["srgb-linear" /* Format.SRGB_LINEAR */]: (self) => new ColorFunction("srgb-linear" /* Format.SRGB_LINEAR */, ...ColorConverter.xyzd50TosRGBLinear(...self.#toXyzd50()), self.alpha),
+        ["display-p3" /* Format.DISPLAY_P3 */]: (self) => new ColorFunction("display-p3" /* Format.DISPLAY_P3 */, ...ColorConverter.xyzd50ToDisplayP3(...self.#toXyzd50()), self.alpha),
+        ["a98-rgb" /* Format.A98_RGB */]: (self) => new ColorFunction("a98-rgb" /* Format.A98_RGB */, ...ColorConverter.xyzd50ToAdobeRGB(...self.#toXyzd50()), self.alpha),
+        ["prophoto-rgb" /* Format.PROPHOTO_RGB */]: (self) => new ColorFunction("prophoto-rgb" /* Format.PROPHOTO_RGB */, ...ColorConverter.xyzd50ToProPhoto(...self.#toXyzd50()), self.alpha),
+        ["rec2020" /* Format.REC_2020 */]: (self) => new ColorFunction("rec2020" /* Format.REC_2020 */, ...ColorConverter.xyzd50ToRec2020(...self.#toXyzd50()), self.alpha),
+        ["xyz" /* Format.XYZ */]: (self) => new ColorFunction("xyz" /* Format.XYZ */, ...ColorConverter.xyzd50ToD65(...self.#toXyzd50()), self.alpha),
+        ["xyz-d50" /* Format.XYZ_D50 */]: (self) => new ColorFunction("xyz-d50" /* Format.XYZ_D50 */, ...self.#toXyzd50(), self.alpha),
+        ["xyz-d65" /* Format.XYZ_D65 */]: (self) => new ColorFunction("xyz-d65" /* Format.XYZ_D65 */, ...ColorConverter.xyzd50ToD65(...self.#toXyzd50()), self.alpha),
+    };
+    #toXyzd50() {
+        const [r, g, b] = this.#rgbaInternal;
+        return ColorConverter.srgbToXyzd50(r, g, b);
+    }
+    get alpha() {
+        switch (this.format()) {
+            case "hexa" /* Format.HEXA */:
+            case "shorthexa" /* Format.ShortHEXA */:
+            case "rgba" /* Format.RGBA */:
+                return this.#rgbaInternal[3];
+            default:
+                return null;
+        }
+    }
+    asLegacyColor() {
+        return this;
+    }
+    constructor(rgba, format, authoredText) {
+        this.#authoredText = authoredText || null;
+        this.#formatInternal = format;
+        this.#rawParams = [rgba[0], rgba[1], rgba[2]];
+        this.#rgbaInternal = [
+            clamp(rgba[0], { min: 0, max: 1 }),
+            clamp(rgba[1], { min: 0, max: 1 }),
+            clamp(rgba[2], { min: 0, max: 1 }),
+            clamp(rgba[3] ?? 1, { min: 0, max: 1 }),
+        ];
+    }
+    static fromHex(hex, text) {
+        hex = hex.toLowerCase();
+        let format;
+        if (hex.length === 3) {
+            format = "shorthex" /* Format.ShortHEX */;
+            hex = hex.charAt(0) + hex.charAt(0) + hex.charAt(1) + hex.charAt(1) + hex.charAt(2) + hex.charAt(2);
+        }
+        else if (hex.length === 4) {
+            format = "shorthexa" /* Format.ShortHEXA */;
+            hex = hex.charAt(0) + hex.charAt(0) + hex.charAt(1) + hex.charAt(1) + hex.charAt(2) + hex.charAt(2) +
+                hex.charAt(3) + hex.charAt(3);
+        }
+        else if (hex.length === 6) {
+            format = "hex" /* Format.HEX */;
+        }
+        else {
+            format = "hexa" /* Format.HEXA */;
+        }
+        const r = parseInt(hex.substring(0, 2), 16);
+        const g = parseInt(hex.substring(2, 4), 16);
+        const b = parseInt(hex.substring(4, 6), 16);
+        let a = 1;
+        if (hex.length === 8) {
+            a = parseInt(hex.substring(6, 8), 16) / 255;
+        }
+        return new Legacy([r / 255, g / 255, b / 255, a], format, text);
+    }
+    static fromName(name, text) {
+        const nickname = name.toLowerCase();
+        const rgba = Nicknames.get(nickname);
+        if (rgba !== undefined) {
+            const color = Legacy.fromRGBA(rgba, text);
+            color.#formatInternal = "nickname" /* Format.Nickname */;
+            return color;
         }
         return null;
     }
-    static findFgColorForContrast(fgColor, bgColor, requiredContrast) {
-        const candidateHSVA = fgColor.hsva();
-        const bgRGBA = bgColor.rgba();
-        const candidateLuminance = (candidateHSVA) => {
-            return luminance(blendColors(Color.fromHSVA(candidateHSVA).rgba(), bgRGBA));
-        };
-        const bgLuminance = luminance(bgColor.rgba());
-        const fgLuminance = candidateLuminance(candidateHSVA);
-        const fgIsLighter = fgLuminance > bgLuminance;
-        const desiredLuminance = Color.desiredLuminance(bgLuminance, requiredContrast, fgIsLighter);
-        const saturationComponentIndex = 1;
-        const valueComponentIndex = 2;
-        if (Color.approachColorValue(candidateHSVA, bgRGBA, valueComponentIndex, desiredLuminance, candidateLuminance)) {
-            return Color.fromHSVA(candidateHSVA);
+    static fromRGBAFunction(r, g, b, alpha, text) {
+        const rgba = [
+            parseRgbNumeric(r),
+            parseRgbNumeric(g),
+            parseRgbNumeric(b),
+            alpha ? parseAlphaNumeric(alpha) : 1,
+        ];
+        if (!Platform.ArrayUtilities.arrayDoesNotContainNullOrUndefined(rgba)) {
+            return null;
         }
-        candidateHSVA[valueComponentIndex] = 1;
-        if (Color.approachColorValue(candidateHSVA, bgRGBA, saturationComponentIndex, desiredLuminance, candidateLuminance)) {
-            return Color.fromHSVA(candidateHSVA);
-        }
-        return null;
+        return new Legacy(rgba, alpha ? "rgba" /* Format.RGBA */ : "rgb" /* Format.RGB */, text);
     }
-    static findFgColorForContrastAPCA(fgColor, bgColor, requiredContrast) {
-        const candidateHSVA = fgColor.hsva();
-        const bgRGBA = bgColor.rgba();
-        const candidateLuminance = (candidateHSVA) => {
-            return luminanceAPCA(Color.fromHSVA(candidateHSVA).rgba());
-        };
-        const bgLuminance = luminanceAPCA(bgColor.rgba());
-        const fgLuminance = candidateLuminance(candidateHSVA);
-        const fgIsLighter = fgLuminance >= bgLuminance;
-        const desiredLuminance = desiredLuminanceAPCA(bgLuminance, requiredContrast, fgIsLighter);
-        const saturationComponentIndex = 1;
-        const valueComponentIndex = 2;
-        if (Color.approachColorValue(candidateHSVA, bgRGBA, valueComponentIndex, desiredLuminance, candidateLuminance)) {
-            const candidate = Color.fromHSVA(candidateHSVA);
-            if (Math.abs(contrastRatioAPCA(bgColor.rgba(), candidate.rgba())) >= requiredContrast) {
-                return candidate;
-            }
+    static fromRGBA(rgba, authoredText) {
+        return new Legacy([rgba[0] / 255, rgba[1] / 255, rgba[2] / 255, rgba[3]], "rgba" /* Format.RGBA */, authoredText);
+    }
+    static fromHSVA(hsva) {
+        const rgba = [0, 0, 0, 0];
+        hsva2rgba(hsva, rgba);
+        return new Legacy(rgba, "rgba" /* Format.RGBA */);
+    }
+    as(format) {
+        if (format === this.format()) {
+            return this;
         }
-        candidateHSVA[valueComponentIndex] = 1;
-        if (Color.approachColorValue(candidateHSVA, bgRGBA, saturationComponentIndex, desiredLuminance, candidateLuminance)) {
-            const candidate = Color.fromHSVA(candidateHSVA);
-            if (Math.abs(contrastRatioAPCA(bgColor.rgba(), candidate.rgba())) >= requiredContrast) {
-                return candidate;
-            }
-        }
-        return null;
+        return Legacy.#conversions[format](this);
     }
     format() {
         return this.#formatInternal;
-    }
-    /** HSLA with components within [0..1]
-       */
-    hsla() {
-        if (this.#hslaInternal) {
-            return this.#hslaInternal;
-        }
-        this.#hslaInternal = rgbaToHsla(this.#rgbaInternal);
-        return this.#hslaInternal;
-    }
-    canonicalHSLA() {
-        const hsla = this.hsla();
-        return [Math.round(hsla[0] * 360), Math.round(hsla[1] * 100), Math.round(hsla[2] * 100), hsla[3]];
-    }
-    /** HSVA with components within [0..1]
-       */
-    hsva() {
-        const hsla = this.hsla();
-        const h = hsla[0];
-        let s = hsla[1];
-        const l = hsla[2];
-        s *= l < 0.5 ? l : 1 - l;
-        return [h, s !== 0 ? 2 * s / (l + s) : 0, (l + s), hsla[3]];
     }
     hasAlpha() {
         return this.#rgbaInternal[3] !== 1;
@@ -428,21 +1602,20 @@ export class Color {
             }
         }
         const hasAlpha = this.hasAlpha();
-        const cf = Format;
         if (canBeShort) {
-            return hasAlpha ? cf.ShortHEXA : cf.ShortHEX;
+            return hasAlpha ? "shorthexa" /* Format.ShortHEXA */ : "shorthex" /* Format.ShortHEX */;
         }
-        return hasAlpha ? cf.HEXA : cf.HEX;
+        return hasAlpha ? "hexa" /* Format.HEXA */ : "hex" /* Format.HEX */;
     }
     asString(format) {
-        if (format === this.#formatInternal && this.#originalTextIsValid) {
-            return this.#originalText;
+        if (format) {
+            return this.as(format).asString();
         }
+        return this.#stringify(format, this.#rgbaInternal[0], this.#rgbaInternal[1], this.#rgbaInternal[2]);
+    }
+    #stringify(format, r, g, b) {
         if (!format) {
             format = this.#formatInternal;
-        }
-        function toRgbValue(value) {
-            return Math.round(value * 255);
         }
         function toHexValue(value) {
             const hex = Math.round(value * 255).toString(16);
@@ -452,67 +1625,67 @@ export class Color {
             return (Math.round(value * 255) / 17).toString(16);
         }
         switch (format) {
-            case Format.Original: {
-                return this.#originalText;
-            }
-            case Format.RGB:
-            case Format.RGBA: {
-                const start = Platform.StringUtilities.sprintf('rgb(%d %d %d', toRgbValue(this.#rgbaInternal[0]), toRgbValue(this.#rgbaInternal[1]), toRgbValue(this.#rgbaInternal[2]));
+            case "rgb" /* Format.RGB */:
+            case "rgba" /* Format.RGBA */: {
+                const start = Platform.StringUtilities.sprintf('rgb(%d %d %d', toRgbValue(r), toRgbValue(g), toRgbValue(b));
                 if (this.hasAlpha()) {
                     return start + Platform.StringUtilities.sprintf(' / %d%)', Math.round(this.#rgbaInternal[3] * 100));
                 }
                 return start + ')';
             }
-            case Format.HSL:
-            case Format.HSLA: {
-                const hsla = this.hsla();
-                const start = Platform.StringUtilities.sprintf('hsl(%ddeg %d% %d%', Math.round(hsla[0] * 360), Math.round(hsla[1] * 100), Math.round(hsla[2] * 100));
-                if (this.hasAlpha()) {
-                    return start + Platform.StringUtilities.sprintf(' / %d%)', Math.round(hsla[3] * 100));
-                }
-                return start + ')';
-            }
-            case Format.HEXA: {
+            case "hexa" /* Format.HEXA */: {
                 return Platform.StringUtilities
-                    .sprintf('#%s%s%s%s', toHexValue(this.#rgbaInternal[0]), toHexValue(this.#rgbaInternal[1]), toHexValue(this.#rgbaInternal[2]), toHexValue(this.#rgbaInternal[3]))
+                    .sprintf('#%s%s%s%s', toHexValue(r), toHexValue(g), toHexValue(b), toHexValue(this.#rgbaInternal[3]))
                     .toLowerCase();
             }
-            case Format.HEX: {
+            case "hex" /* Format.HEX */: {
                 if (this.hasAlpha()) {
                     return null;
                 }
-                return Platform.StringUtilities
-                    .sprintf('#%s%s%s', toHexValue(this.#rgbaInternal[0]), toHexValue(this.#rgbaInternal[1]), toHexValue(this.#rgbaInternal[2]))
-                    .toLowerCase();
+                return Platform.StringUtilities.sprintf('#%s%s%s', toHexValue(r), toHexValue(g), toHexValue(b)).toLowerCase();
             }
-            case Format.ShortHEXA: {
+            case "shorthexa" /* Format.ShortHEXA */: {
                 const hexFormat = this.detectHEXFormat();
-                if (hexFormat !== Format.ShortHEXA && hexFormat !== Format.ShortHEX) {
+                if (hexFormat !== "shorthexa" /* Format.ShortHEXA */ && hexFormat !== "shorthex" /* Format.ShortHEX */) {
                     return null;
                 }
                 return Platform.StringUtilities
-                    .sprintf('#%s%s%s%s', toShortHexValue(this.#rgbaInternal[0]), toShortHexValue(this.#rgbaInternal[1]), toShortHexValue(this.#rgbaInternal[2]), toShortHexValue(this.#rgbaInternal[3]))
+                    .sprintf('#%s%s%s%s', toShortHexValue(r), toShortHexValue(g), toShortHexValue(b), toShortHexValue(this.#rgbaInternal[3]))
                     .toLowerCase();
             }
-            case Format.ShortHEX: {
+            case "shorthex" /* Format.ShortHEX */: {
                 if (this.hasAlpha()) {
                     return null;
                 }
-                if (this.detectHEXFormat() !== Format.ShortHEX) {
+                if (this.detectHEXFormat() !== "shorthex" /* Format.ShortHEX */) {
                     return null;
                 }
-                return Platform.StringUtilities
-                    .sprintf('#%s%s%s', toShortHexValue(this.#rgbaInternal[0]), toShortHexValue(this.#rgbaInternal[1]), toShortHexValue(this.#rgbaInternal[2]))
+                return Platform.StringUtilities.sprintf('#%s%s%s', toShortHexValue(r), toShortHexValue(g), toShortHexValue(b))
                     .toLowerCase();
             }
-            case Format.Nickname: {
+            case "nickname" /* Format.Nickname */: {
                 return this.nickname();
             }
         }
-        return this.#originalText;
+        return null; // Shouldn't get here.
+    }
+    getAuthoredText() {
+        return this.#authoredText ?? null;
+    }
+    getRawParameters() {
+        return [...this.#rawParams];
+    }
+    getAsRawString(format) {
+        if (format) {
+            return this.as(format).getAsRawString();
+        }
+        return this.#stringify(format, ...this.#rawParams);
+    }
+    isGamutClipped() {
+        return !equals(this.#rawParams.map(toRgbValue), [this.#rgbaInternal[0], this.#rgbaInternal[1], this.#rgbaInternal[2]].map(toRgbValue), WIDE_RANGE_EPSILON);
     }
     rgba() {
-        return this.#rgbaInternal.slice();
+        return [...this.#rgbaInternal];
     }
     canonicalRGBA() {
         const rgba = new Array(4);
@@ -523,7 +1696,7 @@ export class Color {
         return rgba;
     }
     /** nickname
-       */
+     */
     nickname() {
         return RGBAToNickname.get(String(this.canonicalRGBA())) || null;
     }
@@ -536,47 +1709,40 @@ export class Color {
         return result;
     }
     invert() {
-        const rgba = [];
+        const rgba = [0, 0, 0, 0];
         rgba[0] = 1 - this.#rgbaInternal[0];
         rgba[1] = 1 - this.#rgbaInternal[1];
         rgba[2] = 1 - this.#rgbaInternal[2];
         rgba[3] = this.#rgbaInternal[3];
-        return new Color(rgba, Format.RGBA);
+        return new Legacy(rgba, "rgba" /* Format.RGBA */);
     }
     setAlpha(alpha) {
-        const rgba = this.#rgbaInternal.slice();
+        const rgba = [...this.#rgbaInternal];
         rgba[3] = alpha;
-        return new Color(rgba, Format.RGBA);
+        return new Legacy(rgba, "rgba" /* Format.RGBA */);
     }
     blendWith(fgColor) {
         const rgba = blendColors(fgColor.#rgbaInternal, this.#rgbaInternal);
-        return new Color(rgba, Format.RGBA);
+        return new Legacy(rgba, "rgba" /* Format.RGBA */);
     }
     blendWithAlpha(alpha) {
-        const rgba = this.#rgbaInternal.slice();
+        const rgba = [...this.#rgbaInternal];
         rgba[3] *= alpha;
-        return new Color(rgba, Format.RGBA);
+        return new Legacy(rgba, "rgba" /* Format.RGBA */);
     }
     setFormat(format) {
         this.#formatInternal = format;
     }
+    equal(other) {
+        const legacy = other.as(this.#formatInternal);
+        return equals(toRgbValue(this.#rgbaInternal[0]), toRgbValue(legacy.#rgbaInternal[0]), WIDE_RANGE_EPSILON) &&
+            equals(toRgbValue(this.#rgbaInternal[1]), toRgbValue(legacy.#rgbaInternal[1]), WIDE_RANGE_EPSILON) &&
+            equals(toRgbValue(this.#rgbaInternal[2]), toRgbValue(legacy.#rgbaInternal[2]), WIDE_RANGE_EPSILON) &&
+            equals(this.#rgbaInternal[3], legacy.#rgbaInternal[3]);
+    }
 }
-export const Regex = /((?:rgb|hsl)a?\([^)]+\)|#[0-9a-fA-F]{8}|#[0-9a-fA-F]{6}|#[0-9a-fA-F]{3,4}|\b[a-zA-Z]+\b(?!-))/g;
-// TODO(crbug.com/1167717): Make this a const enum again
-// eslint-disable-next-line rulesdir/const_enum
-export var Format;
-(function (Format) {
-    Format["Original"] = "original";
-    Format["Nickname"] = "nickname";
-    Format["HEX"] = "hex";
-    Format["ShortHEX"] = "shorthex";
-    Format["HEXA"] = "hexa";
-    Format["ShortHEXA"] = "shorthexa";
-    Format["RGB"] = "rgb";
-    Format["RGBA"] = "rgba";
-    Format["HSL"] = "hsl";
-    Format["HSLA"] = "hsla";
-})(Format || (Format = {}));
+export const Regex = /((?:rgba?|hsla?|hwba?|lab|lch|oklab|oklch|color)\([^)]+\)|#[0-9a-fA-F]{8}|#[0-9a-fA-F]{6}|#[0-9a-fA-F]{3,4}|\b[a-zA-Z]+\b(?!-))/g;
+export const ColorMixRegex = /color-mix\(.*,\s*(?<firstColor>.+)\s*,\s*(?<secondColor>.+)\s*\)/g;
 const COLOR_TO_RGBA_ENTRIES = [
     ['aliceblue', [240, 248, 255]],
     ['antiquewhite', [250, 235, 215]],
@@ -739,33 +1905,33 @@ COLOR_TO_RGBA_ENTRIES.map(([nickname, [r, g, b, a = 1]]) => {
 }));
 const LAYOUT_LINES_HIGHLIGHT_COLOR = [127, 32, 210];
 export const PageHighlight = {
-    Content: Color.fromRGBA([111, 168, 220, .66]),
-    ContentLight: Color.fromRGBA([111, 168, 220, .5]),
-    ContentOutline: Color.fromRGBA([9, 83, 148]),
-    Padding: Color.fromRGBA([147, 196, 125, .55]),
-    PaddingLight: Color.fromRGBA([147, 196, 125, .4]),
-    Border: Color.fromRGBA([255, 229, 153, .66]),
-    BorderLight: Color.fromRGBA([255, 229, 153, .5]),
-    Margin: Color.fromRGBA([246, 178, 107, .66]),
-    MarginLight: Color.fromRGBA([246, 178, 107, .5]),
-    EventTarget: Color.fromRGBA([255, 196, 196, .66]),
-    Shape: Color.fromRGBA([96, 82, 177, 0.8]),
-    ShapeMargin: Color.fromRGBA([96, 82, 127, .6]),
-    CssGrid: Color.fromRGBA([0x4b, 0, 0x82, 1]),
-    LayoutLine: Color.fromRGBA([...LAYOUT_LINES_HIGHLIGHT_COLOR, 1]),
-    GridBorder: Color.fromRGBA([...LAYOUT_LINES_HIGHLIGHT_COLOR, 1]),
-    GapBackground: Color.fromRGBA([...LAYOUT_LINES_HIGHLIGHT_COLOR, .3]),
-    GapHatch: Color.fromRGBA([...LAYOUT_LINES_HIGHLIGHT_COLOR, .8]),
-    GridAreaBorder: Color.fromRGBA([26, 115, 232, 1]),
+    Content: Legacy.fromRGBA([111, 168, 220, .66]),
+    ContentLight: Legacy.fromRGBA([111, 168, 220, .5]),
+    ContentOutline: Legacy.fromRGBA([9, 83, 148]),
+    Padding: Legacy.fromRGBA([147, 196, 125, .55]),
+    PaddingLight: Legacy.fromRGBA([147, 196, 125, .4]),
+    Border: Legacy.fromRGBA([255, 229, 153, .66]),
+    BorderLight: Legacy.fromRGBA([255, 229, 153, .5]),
+    Margin: Legacy.fromRGBA([246, 178, 107, .66]),
+    MarginLight: Legacy.fromRGBA([246, 178, 107, .5]),
+    EventTarget: Legacy.fromRGBA([255, 196, 196, .66]),
+    Shape: Legacy.fromRGBA([96, 82, 177, 0.8]),
+    ShapeMargin: Legacy.fromRGBA([96, 82, 127, .6]),
+    CssGrid: Legacy.fromRGBA([0x4b, 0, 0x82, 1]),
+    LayoutLine: Legacy.fromRGBA([...LAYOUT_LINES_HIGHLIGHT_COLOR, 1]),
+    GridBorder: Legacy.fromRGBA([...LAYOUT_LINES_HIGHLIGHT_COLOR, 1]),
+    GapBackground: Legacy.fromRGBA([...LAYOUT_LINES_HIGHLIGHT_COLOR, .3]),
+    GapHatch: Legacy.fromRGBA([...LAYOUT_LINES_HIGHLIGHT_COLOR, .8]),
+    GridAreaBorder: Legacy.fromRGBA([26, 115, 232, 1]),
 };
 export const SourceOrderHighlight = {
-    ParentOutline: Color.fromRGBA([224, 90, 183, 1]),
-    ChildOutline: Color.fromRGBA([0, 120, 212, 1]),
+    ParentOutline: Legacy.fromRGBA([224, 90, 183, 1]),
+    ChildOutline: Legacy.fromRGBA([0, 120, 212, 1]),
 };
 export const IsolationModeHighlight = {
-    Resizer: Color.fromRGBA([222, 225, 230, 1]),
-    ResizerHandle: Color.fromRGBA([166, 166, 166, 1]),
-    Mask: Color.fromRGBA([248, 249, 249, 1]),
+    Resizer: Legacy.fromRGBA([222, 225, 230, 1]),
+    ResizerHandle: Legacy.fromRGBA([166, 166, 166, 1]),
+    Mask: Legacy.fromRGBA([248, 249, 249, 1]),
 };
 export class Generator {
     #hueSpace;
@@ -812,7 +1978,4 @@ export class Generator {
         return space.min + Math.floor(index / (count - 1) * (space.max - space.min));
     }
 }
-// TODO(crbug.com/1172300) Ignored during the jsdoc to ts migration
-// eslint-disable-next-line @typescript-eslint/naming-convention
-const _tmpHSLA = [0, 0, 0, 0];
 //# sourceMappingURL=Color.js.map

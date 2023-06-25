@@ -8,137 +8,159 @@ import * as UI from '../../ui/legacy/legacy.js';
 import * as i18n from '../../core/i18n/i18n.js';
 const UIStrings = {
     /**
-    * @description Command for showing the 'Elements' panel. Elements refers to HTML elements.
-    */
+     * @description Command for showing the 'Elements' panel. Elements refers to HTML elements.
+     */
     showElements: 'Show Elements',
     /**
-    * @description Title of the Elements Panel. Elements refers to HTML elements.
-    */
+     * @description Title of the Elements Panel. Elements refers to HTML elements.
+     */
     elements: 'Elements',
     /**
-    * @description Command for showing the 'Event Listeners' tool. Refers to DOM Event listeners.
-    */
+     * @description Command for showing the 'Event Listeners' tool. Refers to DOM Event listeners.
+     */
     showEventListeners: 'Show Event Listeners',
     /**
-    * @description Title of the 'Event Listeners' tool in the sidebar of the elements panel. Refers to
-    * DOM Event listeners.
-    */
+     * @description Title of the 'Event Listeners' tool in the sidebar of the elements panel. Refers to
+     * DOM Event listeners.
+     */
     eventListeners: 'Event Listeners',
     /**
-    * @description Command for showing the 'Properties' tool. Refers to HTML properties.
-    */
+     * @description Command for showing the 'Properties' tool. Refers to HTML properties.
+     */
     showProperties: 'Show Properties',
     /**
-    * @description Title of the 'Properties' tool in the sidebar of the elements tool. Refers to HTML
-    * properties.
-    */
+     * @description Title of the 'Properties' tool in the sidebar of the elements tool. Refers to HTML
+     * properties.
+     */
     properties: 'Properties',
     /**
-    * @description Command for showing the 'Stack Trace' tool. Stack trace refers to the location in
-    * the code where the program was at a point in time.
-    */
+     * @description Command for showing the 'Stack Trace' tool. Stack trace refers to the location in
+     * the code where the program was at a point in time.
+     */
     showStackTrace: 'Show Stack Trace',
     /**
-    * @description Text for the execution stack trace tool, which shows the stack trace from when this
-    * HTML element was created. Stack trace refers to the location in the code where the program was
-    * at a point in time.
-    */
+     * @description Text for the execution stack trace tool, which shows the stack trace from when this
+     * HTML element was created. Stack trace refers to the location in the code where the program was
+     * at a point in time.
+     */
     stackTrace: 'Stack Trace',
     /**
-    * @description Command for showing the 'Layout' tool
-    */
+     * @description Command for showing the 'Layout' tool
+     */
     showLayout: 'Show Layout',
     /**
-    * @description The title of the 'Layout' tool in the sidebar of the elements panel.
-    */
+     * @description The title of the 'Layout' tool in the sidebar of the elements panel.
+     */
     layout: 'Layout',
     /**
-    * @description Command to hide a HTML element in the Elements tree.
-    */
+     * @description Command to hide a HTML element in the Elements tree.
+     */
     hideElement: 'Hide element',
     /**
-    * @description A context menu item (command) in the Elements panel that allows the user to edit the
-    * currently selected node as raw HTML text.
-    */
+     * @description A context menu item (command) in the Elements panel that allows the user to edit the
+     * currently selected node as raw HTML text.
+     */
     editAsHtml: 'Edit as HTML',
     /**
-    * @description A context menu item (command) in the Elements panel that creates an exact copy of
-    * this HTML element.
-    */
+     * @description A context menu item (command) in the Elements panel that creates an exact copy of
+     * this HTML element.
+     */
     duplicateElement: 'Duplicate element',
     /**
-    * @description A command in the Elements panel to undo the last action the user took.
-    */
+     * @description A command in the Elements panel to undo the last action the user took.
+     */
     undo: 'Undo',
     /**
-    * @description A command in the Elements panel to redo the last action the user took (undo an
-    * undo).
-    */
+     * @description A command in the Elements panel to redo the last action the user took (undo an
+     * undo).
+     */
     redo: 'Redo',
     /**
-    * @description A command in the Elements panel to capture a screenshot of the selected area.
-    */
+     * @description A command in the Elements panel to capture a screenshot of the selected area.
+     */
     captureAreaScreenshot: 'Capture area screenshot',
     /**
-    * @description Title/tooltip of an action in the elements panel to toggle element search on/off.
-    */
+     * @description Title/tooltip of an action in the elements panel to toggle element search on/off.
+     */
     selectAnElementInThePageTo: 'Select an element in the page to inspect it',
     /**
-    * @description Title of a setting under the Elements category in Settings. Whether words should be
-    * wrapped around at the end of lines or not.
-    */
+     * @description Title of a setting under the Elements category in Settings. Whether words should be
+     * wrapped around at the end of lines or not.
+     */
     wordWrap: 'Word wrap',
     /**
-    * @description Title of a setting under the Elements category. Whether words should be wrapped
-    * around at the end of lines or not when showing DOM elements.
-    */
+     * @description Title of a setting under the Elements category. Whether words should be wrapped
+     * around at the end of lines or not when showing DOM elements.
+     */
     enableDomWordWrap: 'Enable `DOM` word wrap',
     /**
-    * @description Title of a setting under the Elements category. Whether words should be wrapped
-    * around at the end of lines or not when showing DOM elements.
-    */
+     * @description Title of a setting under the Elements category. Whether words should be wrapped
+     * around at the end of lines or not when showing DOM elements.
+     */
     disableDomWordWrap: 'Disable `DOM` word wrap',
     /**
-    * @description Title of a setting under the Elements category. Whether to show/hide code comments in HTML.
-    */
+     * @description Title of a setting under the Elements category. Whether to show/hide code comments in HTML.
+     */
     showHtmlComments: 'Show `HTML` comments',
     /**
-    * @description Title of a setting under the Elements category. Whether to show/hide code comments in HTML.
-    */
+     * @description Title of a setting under the Elements category. Whether to show/hide code comments in HTML.
+     */
     hideHtmlComments: 'Hide `HTML` comments',
     /**
-    * @description Title of a setting under the Elements category in Settings. Whether the position of
-    * the DOM node on the actual website should be highlighted/revealed to the user when they hover
-    * over the corresponding node in the DOM tree in DevTools.
-    */
+     * @description Title of a setting under the Elements category in Settings. Whether the position of
+     * the DOM node on the actual website should be highlighted/revealed to the user when they hover
+     * over the corresponding node in the DOM tree in DevTools.
+     */
     revealDomNodeOnHover: 'Reveal `DOM` node on hover',
     /**
-    * @description Title of a setting under the Elements category in Settings. Turns on a mode where
-    * the inspect tooltip (an information pane that hovers next to selected DOM elements) has extra
-    * detail.
-    */
+     * @description Title of a setting under the Elements category in Settings. Turns on a mode where
+     * the inspect tooltip (an information pane that hovers next to selected DOM elements) has extra
+     * detail.
+     */
     showDetailedInspectTooltip: 'Show detailed inspect tooltip',
     /**
-    *@description A context menu item (command) in the Elements panel that copy the styles of
-    * the HTML element.
-    */
+     * @description Title of a setting under the Elements category in Settings. Turns on a mode where
+     * hovering over CSS properties in the Styles pane will display a popover with documentation.
+     */
+    showCSSDocumentationTooltip: 'Show CSS documentation tooltip',
+    /**
+     *@description A context menu item (command) in the Elements panel that copy the styles of
+     * the HTML element.
+     */
     copyStyles: 'Copy styles',
     /**
      * @description Title of a setting under the Elements category. Whether to show/hide hide
      * the shadow DOM nodes of HTML elements that are built into the browser (e.g. the <input> element).
      */
     showUserAgentShadowDOM: 'Show user agent shadow `DOM`',
+    /**
+     * @description Command for showing the 'Computed' tool. Displays computed CSS styles in Elements sidebar.
+     */
+    showComputedStyles: 'Show Computed Styles',
+    /**
+     * @description Command for showing the 'Styles' tool. Displays CSS styles in Elements sidebar.
+     */
+    showStyles: 'Show Styles',
+    /**
+     * @description Command for toggling the eye dropper when the color picker is open
+     */
+    toggleEyeDropper: 'Toggle eye dropper',
 };
 const str_ = i18n.i18n.registerUIStrings('panels/elements/elements-meta.ts', UIStrings);
 const i18nLazyString = i18n.i18n.getLazilyComputedLocalizedString.bind(undefined, str_);
 let loadedElementsModule;
+let loadedElementsComponentsModule;
 async function loadElementsModule() {
     if (!loadedElementsModule) {
-        // Side-effect import resources in module.json
-        await Root.Runtime.Runtime.instance().loadModulePromise('panels/elements');
         loadedElementsModule = await import('./elements.js');
     }
     return loadedElementsModule;
+}
+async function loadElementsComponentsModule() {
+    if (!loadedElementsComponentsModule) {
+        loadedElementsComponentsModule = await import('./components/components.js');
+    }
+    return loadedElementsComponentsModule;
 }
 function maybeRetrieveContextTypes(getClassCallBack) {
     if (loadedElementsModule === undefined) {
@@ -147,38 +169,56 @@ function maybeRetrieveContextTypes(getClassCallBack) {
     return getClassCallBack(loadedElementsModule);
 }
 UI.ViewManager.registerViewExtension({
-    location: "panel" /* PANEL */,
+    location: "panel" /* UI.ViewManager.ViewLocationValues.PANEL */,
     id: 'elements',
     commandPrompt: i18nLazyString(UIStrings.showElements),
     title: i18nLazyString(UIStrings.elements),
     order: 10,
-    persistence: "permanent" /* PERMANENT */,
+    persistence: "permanent" /* UI.ViewManager.ViewPersistence.PERMANENT */,
     hasToolbar: false,
     async loadView() {
         const Elements = await loadElementsModule();
         return Elements.ElementsPanel.ElementsPanel.instance();
     },
 });
+UI.ActionRegistration.registerActionExtension({
+    actionId: 'elements.show-styles',
+    category: UI.ActionRegistration.ActionCategory.ELEMENTS,
+    title: i18nLazyString(UIStrings.showStyles),
+    async loadActionDelegate() {
+        const Elements = await loadElementsModule();
+        return Elements.ElementsPanel.ElementsActionDelegate.instance();
+    },
+});
+UI.ActionRegistration.registerActionExtension({
+    actionId: 'elements.show-computed',
+    category: UI.ActionRegistration.ActionCategory.ELEMENTS,
+    title: i18nLazyString(UIStrings.showComputedStyles),
+    async loadActionDelegate() {
+        const Elements = await loadElementsModule();
+        return Elements.ElementsPanel.ElementsActionDelegate.instance();
+    },
+});
 UI.ViewManager.registerViewExtension({
-    location: "elements-sidebar" /* ELEMENTS_SIDEBAR */,
+    location: "elements-sidebar" /* UI.ViewManager.ViewLocationValues.ELEMENTS_SIDEBAR */,
     id: 'elements.eventListeners',
     commandPrompt: i18nLazyString(UIStrings.showEventListeners),
     title: i18nLazyString(UIStrings.eventListeners),
     order: 5,
     hasToolbar: true,
-    persistence: "permanent" /* PERMANENT */,
+    persistence: "permanent" /* UI.ViewManager.ViewPersistence.PERMANENT */,
     async loadView() {
         const Elements = await loadElementsModule();
         return Elements.EventListenersWidget.EventListenersWidget.instance();
     },
 });
 UI.ViewManager.registerViewExtension({
-    location: "elements-sidebar" /* ELEMENTS_SIDEBAR */,
+    location: "elements-sidebar" /* UI.ViewManager.ViewLocationValues.ELEMENTS_SIDEBAR */,
     id: 'elements.domProperties',
     commandPrompt: i18nLazyString(UIStrings.showProperties),
     title: i18nLazyString(UIStrings.properties),
     order: 7,
-    persistence: "permanent" /* PERMANENT */,
+    persistence: "permanent" /* UI.ViewManager.ViewPersistence.PERMANENT */,
     async loadView() {
         const Elements = await loadElementsModule();
         return Elements.PropertiesWidget.PropertiesWidget.instance();
@@ -186,27 +226,27 @@ UI.ViewManager.registerViewExtension({
 });
 UI.ViewManager.registerViewExtension({
     experiment: Root.Runtime.ExperimentName.CAPTURE_NODE_CREATION_STACKS,
-    location: "elements-sidebar" /* ELEMENTS_SIDEBAR */,
+    location: "elements-sidebar" /* UI.ViewManager.ViewLocationValues.ELEMENTS_SIDEBAR */,
     id: 'elements.domCreation',
     commandPrompt: i18nLazyString(UIStrings.showStackTrace),
     title: i18nLazyString(UIStrings.stackTrace),
     order: 10,
-    persistence: "permanent" /* PERMANENT */,
+    persistence: "permanent" /* UI.ViewManager.ViewPersistence.PERMANENT */,
     async loadView() {
         const Elements = await loadElementsModule();
         return Elements.NodeStackTraceWidget.NodeStackTraceWidget.instance();
     },
 });
 UI.ViewManager.registerViewExtension({
-    location: "elements-sidebar" /* ELEMENTS_SIDEBAR */,
+    location: "elements-sidebar" /* UI.ViewManager.ViewLocationValues.ELEMENTS_SIDEBAR */,
     id: 'elements.layout',
     commandPrompt: i18nLazyString(UIStrings.showLayout),
     title: i18nLazyString(UIStrings.layout),
     order: 4,
-    persistence: "permanent" /* PERMANENT */,
+    persistence: "permanent" /* UI.ViewManager.ViewPersistence.PERMANENT */,
     async loadView() {
-        const Elements = await loadElementsModule();
-        return Elements.LayoutSidebarPane.LayoutSidebarPane.instance();
+        const ElementsComponents = await loadElementsComponentsModule();
+        return ElementsComponents.LayoutPane.LayoutPane.instance().wrapper;
     },
 });
 UI.ActionRegistration.registerActionExtension({
@@ -223,6 +263,23 @@ UI.ActionRegistration.registerActionExtension({
     bindings: [
         {
             shortcut: 'H',
+        },
+    ],
+});
+UI.ActionRegistration.registerActionExtension({
+    actionId: 'elements.toggle-eye-dropper',
+    category: UI.ActionRegistration.ActionCategory.ELEMENTS,
+    title: i18nLazyString(UIStrings.toggleEyeDropper),
+    async loadActionDelegate() {
+        const Elements = await loadElementsModule();
+        return Elements.ElementsPanel.ElementsActionDelegate.instance();
+    },
+    contextTypes() {
+        return maybeRetrieveContextTypes(Elements => [Elements.ColorSwatchPopoverIcon.ColorSwatchPopoverIcon]);
+    },
+    bindings: [
+        {
+            shortcut: 'c',
         },
     ],
 });
@@ -274,11 +331,11 @@ UI.ActionRegistration.registerActionExtension({
     bindings: [
         {
             shortcut: 'Ctrl+Alt+C',
-            platform: "windows,linux" /* WindowsLinux */,
+            platform: "windows,linux" /* UI.ActionRegistration.Platforms.WindowsLinux */,
         },
         {
             shortcut: 'Meta+Alt+C',
-            platform: "mac" /* Mac */,
+            platform: "mac" /* UI.ActionRegistration.Platforms.Mac */,
         },
     ],
 });
@@ -296,11 +353,11 @@ UI.ActionRegistration.registerActionExtension({
     bindings: [
         {
             shortcut: 'Ctrl+Z',
-            platform: "windows,linux" /* WindowsLinux */,
+            platform: "windows,linux" /* UI.ActionRegistration.Platforms.WindowsLinux */,
         },
         {
             shortcut: 'Meta+Z',
-            platform: "mac" /* Mac */,
+            platform: "mac" /* UI.ActionRegistration.Platforms.Mac */,
         },
     ],
 });
@@ -318,11 +375,11 @@ UI.ActionRegistration.registerActionExtension({
     bindings: [
         {
             shortcut: 'Ctrl+Y',
-            platform: "windows,linux" /* WindowsLinux */,
+            platform: "windows,linux" /* UI.ActionRegistration.Platforms.WindowsLinux */,
         },
         {
             shortcut: 'Meta+Shift+Z',
-            platform: "mac" /* Mac */,
+            platform: "mac" /* UI.ActionRegistration.Platforms.Mac */,
         },
     ],
 });
@@ -345,15 +402,15 @@ UI.ActionRegistration.registerActionExtension({
         return Elements.InspectElementModeController.ToggleSearchActionDelegate.instance();
     },
     title: i18nLazyString(UIStrings.selectAnElementInThePageTo),
-    iconClass: "largeicon-node-search" /* LARGEICON_NODE_SEARCH */,
+    iconClass: "select-element" /* UI.ActionRegistration.IconClass.LARGEICON_NODE_SEARCH */,
     bindings: [
         {
             shortcut: 'Ctrl+Shift+C',
-            platform: "windows,linux" /* WindowsLinux */,
+            platform: "windows,linux" /* UI.ActionRegistration.Platforms.WindowsLinux */,
         },
         {
             shortcut: 'Meta+Shift+C',
-            platform: "mac" /* Mac */,
+            platform: "mac" /* UI.ActionRegistration.Platforms.Mac */,
         },
     ],
 });
@@ -434,6 +491,14 @@ Common.Settings.registerSettingExtension({
     settingType: Common.Settings.SettingType.ARRAY,
     defaultValue: [],
 });
+Common.Settings.registerSettingExtension({
+    category: Common.Settings.SettingCategory.ELEMENTS,
+    storageType: Common.Settings.SettingStorageType.Synced,
+    title: i18nLazyString(UIStrings.showCSSDocumentationTooltip),
+    settingName: 'showCSSPropertyDocumentationOnHover',
+    settingType: Common.Settings.SettingType.BOOLEAN,
+    defaultValue: true,
+});
 UI.ContextMenu.registerProvider({
     contextTypes() {
         return [
@@ -449,8 +514,8 @@ UI.ContextMenu.registerProvider({
     experiment: undefined,
 });
 UI.ViewManager.registerLocationResolver({
-    name: "elements-sidebar" /* ELEMENTS_SIDEBAR */,
-    category: UI.ViewManager.ViewLocationCategoryValues.ELEMENTS,
+    name: "elements-sidebar" /* UI.ViewManager.ViewLocationValues.ELEMENTS_SIDEBAR */,
+    category: UI.ViewManager.ViewLocationCategory.ELEMENTS,
     async loadResolver() {
         const Elements = await loadElementsModule();
         return Elements.ElementsPanel.ElementsPanel.instance();
@@ -485,7 +550,7 @@ Common.Revealer.registerRevealer({
 UI.Toolbar.registerToolbarItem({
     async loadItem() {
         const Elements = await loadElementsModule();
-        return Elements.ElementStatePaneWidget.ButtonProvider.instance();
+        return Elements.LayersWidget.ButtonProvider.instance();
     },
     order: 1,
     location: UI.Toolbar.ToolbarItemLocation.STYLES_SIDEBARPANE_TOOLBAR,
@@ -497,9 +562,21 @@ UI.Toolbar.registerToolbarItem({
 UI.Toolbar.registerToolbarItem({
     async loadItem() {
         const Elements = await loadElementsModule();
-        return Elements.ClassesPaneWidget.ButtonProvider.instance();
+        return Elements.ElementStatePaneWidget.ButtonProvider.instance();
     },
     order: 2,
+    location: UI.Toolbar.ToolbarItemLocation.STYLES_SIDEBARPANE_TOOLBAR,
+    showLabel: undefined,
+    condition: undefined,
+    separator: undefined,
+    actionId: undefined,
+});
+UI.Toolbar.registerToolbarItem({
+    async loadItem() {
+        const Elements = await loadElementsModule();
+        return Elements.ClassesPaneWidget.ButtonProvider.instance();
+    },
+    order: 3,
     location: UI.Toolbar.ToolbarItemLocation.STYLES_SIDEBARPANE_TOOLBAR,
     showLabel: undefined,
     condition: undefined,

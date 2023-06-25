@@ -93,7 +93,7 @@ export declare class ProgressTracker {
     private finishedRequests;
     private maxDisplayedProgress;
     constructor(resourceTreeModel: SDK.ResourceTreeModel.ResourceTreeModel | null, networkManager: SDK.NetworkManager.NetworkManager | null, element: HTMLElement);
-    private onMainFrameNavigated;
+    private onPrimaryPageChanged;
     private onLoad;
     private navigationProgressVisible;
     private onRequestStarted;

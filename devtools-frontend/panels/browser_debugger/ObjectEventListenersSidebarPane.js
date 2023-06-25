@@ -7,8 +7,8 @@ import * as SDK from '../../core/sdk/sdk.js';
 import * as UI from '../../ui/legacy/legacy.js';
 const UIStrings = {
     /**
-    *@description Label for a button in the sources panel that refreshes the list of global event listeners.
-    */
+     *@description Label for a button in the sources panel that refreshes the list of global event listeners.
+     */
     refreshGlobalListeners: 'Refresh global listeners',
 };
 const str_ = i18n.i18n.registerUIStrings('panels/browser_debugger/ObjectEventListenersSidebarPane.ts', UIStrings);
@@ -20,8 +20,7 @@ export class ObjectEventListenersSidebarPane extends UI.Widget.VBox {
     #lastRequestedContext;
     constructor() {
         super();
-        this.#refreshButton =
-            new UI.Toolbar.ToolbarButton(i18nString(UIStrings.refreshGlobalListeners), 'largeicon-refresh');
+        this.#refreshButton = new UI.Toolbar.ToolbarButton(i18nString(UIStrings.refreshGlobalListeners), 'refresh');
         this.#refreshButton.addEventListener(UI.Toolbar.ToolbarButton.Events.Click, this.refreshClick, this);
         this.#refreshButton.setEnabled(false);
         this.#eventListenersView = new EventListeners.EventListenersView.EventListenersView(this.update.bind(this), /* enableDefaultTreeFocus */ true);
@@ -52,7 +51,7 @@ export class ObjectEventListenersSidebarPane extends UI.Widget.VBox {
             return;
         }
         this.#lastRequestedContext = executionContext;
-        Promise.all([this.windowObjectInContext(executionContext)])
+        void Promise.all([this.windowObjectInContext(executionContext)])
             .then(this.#eventListenersView.addObjects.bind(this.#eventListenersView));
     }
     wasShown() {
@@ -75,11 +74,6 @@ export class ObjectEventListenersSidebarPane extends UI.Widget.VBox {
             silent: true,
             returnByValue: false,
             generatePreview: false,
-            timeout: undefined,
-            throwOnSideEffect: undefined,
-            disableBreaks: undefined,
-            replMode: undefined,
-            allowUnsafeEvalBlockedByCSP: undefined,
         }, 
         /* userGesture */ false, 
         /* awaitPromise */ false)

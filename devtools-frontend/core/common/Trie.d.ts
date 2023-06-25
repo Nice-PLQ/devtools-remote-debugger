@@ -1,11 +1,20 @@
-export declare class Trie {
+type ElementType<T extends ArrayLike<unknown>> = T extends ArrayLike<infer E> ? E : never;
+interface TrieableTrait<T extends ArrayLike<ElementType<T>>> {
+    empty(): T;
+    append(base: T, appendage: ElementType<T>): T;
+    slice(base: T, start: number, end: number): T;
+}
+export declare class Trie<T extends ArrayLike<ElementType<T>>> {
     #private;
-    constructor();
-    add(word: string): void;
-    remove(word: string): boolean;
-    has(word: string): boolean;
-    words(prefix?: string): string[];
+    constructor(traitImpl: TrieableTrait<T>);
+    static newStringTrie(): Trie<string>;
+    static newArrayTrie<T extends ElementType<T>[]>(): Trie<ElementType<T>[]>;
+    add(word: T): void;
+    remove(word: T): boolean;
+    has(word: T): boolean;
+    words(prefix?: T): T[];
     private dfs;
-    longestPrefix(word: string, fullWordOnly: boolean): string;
+    longestPrefix(word: T, fullWordOnly: boolean): T;
     clear(): void;
 }
+export {};

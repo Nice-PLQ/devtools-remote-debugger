@@ -2,16 +2,16 @@ import * as Common from '../../core/common/common.js';
 import * as Platform from '../../core/platform/platform.js';
 import * as SDK from '../../core/sdk/sdk.js';
 import * as TimelineModel from '../../models/timeline_model/timeline_model.js';
+import type * as TraceEngine from '../../models/trace/trace.js';
 import * as DataGrid from '../../ui/legacy/components/data_grid/data_grid.js';
 import * as Components from '../../ui/legacy/components/utils/utils.js';
 import * as UI from '../../ui/legacy/legacy.js';
-import type { PerformanceModel } from './PerformanceModel.js';
+import { type PerformanceModel } from './PerformanceModel.js';
 import { TimelineRegExp } from './TimelineFilters.js';
-import type { TimelineSelection } from './TimelinePanel.js';
+import { type TimelineSelection } from './TimelineSelection.js';
 export declare class TimelineTreeView extends UI.Widget.VBox implements UI.SearchableView.Searchable {
+    #private;
     modelInternal: PerformanceModel | null;
-    private track;
-    private readonly tree;
     private searchResults;
     linkifier: Components.Linkifier.Linkifier;
     dataGrid: DataGrid.SortableDataGrid.SortableDataGrid<GridNode>;
@@ -25,15 +25,22 @@ export declare class TimelineTreeView extends UI.Widget.VBox implements UI.Searc
     private searchableView;
     private currentThreadSetting?;
     private lastSelectedNodeInternal?;
-    private textFilterUI?;
     private root?;
     private currentResult?;
+    textFilterUI?: UI.Toolbar.ToolbarInput;
     constructor();
     static eventNameForSorting(event: SDK.TracingModel.Event): string;
     setSearchableView(searchableView: UI.SearchableView.SearchableView): void;
+    setModelWithEvents(model: PerformanceModel | null, selectedEvents: SDK.TracingModel.CompatibleTraceEvent[] | null, traceParseData?: TraceEngine.Handlers.Migration.PartialTraceData | null): void;
+    /**
+     * This method is included only for preventing layout test failures.
+     * TODO(crbug.com/1433692): Port problematic layout tests to unit
+     * tests.
+     */
     setModel(model: PerformanceModel | null, track: TimelineModel.TimelineModel.Track | null): void;
     getToolbarInputAccessiblePlaceHolder(): string;
     model(): PerformanceModel | null;
+    traceParseData(): TraceEngine.Handlers.Migration.PartialTraceData | null;
     init(): void;
     lastSelectedNode(): TimelineModel.TimelineProfileTree.Node | null | undefined;
     updateContents(selection: TimelineSelection): void;
@@ -43,14 +50,13 @@ export declare class TimelineTreeView extends UI.Widget.VBox implements UI.Searc
     textFilter(): TimelineRegExp;
     exposePercentages(): boolean;
     populateToolbar(toolbar: UI.Toolbar.Toolbar): void;
-    modelEvents(): SDK.TracingModel.Event[];
+    modelEvents(): SDK.TracingModel.CompatibleTraceEvent[];
     onHover(_node: TimelineModel.TimelineProfileTree.Node | null): void;
     appendContextMenuItems(_contextMenu: UI.ContextMenu.ContextMenu, _node: TimelineModel.TimelineProfileTree.Node): void;
-    linkifyLocation(event: SDK.TracingModel.Event): Element | null;
     selectProfileNode(treeNode: TimelineModel.TimelineProfileTree.Node, suppressSelectedEvent: boolean): void;
     refreshTree(): void;
     buildTree(): TimelineModel.TimelineProfileTree.Node;
-    buildTopDownTree(doNotAggregate: boolean, groupIdCallback: ((arg0: SDK.TracingModel.Event) => string) | null): TimelineModel.TimelineProfileTree.Node;
+    buildTopDownTree(doNotAggregate: boolean, groupIdCallback: ((arg0: SDK.TracingModel.CompatibleTraceEvent) => string) | null): TimelineModel.TimelineProfileTree.Node;
     populateColumns(columns: DataGrid.DataGrid.ColumnDescriptor[]): void;
     private sortingChanged;
     private onShowModeChanged;
@@ -59,7 +65,7 @@ export declare class TimelineTreeView extends UI.Widget.VBox implements UI.Searc
     private onMouseMove;
     private onContextMenu;
     dataGridNodeForTreeNode(treeNode: TimelineModel.TimelineProfileTree.Node): GridNode | null;
-    searchCanceled(): void;
+    onSearchCanceled(): void;
     performSearch(searchConfig: UI.SearchableView.SearchConfig, _shouldJump: boolean, _jumpBackwards?: boolean): void;
     jumpToNextSearchResult(): void;
     jumpToPreviousSearchResult(): void;
@@ -82,15 +88,19 @@ export declare class GridNode extends DataGrid.SortableDataGrid.SortableDataGrid
 export declare class TreeGridNode extends GridNode {
     constructor(profileNode: TimelineModel.TimelineProfileTree.Node, grandTotalTime: number, maxSelfTime: number, maxTotalTime: number, treeView: TimelineTreeView);
     populate(): void;
-    private static readonly gridNodeSymbol;
 }
 export declare class AggregatedTimelineTreeView extends TimelineTreeView {
-    protected readonly groupBySetting: Common.Settings.Setting<any>;
+    protected readonly groupBySetting: Common.Settings.Setting<AggregatedTimelineTreeView.GroupBy>;
     private readonly stackView;
-    private readonly productByURLCache;
-    private readonly colorByURLCache;
     private executionContextNamesByOrigin;
     constructor();
+    setGroupBySettingForTests(groupBy: AggregatedTimelineTreeView.GroupBy): void;
+    setModelWithEvents(model: PerformanceModel | null, selectedEvents: SDK.TracingModel.CompatibleTraceEvent[] | null, traceParseData?: TraceEngine.Handlers.Migration.PartialTraceData | null): void;
+    /**
+     * This method is included only for preventing layout test failures.
+     * TODO(crbug.com/1433692): Port problematic layout tests to unit
+     * tests.
+     */
     setModel(model: PerformanceModel | null, track: TimelineModel.TimelineModel.Track | null): void;
     updateContents(selection: TimelineSelection): void;
     private updateExtensionResolver;
@@ -105,7 +115,7 @@ export declare class AggregatedTimelineTreeView extends TimelineTreeView {
     exposePercentages(): boolean;
     private onStackViewSelectionChanged;
     showDetailsForNode(node: TimelineModel.TimelineProfileTree.Node): boolean;
-    protected groupingFunction(groupBy: string): ((arg0: SDK.TracingModel.Event) => string) | null;
+    protected groupingFunction(groupBy: string): ((arg0: SDK.TracingModel.CompatibleTraceEvent) => string) | null;
     private domainByEvent;
     appendContextMenuItems(contextMenu: UI.ContextMenu.ContextMenu, node: TimelineModel.TimelineProfileTree.Node): void;
     private static isExtensionInternalURL;
@@ -135,10 +145,10 @@ export declare class BottomUpTimelineTreeView extends AggregatedTimelineTreeView
     buildTree(): TimelineModel.TimelineProfileTree.Node;
 }
 declare const TimelineStackView_base: (new (...args: any[]) => {
-    "__#8@#events": Common.ObjectWrapper.ObjectWrapper<TimelineStackView.EventTypes>;
-    addEventListener<T extends TimelineStackView.Events.SelectionChanged>(eventType: T, listener: (arg0: Common.EventTarget.EventTargetEvent<TimelineStackView.EventTypes[T]>) => void, thisObject?: Object | undefined): Common.EventTarget.EventDescriptor<TimelineStackView.EventTypes, T>;
+    "__#13@#events": Common.ObjectWrapper.ObjectWrapper<TimelineStackView.EventTypes>;
+    addEventListener<T extends TimelineStackView.Events.SelectionChanged>(eventType: T, listener: (arg0: Common.EventTarget.EventTargetEvent<TimelineStackView.EventTypes[T], any>) => void, thisObject?: Object | undefined): Common.EventTarget.EventDescriptor<TimelineStackView.EventTypes, T>;
     once<T_1 extends TimelineStackView.Events.SelectionChanged>(eventType: T_1): Promise<TimelineStackView.EventTypes[T_1]>;
-    removeEventListener<T_2 extends TimelineStackView.Events.SelectionChanged>(eventType: T_2, listener: (arg0: Common.EventTarget.EventTargetEvent<TimelineStackView.EventTypes[T_2]>) => void, thisObject?: Object | undefined): void;
+    removeEventListener<T_2 extends TimelineStackView.Events.SelectionChanged>(eventType: T_2, listener: (arg0: Common.EventTarget.EventTargetEvent<TimelineStackView.EventTypes[T_2], any>) => void, thisObject?: Object | undefined): void;
     hasEventListeners(eventType: TimelineStackView.Events.SelectionChanged): boolean;
     dispatchEventToListeners<T_3 extends TimelineStackView.Events.SelectionChanged>(eventType: Platform.TypeScriptUtilities.NoUnion<T_3>, ...eventData: Common.EventTarget.EventPayloadToRestParameters<TimelineStackView.EventTypes, T_3>): void;
 }) & typeof UI.Widget.VBox;

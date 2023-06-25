@@ -3,6 +3,6 @@ import { CategorizedBreakpointsSidebarPane } from './CategorizedBreakpointsSideb
 export declare class CSPViolationBreakpointsSidebarPane extends CategorizedBreakpointsSidebarPane {
     private constructor();
     static instance(): CSPViolationBreakpointsSidebarPane;
-    protected getBreakpointFromPausedDetails(details: SDK.DebuggerModel.DebuggerPausedDetails): SDK.DOMDebuggerModel.CategorizedBreakpoint | null;
-    protected toggleBreakpoint(breakpoint: SDK.DOMDebuggerModel.CategorizedBreakpoint, enabled: boolean): void;
+    protected getBreakpointFromPausedDetails(details: SDK.DebuggerModel.DebuggerPausedDetails): SDK.CategorizedBreakpoint.CategorizedBreakpoint | null;
+    protected toggleBreakpoint(breakpoint: SDK.CategorizedBreakpoint.CategorizedBreakpoint, enabled: boolean): void;
 }

@@ -1,33 +1,15 @@
 // Copyright 2016 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
-import * as i18n from '../../../../core/i18n/i18n.js';
-import * as Platform from '../../../../core/platform/platform.js';
 import * as SDK from '../../../../core/sdk/sdk.js';
 import * as Bindings from '../../../../models/bindings/bindings.js';
 import * as Workspace from '../../../../models/workspace/workspace.js';
 import * as SourceFrame from '../source_frame/source_frame.js';
-const UIStrings = {
-    /**
-    *@description The milisecond unit
-    */
-    ms: 'ms',
-    /**
-    *@description Unit for data size in DevTools
-    */
-    mb: 'MB',
-    /**
-    *@description A unit
-    */
-    kb: 'kB',
-};
-const str_ = i18n.i18n.registerUIStrings('ui/legacy/components/perf_ui/LineLevelProfile.ts', UIStrings);
-const i18nString = i18n.i18n.getLocalizedString.bind(undefined, str_);
 let performanceInstance;
 export class Performance {
     helper;
     constructor() {
-        this.helper = new Helper('performance');
+        this.helper = new Helper(SourceFrame.SourceFrame.DecoratorType.PERFORMANCE);
     }
     static instance(opts = { forceNew: null }) {
         const { forceNew } = opts;
@@ -82,7 +64,7 @@ export class Performance {
             if (!node) {
                 continue;
             }
-            const scriptIdOrUrl = node.scriptId || node.url;
+            const scriptIdOrUrl = Number(node.scriptId) || node.url;
             if (!scriptIdOrUrl) {
                 continue;
             }
@@ -96,7 +78,7 @@ let memoryInstance;
 export class Memory {
     helper;
     constructor() {
-        this.helper = new Helper('memory');
+        this.helper = new Helper(SourceFrame.SourceFrame.DecoratorType.MEMORY);
     }
     static instance(opts = { forceNew: null }) {
         const { forceNew } = opts;
@@ -161,126 +143,59 @@ export class Helper {
         }
         this.updateTimer = window.setTimeout(() => {
             this.updateTimer = null;
-            this.doUpdate();
+            void this.doUpdate();
         }, 0);
     }
-    doUpdate() {
+    async doUpdate() {
         this.locationPool.disposeAll();
-        Workspace.Workspace.WorkspaceImpl.instance().uiSourceCodes().forEach(uiSourceCode => uiSourceCode.removeDecorationsForType(this.type));
-        for (const targetToScript of this.lineData) {
-            const target = targetToScript[0];
+        // Map from sources to line->value profile maps.
+        const decorationsBySource = new Map();
+        const pending = [];
+        for (const [target, scriptToLineMap] of this.lineData) {
             const debuggerModel = target ? target.model(SDK.DebuggerModel.DebuggerModel) : null;
-            const scriptToLineMap = targetToScript[1];
-            for (const scriptToLine of scriptToLineMap) {
-                const scriptIdOrUrl = scriptToLine[0];
-                const lineToDataMap = scriptToLine[1];
+            for (const [scriptIdOrUrl, lineToDataMap] of scriptToLineMap) {
                 // debuggerModel is null when the profile is loaded from file.
                 // Try to get UISourceCode by the URL in this case.
-                const uiSourceCode = !debuggerModel && typeof scriptIdOrUrl === 'string' ?
-                    Workspace.Workspace.WorkspaceImpl.instance().uiSourceCodeForURL(scriptIdOrUrl) :
-                    null;
-                if (!debuggerModel && !uiSourceCode) {
-                    continue;
-                }
-                for (const lineToData of lineToDataMap) {
-                    const line = lineToData[0] - 1;
-                    const data = lineToData[1];
-                    if (uiSourceCode) {
-                        uiSourceCode.addLineDecoration(line, this.type, data);
-                        continue;
-                    }
-                    if (debuggerModel) {
+                const workspace = Workspace.Workspace.WorkspaceImpl.instance();
+                if (debuggerModel) {
+                    const workspaceBinding = Bindings.DebuggerWorkspaceBinding.DebuggerWorkspaceBinding.instance();
+                    for (const lineToData of lineToDataMap) {
+                        const line = lineToData[0] - 1;
+                        const data = lineToData[1];
                         const rawLocation = typeof scriptIdOrUrl === 'string' ?
                             debuggerModel.createRawLocationByURL(scriptIdOrUrl, line, 0) :
                             debuggerModel.createRawLocationByScriptId(String(scriptIdOrUrl), line, 0);
                         if (rawLocation) {
-                            new Presentation(rawLocation, this.type, data, this.locationPool);
+                            pending.push(workspaceBinding.rawLocationToUILocation(rawLocation).then((uiLocation) => {
+                                if (uiLocation) {
+                                    let lineMap = decorationsBySource.get(uiLocation.uiSourceCode);
+                                    if (!lineMap) {
+                                        lineMap = new Map();
+                                        decorationsBySource.set(uiLocation.uiSourceCode, lineMap);
+                                    }
+                                    lineMap.set(uiLocation.lineNumber + 1, data);
+                                }
+                            }));
                         }
                     }
                 }
+                else if (typeof scriptIdOrUrl === 'string') {
+                    const uiSourceCode = workspace.uiSourceCodeForURL(scriptIdOrUrl);
+                    if (uiSourceCode) {
+                        decorationsBySource.set(uiSourceCode, lineToDataMap);
+                    }
+                }
+            }
+            await Promise.all(pending);
+            for (const [uiSourceCode, lineMap] of decorationsBySource) {
+                uiSourceCode.setDecorationData(this.type, lineMap);
+            }
+        }
+        for (const uiSourceCode of Workspace.Workspace.WorkspaceImpl.instance().uiSourceCodes()) {
+            if (!decorationsBySource.has(uiSourceCode)) {
+                uiSourceCode.setDecorationData(this.type, undefined);
             }
         }
     }
 }
-export class Presentation {
-    type;
-    time;
-    uiLocation;
-    constructor(rawLocation, type, time, locationPool) {
-        this.type = type;
-        this.time = time;
-        this.uiLocation = null;
-        Bindings.DebuggerWorkspaceBinding.DebuggerWorkspaceBinding.instance().createLiveLocation(rawLocation, this.updateLocation.bind(this), locationPool);
-    }
-    async updateLocation(liveLocation) {
-        if (this.uiLocation) {
-            this.uiLocation.uiSourceCode.removeDecorationsForType(this.type);
-        }
-        this.uiLocation = await liveLocation.uiLocation();
-        if (this.uiLocation) {
-            this.uiLocation.uiSourceCode.addLineDecoration(this.uiLocation.lineNumber, this.type, this.time);
-        }
-    }
-}
-let lineDecoratorInstance;
-export class LineDecorator {
-    static instance(opts = { forceNew: null }) {
-        const { forceNew } = opts;
-        if (!lineDecoratorInstance || forceNew) {
-            lineDecoratorInstance = new LineDecorator();
-        }
-        return lineDecoratorInstance;
-    }
-    decorate(uiSourceCode, textEditor, type) {
-        const gutterType = `CodeMirror-gutter-${type}`;
-        const decorations = uiSourceCode.decorationsForType(type);
-        textEditor.uninstallGutter(gutterType);
-        if (!decorations || !decorations.size) {
-            return;
-        }
-        textEditor.installGutter(gutterType, false);
-        for (const decoration of decorations) {
-            const value = decoration.data();
-            const element = this.createElement(type, value);
-            textEditor.setGutterDecoration(decoration.range().startLine, gutterType, element);
-        }
-    }
-    createElement(type, value) {
-        const element = document.createElement('div');
-        element.classList.add('text-editor-line-marker-text');
-        if (type === 'performance') {
-            const intensity = Platform.NumberUtilities.clamp(Math.log10(1 + 10 * value) / 5, 0.02, 1);
-            element.textContent = value.toFixed(1);
-            element.style.backgroundColor = `hsla(44, 100%, 50%, ${intensity.toFixed(3)})`;
-            element.createChild('span', 'line-marker-units').textContent = i18nString(UIStrings.ms);
-        }
-        else {
-            const intensity = Platform.NumberUtilities.clamp(Math.log10(1 + 2e-3 * value) / 5, 0.02, 1);
-            element.style.backgroundColor = `hsla(217, 100%, 70%, ${intensity.toFixed(3)})`;
-            value /= 1e3;
-            let units;
-            let fractionDigits;
-            if (value >= 1e3) {
-                units = i18nString(UIStrings.mb);
-                value /= 1e3;
-                fractionDigits = value >= 20 ? 0 : 1;
-            }
-            else {
-                units = i18nString(UIStrings.kb);
-                fractionDigits = 0;
-            }
-            element.textContent = value.toFixed(fractionDigits);
-            element.createChild('span', 'line-marker-units').textContent = units;
-        }
-        return element;
-    }
-}
-SourceFrame.SourceFrame.registerLineDecorator({
-    lineDecorator: LineDecorator.instance,
-    decoratorType: SourceFrame.SourceFrame.DecoratorType.MEMORY,
-});
-SourceFrame.SourceFrame.registerLineDecorator({
-    lineDecorator: LineDecorator.instance,
-    decoratorType: SourceFrame.SourceFrame.DecoratorType.PERFORMANCE,
-});
 //# sourceMappingURL=LineLevelProfile.js.map

@@ -1,4 +1,4 @@
-export declare type FinishCallback = (err: Error) => void;
+export type FinishCallback = (err: Error) => void;
 export declare class Throttler {
     #private;
     constructor(timeout: number);

@@ -17,10 +17,10 @@ export declare class Action extends Common.ObjectWrapper.ObjectWrapper<EventType
     toggleWithRedColor(): boolean;
     setEnabled(enabled: boolean): void;
     enabled(): boolean;
-    category(): string;
+    category(): ActionCategory;
     tags(): string | void;
     toggleable(): boolean;
-    title(): string;
+    title(): Common.UIString.LocalizedString;
     toggled(): boolean;
     setToggled(toggled: boolean): void;
     options(): undefined | Array<ExtensionOption>;
@@ -32,6 +32,7 @@ export declare class Action extends Common.ObjectWrapper.ObjectWrapper<EventType
     order(): number | undefined;
 }
 export declare function registerActionExtension(registration: ActionRegistration): void;
+export declare function reset(): void;
 export declare function getRegisteredActionExtensions(): Array<Action>;
 export declare function maybeRemoveActionExtension(actionId: string): boolean;
 export declare const enum Platforms {
@@ -45,53 +46,54 @@ export declare const enum Events {
     Enabled = "Enabled",
     Toggled = "Toggled"
 }
-export declare type EventTypes = {
+export type EventTypes = {
     [Events.Enabled]: boolean;
     [Events.Toggled]: boolean;
 };
-export declare const ActionCategory: {
-    ELEMENTS: string;
-    SCREENSHOT: string;
-    NETWORK: string;
-    MEMORY: string;
-    JAVASCRIPT_PROFILER: string;
-    CONSOLE: string;
-    PERFORMANCE: string;
-    MOBILE: string;
-    SENSORS: string;
-    HELP: string;
-    INPUTS: string;
-    LAYERS: string;
-    NAVIGATION: string;
-    DRAWER: string;
-    GLOBAL: string;
-    RESOURCES: string;
-    BACKGROUND_SERVICES: string;
-    SETTINGS: string;
-    DEBUGGER: string;
-    SOURCES: string;
-};
-declare type ActionCategory = typeof ActionCategory[keyof typeof ActionCategory];
+export declare enum ActionCategory {
+    NONE = "",
+    ELEMENTS = "ELEMENTS",
+    SCREENSHOT = "SCREENSHOT",
+    NETWORK = "NETWORK",
+    MEMORY = "MEMORY",
+    JAVASCRIPT_PROFILER = "JAVASCRIPT_PROFILER",
+    CONSOLE = "CONSOLE",
+    PERFORMANCE = "PERFORMANCE",
+    MOBILE = "MOBILE",
+    HELP = "HELP",
+    LAYERS = "LAYERS",
+    NAVIGATION = "NAVIGATION",
+    DRAWER = "DRAWER",
+    GLOBAL = "GLOBAL",
+    RESOURCES = "RESOURCES",
+    BACKGROUND_SERVICES = "BACKGROUND_SERVICES",
+    SETTINGS = "SETTINGS",
+    DEBUGGER = "DEBUGGER",
+    SOURCES = "SOURCES",
+    RENDERING = "RENDERING"
+}
+export declare function getLocalizedActionCategory(category: ActionCategory): Platform.UIString.LocalizedString;
 export declare const enum IconClass {
-    LARGEICON_NODE_SEARCH = "largeicon-node-search",
-    LARGEICON_START_RECORDING = "largeicon-start-recording",
-    LARGEICON_STOP_RECORDING = "largeicon-stop-recording",
-    LARGEICON_REFRESH = "largeicon-refresh",
-    LARGEICON_CLEAR = "largeicon-clear",
-    LARGEICON_VISIBILITY = "largeicon-visibility",
-    LARGEICON_PHONE = "largeicon-phone",
-    LARGEICON_PLAY = "largeicon-play",
-    LARGEICON_DOWNLOAD = "largeicon-download",
-    LARGEICON_PAUSE = "largeicon-pause",
-    LARGEICON_RESUME = "largeicon-resume",
-    LARGEICON_TRASH_BIN = "largeicon-trash-bin",
-    LARGEICON_SETTINGS_GEAR = "largeicon-settings-gear",
-    LARGEICON_STEP_OVER = "largeicon-step-over",
-    LARGE_ICON_STEP_INTO = "largeicon-step-into",
-    LARGE_ICON_STEP = "largeicon-step",
-    LARGE_ICON_STEP_OUT = "largeicon-step-out",
-    LARGE_ICON_DEACTIVATE_BREAKPOINTS = "largeicon-deactivate-breakpoints",
-    LARGE_ICON_ADD = "largeicon-add"
+    LARGEICON_NODE_SEARCH = "select-element",
+    START_RECORDING = "record-start",
+    STOP_RECORDING = "record-stop",
+    REFRESH = "refresh",
+    CLEAR = "clear",
+    EYE = "eye",
+    LARGEICON_PHONE = "devices",
+    PLAY = "play",
+    DOWNLOAD = "download",
+    LARGEICON_PAUSE = "pause",
+    LARGEICON_RESUME = "resume",
+    BIN = "bin",
+    LARGEICON_SETTINGS_GEAR = "gear",
+    LARGEICON_STEP_OVER = "step-over",
+    LARGE_ICON_STEP_INTO = "step-into",
+    LARGE_ICON_STEP = "step",
+    LARGE_ICON_STEP_OUT = "step-out",
+    BREAKPOINT_CROSSED_FILLED = "breakpoint-crossed-filled",
+    BREAKPOINT_CROSSED = "breakpoint-crossed",
+    PLUS = "plus"
 }
 export declare const enum KeybindSet {
     DEVTOOLS_DEFAULT = "devToolsDefault",
@@ -239,4 +241,3 @@ export interface ActionRegistration {
      */
     order?: number;
 }
-export {};

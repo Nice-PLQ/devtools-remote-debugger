@@ -11,15 +11,10 @@ export interface SettingCheckboxData {
  * A simple checkbox that is backed by a boolean setting.
  */
 export declare class SettingCheckbox extends HTMLElement {
+    #private;
     static readonly litTagName: import("../../lit-html/static.js").Static;
-    private readonly shadow;
-    private setting?;
-    private disabled;
-    private changeListenerDescriptor?;
     connectedCallback(): void;
     set data(data: SettingCheckboxData);
-    private render;
-    private checkboxChanged;
 }
 declare global {
     interface HTMLElementTagNameMap {

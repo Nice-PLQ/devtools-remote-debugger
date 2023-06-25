@@ -1,7 +1,7 @@
 import * as Common from '../../core/common/common.js';
 import type * as SDK from '../../core/sdk/sdk.js';
-import type { AnimationImpl } from './AnimationModel.js';
-import type { AnimationTimeline } from './AnimationTimeline.js';
+import { type AnimationImpl } from './AnimationModel.js';
+import { type AnimationTimeline } from './AnimationTimeline.js';
 export declare class AnimationUI {
     #private;
     constructor(animation: AnimationImpl, timeline: AnimationTimeline, parentElement: Element);

@@ -369,6 +369,10 @@ export class ListControl {
             }
             if (newElement) {
                 ARIAUtils.setSelected(newElement, true);
+                const text = newElement.textContent;
+                if (text) {
+                    ARIAUtils.alert(text);
+                }
             }
             ARIAUtils.setActiveDescendant(this.element, newElement);
         }

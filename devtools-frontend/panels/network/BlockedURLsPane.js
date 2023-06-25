@@ -3,51 +3,52 @@
 // found in the LICENSE file.
 import * as Common from '../../core/common/common.js';
 import * as i18n from '../../core/i18n/i18n.js';
+import * as Platform from '../../core/platform/platform.js';
 import * as SDK from '../../core/sdk/sdk.js';
 import * as UI from '../../ui/legacy/legacy.js';
 import blockedURLsPaneStyles from './blockedURLsPane.css.js';
 const UIStrings = {
     /**
-    *@description Text to enable blocking of network requests
-    */
+     *@description Text to enable blocking of network requests
+     */
     enableNetworkRequestBlocking: 'Enable network request blocking',
     /**
-    *@description Tooltip text that appears when hovering over the largeicon add button in the Blocked URLs Pane of the Network panel
-    */
+     *@description Tooltip text that appears when hovering over the plus button in the Blocked URLs Pane of the Network panel
+     */
     addPattern: 'Add pattern',
     /**
-    *@description Tooltip text that appears when hovering over the largeicon clear button in the Blocked URLs Pane of the Network panel
-    */
+     *@description Tooltip text that appears when hovering over the clear button in the Blocked URLs Pane of the Network panel
+     */
     removeAllPatterns: 'Remove all patterns',
     /**
-    *@description Accessible label for the button to add request blocking patterns in the network request blocking tool
-    */
+     *@description Accessible label for the button to add request blocking patterns in the network request blocking tool
+     */
     addNetworkRequestBlockingPattern: 'Add network request blocking pattern',
     /**
-    *@description Button to add a pattern to block netwrok requests in the Network request blocking tool
-    *@example {Add pattern} PH1
-    */
+     *@description Button to add a pattern to block netwrok requests in the Network request blocking tool
+     *@example {Add pattern} PH1
+     */
     networkRequestsAreNotBlockedS: 'Network requests are not blocked. {PH1}',
     /**
-    *@description Text in Blocked URLs Pane of the Network panel
-    *@example {4} PH1
-    */
+     *@description Text in Blocked URLs Pane of the Network panel
+     *@example {4} PH1
+     */
     dBlocked: '{PH1} blocked',
     /**
-    *@description Text in Blocked URLs Pane of the Network panel
-    */
+     *@description Text in Blocked URLs Pane of the Network panel
+     */
     textPatternToBlockMatching: 'Text pattern to block matching requests; use * for wildcard',
     /**
-    *@description Error text for empty list widget input in Request Blocking tool
-    */
+     *@description Error text for empty list widget input in Request Blocking tool
+     */
     patternInputCannotBeEmpty: 'Pattern input cannot be empty.',
     /**
-    *@description Error text for duplicate list widget input in Request Blocking tool
-    */
+     *@description Error text for duplicate list widget input in Request Blocking tool
+     */
     patternAlreadyExists: 'Pattern already exists.',
     /**
-    *@description Message to be announced for a when list item is removed from list widget
-    */
+     *@description Message to be announced for a when list item is removed from list widget
+     */
     itemDeleted: 'Item successfully deleted',
 };
 const str_ = i18n.i18n.registerUIStrings('panels/network/BlockedURLsPane.ts', UIStrings);
@@ -61,20 +62,20 @@ export class BlockedURLsPane extends UI.Widget.VBox {
     editor;
     blockedCountForUrl;
     updateThrottler;
-    constructor() {
+    constructor(updateThrottler) {
         super(true);
         this.manager = SDK.NetworkManager.MultitargetNetworkManager.instance();
         this.manager.addEventListener(SDK.NetworkManager.MultitargetNetworkManager.Events.BlockedPatternsChanged, () => {
-            this.update();
+            void this.update();
         }, this);
         this.toolbar = new UI.Toolbar.Toolbar('', this.contentElement);
         this.enabledCheckbox = new UI.Toolbar.ToolbarCheckbox(i18nString(UIStrings.enableNetworkRequestBlocking), undefined, this.toggleEnabled.bind(this));
         this.toolbar.appendToolbarItem(this.enabledCheckbox);
         this.toolbar.appendSeparator();
-        const addButton = new UI.Toolbar.ToolbarButton(i18nString(UIStrings.addPattern), 'largeicon-add');
+        const addButton = new UI.Toolbar.ToolbarButton(i18nString(UIStrings.addPattern), 'plus');
         addButton.addEventListener(UI.Toolbar.ToolbarButton.Events.Click, this.addButtonClicked, this);
         this.toolbar.appendToolbarItem(addButton);
-        const clearButton = new UI.Toolbar.ToolbarButton(i18nString(UIStrings.removeAllPatterns), 'largeicon-clear');
+        const clearButton = new UI.Toolbar.ToolbarButton(i18nString(UIStrings.removeAllPatterns), 'clear');
         clearButton.addEventListener(UI.Toolbar.ToolbarButton.Events.Click, this.removeAll, this);
         this.toolbar.appendToolbarItem(clearButton);
         this.list = new UI.ListWidget.ListWidget(this);
@@ -83,21 +84,20 @@ export class BlockedURLsPane extends UI.Widget.VBox {
         this.list.show(this.contentElement);
         this.editor = null;
         this.blockedCountForUrl = new Map();
-        SDK.TargetManager.TargetManager.instance().addModelListener(SDK.NetworkManager.NetworkManager, SDK.NetworkManager.Events.RequestFinished, this.onRequestFinished, this);
-        this.updateThrottler = new Common.Throttler.Throttler(200);
-        this.update();
+        SDK.TargetManager.TargetManager.instance().addModelListener(SDK.NetworkManager.NetworkManager, SDK.NetworkManager.Events.RequestFinished, this.onRequestFinished, this, { scoped: true });
+        this.updateThrottler = updateThrottler;
+        void this.update();
     }
-    static instance(opts = { forceNew: null }) {
-        const { forceNew } = opts;
-        if (!blockedURLsPaneInstance || forceNew) {
-            blockedURLsPaneInstance = new BlockedURLsPane();
+    static instance(opts) {
+        if (!blockedURLsPaneInstance || opts?.forceNew) {
+            blockedURLsPaneInstance = new BlockedURLsPane(opts?.updateThrottler || new Common.Throttler.Throttler(200));
         }
         return blockedURLsPaneInstance;
     }
     createEmptyPlaceholder() {
         const element = this.contentElement.createChild('div', 'no-blocked-urls');
         const addButton = UI.UIUtils.createTextButton(i18nString(UIStrings.addPattern), this.addButtonClicked.bind(this), 'add-button');
-        UI.ARIAUtils.setAccessibleName(addButton, i18nString(UIStrings.addNetworkRequestBlockingPattern));
+        UI.ARIAUtils.setLabel(addButton, i18nString(UIStrings.addNetworkRequestBlockingPattern));
         element.appendChild(i18n.i18n.getFormatLocalizedString(str_, UIStrings.networkRequestsAreNotBlockedS, { PH1: addButton }));
         return element;
     }
@@ -108,7 +108,7 @@ export class BlockedURLsPane extends UI.Widget.VBox {
     }
     addButtonClicked() {
         this.manager.setBlockingEnabled(true);
-        this.list.addNewItem(0, { url: '', enabled: true });
+        this.list.addNewItem(0, { url: Platform.DevToolsPath.EmptyUrlString, enabled: true });
     }
     renderItem(pattern, editable) {
         const count = this.blockedRequestsCount(pattern.url);
@@ -134,7 +134,7 @@ export class BlockedURLsPane extends UI.Widget.VBox {
     }
     toggleEnabled() {
         this.manager.setBlockingEnabled(!this.manager.blockingEnabled());
-        this.update();
+        void this.update();
     }
     removeItemRequested(pattern, index) {
         const patterns = this.manager.blockedPatterns();
@@ -227,14 +227,14 @@ export class BlockedURLsPane extends UI.Widget.VBox {
     }
     reset() {
         this.blockedCountForUrl.clear();
-        this.updateThrottler.schedule(this.update.bind(this));
+        void this.updateThrottler.schedule(this.update.bind(this));
     }
     onRequestFinished(event) {
         const request = event.data;
         if (request.wasBlocked()) {
             const count = this.blockedCountForUrl.get(request.url()) || 0;
             this.blockedCountForUrl.set(request.url(), count + 1);
-            this.updateThrottler.schedule(this.update.bind(this));
+            void this.updateThrottler.schedule(this.update.bind(this));
         }
     }
     wasShown() {

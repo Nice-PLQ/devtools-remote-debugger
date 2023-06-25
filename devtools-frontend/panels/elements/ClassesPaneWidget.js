@@ -10,24 +10,24 @@ import classesPaneWidgetStyles from './classesPaneWidget.css.js';
 import { ElementsPanel } from './ElementsPanel.js';
 const UIStrings = {
     /**
-    * @description Prompt text for a text field in the Classes Pane Widget of the Elements panel.
-    * Class refers to a CSS class.
-    */
+     * @description Prompt text for a text field in the Classes Pane Widget of the Elements panel.
+     * Class refers to a CSS class.
+     */
     addNewClass: 'Add new class',
     /**
-    * @description Screen reader announcement string when adding a CSS class via the Classes Pane Widget.
-    * @example {vbox flex-auto} PH1
-    */
+     * @description Screen reader announcement string when adding a CSS class via the Classes Pane Widget.
+     * @example {vbox flex-auto} PH1
+     */
     classesSAdded: 'Classes {PH1} added',
     /**
-    * @description Screen reader announcement string when adding a class via the Classes Pane Widget.
-    * @example {title-container} PH1
-    */
+     * @description Screen reader announcement string when adding a class via the Classes Pane Widget.
+     * @example {title-container} PH1
+     */
     classSAdded: 'Class {PH1} added',
     /**
-    * @description Accessible title read by screen readers for the Classes Pane Widget of the Elements
-    * panel. Element is a HTML DOM Element and classes refers to CSS classes.
-    */
+     * @description Accessible title read by screen readers for the Classes Pane Widget of the Elements
+     * panel. Element is a HTML DOM Element and classes refers to CSS classes.
+     */
     elementClasses: 'Element Classes',
 };
 const str_ = i18n.i18n.registerUIStrings('panels/elements/ClassesPaneWidget.ts', UIStrings);
@@ -55,7 +55,7 @@ export class ClassesPaneWidget extends UI.Widget.Widget {
         this.prompt.setPlaceholder(i18nString(UIStrings.addNewClass));
         this.prompt.addEventListener(UI.TextPrompt.Events.TextChanged, this.onTextChanged, this);
         proxyElement.addEventListener('keydown', this.onKeyDown.bind(this), false);
-        SDK.TargetManager.TargetManager.instance().addModelListener(SDK.DOMModel.DOMModel, SDK.DOMModel.Events.DOMMutated, this.onDOMMutated, this);
+        SDK.TargetManager.TargetManager.instance().addModelListener(SDK.DOMModel.DOMModel, SDK.DOMModel.Events.DOMMutated, this.onDOMMutated, this, { scoped: true });
         this.mutatingNodes = new Set();
         this.pendingNodeClasses = new Map();
         this.updateNodeThrottler = new Common.Throttler.Throttler(0);
@@ -66,7 +66,7 @@ export class ClassesPaneWidget extends UI.Widget.Widget {
         return text.split(/[,\s]/).map(className => className.trim()).filter(className => className.length);
     }
     onKeyDown(event) {
-        if (!(event.key === 'Enter') && !isEscKey(event)) {
+        if (!(event.key === 'Enter') && !Platform.KeyboardUtilities.isEscKey(event)) {
             return;
         }
         if (event.key === 'Enter') {
@@ -77,7 +77,7 @@ export class ClassesPaneWidget extends UI.Widget.Widget {
         }
         const eventTarget = event.target;
         let text = eventTarget.textContent;
-        if (isEscKey(event)) {
+        if (Platform.KeyboardUtilities.isEscKey(event)) {
             if (!Platform.StringUtilities.isWhitespace(text)) {
                 event.consume(true);
             }
@@ -201,7 +201,7 @@ export class ClassesPaneWidget extends UI.Widget.Widget {
         }
         const newClasses = [...activeClasses.values()].sort();
         this.pendingNodeClasses.set(node, newClasses.join(' '));
-        this.updateNodeThrottler.schedule(this.flushPendingClasses.bind(this));
+        void this.updateNodeThrottler.schedule(this.flushPendingClasses.bind(this));
     }
     async flushPendingClasses() {
         const promises = [];
@@ -266,7 +266,7 @@ export class ClassNamePrompt extends UI.TextPrompt.TextPrompt {
             if (stylesheet.frameId !== this.selectedFrameId) {
                 continue;
             }
-            const cssPromise = cssModel.classNamesPromise(stylesheet.id).then(classes => {
+            const cssPromise = cssModel.getClassNames(stylesheet.id).then(classes => {
                 for (const className of classes) {
                     completions.add(className);
                 }
@@ -305,7 +305,6 @@ export class ClassNamePrompt extends UI.TextPrompt.TextPrompt {
                 text: completion,
                 title: undefined,
                 subtitle: undefined,
-                iconType: undefined,
                 priority: undefined,
                 isSecondary: undefined,
                 subtitleRenderer: undefined,

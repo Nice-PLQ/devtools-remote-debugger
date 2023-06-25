@@ -1,4 +1,5 @@
 import * as Common from '../../core/common/common.js';
+import * as Platform from '../../core/platform/platform.js';
 import * as Bindings from '../../models/bindings/bindings.js';
 import * as DataGrid from '../../ui/legacy/components/data_grid/data_grid.js';
 import * as Components from '../../ui/legacy/components/utils/utils.js';
@@ -6,12 +7,9 @@ import type * as Protocol from '../../generated/protocol.js';
 import type * as SDK from '../../core/sdk/sdk.js';
 import * as UI from '../../ui/legacy/legacy.js';
 import { BottomUpProfileDataGridTree } from './BottomUpProfileDataGrid.js';
-import type { ProfileFlameChartDataProvider } from './CPUProfileFlameChart.js';
-import { CPUProfileFlameChart } from './CPUProfileFlameChart.js';
-import type { Formatter } from './ProfileDataGrid.js';
-import { ProfileDataGridTree } from './ProfileDataGrid.js';
-import type { DataDisplayDelegate, ProfileType } from './ProfileHeader.js';
-import { ProfileHeader } from './ProfileHeader.js';
+import { CPUProfileFlameChart, type ProfileFlameChartDataProvider } from './CPUProfileFlameChart.js';
+import { ProfileDataGridTree, type Formatter } from './ProfileDataGrid.js';
+import { ProfileHeader, type DataDisplayDelegate, type ProfileType } from './ProfileHeader.js';
 import { ProfileSidebarTreeElement } from './ProfileSidebarTreeElement.js';
 import { TopDownProfileDataGridTree } from './TopDownProfileDataGrid.js';
 export declare class ProfileView extends UI.View.SimpleView implements UI.SearchableView.Searchable {
@@ -56,7 +54,7 @@ export declare class ProfileView extends UI.View.SimpleView implements UI.Search
     searchableView(): UI.SearchableView.SearchableView;
     supportsCaseSensitiveSearch(): boolean;
     supportsRegexSearch(): boolean;
-    searchCanceled(): void;
+    onSearchCanceled(): void;
     performSearch(searchConfig: UI.SearchableView.SearchConfig, shouldJump: boolean, jumpBackwards?: boolean): void;
     jumpToNextSearchResult(): void;
     jumpToPreviousSearchResult(): void;
@@ -79,7 +77,7 @@ export declare const enum ViewTypes {
 }
 export declare class WritableProfileHeader extends ProfileHeader implements Common.StringOutputStream.OutputStream {
     readonly debuggerModel: SDK.DebuggerModel.DebuggerModel | null;
-    fileName?: string;
+    fileName?: Platform.DevToolsPath.RawPathString;
     jsonifiedProfile?: string | null;
     profile?: Protocol.Profiler.Profile;
     protocolProfileInternal?: Protocol.Profiler.Profile;

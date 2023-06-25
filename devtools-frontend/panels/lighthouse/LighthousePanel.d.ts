@@ -1,10 +1,11 @@
 import * as UI from '../../ui/legacy/legacy.js';
-import { Events } from './LighthouseController.js';
+import { Events, LighthouseController } from './LighthouseController.js';
+import { ProtocolService } from './LighthouseProtocolService.js';
 export declare class LighthousePanel extends UI.Panel.Panel {
-    private readonly protocolService;
     private readonly controller;
     private readonly startView;
     private readonly statusView;
+    private readonly timespanView;
     private warningText;
     private unauditableExplanation;
     private readonly cachedRenderedReports;
@@ -16,13 +17,18 @@ export declare class LighthousePanel extends UI.Panel.Panel {
     private settingsPane;
     private rightToolbar;
     private showSettingsPaneSetting;
-    private stateBefore?;
-    private isLHAttached?;
     private constructor();
     static instance(opts?: {
-        forceNew: null;
+        forceNew: boolean;
+        protocolService: ProtocolService;
+        controller: LighthouseController;
     }): LighthousePanel;
     static getEvents(): typeof Events;
+    handleTimespanStart(): Promise<void>;
+    handleTimespanEnd(): Promise<void>;
+    handleCompleteRun(): Promise<void>;
+    handleRunCancel(): Promise<void>;
+    private handleError;
     private refreshWarningsUI;
     private refreshStartAuditUI;
     private refreshStatusUI;
@@ -36,20 +42,9 @@ export declare class LighthousePanel extends UI.Panel.Panel {
     private beforePrint;
     private afterPrint;
     private renderReport;
-    private waitForMainTargetLoad;
     private buildReportUI;
     private handleDrop;
     private loadedFromFile;
-    private startLighthouse;
-    private cancelLighthouse;
-    /**
-     * We set the device emulation on the DevTools-side for two reasons:
-     * 1. To workaround some odd device metrics emulation bugs like occuluding viewports
-     * 2. To get the attractive device outline
-     *
-     * We also set flags.internalDisableDeviceScreenEmulation = true to let LH only apply UA emulation
-     */
-    private setupEmulationAndProtocolConnection;
-    private resetEmulationAndProtocolConnection;
+    elementsToRestoreScrollPositionsFor(): Element[];
     wasShown(): void;
 }

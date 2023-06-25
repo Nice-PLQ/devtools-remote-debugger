@@ -1,4 +1,4 @@
-import type { Target } from './Target.js';
+import { type Target } from './Target.js';
 import { SDKModel } from './SDKModel.js';
 export declare class SecurityOriginManager extends SDKModel<EventTypes> {
     #private;
@@ -18,7 +18,7 @@ export interface MainSecurityOriginChangedEvent {
     mainSecurityOrigin: string;
     unreachableMainSecurityOrigin: string | null;
 }
-export declare type EventTypes = {
+export type EventTypes = {
     [Events.SecurityOriginAdded]: string;
     [Events.SecurityOriginRemoved]: string;
     [Events.MainSecurityOriginChanged]: MainSecurityOriginChangedEvent;

@@ -4,6 +4,7 @@
         "outDir": "."
     },
     "files": [
-        "pieChart.css.js"
+        "pieChart.css.js",
+        "timelineOverviewInfo.css.js"
     ]
 }

@@ -1,11 +1,10 @@
 import * as Common from '../../../../core/common/common.js';
-export declare class FormatChangedEvent extends Event {
-    static readonly eventName = "formatchanged";
+export declare class ColorChangedEvent extends Event {
+    static readonly eventName = "colorchanged";
     data: {
-        format: string;
-        text: string | null;
+        text: string;
     };
-    constructor(format: string, text: string | null);
+    constructor(text: string);
 }
 export declare class ClickEvent extends Event {
     static readonly eventName = "swatchclick";
@@ -21,7 +20,8 @@ export declare class ColorSwatch extends HTMLElement {
     constructor();
     static isColorSwatch(element: Element): element is ColorSwatch;
     getColor(): Common.Color.Color | null;
-    getFormat(): string | null;
+    getFormat(): Common.Color.Format | null;
+    getText(): string | null;
     get anchorBox(): AnchorBox | null;
     /**
      * Render this swatch given a color object or text to be parsed as a color.
@@ -34,14 +34,15 @@ export declare class ColorSwatch extends HTMLElement {
     private render;
     private onClick;
     private consume;
-    private toggleNextFormat;
+    setFormat(format: Common.Color.Format): void;
+    private showFormatPicker;
 }
 declare global {
     interface HTMLElementTagNameMap {
         'devtools-color-swatch': ColorSwatch;
     }
     interface HTMLElementEventMap {
-        [FormatChangedEvent.eventName]: FormatChangedEvent;
+        [ColorChangedEvent.eventName]: ColorChangedEvent;
         [ClickEvent.eventName]: Event;
     }
 }

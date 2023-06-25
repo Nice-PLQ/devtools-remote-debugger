@@ -3,9 +3,14 @@
 // found in the LICENSE file.
 import * as Platform from '../platform/platform.js';
 export class WasmDisassembly {
+    lines;
     #offsets;
     #functionBodyOffsets;
-    constructor(offsets, functionBodyOffsets) {
+    constructor(lines, offsets, functionBodyOffsets) {
+        if (lines.length !== offsets.length) {
+            throw new Error('Lines and offsets don\'t match');
+        }
+        this.lines = lines;
         this.#offsets = offsets;
         this.#functionBodyOffsets = functionBodyOffsets;
     }

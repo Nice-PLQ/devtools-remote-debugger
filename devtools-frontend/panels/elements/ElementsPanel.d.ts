@@ -3,12 +3,21 @@ import * as SDK from '../../core/sdk/sdk.js';
 import type * as Adorners from '../../ui/components/adorners/adorners.js';
 import * as UI from '../../ui/legacy/legacy.js';
 import { ComputedStyleWidget } from './ComputedStyleWidget.js';
-import type { MarkerDecorator } from './MarkerDecorator.js';
+import { type MarkerDecorator } from './MarkerDecorator.js';
 import { StylesSidebarPane } from './StylesSidebarPane.js';
+/**
+ * These strings need to match the `SidebarPaneCodes` in UserMetrics.ts. DevTools
+ * collects usage metrics for the different sidebar tabs.
+ */
+export declare const enum SidebarPaneTabId {
+    Computed = "Computed",
+    Styles = "Styles"
+}
 export declare class ElementsPanel extends UI.Panel.Panel implements UI.SearchableView.Searchable, SDK.TargetManager.SDKModelObserver<SDK.DOMModel.DOMModel>, UI.View.ViewLocationResolver {
     private splitWidget;
     private readonly searchableViewInternal;
-    private contentElementInternal;
+    private mainContainer;
+    private domTreeContainer;
     private splitMode;
     private readonly accessibilityTreeView;
     private breadcrumbs;
@@ -16,15 +25,14 @@ export declare class ElementsPanel extends UI.Panel.Panel implements UI.Searchab
     private readonly computedStyleWidget;
     private readonly metricsWidget;
     private treeOutlines;
-    private readonly treeOutlineHeaders;
     private searchResults;
     private currentSearchResultIndex;
     pendingNodeReveal: boolean;
     private readonly adornerManager;
     private adornerSettingsPane;
     private readonly adornersByName;
-    accessibilityTreeButton?: HTMLButtonElement;
-    domTreeButton?: HTMLButtonElement;
+    accessibilityTreeButton?: HTMLElement;
+    domTreeButton?: HTMLElement;
     private selectedNodeOnReset?;
     private hasNonDefaultSelectedNode?;
     private searchConfig?;
@@ -57,7 +65,8 @@ export declare class ElementsPanel extends UI.Panel.Panel implements UI.Searchab
     private documentUpdated;
     private lastSelectedNodeSelectedForTest;
     private setDefaultSelectedNode;
-    searchCanceled(): void;
+    onSearchClosed(): void;
+    onSearchCanceled(): void;
     performSearch(searchConfig: UI.SearchableView.SearchConfig, shouldJump: boolean, jumpBackwards?: boolean): void;
     private domWordWrapSettingChanged;
     switchToAndFocus(node: SDK.DOMModel.DOMNode): void;
@@ -70,12 +79,13 @@ export declare class ElementsPanel extends UI.Panel.Panel implements UI.Searchab
     private hideSearchHighlights;
     selectedDOMNode(): SDK.DOMModel.DOMNode | null;
     selectDOMNode(node: SDK.DOMModel.DOMNode, focus?: boolean): void;
+    selectAndShowSidebarTab(tabId: SidebarPaneTabId): void;
     private updateBreadcrumbIfNeeded;
     private crumbNodeSelected;
     private treeOutlineForNode;
     private treeElementForNode;
     private leaveUserAgentShadowDOM;
-    revealAndSelectNode(node: SDK.DOMModel.DOMNode, focus: boolean, omitHighlight?: boolean): Promise<void>;
+    revealAndSelectNode(nodeToReveal: SDK.DOMModel.DOMNode, focus: boolean, omitHighlight?: boolean): Promise<void>;
     private showUAShadowDOMChanged;
     private setupTextSelectionHack;
     private initializeSidebarPanes;

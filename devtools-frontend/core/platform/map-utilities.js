@@ -62,4 +62,15 @@ export class Multimap {
         this.map.clear();
     }
 }
+/**
+ * Gets value for key, assigning a default if value is falsy.
+ */
+export function getWithDefault(map, key, defaultValueFactory) {
+    let value = map.get(key);
+    if (!value) {
+        value = defaultValueFactory(key);
+        map.set(key, value);
+    }
+    return value;
+}
 //# sourceMappingURL=map-utilities.js.map

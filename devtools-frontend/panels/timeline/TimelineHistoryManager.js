@@ -6,26 +6,26 @@ import * as i18n from '../../core/i18n/i18n.js';
 import * as Platform from '../../core/platform/platform.js';
 import * as UI from '../../ui/legacy/legacy.js';
 import timelineHistoryManagerStyles from './timelineHistoryManager.css.js';
-import { TimelineEventOverviewCPUActivity, TimelineEventOverviewFrames, TimelineEventOverviewNetwork, TimelineEventOverviewResponsiveness } from './TimelineEventOverview.js';
+import { TimelineEventOverviewCPUActivity, TimelineEventOverviewNetwork, TimelineEventOverviewResponsiveness, } from './TimelineEventOverview.js';
 const UIStrings = {
     /**
-    *@description Screen reader label for the Timeline History dropdown button
-    *@example {example.com #3} PH1
-    *@example {Show recent timeline sessions} PH2
-    */
+     *@description Screen reader label for the Timeline History dropdown button
+     *@example {example.com #3} PH1
+     *@example {Show recent timeline sessions} PH2
+     */
     currentSessionSS: 'Current Session: {PH1}. {PH2}',
     /**
-    *@description Text that shows there is no recording
-    */
+     *@description Text that shows there is no recording
+     */
     noRecordings: '(no recordings)',
     /**
-    *@description Text in Timeline History Manager of the Performance panel
-    *@example {2s} PH1
-    */
+     *@description Text in Timeline History Manager of the Performance panel
+     *@example {2s} PH1
+     */
     sAgo: '({PH1} ago)',
     /**
-    *@description Text in Timeline History Manager of the Performance panel
-    */
+     *@description Text in Timeline History Manager of the Performance panel
+     */
     moments: 'moments',
     /**
      * @description Text in Timeline History Manager of the Performance panel.
@@ -40,14 +40,14 @@ const UIStrings = {
      */
     sH: '{PH1} h',
     /**
-    *@description Text in Timeline History Manager of the Performance panel
-    *@example {example.com} PH1
-    *@example {2} PH2
-    */
+     *@description Text in Timeline History Manager of the Performance panel
+     *@example {example.com} PH1
+     *@example {2} PH2
+     */
     sD: '{PH1} #{PH2}',
     /**
-    *@description Accessible label for the timeline session selection menu
-    */
+     *@description Accessible label for the timeline session selection menu
+     */
     selectTimelineSession: 'Select Timeline Session',
 };
 const str_ = i18n.i18n.registerUIStrings('panels/timeline/TimelineHistoryManager.ts', UIStrings);
@@ -71,7 +71,6 @@ export class TimelineHistoryManager {
         this.clear();
         this.allOverviews = [
             { constructor: TimelineEventOverviewResponsiveness, height: 3 },
-            { constructor: TimelineEventOverviewFrames, height: 16 },
             { constructor: TimelineEventOverviewCPUActivity, height: 20 },
             { constructor: TimelineEventOverviewNetwork, height: 8 },
         ];
@@ -79,21 +78,20 @@ export class TimelineHistoryManager {
         this.enabled = true;
         this.lastActiveModel = null;
     }
-    addRecording(performanceModel) {
+    addRecording(performanceModel, traceParseData, filmStripModel) {
         this.lastActiveModel = performanceModel;
-        this.recordings.unshift(performanceModel);
-        this.buildPreview(performanceModel);
+        this.recordings.unshift({ legacyModel: performanceModel, traceParseData, filmStripModel });
+        this.buildPreview(performanceModel, filmStripModel);
         const modelTitle = this.title(performanceModel);
         this.buttonInternal.setText(modelTitle);
         const buttonTitle = this.action.title();
-        UI.ARIAUtils.setAccessibleName(this.buttonInternal.element, i18nString(UIStrings.currentSessionSS, { PH1: modelTitle, PH2: buttonTitle }));
+        UI.ARIAUtils.setLabel(this.buttonInternal.element, i18nString(UIStrings.currentSessionSS, { PH1: modelTitle, PH2: buttonTitle }));
         this.updateState();
         if (this.recordings.length <= maxRecordings) {
             return;
         }
-        const lruModel = this.recordings.reduce((a, b) => lastUsedTime(a) < lastUsedTime(b) ? a : b);
-        this.recordings.splice(this.recordings.indexOf(lruModel), 1);
-        lruModel.dispose();
+        const modelUsedMoreTimeAgo = this.recordings.reduce((a, b) => lastUsedTime(a.legacyModel) < lastUsedTime(b.legacyModel) ? a : b);
+        this.recordings.splice(this.recordings.indexOf(modelUsedMoreTimeAgo), 1);
         function lastUsedTime(model) {
             const data = TimelineHistoryManager.dataForModel(model);
             if (!data) {
@@ -110,7 +108,6 @@ export class TimelineHistoryManager {
         return this.buttonInternal;
     }
     clear() {
-        this.recordings.forEach(model => model.dispose());
         this.recordings = [];
         this.lastActiveModel = null;
         this.updateState();
@@ -122,17 +119,17 @@ export class TimelineHistoryManager {
             return null;
         }
         // DropDown.show() function finishes when the dropdown menu is closed via selection or losing focus
-        const model = await DropDown.show(this.recordings, this.lastActiveModel, this.buttonInternal.element);
-        if (!model) {
+        const legacyModel = await DropDown.show(this.recordings.map(recording => recording.legacyModel), this.lastActiveModel, this.buttonInternal.element);
+        if (!legacyModel) {
             return null;
         }
-        const index = this.recordings.indexOf(model);
+        const index = this.recordings.findIndex(recording => recording.legacyModel === legacyModel);
         if (index < 0) {
             console.assert(false, 'selected recording not found');
             return null;
         }
-        this.setCurrentModel(model);
-        return model;
+        this.setCurrentModel(legacyModel);
+        return this.recordings[index];
     }
     cancelIfShowing() {
         DropDown.cancelIfShowing();
@@ -141,14 +138,14 @@ export class TimelineHistoryManager {
         if (!this.enabled || !this.lastActiveModel) {
             return null;
         }
-        const index = this.recordings.indexOf(this.lastActiveModel);
+        const index = this.recordings.findIndex(recording => recording.legacyModel === this.lastActiveModel);
         if (index < 0) {
             return null;
         }
         const newIndex = Platform.NumberUtilities.clamp(index + direction, 0, this.recordings.length - 1);
-        const model = this.recordings[newIndex];
-        this.setCurrentModel(model);
-        return model;
+        const legacyModel = this.recordings[newIndex].legacyModel;
+        this.setCurrentModel(legacyModel);
+        return this.recordings[newIndex];
     }
     setCurrentModel(model) {
         const data = TimelineHistoryManager.dataForModel(model);
@@ -160,7 +157,7 @@ export class TimelineHistoryManager {
         const modelTitle = this.title(model);
         const buttonTitle = this.action.title();
         this.buttonInternal.setText(modelTitle);
-        UI.ARIAUtils.setAccessibleName(this.buttonInternal.element, i18nString(UIStrings.currentSessionSS, { PH1: modelTitle, PH2: buttonTitle }));
+        UI.ARIAUtils.setLabel(this.buttonInternal.element, i18nString(UIStrings.currentSessionSS, { PH1: modelTitle, PH2: buttonTitle }));
     }
     updateState() {
         this.action.setEnabled(this.recordings.length > 1 && this.enabled);
@@ -194,21 +191,22 @@ export class TimelineHistoryManager {
         }
         return data.title;
     }
-    buildPreview(performanceModel) {
+    buildPreview(performanceModel, filmStripModel) {
         const parsedURL = Common.ParsedURL.ParsedURL.fromString(performanceModel.timelineModel().pageURL());
         const domain = parsedURL ? parsedURL.host : '';
-        const sequenceNumber = this.nextNumberByDomain.get(domain) || 1;
-        const title = i18nString(UIStrings.sD, { PH1: domain, PH2: sequenceNumber });
-        this.nextNumberByDomain.set(domain, sequenceNumber + 1);
+        const title = performanceModel.tracingModel().title() || domain;
+        const sequenceNumber = this.nextNumberByDomain.get(title) || 1;
+        const titleWithSequenceNumber = i18nString(UIStrings.sD, { PH1: title, PH2: sequenceNumber });
+        this.nextNumberByDomain.set(title, sequenceNumber + 1);
         const timeElement = document.createElement('span');
         const preview = document.createElement('div');
         preview.classList.add('preview-item');
         preview.classList.add('vbox');
-        const data = { preview: preview, title: title, time: timeElement, lastUsed: Date.now() };
+        const data = { preview, title: titleWithSequenceNumber, time: timeElement, lastUsed: Date.now() };
         modelToPerformanceData.set(performanceModel, data);
         preview.appendChild(this.buildTextDetails(performanceModel, title, timeElement));
         const screenshotAndOverview = preview.createChild('div', 'hbox');
-        screenshotAndOverview.appendChild(this.buildScreenshotThumbnail(performanceModel));
+        screenshotAndOverview.appendChild(this.buildScreenshotThumbnail(filmStripModel));
         screenshotAndOverview.appendChild(this.buildOverview(performanceModel));
         return data.preview;
     }
@@ -218,7 +216,7 @@ export class TimelineHistoryManager {
         container.classList.add('hbox');
         const nameSpan = container.createChild('span', 'name');
         nameSpan.textContent = title;
-        UI.ARIAUtils.setAccessibleName(nameSpan, title);
+        UI.ARIAUtils.setLabel(nameSpan, title);
         const tracingModel = performanceModel.tracingModel();
         const duration = i18n.TimeUtilities.millisToString(tracingModel.maximumRecordTime() - tracingModel.minimumRecordTime(), false);
         const timeContainer = container.createChild('span', 'time');
@@ -226,19 +224,18 @@ export class TimelineHistoryManager {
         timeContainer.appendChild(timeElement);
         return container;
     }
-    buildScreenshotThumbnail(performanceModel) {
+    buildScreenshotThumbnail(filmStripModel) {
         const container = document.createElement('div');
         container.classList.add('screenshot-thumb');
         const thumbnailAspectRatio = 3 / 2;
         container.style.width = this.totalHeight * thumbnailAspectRatio + 'px';
         container.style.height = this.totalHeight + 'px';
-        const filmStripModel = performanceModel.filmStripModel();
         const frames = filmStripModel.frames();
         const lastFrame = frames[frames.length - 1];
         if (!lastFrame) {
             return container;
         }
-        lastFrame.imageDataPromise()
+        void lastFrame.imageDataPromise()
             .then(data => UI.UIUtils.loadImageFromData(data))
             // TODO(crbug.com/1172300) Ignored during the jsdoc to ts migration
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -282,10 +279,10 @@ export class DropDown {
     selectionDone;
     constructor(models) {
         this.glassPane = new UI.GlassPane.GlassPane();
-        this.glassPane.setSizeBehavior("MeasureContent" /* MeasureContent */);
+        this.glassPane.setSizeBehavior("MeasureContent" /* UI.GlassPane.SizeBehavior.MeasureContent */);
         this.glassPane.setOutsideClickCallback(() => this.close(null));
-        this.glassPane.setPointerEventsBehavior("BlockedByGlassPane" /* BlockedByGlassPane */);
-        this.glassPane.setAnchorBehavior("PreferBottom" /* PreferBottom */);
+        this.glassPane.setPointerEventsBehavior("BlockedByGlassPane" /* UI.GlassPane.PointerEventsBehavior.BlockedByGlassPane */);
+        this.glassPane.setAnchorBehavior("PreferBottom" /* UI.GlassPane.AnchorBehavior.PreferBottom */);
         this.glassPane.element.addEventListener('blur', () => this.close(null));
         const shadowRoot = UI.Utils.createShadowRootWithCoreStyles(this.glassPane.contentElement, {
             cssFile: [timelineHistoryManagerStyles],
@@ -298,7 +295,7 @@ export class DropDown {
         this.listControl.element.addEventListener('mousemove', this.onMouseMove.bind(this), false);
         listModel.replaceAll(models);
         UI.ARIAUtils.markAsMenu(this.listControl.element);
-        UI.ARIAUtils.setAccessibleName(this.listControl.element, i18nString(UIStrings.selectTimelineSession));
+        UI.ARIAUtils.setLabel(this.listControl.element, i18nString(UIStrings.selectTimelineSession));
         contentElement.appendChild(this.listControl.element);
         contentElement.addEventListener('keydown', this.onKeyDown.bind(this), false);
         contentElement.addEventListener('click', this.onClick.bind(this), false);
@@ -399,11 +396,11 @@ export class ToolbarButton extends UI.Toolbar.ToolbarItem {
         element.classList.add('history-dropdown-button');
         super(element);
         this.contentElement = this.element.createChild('span', 'content');
-        const dropdownArrowIcon = UI.Icon.Icon.create('smallicon-triangle-down');
+        const dropdownArrowIcon = UI.Icon.Icon.create('triangle-down');
         this.element.appendChild(dropdownArrowIcon);
         this.element.addEventListener('click', () => void action.execute(), false);
         this.setEnabled(action.enabled());
-        action.addEventListener("Enabled" /* Enabled */, event => this.setEnabled(event.data));
+        action.addEventListener("Enabled" /* UI.ActionRegistration.Events.Enabled */, event => this.setEnabled(event.data));
         this.setTitle(action.title());
     }
     setText(text) {

@@ -1,5 +1,6 @@
 import * as TextUtils from '../../models/text_utils/text_utils.js';
 import * as Common from '../common/common.js';
+import * as Platform from '../platform/platform.js';
 import type * as ProtocolProxyApi from '../../generated/protocol-proxy-api.js';
 import type * as Protocol from '../../generated/protocol.js';
 import { CSSFontFace } from './CSSFontFace.js';
@@ -8,18 +9,18 @@ import { CSSMedia } from './CSSMedia.js';
 import { CSSStyleRule } from './CSSRule.js';
 import { CSSStyleDeclaration } from './CSSStyleDeclaration.js';
 import { CSSStyleSheetHeader } from './CSSStyleSheetHeader.js';
-import type { DOMNode } from './DOMModel.js';
-import { DOMModel } from './DOMModel.js';
-import type { Target } from './Target.js';
+import { DOMModel, type DOMNode } from './DOMModel.js';
+import { type Target } from './Target.js';
 import { SDKModel } from './SDKModel.js';
 import { SourceMapManager } from './SourceMapManager.js';
 export declare class CSSModel extends SDKModel<EventTypes> {
     #private;
-    agent: ProtocolProxyApi.CSSApi;
+    readonly agent: ProtocolProxyApi.CSSApi;
     constructor(target: Target);
-    headersForSourceURL(sourceURL: string): CSSStyleSheetHeader[];
-    createRawLocationsByURL(sourceURL: string, lineNumber: number, columnNumber?: number | undefined): CSSLocation[];
+    headersForSourceURL(sourceURL: Platform.DevToolsPath.UrlString): CSSStyleSheetHeader[];
+    createRawLocationsByURL(sourceURL: Platform.DevToolsPath.UrlString, lineNumber: number, columnNumber?: number | undefined): CSSLocation[];
     sourceMapManager(): SourceMapManager<CSSStyleSheetHeader>;
+    static readableLayerName(text: string): string;
     static trimSourceURL(text: string): string;
     domModel(): DOMModel;
     setStyleText(styleSheetId: Protocol.CSS.StyleSheetId, range: TextUtils.TextRange.TextRange, text: string, majorChange: boolean): Promise<boolean>;
@@ -32,25 +33,29 @@ export declare class CSSModel extends SDKModel<EventTypes> {
     }>;
     setLocalFontsEnabled(enabled: boolean): Promise<Protocol.ProtocolResponseWithError>;
     stopCoverage(): Promise<void>;
-    mediaQueriesPromise(): Promise<CSSMedia[]>;
+    getMediaQueries(): Promise<CSSMedia[]>;
+    getRootLayer(nodeId: Protocol.DOM.NodeId): Promise<Protocol.CSS.CSSLayerData>;
     isEnabled(): boolean;
     private enable;
-    matchedStylesPromise(nodeId: Protocol.DOM.NodeId): Promise<CSSMatchedStyles | null>;
-    classNamesPromise(styleSheetId: Protocol.CSS.StyleSheetId): Promise<string[]>;
-    computedStylePromise(nodeId: Protocol.DOM.NodeId): Promise<Map<string, string> | null>;
-    backgroundColorsPromise(nodeId: Protocol.DOM.NodeId): Promise<ContrastInfo | null>;
-    platformFontsPromise(nodeId: Protocol.DOM.NodeId): Promise<Protocol.CSS.PlatformFontUsage[] | null>;
+    getMatchedStyles(nodeId: Protocol.DOM.NodeId): Promise<CSSMatchedStyles | null>;
+    getClassNames(styleSheetId: Protocol.CSS.StyleSheetId): Promise<string[]>;
+    getComputedStyle(nodeId: Protocol.DOM.NodeId): Promise<Map<string, string> | null>;
+    getBackgroundColors(nodeId: Protocol.DOM.NodeId): Promise<ContrastInfo | null>;
+    getPlatformFonts(nodeId: Protocol.DOM.NodeId): Promise<Protocol.CSS.PlatformFontUsage[] | null>;
     allStyleSheets(): CSSStyleSheetHeader[];
-    inlineStylesPromise(nodeId: Protocol.DOM.NodeId): Promise<InlineStyleResult | null>;
+    getInlineStyles(nodeId: Protocol.DOM.NodeId): Promise<InlineStyleResult | null>;
     forcePseudoState(node: DOMNode, pseudoClass: string, enable: boolean): boolean;
     pseudoState(node: DOMNode): string[] | null;
     setMediaText(styleSheetId: Protocol.CSS.StyleSheetId, range: TextUtils.TextRange.TextRange, newMediaText: string): Promise<boolean>;
     setContainerQueryText(styleSheetId: Protocol.CSS.StyleSheetId, range: TextUtils.TextRange.TextRange, newContainerQueryText: string): Promise<boolean>;
+    setSupportsText(styleSheetId: Protocol.CSS.StyleSheetId, range: TextUtils.TextRange.TextRange, newSupportsText: string): Promise<boolean>;
+    setScopeText(styleSheetId: Protocol.CSS.StyleSheetId, range: TextUtils.TextRange.TextRange, newScopeText: string): Promise<boolean>;
     addRule(styleSheetId: Protocol.CSS.StyleSheetId, ruleText: string, ruleLocation: TextUtils.TextRange.TextRange): Promise<CSSStyleRule | null>;
     requestViaInspectorStylesheet(node: DOMNode): Promise<CSSStyleSheetHeader | null>;
     mediaQueryResultChanged(): void;
     fontsUpdated(fontFace?: Protocol.CSS.FontFace | null): void;
     fontFaces(): CSSFontFace[];
+    fontFaceForSource(src: string): CSSFontFace | undefined;
     styleSheetHeaderForId(id: Protocol.CSS.StyleSheetId): CSSStyleSheetHeader | null;
     styleSheetHeaders(): CSSStyleSheetHeader[];
     fireStyleSheetChanged(styleSheetId: Protocol.CSS.StyleSheetId, edit?: Edit): void;
@@ -60,9 +65,10 @@ export declare class CSSModel extends SDKModel<EventTypes> {
     getAllStyleSheetHeaders(): Iterable<CSSStyleSheetHeader>;
     styleSheetAdded(header: Protocol.CSS.CSSStyleSheetHeader): void;
     styleSheetRemoved(id: Protocol.CSS.StyleSheetId): void;
-    getStyleSheetIdsForURL(url: string): Protocol.CSS.StyleSheetId[];
+    getStyleSheetIdsForURL(url: Platform.DevToolsPath.UrlString): Protocol.CSS.StyleSheetId[];
     setStyleSheetText(styleSheetId: Protocol.CSS.StyleSheetId, newText: string, majorChange: boolean): Promise<string | null>;
     getStyleSheetText(styleSheetId: Protocol.CSS.StyleSheetId): Promise<string | null>;
+    private onPrimaryPageChanged;
     private resetStyleSheets;
     private resetFontFaces;
     suspendModel(): Promise<void>;
@@ -95,7 +101,7 @@ export interface PseudoStateForcedEvent {
     pseudoClass: string;
     enable: boolean;
 }
-export declare type EventTypes = {
+export type EventTypes = {
     [Events.FontsUpdated]: void;
     [Events.MediaQueryResultChanged]: void;
     [Events.ModelWasEnabled]: void;
@@ -115,7 +121,7 @@ export declare class Edit {
 export declare class CSSLocation {
     #private;
     styleSheetId: Protocol.CSS.StyleSheetId;
-    url: string;
+    url: Platform.DevToolsPath.UrlString;
     lineNumber: number;
     columnNumber: number;
     constructor(header: CSSStyleSheetHeader, lineNumber: number, columnNumber?: number);
@@ -137,7 +143,7 @@ export declare class CSSPropertyTracker extends Common.ObjectWrapper.ObjectWrapp
 export declare enum CSSPropertyTrackerEvents {
     TrackedCSSPropertiesUpdated = "TrackedCSSPropertiesUpdated"
 }
-export declare type CSSPropertyTrackerEventTypes = {
+export type CSSPropertyTrackerEventTypes = {
     [CSSPropertyTrackerEvents.TrackedCSSPropertiesUpdated]: (DOMNode | null)[];
 };
 export interface ContrastInfo {

@@ -6,24 +6,22 @@ import * as UI from '../../ui/legacy/legacy.js';
 import cssOverviewProcessingViewStyles from './cssOverviewProcessingView.css.js';
 const UIStrings = {
     /**
-    *@description Text to cancel something
-    */
+     *@description Text to cancel something
+     */
     cancel: 'Cancel',
 };
 const str_ = i18n.i18n.registerUIStrings('panels/css_overview/CSSOverviewProcessingView.ts', UIStrings);
 const i18nString = i18n.i18n.getLocalizedString.bind(undefined, str_);
 export class CSSOverviewProcessingView extends UI.Widget.Widget {
-    #formatter;
     #controller;
     fragment;
     constructor(controller) {
         super();
-        this.#formatter = new Intl.NumberFormat('en-US');
         this.#controller = controller;
-        this.render();
+        this.#render();
     }
-    render() {
-        const cancelButton = UI.UIUtils.createTextButton(i18nString(UIStrings.cancel), () => this.#controller.dispatchEventToListeners("RequestOverviewCancel" /* RequestOverviewCancel */), '', true /* primary */);
+    #render() {
+        const cancelButton = UI.UIUtils.createTextButton(i18nString(UIStrings.cancel), () => this.#controller.dispatchEventToListeners("RequestOverviewCancel" /* Events.RequestOverviewCancel */), '', true /* primary */);
         this.setDefaultFocusedElement(cancelButton);
         this.fragment = UI.Fragment.Fragment.build `
       <div class="vbox overview-processing-view">

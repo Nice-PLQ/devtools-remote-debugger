@@ -30,6 +30,6 @@ export interface ItemsReplacedEvent<T> {
     inserted: number;
     keepSelectedIndex?: boolean;
 }
-export declare type EventTypes<T> = {
+export type EventTypes<T> = {
     [Events.ItemsReplaced]: ItemsReplacedEvent<T>;
 };

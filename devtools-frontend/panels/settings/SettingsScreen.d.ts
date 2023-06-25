@@ -17,13 +17,15 @@ export declare class SettingsScreen extends UI.Widget.VBox implements UI.View.Vi
     private onEscapeKeyPressed;
     wasShown(): void;
 }
-declare class SettingsTab extends UI.Widget.VBox {
+declare abstract class SettingsTab extends UI.Widget.VBox {
     containerElement: HTMLElement;
     constructor(name: string, id?: string);
     protected appendSection(name?: string): HTMLElement;
+    abstract highlightObject(_object: Object): void;
 }
 export declare class GenericSettingsTab extends SettingsTab {
     private readonly syncSection;
+    private readonly settingToControl;
     constructor();
     static instance(opts?: {
         forceNew: null;
@@ -34,10 +36,11 @@ export declare class GenericSettingsTab extends SettingsTab {
     private createExtensionSection;
     private createSectionElement;
     private createStandardSectionElement;
+    highlightObject(setting: Object): void;
 }
 export declare class ExperimentsSettingsTab extends SettingsTab {
-    private experimentsSection;
-    private unstableExperimentsSection;
+    #private;
+    private readonly experimentToControl;
     constructor();
     private renderExperiments;
     static instance(opts?: {
@@ -45,6 +48,8 @@ export declare class ExperimentsSettingsTab extends SettingsTab {
     }): ExperimentsSettingsTab;
     private createExperimentsWarningSubsection;
     private createExperimentCheckbox;
+    highlightObject(experiment: Object): void;
+    setFilter(filterText: string): void;
 }
 export declare class ActionDelegate implements UI.ActionRegistration.ActionDelegate {
     static instance(opts?: {

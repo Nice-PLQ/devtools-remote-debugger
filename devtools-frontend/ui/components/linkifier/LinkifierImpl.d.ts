@@ -1,5 +1,6 @@
+import * as Platform from '../../../core/platform/platform.js';
 export interface LinkifierData {
-    url: string;
+    url: Platform.DevToolsPath.UrlString;
     lineNumber?: number;
     columnNumber?: number;
 }
@@ -13,8 +14,6 @@ export declare class Linkifier extends HTMLElement {
     static readonly litTagName: import("../../lit-html/static.js").Static;
     set data(data: LinkifierData);
     connectedCallback(): void;
-    private onLinkActivation;
-    private render;
 }
 declare global {
     interface HTMLElementTagNameMap {

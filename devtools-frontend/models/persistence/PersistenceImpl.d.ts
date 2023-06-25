@@ -1,17 +1,19 @@
 import * as Common from '../../core/common/common.js';
-import * as Bindings from '../bindings/bindings.js';
+import * as Platform from '../../core/platform/platform.js';
+import * as BreakpointManager from '../breakpoints/breakpoints.js';
 import * as Workspace from '../workspace/workspace.js';
 export declare class PersistenceImpl extends Common.ObjectWrapper.ObjectWrapper<EventTypes> {
+    #private;
     private readonly workspace;
     private readonly breakpointManager;
     private readonly filePathPrefixesToBindingCount;
     private subscribedBindingEventListeners;
     private readonly mapping;
-    constructor(workspace: Workspace.Workspace.WorkspaceImpl, breakpointManager: Bindings.BreakpointManager.BreakpointManager);
+    constructor(workspace: Workspace.Workspace.WorkspaceImpl, breakpointManager: BreakpointManager.BreakpointManager.BreakpointManager);
     static instance(opts?: {
         forceNew: boolean | null;
         workspace: Workspace.Workspace.WorkspaceImpl | null;
-        breakpointManager: Bindings.BreakpointManager.BreakpointManager | null;
+        breakpointManager: BreakpointManager.BreakpointManager.BreakpointManager | null;
     }): PersistenceImpl;
     addNetworkInterceptor(interceptor: (arg0: Workspace.UISourceCode.UISourceCode) => boolean): void;
     refreshAutomapping(): void;
@@ -37,9 +39,7 @@ export declare class PersistenceImpl extends Common.ObjectWrapper.ObjectWrapper<
     private notifyBindingEvent;
     fileSystem(uiSourceCode: Workspace.UISourceCode.UISourceCode): Workspace.UISourceCode.UISourceCode | null;
     network(uiSourceCode: Workspace.UISourceCode.UISourceCode): Workspace.UISourceCode.UISourceCode | null;
-    private addFilePathBindingPrefixes;
-    private removeFilePathBindingPrefixes;
-    filePathHasBindings(filePath: string): boolean;
+    filePathHasBindings(filePath: Platform.DevToolsPath.UrlString): boolean;
 }
 export declare const NodePrefix = "(function (exports, require, module, __filename, __dirname) { ";
 export declare const NodeSuffix = "\n});";
@@ -48,16 +48,10 @@ export declare enum Events {
     BindingCreated = "BindingCreated",
     BindingRemoved = "BindingRemoved"
 }
-export declare type EventTypes = {
+export type EventTypes = {
     [Events.BindingCreated]: PersistenceBinding;
     [Events.BindingRemoved]: PersistenceBinding;
 };
-export declare class PathEncoder {
-    private readonly encoder;
-    constructor();
-    encode(path: string): string;
-    decode(path: string): string;
-}
 export declare class PersistenceBinding {
     network: Workspace.UISourceCode.UISourceCode;
     fileSystem: Workspace.UISourceCode.UISourceCode;

@@ -8,26 +8,28 @@ import * as UI from '../../ui/legacy/legacy.js';
 import * as ThemeSupport from '../../ui/legacy/theme_support/theme_support.js';
 import { Bounds, formatMillisecondsToSeconds } from './TickingFlameChartHelpers.js';
 const defaultFont = '11px ' + Host.Platform.fontFamily();
-const defaultColor = ThemeSupport.ThemeSupport.instance().patchColorText('#444', ThemeSupport.ThemeSupport.ColorUsage.Foreground);
-const DefaultStyle = {
+function getGroupDefaultTextColor() {
+    return ThemeSupport.ThemeSupport.instance().getComputedValue('--color-text-primary');
+}
+const DefaultStyle = () => ({
     height: 20,
     padding: 2,
     collapsible: false,
     font: defaultFont,
-    color: defaultColor,
+    color: getGroupDefaultTextColor(),
     backgroundColor: 'rgba(100 0 0 / 10%)',
     nestingLevel: 0,
     itemsHeight: 20,
     shareHeaderLine: false,
     useFirstLineForOverview: false,
     useDecoratorsForOverview: false,
-};
+});
 export const HotColorScheme = ['#ffba08', '#faa307', '#f48c06', '#e85d04', '#dc2f02', '#d00000', '#9d0208'];
 export const ColdColorScheme = ['#7400b8', '#6930c3', '#5e60ce', '#5390d9', '#4ea8de', '#48bfe3', '#56cfe1', '#64dfdf'];
 function calculateFontColor(backgroundColor) {
-    const parsedColor = Common.Color.Color.parse(backgroundColor);
+    const parsedColor = Common.Color.parse(backgroundColor)?.as("hsl" /* Common.Color.Format.HSL */);
     // Dark background needs a light font.
-    if (parsedColor && parsedColor.hsla()[2] < 0.5) {
+    if (parsedColor && parsedColor.l < 0.5) {
         return '#eee';
     }
     return '#444';
@@ -306,7 +308,7 @@ class TickingFlameChartDataProvider {
         this.eventMap = new Map();
         // Contains the numerical indicies. This is passed as a reference to the events
         // so that they can update it when they change.
-        this.timelineDataInternal = new PerfUI.FlameChart.TimelineData([], [], [], []);
+        this.timelineDataInternal = PerfUI.FlameChart.FlameChartTimelineData.createEmpty();
         // The current sum of all group heights.
         this.maxLevel = 0;
     }
@@ -315,13 +317,17 @@ class TickingFlameChartDataProvider {
      */
     addGroup(name, depth) {
         if (this.timelineDataInternal.groups) {
-            this.timelineDataInternal.groups.push({
+            const newGroup = {
                 name: name,
                 startLevel: this.maxLevel,
                 expanded: true,
                 selectable: false,
-                style: DefaultStyle,
+                style: DefaultStyle(),
                 track: null,
+            };
+            this.timelineDataInternal.groups.push(newGroup);
+            ThemeSupport.ThemeSupport.instance().addEventListener(ThemeSupport.ThemeChangeEvent.eventName, () => {
+                newGroup.style.color = getGroupDefaultTextColor();
             });
         }
         this.maxLevel += depth;
@@ -363,7 +369,7 @@ class TickingFlameChartDataProvider {
         return this.timelineDataInternal;
     }
     /** time in milliseconds
-       */
+     */
     minimumBoundary() {
         return this.bounds.low;
     }

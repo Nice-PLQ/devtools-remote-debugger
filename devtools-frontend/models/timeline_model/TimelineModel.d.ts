@@ -1,6 +1,9 @@
+import * as Platform from '../../core/platform/platform.js';
 import * as SDK from '../../core/sdk/sdk.js';
+import * as TraceEngine from '../trace/trace.js';
 import type * as Protocol from '../../generated/protocol.js';
 export declare class TimelineModelImpl {
+    #private;
     private isGenericTraceInternal;
     private tracksInternal;
     private namedTracks;
@@ -9,6 +12,7 @@ export declare class TimelineModelImpl {
     private sessionId;
     private mainFrameNodeId;
     private pageFrames;
+    private auctionWorklets;
     private cpuProfilesInternal;
     private workerIdByThread;
     private requestsFromBrowser;
@@ -26,7 +30,6 @@ export declare class TimelineModelImpl {
     private lastRecalculateStylesEvent;
     private currentScriptEvent;
     private eventStack;
-    private knownInputEvents;
     private browserFrameTracking;
     private persistentIds;
     private legacyCurrentPage;
@@ -34,19 +37,46 @@ export declare class TimelineModelImpl {
     private tracingModelInternal;
     private mainFrameLayerTreeId?;
     constructor();
-    static forEachEvent(events: SDK.TracingModel.Event[], onStartEvent: (arg0: SDK.TracingModel.Event) => void, onEndEvent: (arg0: SDK.TracingModel.Event) => void, onInstantEvent?: ((arg0: SDK.TracingModel.Event, arg1: SDK.TracingModel.Event | null) => any), startTime?: number, endTime?: number, filter?: ((arg0: SDK.TracingModel.Event) => boolean)): void;
+    /**
+     * Iterates events in a tree hierarchically, from top to bottom,
+     * calling back on every event's start and end in the order
+     * dictated by the corresponding timestamp.
+     *
+     * Events are assumed to be in ascendent order by timestamp.
+     *
+     * For example, given this tree, the following callbacks
+     * are expected to be made in the following order
+     * |---------------A---------------|
+     *  |------B------||-------D------|
+     *    |---C---|
+     *
+     * 1. Start A
+     * 3. Start B
+     * 4. Start C
+     * 5. End C
+     * 6. End B
+     * 7. Start D
+     * 8. End D
+     * 9. End A
+     *
+     * By default, async events are filtered. This behaviour can be
+     * overriden making use of the filterAsyncEvents parameter.
+     */
+    static forEachEvent(events: SDK.TracingModel.CompatibleTraceEvent[], onStartEvent: (arg0: SDK.TracingModel.CompatibleTraceEvent) => void, onEndEvent: (arg0: SDK.TracingModel.CompatibleTraceEvent) => void, onInstantEvent?: ((arg0: SDK.TracingModel.CompatibleTraceEvent, arg1: SDK.TracingModel.CompatibleTraceEvent | null) => void), startTime?: number, endTime?: number, filter?: ((arg0: SDK.TracingModel.CompatibleTraceEvent) => boolean), ignoreAsyncEvents?: boolean): void;
     private static topLevelEventEndingAfter;
-    isMarkerEvent(event: SDK.TracingModel.Event): boolean;
+    mainFrameID(): string;
+    /**
+     * Determines if an event is potentially a marker event. A marker event here
+     * is a single moment in time that we want to highlight on the timeline, such as
+     * the LCP point. This method does not filter out events: for example, it treats
+     * every LCP Candidate event as a potential marker event. The logic to pick the
+     * right candidate to use is implemeneted in the TimelineFlameChartDataProvider.
+     **/
+    isMarkerEvent(event: SDK.TracingModel.CompatibleTraceEvent): boolean;
     isInteractiveTimeEvent(event: SDK.TracingModel.Event): boolean;
     isLayoutShiftEvent(event: SDK.TracingModel.Event): boolean;
-    isUserTimingEvent(event: SDK.TracingModel.Event): boolean;
     isParseHTMLEvent(event: SDK.TracingModel.Event): boolean;
-    isLCPCandidateEvent(event: SDK.TracingModel.Event): boolean;
-    isLCPInvalidateEvent(event: SDK.TracingModel.Event): boolean;
-    isFCPEvent(event: SDK.TracingModel.Event): boolean;
-    isLongRunningTask(event: SDK.TracingModel.Event): boolean;
-    isNavigationStartEvent(event: SDK.TracingModel.Event): boolean;
-    isMainFrameNavigationStartEvent(event: SDK.TracingModel.Event): boolean;
+    static isJsFrameEvent(event: SDK.TracingModel.CompatibleTraceEvent): boolean;
     static globalEventId(event: SDK.TracingModel.Event, field: string): string;
     static eventFrameId(event: SDK.TracingModel.Event): Protocol.Page.FrameId | null;
     cpuProfiles(): SDK.CPUProfileDataModel.CPUProfileDataModel[];
@@ -54,20 +84,20 @@ export declare class TimelineModelImpl {
         time: number;
         estimated: boolean;
     };
-    targetByEvent(event: SDK.TracingModel.Event): SDK.Target.Target | null;
-    navStartTimes(): Map<string, SDK.TracingModel.Event>;
-    setEvents(tracingModel: SDK.TracingModel.TracingModel): void;
+    targetByEvent(event: SDK.TracingModel.CompatibleTraceEvent): SDK.Target.Target | null;
+    navStartTimes(): Map<string, SDK.TracingModel.PayloadEvent>;
+    isFreshRecording(): boolean;
+    setEvents(tracingModel: SDK.TracingModel.TracingModel, isFreshRecording?: boolean): void;
     private processGenericTrace;
     private processMetadataAndThreads;
     private processThreadsForBrowserFrames;
     private processMetadataEvents;
     private processSyncBrowserEvents;
     private processAsyncBrowserEvents;
-    private buildGPUEvents;
-    private buildLoadingEvents;
     private resetProcessingState;
-    private extractCpuProfile;
+    private extractCpuProfileDataModel;
     private injectJSFrameEvents;
+    private static nameAuctionWorklet;
     private processThreadEvents;
     private fixNegativeDuration;
     private processAsyncEvents;
@@ -86,7 +116,7 @@ export declare class TimelineModelImpl {
     isEmpty(): boolean;
     timeMarkerEvents(): SDK.TracingModel.Event[];
     rootFrames(): PageFrame[];
-    pageURL(): string;
+    pageURL(): Platform.DevToolsPath.UrlString;
     pageFrameById(frameId: Protocol.Page.FrameId): PageFrame | null;
     networkRequests(): NetworkRequest[];
 }
@@ -108,6 +138,7 @@ export declare enum RecordType {
     RecalculateStyles = "RecalculateStyles",
     UpdateLayoutTree = "UpdateLayoutTree",
     InvalidateLayout = "InvalidateLayout",
+    Layerize = "Layerize",
     Layout = "Layout",
     LayoutShift = "LayoutShift",
     UpdateLayer = "UpdateLayer",
@@ -115,9 +146,11 @@ export declare enum RecordType {
     PaintSetup = "PaintSetup",
     Paint = "Paint",
     PaintImage = "PaintImage",
+    PrePaint = "PrePaint",
     Rasterize = "Rasterize",
     RasterTask = "RasterTask",
     ScrollLayer = "ScrollLayer",
+    Commit = "Commit",
     CompositeLayers = "CompositeLayers",
     ComputeIntersections = "IntersectionObserverController::computeIntersections",
     InteractiveTime = "InteractiveTime",
@@ -157,6 +190,7 @@ export declare enum RecordType {
     TimeStamp = "TimeStamp",
     ConsoleTime = "ConsoleTime",
     UserTiming = "UserTiming",
+    EventTiming = "EventTiming",
     ResourceWillSendRequest = "ResourceWillSendRequest",
     ResourceSendRequest = "ResourceSendRequest",
     ResourceReceiveResponse = "ResourceReceiveResponse",
@@ -170,12 +204,19 @@ export declare enum RecordType {
     MinorGC = "MinorGC",
     JSFrame = "JSFrame",
     JSSample = "JSSample",
+    JSIdleFrame = "JSIdleFrame",
+    JSIdleSample = "JSIdleSample",
+    JSSystemFrame = "JSSystemFrame",
+    JSSystemSample = "JSSystemSample",
+    JSRoot = "JSRoot",
     V8Sample = "V8Sample",
     JitCodeAdded = "JitCodeAdded",
     JitCodeMoved = "JitCodeMoved",
     StreamingCompileScript = "v8.parseOnBackground",
     StreamingCompileScriptWaiting = "v8.parseOnBackgroundWaiting",
     StreamingCompileScriptParsing = "v8.parseOnBackgroundParsing",
+    BackgroundDeserialize = "v8.deserializeOnBackground",
+    FinalizeDeserialization = "V8.FinalizeDeserialization",
     V8Execute = "V8.Execute",
     UpdateCounters = "UpdateCounters",
     RequestAnimationFrame = "RequestAnimationFrame",
@@ -192,6 +233,7 @@ export declare enum RecordType {
     SetLayerTreeId = "SetLayerTreeId",
     TracingStartedInPage = "TracingStartedInPage",
     TracingSessionIdForWorker = "TracingSessionIdForWorker",
+    StartProfiling = "CpuProfiler::StartProfiling",
     DecodeImage = "Decode Image",
     ResizeImage = "Resize Image",
     DrawLazyPixelRef = "Draw LazyPixelRef",
@@ -200,8 +242,6 @@ export declare enum RecordType {
     LayerTreeHostImplSnapshot = "cc::LayerTreeHostImpl",
     PictureSnapshot = "cc::Picture",
     DisplayItemListSnapshot = "cc::DisplayItemList",
-    LatencyInfo = "LatencyInfo",
-    LatencyInfoFlow = "LatencyInfo.Flow",
     InputLatencyMouseMove = "InputLatency::MouseMove",
     InputLatencyMouseWheel = "InputLatency::MouseWheel",
     ImplSideFling = "InputHandlerProxy::HandleGestureFling::started",
@@ -224,7 +264,6 @@ export declare namespace TimelineModelImpl {
     const Category: {
         Console: string;
         UserTiming: string;
-        LatencyInfo: string;
         Loading: string;
     };
     enum WarningType {
@@ -234,12 +273,15 @@ export declare namespace TimelineModelImpl {
         IdleDeadlineExceeded = "IdleDeadlineExceeded",
         LongHandler = "LongHandler",
         LongRecurringHandler = "LongRecurringHandler",
-        V8Deopt = "V8Deopt"
+        V8Deopt = "V8Deopt",
+        LongInteraction = "LongInteraction"
     }
     const WorkerThreadName = "DedicatedWorker thread";
     const WorkerThreadNameLegacy = "DedicatedWorker Thread";
     const RendererMainThreadName = "CrRendererMain";
     const BrowserMainThreadName = "CrBrowserMain";
+    const UtilityMainThreadNameSuffix = "CrUtilityMain";
+    const AuctionWorkletThreadName = "AuctionV8HelperThread";
     const DevToolsMetadataEvent: {
         TracingStartedInBrowser: string;
         TracingStartedInPage: string;
@@ -247,6 +289,8 @@ export declare namespace TimelineModelImpl {
         FrameCommittedInBrowser: string;
         ProcessReadyInBrowser: string;
         FrameDeletedInBrowser: string;
+        AuctionWorkletRunningInProcess: string;
+        AuctionWorkletDoneWithProcess: string;
     };
     const Thresholds: {
         LongTask: number;
@@ -260,26 +304,62 @@ export declare class Track {
     name: string;
     type: TrackType;
     forMainFrame: boolean;
-    url: string;
+    url: Platform.DevToolsPath.UrlString;
+    /**
+     * For tracks that correspond to a thread in a trace, this field contains all the events in the
+     * thread (both sync and async). Other tracks (like Timings) only include events with instant
+     * ("I") or mark ("R") phases.
+     */
     events: SDK.TracingModel.Event[];
+    /**
+     * For tracks that correspond to a thread in a trace, this field will be empty. Other tracks (like
+     * Interactions and Animations) have non-instant/mark events.
+     */
     asyncEvents: SDK.TracingModel.AsyncEvent[];
     tasks: SDK.TracingModel.Event[];
-    private syncEventsInternal;
+    private eventsForTreeViewInternal;
     thread: SDK.TracingModel.Thread | null;
     constructor();
-    syncEvents(): SDK.TracingModel.Event[];
+    /**
+     * Gets trace events that can be organized in a tree structure. This
+     * is used for the tree views in the Bottom-up, Call tree and Event
+     * log view in the details pane.
+     *
+     * Depending on the type of track, this data can vary:
+     * 1. Tracks that correspond to a thread in a trace:
+     *    Returns all the events (sync and async). For these tracks, all
+     *    events will be inside the `events` field. Async events will be
+     *    filtered later when the trees are actually built. For these
+     *    tracks, the asyncEvents field will be empty.
+     *
+     * 2. Other tracks (Interactions, Timings, etc.):
+     *    Returns instant events (which for these tracks are stored in the
+     *    `events` field) and async events (contained in `syncEvents`) if
+     *    they can be organized in a tree structure. This latter condition
+     *    is met if there is *not* a pair of async events e1 and e2 where:
+     *
+     *    e1.startTime <= e2.startTime && e1.endTime > e2.startTime && e1.endTime > e2.endTime.
+     *    or, graphically:
+     *    |------- e1 ------|
+     *      |------- e2 --------|
+     *    Because async events are filtered later, fake sync events are
+     *    created from the async events when the condition above is met.
+     */
+    eventsForTreeView(): SDK.TracingModel.Event[];
 }
 export declare enum TrackType {
     MainThread = "MainThread",
     Worker = "Worker",
-    Input = "Input",
     Animation = "Animation",
-    Timings = "Timings",
-    Console = "Console",
     Raster = "Raster",
-    GPU = "GPU",
     Experience = "Experience",
     Other = "Other"
+}
+declare const enum WorkletType {
+    NotWorklet = 0,
+    BidderWorklet = 1,
+    SellerWorklet = 2,
+    UnknownWorklet = 3
 }
 export declare class PageFrame {
     frameId: any;
@@ -291,7 +371,7 @@ export declare class PageFrame {
         time: number;
         processId: number;
         processPseudoId: string | null;
-        url: string;
+        url: Platform.DevToolsPath.UrlString;
     }[];
     deletedTime: number | null;
     ownerNode: SDK.DOMModel.DeferredDOMNode | null;
@@ -299,6 +379,15 @@ export declare class PageFrame {
     update(time: number, payload: any): void;
     processReady(processPseudoId: string, processId: number): void;
     addChild(child: PageFrame): void;
+}
+export declare class AuctionWorklet {
+    targetId: string;
+    processId: number;
+    host?: string;
+    startTime: number;
+    endTime: number;
+    workletType: WorkletType;
+    constructor(event: SDK.TracingModel.Event, data: any);
 }
 export declare class NetworkRequest {
     startTime: number;
@@ -313,7 +402,7 @@ export declare class NetworkRequest {
         receiveHeadersEnd: number;
     };
     mimeType: string;
-    url: string;
+    url: Platform.DevToolsPath.UrlString;
     requestMethod: string;
     private transferSize;
     private maybeDiskCached;
@@ -382,16 +471,15 @@ export declare class InvalidationTrackingEvent {
     cause: InvalidationCause;
     linkedRecalcStyleEvent: boolean;
     linkedLayoutEvent: boolean;
-    constructor(event: SDK.TracingModel.Event, timelineData: TimelineData);
+    constructor(event: SDK.TracingModel.Event, timelineData: EventOnTimelineData);
 }
 export declare class InvalidationTracker {
     private lastRecalcStyle;
-    private lastPaintWithLayer;
     didPaint: boolean;
     private invalidations;
     private invalidationsByNodeId;
     constructor();
-    static invalidationEventsFor(event: SDK.TracingModel.Event): InvalidationTrackingEvent[] | null;
+    static invalidationEventsFor(event: SDK.TracingModel.Event | TraceEngine.Types.TraceEvents.TraceEventData): InvalidationTrackingEvent[] | null;
     addInvalidation(invalidation: InvalidationTrackingEvent): void;
     didRecalcStyle(recalcStyleEvent: SDK.TracingModel.Event): void;
     private associateWithLastRecalcStyleEvent;
@@ -411,10 +499,10 @@ export declare class TimelineAsyncEventTracker {
     private static asyncEvents;
     private static typeToInitiator;
 }
-export declare class TimelineData {
+export declare class EventOnTimelineData {
     warning: string | null;
     previewElement: Element | null;
-    url: string | null;
+    url: Platform.DevToolsPath.UrlString | null;
     backendNodeIds: Protocol.DOM.BackendNodeId[];
     stackTrace: Protocol.Runtime.CallFrame[] | null;
     picture: SDK.TracingModel.ObjectSnapshot | null;
@@ -426,7 +514,8 @@ export declare class TimelineData {
     initiator(): SDK.TracingModel.Event | null;
     topFrame(): Protocol.Runtime.CallFrame | null;
     stackTraceForSelfOrInitiator(): Protocol.Runtime.CallFrame[] | null;
-    static forEvent(event: SDK.TracingModel.Event): TimelineData;
+    static forEvent(event: SDK.TracingModel.CompatibleTraceEvent): EventOnTimelineData;
+    static forTraceEventData(event: TraceEngine.Types.TraceEvents.TraceEventData): EventOnTimelineData;
 }
 export interface InvalidationCause {
     reason: string;
@@ -436,3 +525,4 @@ export interface MetadataEvents {
     page: SDK.TracingModel.Event[];
     workers: SDK.TracingModel.Event[];
 }
+export {};

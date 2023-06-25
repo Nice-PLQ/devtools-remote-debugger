@@ -53,7 +53,7 @@ export class ObjectPopoverHelper {
     static async buildObjectPopover(result, popover) {
         const description = Platform.StringUtilities.trimEndWithMaxLength(result.description || '', MaxPopoverTextLength);
         let popoverContentElement = null;
-        if (result.type === 'object') {
+        if (result.type === 'function' || result.type === 'object') {
             let linkifier = null;
             let resultHighlightedAsDOM = false;
             if (result.subtype === 'node') {
@@ -68,9 +68,16 @@ export class ObjectPopoverHelper {
             else {
                 popoverContentElement = document.createElement('div');
                 popoverContentElement.classList.add('object-popover-content');
-                popover.registerCSSFiles([objectPopoverStyles]);
-                const titleElement = popoverContentElement.createChild('div', 'monospace object-popover-title');
-                titleElement.createChild('span').textContent = description;
+                popover.registerCSSFiles([objectValueStyles, objectPopoverStyles]);
+                const titleElement = popoverContentElement.createChild('div', 'object-popover-title');
+                if (result.type === 'function') {
+                    titleElement.classList.add('source-code');
+                    titleElement.appendChild(ObjectPropertiesSection.valueElementForFunctionDescription(result.description));
+                }
+                else {
+                    titleElement.classList.add('monospace');
+                    titleElement.createChild('span').textContent = description;
+                }
                 linkifier = new Components.Linkifier.Linkifier();
                 const section = new ObjectPropertiesSection(result, '', linkifier, true /* showOverflow */);
                 section.element.classList.add('object-popover-tree');
@@ -79,7 +86,7 @@ export class ObjectPopoverHelper {
             }
             popoverContentElement.dataset.stableNameForTest = 'object-popover-content';
             popover.setMaxContentSize(new UI.Geometry.Size(300, 250));
-            popover.setSizeBehavior("SetExactSize" /* SetExactSize */);
+            popover.setSizeBehavior("SetExactSize" /* UI.GlassPane.SizeBehavior.SetExactSize */);
             popover.contentElement.appendChild(popoverContentElement);
             return new ObjectPopoverHelper(linkifier, resultHighlightedAsDOM);
         }
@@ -91,35 +98,11 @@ export class ObjectPopoverHelper {
         if (result.type === 'string') {
             UI.UIUtils.createTextChildren(valueElement, `"${description}"`);
         }
-        else if (result.type !== 'function') {
+        else {
             valueElement.textContent = description;
         }
-        if (result.type !== 'function') {
-            popover.contentElement.appendChild(popoverContentElement);
-            return new ObjectPopoverHelper(null, false);
-        }
-        ObjectPropertiesSection.formatObjectAsFunction(result, valueElement, true);
-        const response = await result.debuggerModel().functionDetailsPromise(result);
-        if (!response) {
-            return null;
-        }
-        const container = document.createElement('div');
-        container.classList.add('object-popover-container');
-        const title = container.createChild('div', 'function-popover-title source-code');
-        const functionName = title.createChild('span', 'function-name');
-        functionName.textContent = UI.UIUtils.beautifyFunctionName(response.functionName);
-        const rawLocation = response.location;
-        const linkContainer = title.createChild('div', 'function-title-link-container');
-        const script = rawLocation && rawLocation.script();
-        const sourceURL = script && script.sourceURL;
-        let linkifier = null;
-        if (sourceURL) {
-            linkifier = new Components.Linkifier.Linkifier(undefined, undefined, popover.positionContent.bind(popover));
-            linkContainer.appendChild(linkifier.linkifyRawLocation(rawLocation, sourceURL));
-        }
-        container.appendChild(popoverContentElement);
-        popover.contentElement.appendChild(container);
-        return new ObjectPopoverHelper(linkifier, false);
+        popover.contentElement.appendChild(popoverContentElement);
+        return new ObjectPopoverHelper(null, false);
     }
 }
 const MaxPopoverTextLength = 10000;

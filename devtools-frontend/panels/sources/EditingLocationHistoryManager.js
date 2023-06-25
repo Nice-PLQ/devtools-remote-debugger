@@ -27,117 +27,99 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-import * as Common from '../../core/common/common.js';
 import * as Workspace from '../../models/workspace/workspace.js';
 import * as SourceFrame from '../../ui/legacy/components/source_frame/source_frame.js';
+export const HistoryDepth = 20;
 export class EditingLocationHistoryManager {
     sourcesView;
-    historyManager;
-    currentSourceFrameCallback;
-    constructor(sourcesView, currentSourceFrameCallback) {
+    entries = [];
+    current = -1;
+    revealing = false;
+    constructor(sourcesView) {
         this.sourcesView = sourcesView;
-        this.historyManager = new Common.SimpleHistoryManager.SimpleHistoryManager(HistoryDepth);
-        this.currentSourceFrameCallback = currentSourceFrameCallback;
     }
     trackSourceFrameCursorJumps(sourceFrame) {
-        sourceFrame.textEditor.addEventListener(SourceFrame.SourcesTextEditor.Events.JumpHappened, this.onJumpHappened.bind(this));
+        sourceFrame.addEventListener("EditorUpdate" /* SourceFrame.SourceFrame.Events.EditorUpdate */, event => this.onEditorUpdate(event.data, sourceFrame));
     }
-    onJumpHappened(event) {
-        const { from, to } = event.data;
-        if (from) {
-            this.updateActiveState(from);
+    onEditorUpdate(update, sourceFrame) {
+        if (update.docChanged) {
+            this.mapEntriesFor(sourceFrame.uiSourceCode(), update.changes);
         }
-        if (to) {
-            this.pushActiveState(to);
+        const prevPos = update.startState.selection.main;
+        const newPos = update.state.selection.main;
+        const isJump = !this.revealing && prevPos.anchor !== newPos.anchor && update.transactions.some((tr) => {
+            return Boolean(tr.isUserEvent('select.pointer') || tr.isUserEvent('select.reveal') || tr.isUserEvent('select.search'));
+        });
+        if (isJump) {
+            this.updateCurrentState(sourceFrame.uiSourceCode(), prevPos.head);
+            if (this.entries.length > this.current + 1) {
+                this.entries.length = this.current + 1;
+            }
+            this.entries.push(new EditingLocationHistoryEntry(sourceFrame.uiSourceCode(), newPos.head));
+            this.current++;
+            if (this.entries.length > HistoryDepth) {
+                this.entries.shift();
+                this.current--;
+            }
+        }
+    }
+    updateCurrentState(uiSourceCode, position) {
+        if (!this.revealing) {
+            const top = this.current >= 0 ? this.entries[this.current] : null;
+            if (top?.matches(uiSourceCode)) {
+                top.position = position;
+            }
+        }
+    }
+    mapEntriesFor(uiSourceCode, change) {
+        for (const entry of this.entries) {
+            if (entry.matches(uiSourceCode)) {
+                entry.position = change.mapPos(entry.position);
+            }
+        }
+    }
+    reveal(entry) {
+        const uiSourceCode = Workspace.Workspace.WorkspaceImpl.instance().uiSourceCode(entry.projectId, entry.url);
+        if (uiSourceCode) {
+            this.revealing = true;
+            this.sourcesView.showSourceLocation(uiSourceCode, entry.position, false, true);
+            this.revealing = false;
         }
     }
     rollback() {
-        this.historyManager.rollback();
+        if (this.current > 0) {
+            this.current--;
+            this.reveal(this.entries[this.current]);
+        }
     }
     rollover() {
-        this.historyManager.rollover();
-    }
-    updateCurrentState() {
-        const sourceFrame = this.currentSourceFrameCallback();
-        if (!sourceFrame) {
-            return;
+        if (this.current < this.entries.length - 1) {
+            this.current++;
+            this.reveal(this.entries[this.current]);
         }
-        this.updateActiveState(sourceFrame.textEditor.selection());
-    }
-    pushNewState() {
-        const sourceFrame = this.currentSourceFrameCallback();
-        if (!sourceFrame) {
-            return;
-        }
-        this.pushActiveState(sourceFrame.textEditor.selection());
-    }
-    updateActiveState(selection) {
-        const active = this.historyManager.active();
-        if (!active) {
-            return;
-        }
-        const sourceFrame = this.currentSourceFrameCallback();
-        if (!sourceFrame) {
-            return;
-        }
-        const entry = new EditingLocationHistoryEntry(this.sourcesView, this, sourceFrame, selection);
-        active.merge(entry);
-    }
-    pushActiveState(selection) {
-        const sourceFrame = this.currentSourceFrameCallback();
-        if (!sourceFrame) {
-            return;
-        }
-        const entry = new EditingLocationHistoryEntry(this.sourcesView, this, sourceFrame, selection);
-        this.historyManager.push(entry);
     }
     removeHistoryForSourceCode(uiSourceCode) {
-        this.historyManager.filterOut(entry => {
-            const historyEntry = entry;
-            return historyEntry.projectId === uiSourceCode.project().id() && historyEntry.url === uiSourceCode.url();
-        });
+        for (let i = this.entries.length - 1; i >= 0; i--) {
+            if (this.entries[i].matches(uiSourceCode)) {
+                this.entries.splice(i, 1);
+                if (this.current >= i) {
+                    this.current--;
+                }
+            }
+        }
     }
 }
-export const HistoryDepth = 20;
-export class EditingLocationHistoryEntry {
-    sourcesView;
-    editingLocationManager;
+class EditingLocationHistoryEntry {
     projectId;
     url;
-    // TODO(crbug.com/1172300) Ignored during the jsdoc to ts migration
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    positionHandle;
-    constructor(sourcesView, editingLocationManager, sourceFrame, selection) {
-        this.sourcesView = sourcesView;
-        this.editingLocationManager = editingLocationManager;
-        const uiSourceCode = sourceFrame.uiSourceCode();
+    position;
+    constructor(uiSourceCode, position) {
         this.projectId = uiSourceCode.project().id();
         this.url = uiSourceCode.url();
-        const position = this.positionFromSelection(selection);
-        this.positionHandle = sourceFrame.textEditor.textEditorPositionHandle(position.lineNumber, position.columnNumber);
+        this.position = position;
     }
-    merge(entry) {
-        if (this.projectId !== entry.projectId || this.url !== entry.url) {
-            return;
-        }
-        this.positionHandle = entry.positionHandle;
-    }
-    positionFromSelection(selection) {
-        return { lineNumber: selection.endLine, columnNumber: selection.endColumn };
-    }
-    valid() {
-        const position = this.positionHandle.resolve();
-        const uiSourceCode = Workspace.Workspace.WorkspaceImpl.instance().uiSourceCode(this.projectId, this.url);
-        return Boolean(position && uiSourceCode);
-    }
-    reveal() {
-        const position = this.positionHandle.resolve();
-        const uiSourceCode = Workspace.Workspace.WorkspaceImpl.instance().uiSourceCode(this.projectId, this.url);
-        if (!position || !uiSourceCode) {
-            return;
-        }
-        this.editingLocationManager.updateCurrentState();
-        this.sourcesView.showSourceLocation(uiSourceCode, position.lineNumber, position.columnNumber);
+    matches(uiSourceCode) {
+        return this.url === uiSourceCode.url() && this.projectId === uiSourceCode.project().id();
     }
 }
 //# sourceMappingURL=EditingLocationHistoryManager.js.map

@@ -1,0 +1,11 @@
+{
+    "compilerOptions": {
+        "composite": true,
+        "outDir": "."
+    },
+    "files": [
+        "preloadingDetailsReportView.css.js",
+        "preloadingGrid.css.js",
+        "ruleSetGrid.css.js"
+    ]
+}

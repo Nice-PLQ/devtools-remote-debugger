@@ -13,6 +13,10 @@ export class Panel extends VBox {
         this.panelName = name;
         // @ts-ignore: Legacy global. Requires rewriting tests to get rid of.
         // For testing.
+        self.UI = self.UI || {};
+        // @ts-ignore
+        self.UI.panels = self.UI.panels || {};
+        // @ts-ignore
         UI.panels[name] = this;
     }
     get name() {

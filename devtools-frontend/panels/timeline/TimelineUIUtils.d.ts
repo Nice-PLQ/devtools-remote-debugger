@@ -1,31 +1,42 @@
+import * as Platform from '../../core/platform/platform.js';
 import * as SDK from '../../core/sdk/sdk.js';
 import * as TimelineModel from '../../models/timeline_model/timeline_model.js';
+import * as TraceEngine from '../../models/trace/trace.js';
 import * as Components from '../../ui/legacy/components/utils/utils.js';
 import * as UI from '../../ui/legacy/legacy.js';
 import type * as Protocol from '../../generated/protocol.js';
+type LinkifyLocationOptions = {
+    scriptId: Protocol.Runtime.ScriptId | null;
+    url: string;
+    lineNumber: number;
+    columnNumber?: number;
+    isFreshRecording?: boolean;
+    target: SDK.Target.Target | null;
+    linkifier: Components.Linkifier.Linkifier;
+};
 export declare class TimelineUIUtils {
     private static initEventStyles;
     static setEventStylesMap(eventStyles: any): void;
-    static inputEventDisplayName(inputEventType: TimelineModel.TimelineIRModel.InputEvents): string | null;
     static frameDisplayName(frame: Protocol.Runtime.CallFrame): string;
-    static testContentMatching(traceEvent: SDK.TracingModel.Event, regExp: RegExp): boolean;
-    static eventURL(event: SDK.TracingModel.Event): string | null;
-    static eventStyle(event: SDK.TracingModel.Event): TimelineRecordStyle;
+    static testContentMatching(traceEvent: SDK.TracingModel.CompatibleTraceEvent, regExp: RegExp): boolean;
+    static eventURL(event: SDK.TracingModel.Event): Platform.DevToolsPath.UrlString | null;
+    static eventStyle(event: SDK.TracingModel.CompatibleTraceEvent): TimelineRecordStyle;
     static eventColor(event: SDK.TracingModel.Event): string;
-    static eventColorByProduct(model: TimelineModel.TimelineModel.TimelineModelImpl, urlToColorCache: Map<string, string>, event: SDK.TracingModel.Event): string;
-    static eventTitle(event: SDK.TracingModel.Event): string;
-    private static interactionPhaseStyles;
-    static interactionPhaseColor(phase: TimelineModel.TimelineIRModel.Phases): string;
-    static interactionPhaseLabel(phase: TimelineModel.TimelineIRModel.Phases): string;
+    static eventTitle(event: SDK.TracingModel.CompatibleTraceEvent): string;
     static isUserFrame(frame: Protocol.Runtime.CallFrame): boolean;
     static networkRequestCategory(request: TimelineModel.TimelineModel.NetworkRequest): NetworkCategory;
     static networkCategoryColor(category: NetworkCategory): string;
-    static buildDetailsTextForTraceEvent(event: SDK.TracingModel.Event, target: SDK.Target.Target | null): Promise<string | null>;
-    static buildDetailsNodeForTraceEvent(event: SDK.TracingModel.Event, target: SDK.Target.Target | null, linkifier: Components.Linkifier.Linkifier): Promise<Node | null>;
-    static buildDetailsNodeForPerformanceEvent(event: SDK.TracingModel.Event): Element;
-    static buildConsumeCacheDetails(eventData: any, contentHelper: TimelineDetailsContentHelper): void;
-    static buildTraceEventDetails(event: SDK.TracingModel.Event, model: TimelineModel.TimelineModel.TimelineModelImpl, linkifier: Components.Linkifier.Linkifier, detailed: boolean): Promise<DocumentFragment>;
-    static statsForTimeRange(events: SDK.TracingModel.Event[], startTime: number, endTime: number): {
+    static buildDetailsTextForTraceEvent(event: SDK.TracingModel.Event | TraceEngine.Types.TraceEvents.TraceEventData): Promise<string | null>;
+    static buildDetailsNodeForTraceEvent(event: SDK.TracingModel.CompatibleTraceEvent, target: SDK.Target.Target | null, linkifier: Components.Linkifier.Linkifier, isFreshRecording?: boolean): Promise<Node | null>;
+    static linkifyLocation(linkifyOptions: LinkifyLocationOptions): Element | null;
+    static linkifyTopCallFrame(event: SDK.TracingModel.CompatibleTraceEvent, target: SDK.Target.Target | null, linkifier: Components.Linkifier.Linkifier, isFreshRecording?: boolean): Element | null;
+    static buildDetailsNodeForPerformanceEvent(event: SDK.TracingModel.Event | TraceEngine.Types.TraceEvents.TraceEventData): Element;
+    static buildConsumeCacheDetails(eventData: {
+        consumedCacheSize?: number;
+        cacheRejected?: boolean;
+    }, contentHelper: TimelineDetailsContentHelper): void;
+    static buildTraceEventDetails(event: SDK.TracingModel.CompatibleTraceEvent, model: TimelineModel.TimelineModel.TimelineModelImpl, linkifier: Components.Linkifier.Linkifier, detailed: boolean, traceParseData?: TraceEngine.Handlers.Migration.PartialTraceData | null): Promise<DocumentFragment>;
+    static statsForTimeRange(events: SDK.TracingModel.CompatibleTraceEvent[], startTime: number, endTime: number): {
         [x: string]: number;
     };
     static buildNetworkRequestDetails(request: TimelineModel.TimelineModel.NetworkRequest, model: TimelineModel.TimelineModel.TimelineModelImpl, linkifier: Components.Linkifier.Linkifier): Promise<DocumentFragment>;
@@ -37,7 +48,7 @@ export declare class TimelineUIUtils {
     private static aggregatedStatsForTraceEvent;
     static buildPicturePreviewContent(event: SDK.TracingModel.Event, target: SDK.Target.Target): Promise<Element | null>;
     static createEventDivider(event: SDK.TracingModel.Event, zeroTime: number): Element;
-    private static visibleTypes;
+    static visibleTypes(): string[];
     static visibleEventsFilter(): TimelineModel.TimelineModelFilter.TimelineModelFilter;
     static categories(): {
         [x: string]: TimelineCategory;
@@ -52,16 +63,14 @@ export declare class TimelineUIUtils {
     }, selfCategory?: TimelineCategory, selfTime?: number): Element;
     static generateDetailsContentForFrame(frame: TimelineModel.TimelineFrameModel.TimelineFrame, filmStripFrame: SDK.FilmStripModel.Frame | null): DocumentFragment;
     static frameDuration(frame: TimelineModel.TimelineFrameModel.TimelineFrame): Element;
-    static createFillStyle(context: CanvasRenderingContext2D, width: number, height: number, color0: string, color1: string, color2: string): CanvasGradient;
     static quadWidth(quad: number[]): number;
     static quadHeight(quad: number[]): number;
     static eventDispatchDesciptors(): EventDispatchTypeDescriptor[];
     static markerShortTitle(event: SDK.TracingModel.Event): string | null;
-    static markerStyleForEvent(event: SDK.TracingModel.Event): TimelineMarkerStyle;
-    static markerStyleForFrame(): TimelineMarkerStyle;
+    static markerStyleForEvent(event: SDK.TracingModel.Event | TraceEngine.Types.TraceEvents.TraceEventData): TimelineMarkerStyle;
     static colorForId(id: string): string;
-    static eventWarning(event: SDK.TracingModel.Event, warningType?: string): Element | null;
-    static displayNameForFrame(frame: TimelineModel.TimelineModel.PageFrame, trimAt?: number): any;
+    static eventWarning(event: SDK.TracingModel.CompatibleTraceEvent, warningType?: string): Element | null;
+    static displayNameForFrame(frame: TimelineModel.TimelineModel.PageFrame, trimAt?: number): string;
 }
 export declare class TimelineRecordStyle {
     title: string;
@@ -118,10 +127,10 @@ export declare class TimelineDetailsContentHelper {
     appendTextRow(title: string, value: string | number | boolean): void;
     appendElementRow(title: string, content: string | Node, isWarning?: boolean, isStacked?: boolean): void;
     appendLocationRow(title: string, url: string, startLine: number, startColumn?: number): void;
-    appendLocationRange(title: string, url: string, startLine: number, endLine?: number): void;
+    appendLocationRange(title: string, url: Platform.DevToolsPath.UrlString, startLine: number, endLine?: number): void;
     appendStackTrace(title: string, stackTrace: Protocol.Runtime.StackTrace): void;
     createChildStackTraceElement(parentElement: Element, stackTrace: Protocol.Runtime.StackTrace): void;
-    appendWarningRow(event: SDK.TracingModel.Event, warningType?: string): void;
+    appendWarningRow(event: SDK.TracingModel.CompatibleTraceEvent, warningType?: string): void;
 }
 export declare const categoryBreakdownCacheSymbol: unique symbol;
 export interface TimelineMarkerStyle {
@@ -132,3 +141,16 @@ export interface TimelineMarkerStyle {
     tall: boolean;
     lowPriority: boolean;
 }
+/**
+ * Given a particular event, this method can adjust its timestamp by
+ * substracting the timestamp of the previous navigation. This helps in cases
+ * where the user has navigated multiple times in the trace, so that we can show
+ * the LCP (for example) relative to the last navigation.
+ *
+ * Currently this helper lives here and can deal with legacy events or new
+ * events, preferring to use the new engine's data structure if possible. In the
+ * future, once the old engine is removed, we can move this method into the
+ * TraceEngine helpers, and not have it take the legacy model.
+ **/
+export declare function timeStampForEventAdjustedForClosestNavigationIfPossible(event: SDK.TracingModel.CompatibleTraceEvent, model: TimelineModel.TimelineModel.TimelineModelImpl, traceParsedData: TraceEngine.Handlers.Migration.PartialTraceData | null): TraceEngine.Types.Timing.MilliSeconds;
+export {};

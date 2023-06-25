@@ -35,7 +35,7 @@ export interface CustomEditorControl<T> extends HTMLElement {
     value: T;
     validate: () => ValidatorResult;
 }
-export declare type EditorControl<T = string> = (HTMLInputElement | HTMLSelectElement | CustomEditorControl<T>);
+export type EditorControl<T = string> = (HTMLInputElement | HTMLSelectElement | CustomEditorControl<T>);
 export declare class Editor<T> {
     element: HTMLDivElement;
     private readonly contentElementInternal;

@@ -31,32 +31,40 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 import * as Common from '../../core/common/common.js';
+import * as Host from '../../core/host/host.js';
 import * as i18n from '../../core/i18n/i18n.js';
+import * as Root from '../../core/root/root.js';
 import * as SDK from '../../core/sdk/sdk.js';
+import * as IssuesManager from '../../models/issues_manager/issues_manager.js';
+import * as Adorners from '../../ui/components/adorners/adorners.js';
 import * as CodeHighlighter from '../../ui/components/code_highlighter/code_highlighter.js';
+import * as IconButton from '../../ui/components/icon_button/icon_button.js';
+import * as IssueCounter from '../../ui/components/issue_counter/issue_counter.js';
 import * as UI from '../../ui/legacy/legacy.js';
-import { linkifyDeferredNodeReference } from './DOMLinkifier.js';
+import { IssuesPane } from '../issues/IssuesPane.js';
+import * as ElementsComponents from './components/components.js';
 import { ElementsPanel } from './ElementsPanel.js';
 import { ElementsTreeElement, InitialChildrenLimit } from './ElementsTreeElement.js';
 import elementsTreeOutlineStyles from './elementsTreeOutline.css.js';
 import { ImagePreviewPopover } from './ImagePreviewPopover.js';
+import { TopLayerContainer } from './TopLayerContainer.js';
 const UIStrings = {
     /**
-    *@description ARIA accessible name in Elements Tree Outline of the Elements panel
-    */
+     *@description ARIA accessible name in Elements Tree Outline of the Elements panel
+     */
     pageDom: 'Page DOM',
     /**
-    *@description A context menu item to store a value as a global variable the Elements Panel
-    */
+     *@description A context menu item to store a value as a global variable the Elements Panel
+     */
     storeAsGlobalVariable: 'Store as global variable',
     /**
-    *@description Tree element expand all button element button text content in Elements Tree Outline of the Elements panel
-    *@example {3} PH1
-    */
+     *@description Tree element expand all button element button text content in Elements Tree Outline of the Elements panel
+     *@example {3} PH1
+     */
     showAllNodesDMore: 'Show All Nodes ({PH1} More)',
     /**
-    *@description Link text content in Elements Tree Outline of the Elements panel
-    */
+     *@description Link text content in Elements Tree Outline of the Elements panel
+     */
     reveal: 'reveal',
     /**
      * @description A context menu item to open the badge settings pane
@@ -90,8 +98,22 @@ export class ElementsTreeOutline extends Common.ObjectWrapper.eventMixin(UI.Tree
     treeElementBeingDragged;
     dragOverTreeElement;
     updateModifiedNodesTimeout;
+    #genericIssues = [];
+    #topLayerContainerByParent = new Map();
+    #issuesManager;
+    #popupHelper;
+    #nodeElementToIssue = new Map();
     constructor(omitRootDOMNode, selectEnabled, hideGutter) {
         super();
+        if (Root.Runtime.experiments.isEnabled(Root.Runtime.ExperimentName.HIGHLIGHT_ERRORS_ELEMENTS_PANEL)) {
+            this.#issuesManager = IssuesManager.IssuesManager.IssuesManager.instance();
+            this.#issuesManager.addEventListener("IssueAdded" /* IssuesManager.IssuesManager.Events.IssueAdded */, this.#onIssueEventReceived, this);
+            for (const issue of this.#issuesManager.issues()) {
+                if (issue instanceof IssuesManager.GenericIssue.GenericIssue) {
+                    this.#onIssueAdded(issue);
+                }
+            }
+        }
         this.treeElementByNode = new WeakMap();
         const shadowContainer = document.createElement('div');
         this.shadowRoot = UI.Utils.createShadowRootWithCoreStyles(shadowContainer, { cssFile: [elementsTreeOutlineStyles, CodeHighlighter.Style.default], delegatesFocus: undefined });
@@ -101,7 +123,7 @@ export class ElementsTreeOutline extends Common.ObjectWrapper.eventMixin(UI.Tree
         if (hideGutter) {
             this.elementInternal.classList.add('elements-hide-gutter');
         }
-        UI.ARIAUtils.setAccessibleName(this.elementInternal, i18nString(UIStrings.pageDom));
+        UI.ARIAUtils.setLabel(this.elementInternal, i18nString(UIStrings.pageDom));
         this.elementInternal.addEventListener('focusout', this.onfocusout.bind(this), false);
         this.elementInternal.addEventListener('mousedown', this.onmousedown.bind(this), false);
         this.elementInternal.addEventListener('mousemove', this.onmousemove.bind(this), false);
@@ -147,9 +169,118 @@ export class ElementsTreeOutline extends Common.ObjectWrapper.eventMixin(UI.Tree
         this.showHTMLCommentsSetting = Common.Settings.Settings.instance().moduleSetting('showHTMLComments');
         this.showHTMLCommentsSetting.addChangeListener(this.onShowHTMLCommentsChange.bind(this));
         this.setUseLightSelectionColor(true);
+        if (Root.Runtime.experiments.isEnabled(Root.Runtime.ExperimentName.HIGHLIGHT_ERRORS_ELEMENTS_PANEL)) {
+            this.#popupHelper = new UI.PopoverHelper.PopoverHelper(this.elementInternal, event => {
+                const hoveredNode = event.composedPath()[0];
+                if (!hoveredNode || !hoveredNode.matches('.violating-element')) {
+                    return null;
+                }
+                const issue = this.#nodeElementToIssue.get(hoveredNode);
+                if (!issue) {
+                    return null;
+                }
+                const issueDetails = issue.details();
+                const tooltipTitle = this.#issueCodeToTooltipTitle(issueDetails.errorType);
+                const issueKindIcon = new IconButton.Icon.Icon();
+                issueKindIcon.data = IssueCounter.IssueCounter.getIssueKindIconData(issue.getKind());
+                issueKindIcon.style.cursor = 'pointer';
+                const viewIssueElement = document.createElement('a');
+                viewIssueElement.href = '#';
+                viewIssueElement.textContent = 'View issue:';
+                const issueTitle = document.createElement('span');
+                issueTitle.textContent = tooltipTitle;
+                const element = document.createElement('div');
+                element.appendChild(issueKindIcon);
+                element.appendChild(viewIssueElement);
+                element.appendChild(issueTitle);
+                element.style.display = 'flex';
+                element.style.alignItems = 'center';
+                element.style.gap = '5px';
+                return {
+                    box: hoveredNode.boxInWindow(),
+                    show: async (popover) => {
+                        popover.setIgnoreLeftMargin(true);
+                        const openIssueEvent = () => {
+                            void UI.ViewManager.ViewManager.instance().showView('issues-pane');
+                            void IssuesPane.instance().reveal(issue);
+                        };
+                        viewIssueElement.addEventListener('click', () => openIssueEvent());
+                        issueKindIcon.addEventListener('click', () => openIssueEvent());
+                        popover.contentElement.appendChild(element);
+                        return true;
+                    },
+                };
+            });
+            this.#popupHelper.setTimeout(300);
+            this.#popupHelper.setHasPadding(true);
+        }
+    }
+    #issueCodeToTooltipTitle(errorType) {
+        switch (errorType) {
+            case "FormLabelForNameError" /* Protocol.Audits.GenericIssueErrorType.FormLabelForNameError */:
+                return 'Incorrect use of <label for=FORM_ELEMENT>';
+            case "FormDuplicateIdForInputError" /* Protocol.Audits.GenericIssueErrorType.FormDuplicateIdForInputError */:
+                return 'Duplicate form field id in the same form';
+            case "FormInputWithNoLabelError" /* Protocol.Audits.GenericIssueErrorType.FormInputWithNoLabelError */:
+                return 'Form field without valid aria-labelledby attribute or associated label';
+            case "FormAutocompleteAttributeEmptyError" /* Protocol.Audits.GenericIssueErrorType.FormAutocompleteAttributeEmptyError */:
+                return 'Incorrect use of autocomplete attribute';
+            case "FormEmptyIdAndNameAttributesForInputError" /* Protocol.Audits.GenericIssueErrorType.FormEmptyIdAndNameAttributesForInputError */:
+                return 'A form field element should have an id or name attribute';
+            case "FormAriaLabelledByToNonExistingId" /* Protocol.Audits.GenericIssueErrorType.FormAriaLabelledByToNonExistingId */:
+                return 'An aria-labelledby attribute doesn\'t match any element id';
+            case "FormInputAssignedAutocompleteValueToIdOrNameAttributeError" /* Protocol.Audits.GenericIssueErrorType.FormInputAssignedAutocompleteValueToIdOrNameAttributeError */:
+                return 'An element doesn\'t have an autocomplete attribute';
+            case "FormLabelHasNeitherForNorNestedInput" /* Protocol.Audits.GenericIssueErrorType.FormLabelHasNeitherForNorNestedInput */:
+                return 'No label associated with a form field';
+            case "FormLabelForMatchesNonExistingIdError" /* Protocol.Audits.GenericIssueErrorType.FormLabelForMatchesNonExistingIdError */:
+                return 'Incorrect use of <label for=FORM_ELEMENT>';
+            case "FormInputHasWrongButWellIntendedAutocompleteValueError" /* Protocol.Audits.GenericIssueErrorType.FormInputHasWrongButWellIntendedAutocompleteValueError */:
+                return 'Non-standard autocomplete attribute value';
+            default:
+                return '';
+        }
     }
     static forDOMModel(domModel) {
         return elementsTreeOutlineByDOMModel.get(domModel) || null;
+    }
+    async #onIssueEventReceived(event) {
+        if (event.data.issue instanceof IssuesManager.GenericIssue.GenericIssue) {
+            this.#onIssueAdded(event.data.issue);
+            await this.#addTreeElementIssue(event.data.issue);
+        }
+    }
+    #onIssueAdded(issue) {
+        this.#genericIssues.push(issue);
+    }
+    #addAllElementIssues() {
+        for (const issue of this.#genericIssues) {
+            void this.#addTreeElementIssue(issue);
+        }
+    }
+    async #addTreeElementIssue(issue) {
+        const issueDetails = issue.details();
+        const tooltipTitle = this.#issueCodeToTooltipTitle(issueDetails.errorType);
+        if (!tooltipTitle) {
+            return;
+        }
+        if (!this.rootDOMNode || !issueDetails.violatingNodeId) {
+            return;
+        }
+        const deferredDOMNode = new SDK.DOMModel.DeferredDOMNode(this.rootDOMNode.domModel().target(), issueDetails.violatingNodeId);
+        const node = await deferredDOMNode.resolvePromise();
+        if (!node) {
+            return;
+        }
+        const treeElement = this.findTreeElement(node);
+        if (treeElement) {
+            treeElement.addIssue(issue);
+            const treeElementNodeElementsToIssue = treeElement.issuesByNodeElement;
+            // This element could be the treeElement tags name or an attribute.
+            for (const [element, issue] of treeElementNodeElementsToIssue) {
+                this.#nodeElementToIssue.set(element, issue);
+            }
+        }
     }
     onShowHTMLCommentsChange() {
         const selectedNode = this.selectedDOMNode();
@@ -230,7 +361,7 @@ export class ElementsTreeOutline extends Common.ObjectWrapper.eventMixin(UI.Tree
         if (isCut && (node.isShadowRoot() || node.ancestorUserAgentShadowRoot())) {
             return;
         }
-        node.copyNode();
+        void node.copyNode();
         this.setClipboardData({ node: node, isCut: isCut });
     }
     canPaste(targetNode) {
@@ -375,6 +506,7 @@ export class ElementsTreeOutline extends Common.ObjectWrapper.eventMixin(UI.Tree
                 this.appendChild(treeElement);
             }
         }
+        void this.createTopLayerContainer(this.rootElement(), this.rootDOMNode.domModel());
         if (selectedNode) {
             this.revealAndSelectNode(selectedNode, true);
         }
@@ -391,7 +523,7 @@ export class ElementsTreeOutline extends Common.ObjectWrapper.eventMixin(UI.Tree
             // The text node might have been inlined if it was short, so try to find the parent element.
             treeElement = this.lookUpTreeElement(node.parentNode);
         }
-        return /** @type {?ElementsTreeElement} */ treeElement;
+        return treeElement;
     }
     lookUpTreeElement(node) {
         if (!node) {
@@ -418,7 +550,7 @@ export class ElementsTreeOutline extends Common.ObjectWrapper.eventMixin(UI.Tree
             const child = ancestors[i - 1] || node;
             const treeElement = this.treeElementByNode.get(ancestors[i]);
             if (treeElement) {
-                treeElement.onpopulate(); // fill the cache with the children of treeElement
+                void treeElement.onpopulate(); // fill the cache with the children of treeElement
                 if (child.index && child.index >= treeElement.expandedChildrenLimit()) {
                     this.setExpandedChildrenLimit(treeElement, child.index + 1);
                 }
@@ -458,11 +590,7 @@ export class ElementsTreeOutline extends Common.ObjectWrapper.eventMixin(UI.Tree
         if (!scrollContainer) {
             return null;
         }
-        // We choose this X coordinate based on the knowledge that our list
-        // items extend at least to the right edge of the outer <ol> container.
-        // In the no-word-wrap mode the outer <ol> may be wider than the tree container
-        // (and partially hidden), in which case we are left to use only its right boundary.
-        const x = scrollContainer.totalOffsetLeft() + scrollContainer.offsetWidth - 36;
+        const x = event.pageX;
         const y = event.pageY;
         // Our list items have 1-pixel cracks between them vertically. We avoid
         // the cracks by checking slightly above and slightly below the mouse
@@ -483,10 +611,9 @@ export class ElementsTreeOutline extends Common.ObjectWrapper.eventMixin(UI.Tree
     }
     onmousedown(event) {
         const element = this.treeElementFromEventInternal(event);
-        if (!element || element.isEventWithinDisclosureTriangle(event)) {
-            return;
+        if (element) {
+            element.select();
         }
-        element.select();
     }
     setHoverEffect(treeElement) {
         if (this.previousHoveredElement === treeElement) {
@@ -667,11 +794,12 @@ export class ElementsTreeOutline extends Common.ObjectWrapper.eventMixin(UI.Tree
             ElementsPanel.instance().showAdornerSettingsPane();
         });
         contextMenu.appendApplicableItems(treeElement.node());
-        contextMenu.show();
+        void contextMenu.show();
     }
     async saveNodeToTempVariable(node) {
         const remoteObjectForConsole = await node.resolveToObject();
-        await SDK.ConsoleModel.ConsoleModel.instance().saveToTempVariable(UI.Context.Context.instance().flavor(SDK.RuntimeModel.ExecutionContext), remoteObjectForConsole);
+        const consoleModel = remoteObjectForConsole?.runtimeModel().target()?.model(SDK.ConsoleModel.ConsoleModel);
+        await consoleModel?.saveToTempVariable(UI.Context.Context.instance().flavor(SDK.RuntimeModel.ExecutionContext), remoteObjectForConsole);
     }
     runPendingUpdates() {
         this.updateModifiedNodes();
@@ -831,6 +959,7 @@ export class ElementsTreeOutline extends Common.ObjectWrapper.eventMixin(UI.Tree
         domModel.addEventListener(SDK.DOMModel.Events.DocumentUpdated, this.documentUpdated, this);
         domModel.addEventListener(SDK.DOMModel.Events.ChildNodeCountUpdated, this.childNodeCountUpdated, this);
         domModel.addEventListener(SDK.DOMModel.Events.DistributedNodesChanged, this.distributedNodesChanged, this);
+        domModel.addEventListener(SDK.DOMModel.Events.TopLayerElementsChanged, this.topLayerElementsChanged, this);
     }
     unwireFromDOMModel(domModel) {
         domModel.removeEventListener(SDK.DOMModel.Events.MarkersChanged, this.markersChanged, this);
@@ -842,6 +971,7 @@ export class ElementsTreeOutline extends Common.ObjectWrapper.eventMixin(UI.Tree
         domModel.removeEventListener(SDK.DOMModel.Events.DocumentUpdated, this.documentUpdated, this);
         domModel.removeEventListener(SDK.DOMModel.Events.ChildNodeCountUpdated, this.childNodeCountUpdated, this);
         domModel.removeEventListener(SDK.DOMModel.Events.DistributedNodesChanged, this.distributedNodesChanged, this);
+        domModel.removeEventListener(SDK.DOMModel.Events.TopLayerElementsChanged, this.topLayerElementsChanged, this);
         elementsTreeOutlineByDOMModel.delete(domModel);
     }
     addUpdateRecord(node) {
@@ -863,6 +993,9 @@ export class ElementsTreeOutline extends Common.ObjectWrapper.eventMixin(UI.Tree
         this.reset();
         if (domModel.existingDocument()) {
             this.rootDOMNode = domModel.existingDocument();
+            if (Root.Runtime.experiments.isEnabled(Root.Runtime.ExperimentName.HIGHLIGHT_ERRORS_ELEMENTS_PANEL)) {
+                this.#addAllElementIssues();
+            }
         }
     }
     attributeModified(event) {
@@ -980,12 +1113,26 @@ export class ElementsTreeOutline extends Common.ObjectWrapper.eventMixin(UI.Tree
             });
         });
     }
+    async createTopLayerContainer(parent, domModel) {
+        if (!parent.treeOutline || !(parent.treeOutline instanceof ElementsTreeOutline)) {
+            return;
+        }
+        const container = new TopLayerContainer(parent.treeOutline, domModel);
+        await container.throttledUpdateTopLayerElements();
+        if (container.currentTopLayerDOMNodes.size > 0) {
+            parent.appendChild(container);
+        }
+        this.#topLayerContainerByParent.set(parent, container);
+    }
     createElementTreeElement(node, isClosingTag) {
         const treeElement = new ElementsTreeElement(node, isClosingTag);
         treeElement.setExpandable(!isClosingTag && this.hasVisibleChildren(node));
         if (node.nodeType() === Node.ELEMENT_NODE && node.parentNode && node.parentNode.nodeType() === Node.DOCUMENT_NODE &&
             !node.parentNode.parentNode) {
             treeElement.setCollapsible(false);
+        }
+        if (node.hasAssignedSlot()) {
+            treeElement.createSlotLink(node.assignedSlot);
         }
         treeElement.selectable = Boolean(this.selectEnabled);
         return treeElement;
@@ -1001,7 +1148,7 @@ export class ElementsTreeOutline extends Common.ObjectWrapper.eventMixin(UI.Tree
         if (index >= treeElement.expandedChildrenLimit()) {
             this.setExpandedChildrenLimit(treeElement, index + 1);
         }
-        return /** @type {!ElementsTreeElement} */ treeElement.childAt(index);
+        return treeElement.childAt(index);
     }
     visibleChildren(node) {
         let visibleChildren = ElementsTreeElement.visibleShadowRoots(node);
@@ -1013,6 +1160,7 @@ export class ElementsTreeOutline extends Common.ObjectWrapper.eventMixin(UI.Tree
         if (templateContent) {
             visibleChildren.push(templateContent);
         }
+        visibleChildren.push(...node.viewTransitionPseudoElements());
         const markerPseudoElement = node.markerPseudoElement();
         if (markerPseudoElement) {
             visibleChildren.push(markerPseudoElement);
@@ -1032,6 +1180,10 @@ export class ElementsTreeOutline extends Common.ObjectWrapper.eventMixin(UI.Tree
         const afterPseudoElement = node.afterPseudoElement();
         if (afterPseudoElement) {
             visibleChildren.push(afterPseudoElement);
+        }
+        const backdropPseudoElement = node.backdropPseudoElement();
+        if (backdropPseudoElement) {
+            visibleChildren.push(backdropPseudoElement);
         }
         return visibleChildren;
     }
@@ -1099,6 +1251,9 @@ export class ElementsTreeOutline extends Common.ObjectWrapper.eventMixin(UI.Tree
     insertChildElement(treeElement, child, index, isClosingTag) {
         const newElement = this.createElementTreeElement(child, isClosingTag);
         treeElement.insertChild(newElement, index);
+        if (child.nodeType() === Node.DOCUMENT_NODE) {
+            void this.createTopLayerContainer(newElement, child.domModel());
+        }
         return newElement;
     }
     moveChild(treeElement, child, targetIndex) {
@@ -1190,6 +1345,15 @@ export class ElementsTreeOutline extends Common.ObjectWrapper.eventMixin(UI.Tree
         const treeElement = this.treeElementByNode.get(node);
         if (treeElement) {
             treeElement.updateDecorations();
+        }
+    }
+    async topLayerElementsChanged() {
+        for (const [parent, container] of this.#topLayerContainerByParent) {
+            await container.throttledUpdateTopLayerElements();
+            if (container.currentTopLayerDOMNodes.size > 0 && container.parent !== parent) {
+                parent.appendChild(container);
+            }
+            container.hidden = container.currentTopLayerDOMNodes.size === 0;
         }
     }
     static treeOutlineSymbol = Symbol('treeOutline');
@@ -1327,12 +1491,41 @@ export class ShortcutTreeElement extends UI.TreeOutline.TreeElement {
             text = '<' + text + '>';
         }
         title.textContent = '\u21AA ' + text;
-        const link = linkifyDeferredNodeReference(nodeShortcut.deferredNode);
-        UI.UIUtils.createTextChild(this.listItemElement, ' ');
-        link.classList.add('elements-tree-shortcut-link');
-        link.textContent = i18nString(UIStrings.reveal);
-        this.listItemElement.appendChild(link);
         this.nodeShortcut = nodeShortcut;
+        this.addRevealAdorner();
+    }
+    addRevealAdorner() {
+        const adorner = new Adorners.Adorner.Adorner();
+        adorner.classList.add('adorner-reveal');
+        const config = ElementsComponents.AdornerManager.getRegisteredAdorner(ElementsComponents.AdornerManager.RegisteredAdorners.REVEAL);
+        const name = config.name;
+        const adornerContent = document.createElement('span');
+        const linkIcon = new IconButton.Icon.Icon();
+        linkIcon.data = { iconName: 'select-element', color: 'var(--icon-default)', width: '14px', height: '14px' };
+        const slotText = document.createElement('span');
+        slotText.textContent = name;
+        adornerContent.append(linkIcon);
+        adornerContent.append(slotText);
+        adornerContent.classList.add('adorner-with-icon');
+        adorner.data = {
+            name,
+            content: adornerContent,
+        };
+        this.listItemElement.appendChild(adorner);
+        const onClick = (() => {
+            Host.userMetrics.badgeActivated(8 /* Host.UserMetrics.BadgeType.REVEAL */);
+            this.nodeShortcut.deferredNode.resolve(node => {
+                void Common.Revealer.reveal(node);
+            });
+        });
+        adorner.addInteraction(onClick, {
+            isToggle: false,
+            shouldPropagateOnKeydown: false,
+            ariaLabelDefault: i18nString(UIStrings.reveal),
+            ariaLabelActive: i18nString(UIStrings.reveal),
+        });
+        adorner.addEventListener('mousedown', e => e.consume(), false);
+        ElementsPanel.instance().registerAdorner(adorner);
     }
     get hovered() {
         return Boolean(this.hoveredInternal);
@@ -1349,6 +1542,18 @@ export class ShortcutTreeElement extends UI.TreeOutline.TreeElement {
     }
     domModel() {
         return this.nodeShortcut.deferredNode.domModel();
+    }
+    setLeftIndentOverlay() {
+        // We use parent's `--indent` value and add 24px to account for an extra level of indent.
+        let indent = 24;
+        if (this.parent && this.parent instanceof ElementsTreeElement) {
+            const parentIndent = parseFloat(this.parent.listItemElement.style.getPropertyValue('--indent')) || 0;
+            indent += parentIndent;
+        }
+        this.listItemElement.style.setProperty('--indent', indent + 'px');
+    }
+    onattach() {
+        this.setLeftIndentOverlay();
     }
     onselect(selectedByUser) {
         if (!selectedByUser) {

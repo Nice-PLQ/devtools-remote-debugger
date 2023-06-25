@@ -17,6 +17,7 @@ export declare class ServiceWorkerCacheView extends UI.View.SimpleView {
     private returnCount;
     private summaryBarElement;
     private loadingPromise;
+    private readonly metadataView;
     constructor(model: SDK.ServiceWorkerCacheModel.ServiceWorkerCacheModel, cache: SDK.ServiceWorkerCacheModel.Cache);
     private resetDataGrid;
     wasShown(): void;

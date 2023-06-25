@@ -1,11 +1,8 @@
 import * as Common from '../../core/common/common.js';
-import { TabbedPane } from './TabbedPane.js';
-import type { ToolbarItem } from './Toolbar.js';
-import { ToolbarMenuButton } from './Toolbar.js';
-import type { TabbedViewLocation, View, ViewLocation } from './View.js';
-import { getRegisteredLocationResolvers, getRegisteredViewExtensions, maybeRemoveViewExtension, registerLocationResolver, registerViewExtension, ViewLocationCategoryValues, ViewLocationValues, ViewPersistence, ViewRegistration } from './ViewRegistration.js';
-import type { Widget } from './Widget.js';
-import { VBox } from './Widget.js';
+import { type ToolbarItem } from './Toolbar.js';
+import { type TabbedViewLocation, type View, type ViewLocation } from './View.js';
+import { getRegisteredLocationResolvers, getRegisteredViewExtensions, getLocalizedViewLocationCategory, maybeRemoveViewExtension, registerLocationResolver, registerViewExtension, ViewLocationCategory, ViewLocationValues, ViewPersistence, type ViewRegistration, resetViewRegistration } from './ViewRegistration.js';
+import { VBox, type Widget } from './Widget.js';
 export declare const defaultOptionsForTabs: {
     security: boolean;
 };
@@ -24,7 +21,7 @@ export declare class PreRegisteredView implements View {
     settings(): string[] | undefined;
     tags(): string | undefined;
     persistence(): ViewPersistence | undefined;
-    toolbarItems(): Promise<any>;
+    toolbarItems(): Promise<ToolbarItem[]>;
     widget(): Promise<Widget>;
     disposeView(): Promise<void>;
     experiment(): string | undefined;
@@ -66,23 +63,9 @@ export declare class ContainerWidget extends VBox {
     private readonly view;
     private materializePromise?;
     constructor(view: View);
-    materialize(): Promise<any>;
+    materialize(): Promise<void>;
     wasShown(): void;
     private wasShownForTest;
-}
-export declare class _ExpandableContainerWidget extends VBox {
-    private titleElement;
-    private readonly titleExpandIcon;
-    private readonly view;
-    private widget?;
-    private materializePromise?;
-    constructor(view: View);
-    wasShown(): void;
-    private materialize;
-    expand(): Promise<any>;
-    private collapse;
-    private toggleExpanded;
-    private onTitleKeyDown;
 }
 declare class Location {
     protected readonly manager: ViewManager;
@@ -94,28 +77,4 @@ declare class Location {
     showView(_view: View, _insertBefore?: View | null, _userGesture?: boolean, _omitFocus?: boolean, _shouldSelectTab?: boolean): Promise<void>;
     removeView(_view: View): void;
 }
-export declare class _TabbedLocation extends Location implements TabbedViewLocation {
-    private tabbedPaneInternal;
-    private readonly allowReorder;
-    private readonly closeableTabSetting;
-    private readonly tabOrderSetting;
-    private readonly lastSelectedTabSetting;
-    private readonly defaultTab;
-    private readonly views;
-    constructor(manager: ViewManager, revealCallback?: (() => void), location?: string, restoreSelection?: boolean, allowReorder?: boolean, defaultTab?: string | null);
-    private setOrUpdateCloseableTabsSetting;
-    widget(): Widget;
-    tabbedPane(): TabbedPane;
-    enableMoreTabsButton(): ToolbarMenuButton;
-    appendApplicableItems(locationName: string): void;
-    private appendTabsToMenu;
-    private appendTab;
-    appendView(view: View, insertBefore?: View | null): void;
-    showView(view: View, insertBefore?: View | null, userGesture?: boolean, omitFocus?: boolean, shouldSelectTab?: boolean | undefined): Promise<void>;
-    removeView(view: View): void;
-    private tabSelected;
-    private tabClosed;
-    private persistTabOrder;
-    static orderStep: number;
-}
-export { ViewRegistration, ViewPersistence, getRegisteredViewExtensions, maybeRemoveViewExtension, registerViewExtension, ViewLocationValues, getRegisteredLocationResolvers, registerLocationResolver, ViewLocationCategoryValues, };
+export { ViewRegistration, ViewPersistence, getRegisteredViewExtensions, maybeRemoveViewExtension, registerViewExtension, ViewLocationValues, getRegisteredLocationResolvers, registerLocationResolver, ViewLocationCategory, getLocalizedViewLocationCategory, resetViewRegistration, };

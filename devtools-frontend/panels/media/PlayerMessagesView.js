@@ -6,41 +6,61 @@ import * as UI from '../../ui/legacy/legacy.js';
 import playerMessagesViewStyles from './playerMessagesView.css.js';
 const UIStrings = {
     /**
-    *@description A context menu item in the Console View of the Console panel
-    */
+     *@description A context menu item in the Console View of the Console panel
+     */
     default: 'Default',
     /**
-    *@description Text in Network Throttling Selector of the Network panel
-    */
+     *@description Text in Network Throttling Selector of the Network panel
+     */
     custom: 'Custom',
     /**
-    *@description Text for everything
-    */
+     *@description Text for everything
+     */
     all: 'All',
     /**
-    *@description Text for errors
-    */
+     *@description Text for errors
+     */
     error: 'Error',
     /**
-    *@description Text to indicate an item is a warning
-    */
+     *@description Text to indicate an item is a warning
+     */
     warning: 'Warning',
     /**
-    *@description Sdk console message message level info of level Labels in Console View of the Console panel
-    */
+     *@description Sdk console message message level info of level Labels in Console View of the Console panel
+     */
     info: 'Info',
     /**
-    *@description Debug log level
-    */
+     *@description Debug log level
+     */
     debug: 'Debug',
     /**
-    *@description Label for selecting between the set of log levels to show.
-    */
+     *@description Label for selecting between the set of log levels to show.
+     */
     logLevel: 'Log level:',
     /**
-    *@description Default text for user-text-entry for searching log messages.
-    */
+     *@description Default text for user-text-entry for searching log messages.
+     */
     filterLogMessages: 'Filter log messages',
+    /**
+     *@description The label for the group name that this error belongs to.
+     */
+    errorGroupLabel: 'Error Group:',
+    /**
+     *@description The label for the numeric code associated with this error.
+     */
+    errorCodeLabel: 'Error Code:',
+    /**
+     *@description The label for extra data associated with an error.
+     */
+    errorDataLabel: 'Data:',
+    /**
+     *@description The label for the stacktrace associated with the error.
+     */
+    errorStackLabel: 'Stacktrace:',
+    /**
+     *@description The label for a root cause error associated with this error.
+     */
+    errorCauseLabel: 'Caused by:',
 };
 const str_ = i18n.i18n.registerUIStrings('panels/media/PlayerMessagesView.ts', UIStrings);
 const i18nString = i18n.i18n.getLocalizedString.bind(undefined, str_);
@@ -60,8 +80,8 @@ class MessageLevelSelector {
         this.view = view;
         this.itemMap = new Map();
         this.hiddenLevels = [];
-        this.bitFieldValue = 7 /* Default */;
-        this.savedBitFieldValue = 7 /* Default */;
+        this.bitFieldValue = 7 /* MessageLevelBitfield.Default */;
+        this.savedBitFieldValue = 7 /* MessageLevelBitfield.Default */;
         this.defaultTitleInternal = i18nString(UIStrings.default);
         this.customTitle = i18nString(UIStrings.custom);
         this.allTitle = i18nString(UIStrings.all);
@@ -78,42 +98,42 @@ class MessageLevelSelector {
             title: this.defaultTitleInternal,
             overwrite: true,
             stringValue: '',
-            value: 7 /* Default */,
+            value: 7 /* MessageLevelBitfield.Default */,
             selectable: undefined,
         });
         this.items.insert(this.items.length, {
             title: this.allTitle,
             overwrite: true,
             stringValue: '',
-            value: 15 /* All */,
+            value: 15 /* MessageLevelBitfield.All */,
             selectable: undefined,
         });
         this.items.insert(this.items.length, {
             title: i18nString(UIStrings.error),
             overwrite: false,
             stringValue: 'error',
-            value: 1 /* Error */,
+            value: 1 /* MessageLevelBitfield.Error */,
             selectable: undefined,
         });
         this.items.insert(this.items.length, {
             title: i18nString(UIStrings.warning),
             overwrite: false,
             stringValue: 'warning',
-            value: 2 /* Warning */,
+            value: 2 /* MessageLevelBitfield.Warning */,
             selectable: undefined,
         });
         this.items.insert(this.items.length, {
             title: i18nString(UIStrings.info),
             overwrite: false,
             stringValue: 'info',
-            value: 4 /* Info */,
+            value: 4 /* MessageLevelBitfield.Info */,
             selectable: undefined,
         });
         this.items.insert(this.items.length, {
             title: i18nString(UIStrings.debug),
             overwrite: false,
             stringValue: 'debug',
-            value: 8 /* Debug */,
+            value: 8 /* MessageLevelBitfield.Debug */,
             selectable: undefined,
         });
     }
@@ -143,10 +163,10 @@ class MessageLevelSelector {
         else {
             this.bitFieldValue ^= item.value;
         }
-        if (this.bitFieldValue === 7 /* Default */) {
+        if (this.bitFieldValue === 7 /* MessageLevelBitfield.Default */) {
             return this.defaultTitleInternal;
         }
-        if (this.bitFieldValue === 15 /* All */) {
+        if (this.bitFieldValue === 15 /* MessageLevelBitfield.All */) {
             return this.allTitle;
         }
         const potentialMatch = this.itemMap.get(this.bitFieldValue);
@@ -206,6 +226,7 @@ export class PlayerMessagesView extends UI.Widget.VBox {
         dropDownItem.element.classList.add('toolbar-has-dropdown');
         dropDownItem.setEnabled(true);
         dropDownItem.setTitle(this.messageLevelSelector.defaultTitle());
+        UI.ARIAUtils.setLabel(dropDownItem.element, `${i18nString(UIStrings.logLevel)} ${this.messageLevelSelector.defaultTitle()}`);
         return dropDownItem;
     }
     createFilterInput() {
@@ -252,6 +273,55 @@ export class PlayerMessagesView extends UI.Widget.VBox {
     addMessage(message) {
         const container = this.bodyPanel.createChild('div', 'media-messages-message-container media-message-' + message.level);
         UI.UIUtils.createTextChild(container, message.message);
+    }
+    errorToDiv(error) {
+        const entry = UI.Fragment.Fragment.build `
+    <div class="status-error-box">
+    <div class="status-error-field-labeled">
+      <span class="status-error-field-label" $="status-error-group"></span>
+      <span>${error.errorType}</span>
+    </div>
+    <div class="status-error-field-labeled">
+      <span class="status-error-field-label" $="status-error-code"></span>
+      <span>${error.code}</span>
+    </div>
+    <div class="status-error-field-labeled" $="status-error-data">
+    </div>
+    <div class="status-error-field-labeled" $="status-error-stack">
+    </div>
+    <div class="status-error-field-labeled" $="status-error-cause">
+    </div>
+    `;
+        entry.$('status-error-group').textContent = i18nString(UIStrings.errorGroupLabel);
+        entry.$('status-error-code').textContent = i18nString(UIStrings.errorCodeLabel);
+        if (Object.keys(error.data).length !== 0) {
+            const label = entry.$('status-error-data').createChild('span', 'status-error-field-label');
+            UI.UIUtils.createTextChild(label, i18nString(UIStrings.errorDataLabel));
+            const dataContent = entry.$('status-error-data').createChild('div');
+            for (const [key, value] of Object.entries(error.data)) {
+                const datumContent = dataContent.createChild('div');
+                UI.UIUtils.createTextChild(datumContent, `${key}: ${value}`);
+            }
+        }
+        if (error.stack.length !== 0) {
+            const label = entry.$('status-error-stack').createChild('span', 'status-error-field-label');
+            UI.UIUtils.createTextChild(label, i18nString(UIStrings.errorStackLabel));
+            const stackContent = entry.$('status-error-stack').createChild('div');
+            for (const stackEntry of error.stack) {
+                const frameBox = stackContent.createChild('div');
+                UI.UIUtils.createTextChild(frameBox, `${stackEntry.file}:${stackEntry.line}`);
+            }
+        }
+        if (error.cause.length !== 0) {
+            const label = entry.$('status-error-cause').createChild('span', 'status-error-field-label');
+            UI.UIUtils.createTextChild(label, i18nString(UIStrings.errorCauseLabel));
+            entry.$('status-error-cause').appendChild(this.errorToDiv(error.cause[0]));
+        }
+        return entry.element();
+    }
+    addError(error) {
+        const container = this.bodyPanel.createChild('div', 'media-messages-message-container media-message-error');
+        container.appendChild(this.errorToDiv(error));
     }
     wasShown() {
         super.wasShown();

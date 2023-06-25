@@ -1,7 +1,8 @@
 import * as SDK from '../../core/sdk/sdk.js';
-import type { AccessibilitySidebarView } from './AccessibilitySidebarView.js';
+import { type AccessibilitySidebarView } from './AccessibilitySidebarView.js';
 import { AccessibilitySubPane } from './AccessibilitySubPane.js';
 export declare class AXBreadcrumbsPane extends AccessibilitySubPane {
+    #private;
     private readonly axSidebarView;
     private preselectedBreadcrumb;
     private inspectedNodeBreadcrumb;
@@ -59,7 +60,7 @@ export declare class AXBreadcrumb {
     private appendRoleElement;
     private appendIgnoredNodeElement;
 }
-declare type RoleStyles = {
+type RoleStyles = {
     [type: string]: string;
 };
 export declare const RoleStyles: RoleStyles;

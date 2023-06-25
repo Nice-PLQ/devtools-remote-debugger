@@ -1,4 +1,5 @@
 import * as Common from '../../../../core/common/common.js';
+import * as Platform from '../../../../core/platform/platform.js';
 import * as UI from '../../legacy.js';
 import { Provider } from './FilteredListWidget.js';
 export declare class CommandMenu {
@@ -8,7 +9,7 @@ export declare class CommandMenu {
         forceNew: boolean | null;
     }): CommandMenu;
     static createCommand(options: CreateCommandOptions): Command;
-    static createSettingCommand<V>(setting: Common.Settings.Setting<V>, title: string, value: V): Command;
+    static createSettingCommand<V>(setting: Common.Settings.Setting<V>, title: Common.UIString.LocalizedString, value: V): Command;
     static createActionCommand(options: ActionCommandOptions): Command;
     static createRevealViewCommand(options: RevealViewCommandOptions): Command;
     private loadCommands;
@@ -20,26 +21,29 @@ export interface ActionCommandOptions {
 }
 export interface RevealViewCommandOptions {
     id: string;
-    title: string;
+    title: Common.UIString.LocalizedString;
     tags: string;
-    category: string;
+    category: UI.ViewManager.ViewLocationCategory;
     userActionCode?: number;
 }
 export interface CreateCommandOptions {
-    category: string;
+    category: Platform.UIString.LocalizedString;
     keys: string;
-    title: string;
+    title: Common.UIString.LocalizedString;
     shortcut: string;
     executeHandler: () => void;
     availableHandler?: () => boolean;
     userActionCode?: number;
+    deprecationWarning?: Platform.UIString.LocalizedString;
+    isPanelOrDrawer?: PanelOrDrawer;
+}
+export declare enum PanelOrDrawer {
+    PANEL = "PANEL",
+    DRAWER = "DRAWER"
 }
 export declare class CommandMenuProvider extends Provider {
     private commands;
-    private constructor();
-    static instance(opts?: {
-        forceNew: boolean | null;
-    }): CommandMenuProvider;
+    constructor(commandsForTest?: Command[]);
     attach(): void;
     detach(): void;
     itemCount(): number;
@@ -51,19 +55,16 @@ export declare class CommandMenuProvider extends Provider {
 }
 export declare const MaterialPaletteColors: string[];
 export declare class Command {
-    private readonly categoryInternal;
-    private readonly titleInternal;
-    private readonly keyInternal;
-    private readonly shortcutInternal;
-    private readonly executeHandler;
-    private readonly availableHandler?;
-    constructor(category: string, title: string, key: string, shortcut: string, executeHandler: () => void, availableHandler?: () => boolean);
-    category(): string;
-    title(): string;
-    key(): string;
-    shortcut(): string;
+    #private;
+    readonly category: Common.UIString.LocalizedString;
+    readonly title: Common.UIString.LocalizedString;
+    readonly key: string;
+    readonly shortcut: string;
+    readonly deprecationWarning?: Platform.UIString.LocalizedString;
+    readonly isPanelOrDrawer?: PanelOrDrawer;
+    constructor(category: Common.UIString.LocalizedString, title: Common.UIString.LocalizedString, key: string, shortcut: string, executeHandler: () => unknown, availableHandler?: () => boolean, deprecationWarning?: Platform.UIString.LocalizedString, isPanelOrDrawer?: PanelOrDrawer);
     available(): boolean;
-    execute(): void;
+    execute(): unknown;
 }
 export declare class ShowActionDelegate implements UI.ActionRegistration.ActionDelegate {
     static instance(opts?: {

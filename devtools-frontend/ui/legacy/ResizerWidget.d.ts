@@ -51,7 +51,7 @@ export interface ResizeUpdatePositionEvent {
     currentPosition: number;
     shiftKey: boolean;
 }
-export declare type EventTypes = {
+export type EventTypes = {
     [Events.ResizeStart]: ResizeStartXYEvent | ResizeStartPositionEvent;
     [Events.ResizeUpdateXY]: ResizeUpdateXYEvent;
     [Events.ResizeUpdatePosition]: ResizeUpdatePositionEvent;

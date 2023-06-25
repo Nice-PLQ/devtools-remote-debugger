@@ -56,14 +56,15 @@ export class ScreenshotPanel extends UI.Widget.VBox {
       iframeContent.head.innerHTML = head;
       iframeContent.body.innerHTML = body;
       if (isMobile) {
-        this.iframe.style.cssText = `width:${width}px;height:${height}px;pointer-events:none;`;
+        this.iframe.style.cssText = `width:${width}px;height:${height}px;`;
       } else {
-        this.iframe.style.cssText = `width:${width * 0.75}px;max-width:1200px;height:${height * 0.75}px;max-height:1000px;pointer-events:none;`;
+        this.iframe.style.cssText = `width:${width * 0.75}px;max-width:1200px;height:${height * 0.75}px;max-height:1000px`;
       }
     }
     this.iframe.style.border = '20px solid var(--color-details-hairline)';
     this.iframe.style.borderRadius = '20px';
     this.iframe.style.boxSizing = 'content-box';
+    this.iframe.style.pointerEvents = 'none';
   }
   rendeHtml() {
     const preview = ({ target }) => {

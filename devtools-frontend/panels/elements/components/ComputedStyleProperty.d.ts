@@ -1,17 +1,13 @@
-export interface ComputedStylePropertyData {
-    inherited: boolean;
-    traceable: boolean;
-    onNavigateToSource: (event?: Event) => void;
+export declare class NavigateToSourceEvent extends Event {
+    static readonly eventName = "onnavigatetosource";
+    constructor();
 }
 export declare class ComputedStyleProperty extends HTMLElement {
+    #private;
     static readonly litTagName: import("../../../ui/lit-html/static.js").Static;
-    private readonly shadow;
-    private inherited;
-    private traceable;
-    private onNavigateToSource;
-    connectedCallback(): void;
-    set data(data: ComputedStylePropertyData);
-    private render;
+    constructor();
+    set inherited(inherited: boolean);
+    set traceable(traceable: boolean);
 }
 declare global {
     interface HTMLElementTagNameMap {

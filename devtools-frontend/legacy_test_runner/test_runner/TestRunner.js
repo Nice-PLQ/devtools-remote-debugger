@@ -1,6 +1,8 @@
 // Copyright 2016 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
+// @ts-nocheck This file is not checked by TypeScript as it has a lot of legacy code.
+import * as Common from '../../core/common/common.js'; // eslint-disable-line no-unused-vars
 import * as Platform from '../../core/platform/platform.js';
 import * as ProtocolClientModule from '../../core/protocol_client/protocol_client.js';
 import * as Root from '../../core/root/root.js';
@@ -16,6 +18,11 @@ self.Platform = self.Platform || {};
 self.Platform.StringUtilities = Platform.StringUtilities;
 self.Platform.MapUtilities = Platform.MapUtilities;
 self.Platform.ArrayUtilities = Platform.ArrayUtilities;
+self.Platform.DOMUtilities = Platform.DOMUtilities;
+self.createPlainTextSearchRegex = Platform.StringUtilities.createPlainTextSearchRegex;
+String.sprintf = Platform.StringUtilities.sprintf;
+String.regexSpecialCharacters = Platform.StringUtilities.regexSpecialCharacters;
+String.caseInsensetiveComparator = Platform.StringUtilities.caseInsensetiveComparator;
 /**
  * @return {boolean}
  */
@@ -204,41 +211,68 @@ export function addSnifferPromise(receiver, methodName) {
         };
     });
 }
-/** @type {function():void} */
-let _resolveOnFinishInits;
 /**
- * @param {string} module
- * @return {!Promise<undefined>}
+ * @param {Text} textNode
+ * @param {number=} start
+ * @param {number=} end
+ * @return {Text}
  */
-export async function loadModule(module) {
-    const promise = new Promise(resolve => {
-        _resolveOnFinishInits = resolve;
-    });
-    await self.runtime.loadModulePromise(module);
-    if (!_pendingInits) {
-        return;
+export function selectTextInTextNode(textNode, start, end) {
+    start = start || 0;
+    end = end || textNode.textContent.length;
+    if (start < 0) {
+        start = end + start;
     }
-    return promise;
+    const selection = textNode.getComponentSelection();
+    selection.removeAllRanges();
+    const range = textNode.ownerDocument.createRange();
+    range.setStart(textNode, start);
+    range.setEnd(textNode, end);
+    selection.addRange(range);
+    return textNode;
 }
+const mappingForLayoutTests = new Map([
+    ['panels/animation', 'animation'],
+    ['panels/browser_debugger', 'browser_debugger'],
+    ['panels/changes', 'changes'],
+    ['panels/console', 'console'],
+    ['panels/elements', 'elements'],
+    ['panels/emulation', 'emulation'],
+    ['panels/mobile_throttling', 'mobile_throttling'],
+    ['panels/network', 'network'],
+    ['panels/profiler', 'profiler'],
+    ['panels/application', 'resources'],
+    ['panels/search', 'search'],
+    ['panels/sources', 'sources'],
+    ['panels/snippets', 'snippets'],
+    ['panels/settings', 'settings'],
+    ['panels/timeline', 'timeline'],
+    ['panels/web_audio', 'web_audio'],
+    ['models/persistence', 'persistence'],
+    ['models/workspace_diff', 'workspace_diff'],
+    ['entrypoints/main', 'main'],
+    ['third_party/diff', 'diff'],
+    ['ui/legacy/components/inline_editor', 'inline_editor'],
+    ['ui/legacy/components/data_grid', 'data_grid'],
+    ['ui/legacy/components/perf_ui', 'perf_ui'],
+    ['ui/legacy/components/source_frame', 'source_frame'],
+    ['ui/legacy/components/color_picker', 'color_picker'],
+    ['ui/legacy/components/cookie_table', 'cookie_table'],
+    ['ui/legacy/components/quick_open', 'quick_open'],
+    ['ui/legacy/components/utils', 'components'],
+]);
 /**
  * @param {string} module
  * @return {!Promise<void>}
  */
 export async function loadLegacyModule(module) {
     let containingFolder = module;
-    for (const [remappedFolder, originalFolder] of Root.Runtime.mappingForLayoutTests.entries()) {
+    for (const [remappedFolder, originalFolder] of mappingForLayoutTests.entries()) {
         if (originalFolder === module) {
             containingFolder = remappedFolder;
         }
     }
     await import(`../../${containingFolder}/${containingFolder.split('/').reverse()[0]}-legacy.js`);
-}
-/**
- * @param {string} module
- * @return {!Promise<void>}
- */
-export async function loadTestModule(module) {
-    await import(`../${module}/${module}.js`);
 }
 /**
  * @param {string} panel
@@ -344,7 +378,7 @@ export function textContentWithLineBreaks(node) {
     let ignoreFirst = false;
     while (currentNode.traverseNextNode(node)) {
         currentNode = currentNode.traverseNextNode(node);
-        if (currentNode.nodeType === Node.TEXT_NODE) {
+        if (currentNode.nodeType === Node.TEXT_NODE && currentNode.parentNode?.nodeType !== Node.DOCUMENT_FRAGMENT_NODE) {
             buffer += currentNode.nodeValue;
         }
         else if (currentNode.nodeName === 'LI' || currentNode.nodeName === 'TR') {
@@ -369,11 +403,20 @@ export function textContentWithLineBreaks(node) {
  * @param {!Node} node
  * @return {string}
  */
+export function textContentWithLineBreaksTrimmed(node) {
+    // We want to allow single empty lines (2 white space characters), but
+    // compress occurences of 3 or more whitespaces.
+    return textContentWithLineBreaks(node).replace(/\s{3,}/g, ' ');
+}
+/**
+ * @param {!Node} node
+ * @return {string}
+ */
 export function textContentWithoutStyles(node) {
     let buffer = '';
     let currentNode = node;
     while (currentNode.traverseNextNode(node)) {
-        currentNode = currentNode.traverseNextNode(node, currentNode.tagName === 'DEVTOOLS-CSS-LENGTH');
+        currentNode = currentNode.traverseNextNode(node, currentNode.tagName === 'DEVTOOLS-CSS-LENGTH' || currentNode.tagName === 'DEVTOOLS-ICON');
         if (currentNode.nodeType === Node.TEXT_NODE) {
             buffer += currentNode.nodeValue;
         }
@@ -608,8 +651,6 @@ export function addIframe(path, options = {}) {
     })();
   `);
 }
-/** @type {number} */
-let _pendingInits = 0;
 /**
  * The old test framework executed certain snippets in the inspected page
  * context as part of loading a test helper file.
@@ -625,12 +666,7 @@ let _pendingInits = 0;
  * @param {string} code
  */
 export async function deprecatedInitAsync(code) {
-    _pendingInits++;
     await TestRunner.RuntimeAgent.invoke_evaluate({ expression: code, objectGroup: 'console' });
-    _pendingInits--;
-    if (!_pendingInits && _resolveOnFinishInits !== undefined) {
-        _resolveOnFinishInits();
-    }
 }
 /**
  * @param {string} title
@@ -653,16 +689,16 @@ export function addScriptForFrame(url, content, frame) {
 }
 export const formatters = {
     /**
-   * @param {*} value
-   * @return {string}
-   */
+     * @param {*} value
+     * @return {string}
+     */
     formatAsTypeName(value) {
         return '<' + typeof value + '>';
     },
     /**
-   * @param {*} value
-   * @return {string}
-   */
+     * @param {*} value
+     * @return {string}
+     */
     formatAsTypeNameOrNull(value) {
         if (value === null) {
             return 'null';
@@ -670,9 +706,9 @@ export const formatters = {
         return formatters.formatAsTypeName(value);
     },
     /**
-   * @param {*} value
-   * @return {string|!Date}
-   */
+     * @param {*} value
+     * @return {string|!Date}
+     */
     formatAsRecentTime(value) {
         if (typeof value !== 'object' || !(value instanceof Date)) {
             return formatters.formatAsTypeName(value);
@@ -681,9 +717,9 @@ export const formatters = {
         return 0 <= delta && delta < 30 * 60 * 1000 ? '<plausible>' : value;
     },
     /**
-   * @param {string} value
-   * @return {string}
-   */
+     * @param {string} value
+     * @return {string}
+     */
     formatAsURL(value) {
         if (!value) {
             return value;
@@ -695,9 +731,9 @@ export const formatters = {
         return '.../' + value.substr(lastIndex);
     },
     /**
-   * @param {string} value
-   * @return {string}
-   */
+     * @param {string} value
+     * @return {string}
+     */
     formatAsDescription(value) {
         if (!value) {
             return value;
@@ -1177,33 +1213,6 @@ export class MockSetting {
     }
 }
 /**
- * @return {!Array<!Root.Runtime.Module>}
- */
-export function loadedModules() {
-    return self.runtime.modules.filter(module => module.loadedForTest)
-        .filter(module => module.name() !== 'help')
-        .filter(module => module.name().indexOf('test_runner') === -1);
-}
-/**
- * @param {!Array<!Root.Runtime.Module>} relativeTo
- * @return {!Array<!Root.Runtime.Module>}
- */
-export function dumpLoadedModules(relativeTo) {
-    const previous = new Set(relativeTo || []);
-    function moduleSorter(left, right) {
-        return Platform.StringUtilities.naturalOrderComparator(left.descriptor.name, right.descriptor.name);
-    }
-    addResult('Loaded modules:');
-    const sortedLoadedModules = loadedModules().sort(moduleSorter);
-    for (const module of sortedLoadedModules) {
-        if (previous.has(module)) {
-            continue;
-        }
-        addResult('    ' + module.descriptor.name);
-    }
-    return sortedLoadedModules;
-}
-/**
  * @param {string} urlSuffix
  * @param {!Workspace.Workspace.projectTypes=} projectType
  * @return {!Promise}
@@ -1243,7 +1252,7 @@ export function waitForUISourceCodeRemoved(callback) {
  * @return {string}
  */
 export function url(url = '') {
-    const testScriptURL = /** @type {string} */ (Root.Runtime.Runtime.queryParam('test'));
+    const testScriptURL = /** @type {string} */ (Root.Runtime.Runtime.queryParam('inspected_test') || Root.Runtime.Runtime.queryParam('test'));
     // This handles relative (e.g. "../file"), root (e.g. "/resource"),
     // absolute (e.g. "http://", "data:") and empty (e.g. "") paths
     return new URL(url, testScriptURL + '/../').href;
@@ -1335,6 +1344,7 @@ TestRunner.showPanel = showPanel;
 TestRunner.createKeyEvent = createKeyEvent;
 TestRunner.safeWrap = safeWrap;
 TestRunner.textContentWithLineBreaks = textContentWithLineBreaks;
+TestRunner.textContentWithLineBreaksTrimmed = textContentWithLineBreaksTrimmed;
 TestRunner.textContentWithoutStyles = textContentWithoutStyles;
 TestRunner.evaluateInPagePromise = evaluateInPagePromise;
 TestRunner.callFunctionInPageAsync = callFunctionInPageAsync;
@@ -1376,15 +1386,11 @@ TestRunner.override = override;
 TestRunner.clearSpecificInfoFromStackFrames = clearSpecificInfoFromStackFrames;
 TestRunner.hideInspectorView = hideInspectorView;
 TestRunner.mainFrame = mainFrame;
-TestRunner.loadedModules = loadedModules;
-TestRunner.dumpLoadedModules = dumpLoadedModules;
 TestRunner.waitForUISourceCode = waitForUISourceCode;
 TestRunner.waitForUISourceCodeRemoved = waitForUISourceCodeRemoved;
 TestRunner.url = url;
 TestRunner.dumpSyntaxHighlight = dumpSyntaxHighlight;
-TestRunner.loadModule = loadModule;
 TestRunner.loadLegacyModule = loadLegacyModule;
-TestRunner.loadTestModule = loadTestModule;
 TestRunner.evaluateInPageRemoteObject = evaluateInPageRemoteObject;
 TestRunner.evaluateInPage = evaluateInPage;
 TestRunner.evaluateInPageAnonymously = evaluateInPageAnonymously;
@@ -1394,5 +1400,6 @@ TestRunner.runAsyncTestSuite = runAsyncTestSuite;
 TestRunner.dumpInspectedPageElementText = dumpInspectedPageElementText;
 TestRunner.waitForPendingLiveLocationUpdates = waitForPendingLiveLocationUpdates;
 TestRunner.findLineEndingIndexes = findLineEndingIndexes;
+TestRunner.selectTextInTextNode = selectTextInTextNode;
 TestRunner.isScrolledToBottom = UI.UIUtils.isScrolledToBottom;
 //# sourceMappingURL=TestRunner.js.map

@@ -1,7 +1,9 @@
 import * as Host from '../../core/host/host.js';
+import type * as Platform from '../../core/platform/platform.js';
 import * as Root from '../../core/root/root.js';
-import type { SoftContextMenuDescriptor } from './SoftContextMenu.js';
+import { type SoftContextMenuDescriptor } from './SoftContextMenu.js';
 export declare class Item {
+    #private;
     private readonly typeInternal;
     protected readonly label: string | undefined;
     protected disabled: boolean | undefined;
@@ -10,7 +12,7 @@ export declare class Item {
     protected idInternal: number | undefined;
     customElement?: Element;
     private shortcut?;
-    constructor(contextMenu: ContextMenu | null, type: string, label?: string, disabled?: boolean, checked?: boolean);
+    constructor(contextMenu: ContextMenu | null, type: 'checkbox' | 'item' | 'separator' | 'subMenu', label?: string, disabled?: boolean, checked?: boolean, tooltip?: Platform.UIString.LocalizedString);
     id(): number;
     type(): string;
     isEnabled(): boolean;
@@ -22,12 +24,12 @@ export declare class Section {
     private readonly contextMenu;
     readonly items: Item[];
     constructor(contextMenu: ContextMenu | null);
-    appendItem(label: string, handler: () => void, disabled?: boolean): Item;
+    appendItem(label: string, handler: () => void, disabled?: boolean, additionalElement?: Element, tooltip?: Platform.UIString.LocalizedString): Item;
     appendCustomItem(element: Element): Item;
     appendSeparator(): Item;
     appendAction(actionId: string, label?: string, optional?: boolean): void;
     appendSubMenuItem(label: string, disabled?: boolean): SubMenu;
-    appendCheckboxItem(label: string, handler: () => void, checked?: boolean, disabled?: boolean): Item;
+    appendCheckboxItem(label: string, handler: () => void, checked?: boolean, disabled?: boolean, additionalElement?: Element): Item;
 }
 export declare class SubMenu extends Item {
     private readonly sections;
@@ -51,6 +53,7 @@ export declare class SubMenu extends Item {
 }
 export interface ContextMenuOptions {
     useSoftMenu?: boolean;
+    onSoftMenuClosed?: () => void;
     x?: number;
     y?: number;
 }
@@ -63,9 +66,11 @@ export declare class ContextMenu extends SubMenu {
     private readonly useSoftMenu;
     private x;
     private y;
+    private onSoftMenuClosed?;
     private readonly handlers;
     idInternal: number;
     private softMenu?;
+    private contextMenuLabel?;
     constructor(event: Event, options?: ContextMenuOptions);
     static initialize(): void;
     static installHandler(doc: Document): void;
@@ -73,6 +78,7 @@ export declare class ContextMenu extends SubMenu {
     show(): Promise<void>;
     discard(): void;
     private innerShow;
+    setContextMenuLabel(label: string): void;
     setX(x: number): void;
     setY(y: number): void;
     setHandler(id: number, handler: () => void): void;
@@ -82,6 +88,7 @@ export declare class ContextMenu extends SubMenu {
     private menuCleared;
     containsTarget(target: Object): boolean;
     appendApplicableItems(target: Object): void;
+    markAsMenuItemCheckBox(): void;
     private static pendingMenu;
     private static useSoftMenu;
     static readonly groupWeights: string[];

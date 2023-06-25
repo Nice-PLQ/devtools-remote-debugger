@@ -22,7 +22,6 @@ export declare class WorkerDetailsView extends UI.ThrottledWidget.ThrottledWidge
     private readonly targetInfo;
     private readonly reportView;
     private readonly documentSection;
-    private readonly URLFieldValue;
     private readonly isolationSection;
     private readonly coepPolicy;
     constructor(targetInfo: Protocol.Target.TargetInfo);

@@ -1,6 +1,7 @@
 import * as Common from '../common/common.js';
+import type * as Platform from '../platform/platform.js';
 import * as Protocol from '../../generated/protocol.js';
-import type { Target } from './Target.js';
+import { type Target } from './Target.js';
 import { SDKModel } from './SDKModel.js';
 export declare class ServiceWorkerManager extends SDKModel<EventTypes> {
     #private;
@@ -39,7 +40,7 @@ export interface RegistrationErrorAddedEvent {
     registration: ServiceWorkerRegistration;
     error: Protocol.ServiceWorker.ServiceWorkerErrorMessage;
 }
-export declare type EventTypes = {
+export type EventTypes = {
     [Events.RegistrationUpdated]: ServiceWorkerRegistration;
     [Events.RegistrationErrorAdded]: RegistrationErrorAddedEvent;
     [Events.RegistrationDeleted]: ServiceWorkerRegistration;
@@ -59,7 +60,7 @@ export declare class ServiceWorkerVersionState {
 }
 export declare class ServiceWorkerVersion {
     id: string;
-    scriptURL: string;
+    scriptURL: Platform.DevToolsPath.UrlString;
     parsedURL: Common.ParsedURL.ParsedURL;
     securityOrigin: string;
     scriptLastModified: number | undefined;
@@ -111,8 +112,8 @@ export declare namespace ServiceWorkerVersion {
 export declare class ServiceWorkerRegistration {
     #private;
     id: Protocol.ServiceWorker.RegistrationID;
-    scopeURL: string;
-    securityOrigin: string;
+    scopeURL: Platform.DevToolsPath.UrlString;
+    securityOrigin: Platform.DevToolsPath.UrlString;
     isDeleted: boolean;
     versions: Map<string, ServiceWorkerVersion>;
     deleting: boolean;

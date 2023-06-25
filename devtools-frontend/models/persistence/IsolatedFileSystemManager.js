@@ -34,9 +34,9 @@ import * as Platform from '../../core/platform/platform.js';
 import { IsolatedFileSystem } from './IsolatedFileSystem.js';
 const UIStrings = {
     /**
-    *@description Text in Isolated File System Manager of the Workspace settings in Settings
-    *@example {folder does not exist} PH1
-    */
+     *@description Text in Isolated File System Manager of the Workspace settings in Settings
+     *@example {folder does not exist} PH1
+     */
     unableToAddFilesystemS: 'Unable to add filesystem: {PH1}',
 };
 const str_ = i18n.i18n.registerUIStrings('models/persistence/IsolatedFileSystemManager.ts', UIStrings);
@@ -109,6 +109,9 @@ export class IsolatedFileSystemManager extends Common.ObjectWrapper.ObjectWrappe
         }
         return isolatedFileSystemManagerInstance;
     }
+    static removeInstance() {
+        isolatedFileSystemManagerInstance = null;
+    }
     requestFileSystems() {
         let fulfill;
         const promise = new Promise(f => {
@@ -123,19 +126,23 @@ export class IsolatedFileSystemManager extends Common.ObjectWrapper.ObjectWrappe
             for (let i = 0; i < fileSystems.length; ++i) {
                 promises.push(this.innerAddFileSystem(fileSystems[i], false));
             }
-            Promise.all(promises).then(onFileSystemsAdded);
+            void Promise.all(promises).then(onFileSystemsAdded);
         }
         function onFileSystemsAdded(fileSystems) {
             fulfill(fileSystems.filter(fs => Boolean(fs)));
         }
     }
     addFileSystem(type) {
+        Host.userMetrics.actionTaken(type === 'overrides' ? Host.UserMetrics.Action.AddFileSystemForOverrides :
+            Host.UserMetrics.Action.AddFileSystemToWorkspace);
         return new Promise(resolve => {
             this.fileSystemRequestResolve = resolve;
             Host.InspectorFrontendHost.InspectorFrontendHostInstance.addFileSystem(type || '');
         });
     }
     removeFileSystem(fileSystem) {
+        Host.userMetrics.actionTaken(fileSystem.type() === 'overrides' ? Host.UserMetrics.Action.RemoveFileSystemForOverrides :
+            Host.UserMetrics.Action.RemoveFileSystemFromWorkspace);
         Host.InspectorFrontendHost.InspectorFrontendHostInstance.removeFileSystem(fileSystem.embedderPath());
     }
     waitForFileSystems() {
@@ -174,7 +181,7 @@ export class IsolatedFileSystemManager extends Common.ObjectWrapper.ObjectWrappe
             this.fileSystemRequestResolve = null;
         }
         else if (fileSystem) {
-            this.innerAddFileSystem(fileSystem, true).then(fileSystem => {
+            void this.innerAddFileSystem(fileSystem, true).then(fileSystem => {
                 if (this.fileSystemRequestResolve) {
                     this.fileSystemRequestResolve.call(null, fileSystem);
                     this.fileSystemRequestResolve = null;
@@ -206,7 +213,8 @@ export class IsolatedFileSystemManager extends Common.ObjectWrapper.ObjectWrappe
                 const filePath = Common.ParsedURL.ParsedURL.rawPathToUrlString(embedderPath);
                 for (const fileSystemPath of this.fileSystemsInternal.keys()) {
                     const fileSystem = this.fileSystemsInternal.get(fileSystemPath);
-                    if (fileSystem && fileSystem.isFileExcluded(embedderPath)) {
+                    if (fileSystem &&
+                        fileSystem.isFileExcluded(Common.ParsedURL.ParsedURL.rawPathToEncodedPathString(embedderPath))) {
                         continue;
                     }
                     const pathPrefix = fileSystemPath.endsWith('/') ? fileSystemPath : fileSystemPath + '/';

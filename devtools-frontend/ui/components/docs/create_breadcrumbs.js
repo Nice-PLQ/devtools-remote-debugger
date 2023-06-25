@@ -31,7 +31,7 @@ export function init() {
     }
   </style>
 
-  <ul class="docs-breadcrumbs">
+  <ul class="docs-breadcrumbs component-docs-ui">
     <li><a href="/">Index</a></li>
     <li><a href=".">All component examples</a></li>
   </ul>`, container);

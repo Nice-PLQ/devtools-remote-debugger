@@ -21,43 +21,43 @@ export interface ReportData {
     reportTitle: string;
 }
 export declare class Report extends HTMLElement {
+    #private;
     static readonly litTagName: import("../../lit-html/static.js").Static;
-    private readonly shadow;
-    private reportTitle;
     set data({ reportTitle }: ReportData);
     connectedCallback(): void;
-    private render;
 }
 export interface ReportSectionData {
     sectionTitle: string;
 }
-export declare class ReportSectionHeader extends HTMLElement {
+export declare class ReportSection extends HTMLElement {
+    #private;
     static readonly litTagName: import("../../lit-html/static.js").Static;
-    private readonly shadow;
     connectedCallback(): void;
-    private render;
+}
+export declare class ReportSectionHeader extends HTMLElement {
+    #private;
+    static readonly litTagName: import("../../lit-html/static.js").Static;
+    connectedCallback(): void;
 }
 export declare class ReportSectionDivider extends HTMLElement {
+    #private;
     static readonly litTagName: import("../../lit-html/static.js").Static;
-    private readonly shadow;
     connectedCallback(): void;
-    private render;
 }
 export declare class ReportKey extends HTMLElement {
+    #private;
     static readonly litTagName: import("../../lit-html/static.js").Static;
-    private readonly shadow;
     connectedCallback(): void;
-    private render;
 }
 export declare class ReportValue extends HTMLElement {
+    #private;
     static readonly litTagName: import("../../lit-html/static.js").Static;
-    private readonly shadow;
     connectedCallback(): void;
-    private render;
 }
 declare global {
     interface HTMLElementTagNameMap {
         'devtools-report': Report;
+        'devtools-report-section': ReportSection;
         'devtools-report-section-header': ReportSectionHeader;
         'devtools-report-key': ReportKey;
         'devtools-report-value': ReportValue;

@@ -32,47 +32,47 @@ import * as i18n from '../../core/i18n/i18n.js';
 import * as Platform from '../../core/platform/platform.js';
 import layers3DViewStyles from './layers3DView.css.js';
 import * as UI from '../../ui/legacy/legacy.js';
-import { LayerSelection, Selection, SnapshotSelection, ScrollRectSelection } from './LayerViewHost.js';
+import { LayerSelection, Selection, SnapshotSelection, ScrollRectSelection, } from './LayerViewHost.js';
 import { Events as TransformControllerEvents, TransformController } from './TransformController.js';
 const UIStrings = {
     /**
-    *@description Text of a DOM element in DView of the Layers panel
-    */
+     *@description Text of a DOM element in DView of the Layers panel
+     */
     layerInformationIsNotYet: 'Layer information is not yet available.',
     /**
-    *@description Accessibility label for canvas view in Layers tool
-    */
+     *@description Accessibility label for canvas view in Layers tool
+     */
     dLayersView: '3D Layers View',
     /**
-    *@description Text in DView of the Layers panel
-    */
+     *@description Text in DView of the Layers panel
+     */
     cantDisplayLayers: 'Can\'t display layers,',
     /**
-    *@description Text in DView of the Layers panel
-    */
+     *@description Text in DView of the Layers panel
+     */
     webglSupportIsDisabledInYour: 'WebGL support is disabled in your browser.',
     /**
-    *@description Text in DView of the Layers panel
-    *@example {about:gpu} PH1
-    */
+     *@description Text in DView of the Layers panel
+     *@example {about:gpu} PH1
+     */
     checkSForPossibleReasons: 'Check {PH1} for possible reasons.',
     /**
-    *@description Text for a checkbox in the toolbar of the Layers panel to show the area of slow scroll rect
-    */
+     *@description Text for a checkbox in the toolbar of the Layers panel to show the area of slow scroll rect
+     */
     slowScrollRects: 'Slow scroll rects',
     /**
-    * @description Text for a checkbox in the toolbar of the Layers panel. This is a noun, for a
-    * setting meaning 'display paints in the layers viewer'. 'Paints' here means 'paint events' i.e.
-    * when the browser draws pixels to the screen.
-    */
+     * @description Text for a checkbox in the toolbar of the Layers panel. This is a noun, for a
+     * setting meaning 'display paints in the layers viewer'. 'Paints' here means 'paint events' i.e.
+     * when the browser draws pixels to the screen.
+     */
     paints: 'Paints',
     /**
-    *@description A context menu item in the DView of the Layers panel
-    */
+     *@description A context menu item in the DView of the Layers panel
+     */
     resetView: 'Reset View',
     /**
-    *@description A context menu item in the DView of the Layers panel
-    */
+     *@description A context menu item in the DView of the Layers panel
+     */
     showPaintProfiler: 'Show Paint Profiler',
 };
 const str_ = i18n.i18n.registerUIStrings('panels/layer_viewer/Layers3DView.ts', UIStrings);
@@ -130,7 +130,7 @@ export class Layers3DView extends Common.ObjectWrapper.eventMixin(UI.Widget.VBox
         this.canvasElement.addEventListener('mouseleave', this.onMouseMove.bind(this), false);
         this.canvasElement.addEventListener('mousemove', this.onMouseMove.bind(this), false);
         this.canvasElement.addEventListener('contextmenu', this.onContextMenu.bind(this), false);
-        UI.ARIAUtils.setAccessibleName(this.canvasElement, i18nString(UIStrings.dLayersView));
+        UI.ARIAUtils.setLabel(this.canvasElement, i18nString(UIStrings.dLayersView));
         this.lastSelection = {};
         this.layerTree = null;
         this.textureManager = new LayerTextureManager(this.update.bind(this));
@@ -155,7 +155,7 @@ export class Layers3DView extends Common.ObjectWrapper.eventMixin(UI.Widget.VBox
             this.update();
             return;
         }
-        UI.UIUtils.loadImage(imageURL).then(image => {
+        void UI.UIUtils.loadImage(imageURL).then(image => {
             const texture = image && LayerTextureManager.createTextureForImage(this.gl || null, image);
             this.layerTexture = texture ? { layer: layer, texture: texture } : null;
             this.update();
@@ -192,10 +192,10 @@ export class Layers3DView extends Common.ObjectWrapper.eventMixin(UI.Widget.VBox
         this.setOutline(OutlineType.Selected, selection);
     }
     snapshotForSelection(selection) {
-        if (selection.type() === "Snapshot" /* Snapshot */) {
+        if (selection.type() === "Snapshot" /* Type.Snapshot */) {
             const snapshotWithRect = selection.snapshot();
             snapshotWithRect.snapshot.addReference();
-            return /** @type {!Promise<?SDK.PaintProfiler.SnapshotWithRect>} */ Promise.resolve(snapshotWithRect);
+            return Promise.resolve(snapshotWithRect);
         }
         if (selection.layer()) {
             const promise = selection.layer().snapshots()[0];
@@ -203,7 +203,7 @@ export class Layers3DView extends Common.ObjectWrapper.eventMixin(UI.Widget.VBox
                 return promise;
             }
         }
-        return /** @type {!Promise<?SDK.PaintProfiler.SnapshotWithRect>} */ Promise.resolve(null);
+        return Promise.resolve(null);
     }
     initGL(canvas) {
         const gl = canvas.getContext('webgl');
@@ -214,7 +214,7 @@ export class Layers3DView extends Common.ObjectWrapper.eventMixin(UI.Widget.VBox
         gl.enable(gl.BLEND);
         gl.clearColor(0.0, 0.0, 0.0, 0.0);
         gl.enable(gl.DEPTH_TEST);
-        return /** @type {!WebGLRenderingContext} */ gl;
+        return gl;
     }
     createShader(type, script) {
         if (!this.gl) {
@@ -342,14 +342,14 @@ export class Layers3DView extends Common.ObjectWrapper.eventMixin(UI.Widget.VBox
     }
     initChromeTextures() {
         function loadChromeTexture(index, url) {
-            UI.UIUtils.loadImage(url).then(image => {
+            void UI.UIUtils.loadImage(url).then(image => {
                 this.chromeTextures[index] =
                     image && LayerTextureManager.createTextureForImage(this.gl || null, image) || undefined;
             });
         }
-        loadChromeTexture.call(this, 0 /* Left */, 'Images/chromeLeft.avif');
-        loadChromeTexture.call(this, 1 /* Middle */, 'Images/chromeMiddle.avif');
-        loadChromeTexture.call(this, 2 /* Right */, 'Images/chromeRight.avif');
+        loadChromeTexture.call(this, 0 /* ChromeTexture.Left */, 'Images/chromeLeft.avif');
+        loadChromeTexture.call(this, 1 /* ChromeTexture.Middle */, 'Images/chromeMiddle.avif');
+        loadChromeTexture.call(this, 2 /* ChromeTexture.Right */, 'Images/chromeRight.avif');
     }
     initGLIfNecessary() {
         if (this.gl) {
@@ -366,7 +366,6 @@ export class Layers3DView extends Common.ObjectWrapper.eventMixin(UI.Widget.VBox
         return this.gl;
     }
     calculateDepthsAndVisibility() {
-        /** @type {!Map<string, number>} */
         this.depthByLayerId = new Map();
         let depth = 0;
         const showInternalLayers = this.layerViewHost.showInternalLayersSetting().get();
@@ -379,7 +378,6 @@ export class Layers3DView extends Common.ObjectWrapper.eventMixin(UI.Widget.VBox
         }
         const queue = [root];
         this.depthByLayerId.set(root.id(), 0);
-        /** @type {!Set<!SDK.LayerTreeBase.Layer>} */
         this.visibleLayers = new Set();
         while (queue.length > 0) {
             const layer = queue.shift();
@@ -600,7 +598,7 @@ export class Layers3DView extends Common.ObjectWrapper.eventMixin(UI.Widget.VBox
                 if (!image) {
                     continue;
                 }
-                const width = i === 1 /* Middle */ ? middleFragmentWidth : image.naturalWidth;
+                const width = i === 1 /* ChromeTexture.Middle */ ? middleFragmentWidth : image.naturalWidth;
                 if (width < 0 || x + width > viewportWidth) {
                     break;
                 }
@@ -668,8 +666,8 @@ export class Layers3DView extends Common.ObjectWrapper.eventMixin(UI.Widget.VBox
         let closestIntersectionPoint = Infinity;
         let closestObject = null;
         const projectionMatrix = new WebKitCSSMatrix().scale(1, -1, -1).translate(-1, -1, 0).multiply(this.projectionMatrix);
-        const x0 = (mouseEvent.clientX - this.canvasElement.totalOffsetLeft()) * window.devicePixelRatio;
-        const y0 = -(mouseEvent.clientY - this.canvasElement.totalOffsetTop()) * window.devicePixelRatio;
+        const x0 = (mouseEvent.clientX - this.canvasElement.getBoundingClientRect().left) * window.devicePixelRatio;
+        const y0 = -(mouseEvent.clientY - this.canvasElement.getBoundingClientRect().top) * window.devicePixelRatio;
         function checkIntersection(rect) {
             if (!rect.relatedObject) {
                 return;
@@ -705,7 +703,7 @@ export class Layers3DView extends Common.ObjectWrapper.eventMixin(UI.Widget.VBox
         const contextMenu = new UI.ContextMenu.ContextMenu(event);
         contextMenu.defaultSection().appendItem(i18nString(UIStrings.resetView), () => this.transformController.resetAndNotify(), false);
         const selection = this.selectionFromEventPoint(event);
-        if (selection && selection.type() === "Snapshot" /* Snapshot */) {
+        if (selection && selection.type() === "Snapshot" /* Type.Snapshot */) {
             contextMenu.defaultSection().appendItem(i18nString(UIStrings.showPaintProfiler), () => this.dispatchEventToListeners(Events.PaintProfilerRequested, selection), false);
         }
         this.layerViewHost.showContextMenu(contextMenu, selection);
@@ -735,7 +733,7 @@ export class Layers3DView extends Common.ObjectWrapper.eventMixin(UI.Widget.VBox
     }
     onDoubleClick(event) {
         const selection = this.selectionFromEventPoint(event);
-        if (selection && (selection.type() === "Snapshot" /* Snapshot */ || selection.layer())) {
+        if (selection && (selection.type() === "Snapshot" /* Type.Snapshot */ || selection.layer())) {
             this.dispatchEventToListeners(Events.PaintProfilerRequested, selection);
         }
         event.stopPropagation();
@@ -839,9 +837,7 @@ export class LayerTextureManager {
         if (this.tilesByLayer) {
             this.setLayerTree(null);
         }
-        /** @type {!Map<!SDK.LayerTreeBase.Layer, !Array<!Tile>>} */
         this.tilesByLayer = new Map();
-        /** @type {!Array<!SDK.LayerTreeBase.Layer>} */
         this.queue = [];
     }
     setContext(glContext) {
@@ -856,7 +852,7 @@ export class LayerTextureManager {
     resume() {
         this.active = true;
         if (this.queue.length) {
-            this.update();
+            void this.update();
         }
     }
     setLayerTree(layerTree) {
@@ -927,13 +923,13 @@ export class LayerTextureManager {
             this.queue.push(layer);
         }
         if (this.active) {
-            this.throttler.schedule(this.update.bind(this));
+            void this.throttler.schedule(this.update.bind(this));
         }
     }
     forceUpdate() {
         this.queue.forEach(layer => this.updateLayer(layer));
         this.queue = [];
-        this.update();
+        void this.update();
     }
     update() {
         const layer = this.queue.shift();
@@ -941,7 +937,7 @@ export class LayerTextureManager {
             return Promise.resolve();
         }
         if (this.queue.length) {
-            this.throttler.schedule(this.update.bind(this));
+            void this.throttler.schedule(this.update.bind(this));
         }
         return this.updateLayer(layer);
     }
@@ -960,7 +956,7 @@ export class LayerTextureManager {
             for (const tile of tiles) {
                 const promise = tile.updateScale(this.gl, this.scale);
                 if (promise) {
-                    promise.then(this.textureUpdatedCallback);
+                    void promise.then(this.textureUpdatedCallback);
                 }
             }
         }

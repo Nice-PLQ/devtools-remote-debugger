@@ -31,18 +31,19 @@ import * as i18n from '../../core/i18n/i18n.js';
 import * as TextUtils from '../../models/text_utils/text_utils.js';
 import * as SourceFrame from '../../ui/legacy/components/source_frame/source_frame.js';
 import * as UI from '../../ui/legacy/legacy.js';
+import * as LegacyWrapper from '../../ui/components/legacy_wrapper/legacy_wrapper.js';
 import { RequestHTMLView } from './RequestHTMLView.js';
 import { RequestResponseView } from './RequestResponseView.js';
 import { SignedExchangeInfoView } from './SignedExchangeInfoView.js';
 import { WebBundleInfoView } from './components/WebBundleInfoView.js';
 const UIStrings = {
     /**
-    *@description Text in Request Preview View of the Network panel
-    */
+     *@description Text in Request Preview View of the Network panel
+     */
     failedToLoadResponseData: 'Failed to load response data',
     /**
-    *@description Text in Request Preview View of the Network panel
-    */
+     *@description Text in Request Preview View of the Network panel
+     */
     previewNotAvailable: 'Preview not available',
 };
 const str_ = i18n.i18n.registerUIStrings('panels/network/RequestPreviewView.ts', UIStrings);
@@ -57,7 +58,7 @@ export class RequestPreviewView extends RequestResponseView {
             return view;
         }
         const toolbar = new UI.Toolbar.Toolbar('network-item-preview-toolbar', this.element);
-        view.toolbarItems().then(items => {
+        void view.toolbarItems().then(items => {
             items.map(item => toolbar.appendToolbarItem(item));
         });
         return view;
@@ -85,7 +86,7 @@ export class RequestPreviewView extends RequestResponseView {
             return new SignedExchangeInfoView(this.request);
         }
         if (this.request.webBundleInfo()) {
-            return new WebBundleInfoView(this.request);
+            return LegacyWrapper.LegacyWrapper.legacyWrapper(UI.Widget.VBox, new WebBundleInfoView(this.request));
         }
         const htmlErrorPreview = await this.htmlPreview();
         if (htmlErrorPreview) {

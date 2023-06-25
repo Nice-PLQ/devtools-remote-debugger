@@ -52,7 +52,7 @@ export class ComputedStyleModel extends Common.ObjectWrapper.ObjectWrapper {
     }
     onComputedStyleChanged(event) {
         delete this.computedStylePromise;
-        this.dispatchEventToListeners("ComputedStyleChanged" /* ComputedStyleChanged */, event?.data ?? null);
+        this.dispatchEventToListeners("ComputedStyleChanged" /* Events.ComputedStyleChanged */, event?.data ?? null);
     }
     onDOMModelChanged(event) {
         // Any attribute removal or modification can affect the styles of "related" nodes.
@@ -72,7 +72,7 @@ export class ComputedStyleModel extends Common.ObjectWrapper.ObjectWrapper {
         if (this.frameResizedTimer) {
             clearTimeout(this.frameResizedTimer);
         }
-        this.frameResizedTimer = setTimeout(refreshContents.bind(this), 100);
+        this.frameResizedTimer = window.setTimeout(refreshContents.bind(this), 100);
     }
     elementNode() {
         const node = this.node();
@@ -85,14 +85,14 @@ export class ComputedStyleModel extends Common.ObjectWrapper.ObjectWrapper {
         const elementNode = this.elementNode();
         const cssModel = this.cssModel();
         if (!elementNode || !cssModel) {
-            return /** @type {?ComputedStyle} */ null;
+            return null;
         }
         const nodeId = elementNode.id;
         if (!nodeId) {
-            return /** @type {?ComputedStyle} */ null;
+            return null;
         }
         if (!this.computedStylePromise) {
-            this.computedStylePromise = cssModel.computedStylePromise(nodeId).then(verifyOutdated.bind(this, elementNode));
+            this.computedStylePromise = cssModel.getComputedStyle(nodeId).then(verifyOutdated.bind(this, elementNode));
         }
         return this.computedStylePromise;
         function verifyOutdated(elementNode, style) {

@@ -25,7 +25,7 @@ export class SearchSourcesView extends Search.SearchView.SearchView {
         location.appendView(view);
         await UI.ViewManager.ViewManager.instance().revealView(view);
         const widget = await view.widget();
-        widget.toggle(query, Boolean(searchImmediately));
+        void widget.toggle(query, Boolean(searchImmediately));
         return widget;
     }
     createScope() {
@@ -42,7 +42,7 @@ export class ActionDelegate {
         return actionDelegateInstance;
     }
     handleAction(_context, _actionId) {
-        this.showSearch();
+        void this.showSearch();
         return true;
     }
     showSearch() {

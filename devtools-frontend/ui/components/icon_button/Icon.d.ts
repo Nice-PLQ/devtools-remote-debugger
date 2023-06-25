@@ -10,20 +10,13 @@ export interface IconWithName {
     width?: string;
     height?: string;
 }
-export declare type IconData = IconWithPath | IconWithName;
+export type IconData = IconWithPath | IconWithName;
 export declare class Icon extends HTMLElement {
+    #private;
     static readonly litTagName: import("../../lit-html/static.js").Static;
-    private readonly shadow;
-    private iconPath;
-    private color;
-    private width;
-    private height;
-    private iconName?;
     connectedCallback(): void;
     set data(data: IconData);
     get data(): IconData;
-    private getStyles;
-    private render;
 }
 declare global {
     interface HTMLElementTagNameMap {

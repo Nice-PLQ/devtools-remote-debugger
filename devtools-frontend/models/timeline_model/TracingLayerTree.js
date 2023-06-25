@@ -118,6 +118,7 @@ export class TracingLayer {
     scrollRectsInternal;
     gpuMemoryUsageInternal;
     paints;
+    compositingReasons;
     compositingReasonIds;
     drawsContentInternal;
     paintProfilerModel;
@@ -135,6 +136,7 @@ export class TracingLayer {
         this.scrollRectsInternal = [];
         this.gpuMemoryUsageInternal = -1;
         this.paints = [];
+        this.compositingReasons = [];
         this.compositingReasonIds = [];
         this.drawsContentInternal = false;
         this.paintProfilerModel = paintProfilerModel;
@@ -152,14 +154,10 @@ export class TracingLayer {
         this.parentInternal = null;
         this.quadInternal = payload.layer_quad || [];
         this.createScrollRects(payload);
-        // Keep payload.compositing_reasons as a default
-        // but use the newer payload.debug_info.compositing_reasons
-        // if the first one is not set.
-        this.compositingReasonIds =
-            payload.compositing_reason_ids || (payload.debug_info && payload.debug_info.compositing_reason_ids) || [];
+        this.compositingReasons = payload.compositing_reasons || [];
+        this.compositingReasonIds = payload.compositing_reason_ids || [];
         this.drawsContentInternal = Boolean(payload.draws_content);
         this.gpuMemoryUsageInternal = payload.gpu_memory_usage;
-        /** @type {!Array<!LayerPaintEvent>} */
         this.paints = [];
     }
     id() {
@@ -281,13 +279,13 @@ export class TracingLayer {
             nonPayloadScrollRects.push(this.scrollRectsFromParams(payload.non_fast_scrollable_region, 'NonFastScrollable'));
         }
         if (payload.touch_event_handler_region) {
-            nonPayloadScrollRects.push(this.scrollRectsFromParams(payload.touch_event_handler_region, "TouchEventHandler" /* TouchEventHandler */));
+            nonPayloadScrollRects.push(this.scrollRectsFromParams(payload.touch_event_handler_region, "TouchEventHandler" /* Protocol.LayerTree.ScrollRectType.TouchEventHandler */));
         }
         if (payload.wheel_event_handler_region) {
-            nonPayloadScrollRects.push(this.scrollRectsFromParams(payload.wheel_event_handler_region, "WheelEventHandler" /* WheelEventHandler */));
+            nonPayloadScrollRects.push(this.scrollRectsFromParams(payload.wheel_event_handler_region, "WheelEventHandler" /* Protocol.LayerTree.ScrollRectType.WheelEventHandler */));
         }
         if (payload.scroll_event_handler_region) {
-            nonPayloadScrollRects.push(this.scrollRectsFromParams(payload.scroll_event_handler_region, "RepaintsOnScroll" /* RepaintsOnScroll */));
+            nonPayloadScrollRects.push(this.scrollRectsFromParams(payload.scroll_event_handler_region, "RepaintsOnScroll" /* Protocol.LayerTree.ScrollRectType.RepaintsOnScroll */));
         }
         // SDK.LayerBaseTree.Layer.ScrollRectType and Protocol.LayerTree.ScrollRectType are the
         // same type, but we need to use the indirection of the nonPayloadScrollRects since
@@ -296,6 +294,9 @@ export class TracingLayer {
     }
     addPaintEvent(paint) {
         this.paints.push(paint);
+    }
+    requestCompositingReasons() {
+        return Promise.resolve(this.compositingReasons);
     }
     requestCompositingReasonIds() {
         return Promise.resolve(this.compositingReasonIds);

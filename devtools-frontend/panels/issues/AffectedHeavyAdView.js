@@ -5,50 +5,50 @@ import * as i18n from '../../core/i18n/i18n.js';
 import { AffectedResourcesView } from './AffectedResourcesView.js';
 const UIStrings = {
     /**
-    *@description Label for number of affected resources indication in issue view
-    */
+     *@description Label for number of affected resources indication in issue view
+     */
     nResources: '{n, plural, =1 {# resource} other {# resources}}',
     /**
-    *@description Title for a column in an Heavy Ads issue view
-    */
+     *@description Title for a column in an Heavy Ads issue view
+     */
     limitExceeded: 'Limit exceeded',
     /**
-    *@description Title for a column in an Heavy Ads issue view
-    */
+     *@description Title for a column in an Heavy Ads issue view
+     */
     resolutionStatus: 'Resolution Status',
     /**
-    *@description Title for a column in an Heavy Ads issue view
-    */
+     *@description Title for a column in an Heavy Ads issue view
+     */
     frameUrl: 'Frame URL',
     /**
-    * @description When there is a Heavy Ad, the browser can choose to deal with it in different ways.
-    * This string indicates that the ad was bad enough that it was removed.
-    */
+     * @description When there is a Heavy Ad, the browser can choose to deal with it in different ways.
+     * This string indicates that the ad was bad enough that it was removed.
+     */
     removed: 'Removed',
     /**
-    * @description When there is a Heavy Ad, the browser can choose to deal with it in different ways.
-    * This string indicates that the ad was only warned, and not removed.
-    */
+     * @description When there is a Heavy Ad, the browser can choose to deal with it in different ways.
+     * This string indicates that the ad was only warned, and not removed.
+     */
     warned: 'Warned',
     /**
-    *@description Reason for a Heavy Ad being flagged in issue view. The Ad has been flagged as a
-    *Heavy Ad because it exceeded the set limit for peak CPU usage, e.g. it blocked the main thread
-    *for more than 15 seconds in any 30-second window.
-    */
+     *@description Reason for a Heavy Ad being flagged in issue view. The Ad has been flagged as a
+     *Heavy Ad because it exceeded the set limit for peak CPU usage, e.g. it blocked the main thread
+     *for more than 15 seconds in any 30-second window.
+     */
     cpuPeakLimit: 'CPU peak limit',
     /**
-    *@description Reason for a Heavy Ad being flagged in issue view
-    */
+     *@description Reason for a Heavy Ad being flagged in issue view
+     */
     cpuTotalLimit: 'CPU total limit',
     /**
-    *@description Reason for a Heavy Ad being flagged in issue view
-    */
+     *@description Reason for a Heavy Ad being flagged in issue view
+     */
     networkLimit: 'Network limit',
 };
 const str_ = i18n.i18n.registerUIStrings('panels/issues/AffectedHeavyAdView.ts', UIStrings);
 const i18nString = i18n.i18n.getLocalizedString.bind(undefined, str_);
 export class AffectedHeavyAdView extends AffectedResourcesView {
-    appendAffectedHeavyAds(heavyAds) {
+    #appendAffectedHeavyAds(heavyAds) {
         const header = document.createElement('tr');
         this.appendColumnTitle(header, i18nString(UIStrings.limitExceeded));
         this.appendColumnTitle(header, i18nString(UIStrings.resolutionStatus));
@@ -56,7 +56,7 @@ export class AffectedHeavyAdView extends AffectedResourcesView {
         this.affectedResources.appendChild(header);
         let count = 0;
         for (const heavyAd of heavyAds) {
-            this.appendAffectedHeavyAd(heavyAd.details());
+            this.#appendAffectedHeavyAd(heavyAd.details());
             count++;
         }
         this.updateAffectedResourceCount(count);
@@ -64,36 +64,36 @@ export class AffectedHeavyAdView extends AffectedResourcesView {
     getResourceNameWithCount(count) {
         return i18nString(UIStrings.nResources, { n: count });
     }
-    statusToString(status) {
+    #statusToString(status) {
         switch (status) {
-            case "HeavyAdBlocked" /* HeavyAdBlocked */:
+            case "HeavyAdBlocked" /* Protocol.Audits.HeavyAdResolutionStatus.HeavyAdBlocked */:
                 return i18nString(UIStrings.removed);
-            case "HeavyAdWarning" /* HeavyAdWarning */:
+            case "HeavyAdWarning" /* Protocol.Audits.HeavyAdResolutionStatus.HeavyAdWarning */:
                 return i18nString(UIStrings.warned);
         }
         return '';
     }
-    limitToString(status) {
+    #limitToString(status) {
         switch (status) {
-            case "CpuPeakLimit" /* CpuPeakLimit */:
+            case "CpuPeakLimit" /* Protocol.Audits.HeavyAdReason.CpuPeakLimit */:
                 return i18nString(UIStrings.cpuPeakLimit);
-            case "CpuTotalLimit" /* CpuTotalLimit */:
+            case "CpuTotalLimit" /* Protocol.Audits.HeavyAdReason.CpuTotalLimit */:
                 return i18nString(UIStrings.cpuTotalLimit);
-            case "NetworkTotalLimit" /* NetworkTotalLimit */:
+            case "NetworkTotalLimit" /* Protocol.Audits.HeavyAdReason.NetworkTotalLimit */:
                 return i18nString(UIStrings.networkLimit);
         }
         return '';
     }
-    appendAffectedHeavyAd(heavyAd) {
+    #appendAffectedHeavyAd(heavyAd) {
         const element = document.createElement('tr');
         element.classList.add('affected-resource-heavy-ad');
         const reason = document.createElement('td');
         reason.classList.add('affected-resource-heavy-ad-info');
-        reason.textContent = this.limitToString(heavyAd.reason);
+        reason.textContent = this.#limitToString(heavyAd.reason);
         element.appendChild(reason);
         const status = document.createElement('td');
         status.classList.add('affected-resource-heavy-ad-info');
-        status.textContent = this.statusToString(heavyAd.resolution);
+        status.textContent = this.#statusToString(heavyAd.resolution);
         element.appendChild(status);
         const frameId = heavyAd.frame.frameId;
         const frameUrl = this.createFrameCell(frameId, this.issue.getCategory());
@@ -102,7 +102,7 @@ export class AffectedHeavyAdView extends AffectedResourcesView {
     }
     update() {
         this.clear();
-        this.appendAffectedHeavyAds(this.issue.getHeavyAdIssues());
+        this.#appendAffectedHeavyAds(this.issue.getHeavyAdIssues());
     }
 }
 //# sourceMappingURL=AffectedHeavyAdView.js.map

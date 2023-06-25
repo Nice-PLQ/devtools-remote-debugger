@@ -153,23 +153,23 @@ export const getNodeChildren = async (node) => {
  *
  * And you look for F, you'll get back [A, D, F]
  */
-export const getPathToTreeNode = async (tree, nodeToFind) => {
+export const getPathToTreeNode = async (tree, nodeIdToFind) => {
     for (const rootNode of tree) {
-        const foundPathOrNull = await getPathToTreeNodeRecursively(rootNode, nodeToFind, [rootNode]);
+        const foundPathOrNull = await getPathToTreeNodeRecursively(rootNode, nodeIdToFind, [rootNode]);
         if (foundPathOrNull !== null) {
             return foundPathOrNull;
         }
     }
     return null;
 };
-const getPathToTreeNodeRecursively = async (currentNode, nodeToFind, pathToNode) => {
-    if (currentNode.id === nodeToFind.id) {
+const getPathToTreeNodeRecursively = async (currentNode, nodeIdToFind, pathToNode) => {
+    if (currentNode.id === nodeIdToFind) {
         return pathToNode;
     }
     if (currentNode.children) {
         const children = await getNodeChildren(currentNode);
         for (const child of children) {
-            const foundPathOrNull = await getPathToTreeNodeRecursively(child, nodeToFind, [...pathToNode, child]);
+            const foundPathOrNull = await getPathToTreeNodeRecursively(child, nodeIdToFind, [...pathToNode, child]);
             if (foundPathOrNull !== null) {
                 return foundPathOrNull;
             }
@@ -182,7 +182,7 @@ export const findNextNodeForTreeOutlineKeyboardNavigation = (options) => {
     if (!currentTreeNode) {
         return currentDOMNode;
     }
-    if (direction === "ArrowDown" /* DOWN */) {
+    if (direction === "ArrowDown" /* Platform.KeyboardUtilities.ArrowKey.DOWN */) {
         // If the node has expanded children, down takes you into that list.
         if (domNodeIsExpanded(currentDOMNode)) {
             return getFirstChildOfExpandedTreeNode(currentDOMNode);
@@ -198,7 +198,7 @@ export const findNextNodeForTreeOutlineKeyboardNavigation = (options) => {
             return parentSibling;
         }
     }
-    else if (direction === "ArrowRight" /* RIGHT */) {
+    else if (direction === "ArrowRight" /* Platform.KeyboardUtilities.ArrowKey.RIGHT */) {
         if (domNodeIsLeafNode(currentDOMNode)) {
             // If the node cannot be expanded, we have nothing to do and we leave everything as is.
             return currentDOMNode;
@@ -211,7 +211,7 @@ export const findNextNodeForTreeOutlineKeyboardNavigation = (options) => {
         setNodeExpandedState(currentTreeNode, true);
         return currentDOMNode;
     }
-    else if (direction === "ArrowUp" /* UP */) {
+    else if (direction === "ArrowUp" /* Platform.KeyboardUtilities.ArrowKey.UP */) {
         // First see if there is a previous sibling
         const currentNodePreviousSibling = getPreviousSiblingOfCurrentDOMNode(currentDOMNode);
         if (currentNodePreviousSibling) {
@@ -230,7 +230,7 @@ export const findNextNodeForTreeOutlineKeyboardNavigation = (options) => {
             return parentNode;
         }
     }
-    else if (direction === "ArrowLeft" /* LEFT */) {
+    else if (direction === "ArrowLeft" /* Platform.KeyboardUtilities.ArrowKey.LEFT */) {
         // If the node is expanded, we close it.
         if (domNodeIsExpanded(currentDOMNode)) {
             setNodeExpandedState(currentTreeNode, false);

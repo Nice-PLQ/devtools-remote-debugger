@@ -2,31 +2,33 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 import * as i18n from '../../core/i18n/i18n.js';
+import * as Platform from '../../core/platform/platform.js';
 import * as ARIAUtils from './ARIAUtils.js';
+import listWidgetStyles from './listWidget.css.legacy.js';
 import { Toolbar, ToolbarButton } from './Toolbar.js';
 import { Tooltip } from './Tooltip.js';
 import { createInput, createTextButton, ElementFocusRestorer } from './UIUtils.js';
 import { VBox } from './Widget.js';
 const UIStrings = {
     /**
-    *@description Text on a button to start editing text
-    */
+     *@description Text on a button to start editing text
+     */
     editString: 'Edit',
     /**
-    *@description Label for an item to remove something
-    */
+     *@description Label for an item to remove something
+     */
     removeString: 'Remove',
     /**
-    *@description Text to save something
-    */
+     *@description Text to save something
+     */
     saveString: 'Save',
     /**
-    *@description Text to add something
-    */
+     *@description Text to add something
+     */
     addString: 'Add',
     /**
-    *@description Text to cancel something
-    */
+     *@description Text to cancel something
+     */
     cancelString: 'Cancel',
 };
 const str_ = i18n.i18n.registerUIStrings('ui/legacy/ListWidget.ts', UIStrings);
@@ -45,7 +47,7 @@ export class ListWidget extends VBox {
     emptyPlaceholder;
     constructor(delegate, delegatesFocus = true) {
         super(true, delegatesFocus);
-        this.registerRequiredCSS('ui/legacy/listWidget.css');
+        this.registerRequiredCSS(listWidgetStyles);
         this.delegate = delegate;
         this.list = this.contentElement.createChild('div', 'list');
         this.lastSeparator = false;
@@ -125,10 +127,10 @@ export class ListWidget extends VBox {
         controls.createChild('div', 'controls-gradient');
         const buttons = controls.createChild('div', 'controls-buttons');
         const toolbar = new Toolbar('', buttons);
-        const editButton = new ToolbarButton(i18nString(UIStrings.editString), 'largeicon-edit');
+        const editButton = new ToolbarButton(i18nString(UIStrings.editString), 'edit');
         editButton.addEventListener(ToolbarButton.Events.Click, onEditClicked.bind(this));
         toolbar.appendToolbarItem(editButton);
-        const removeButton = new ToolbarButton(i18nString(UIStrings.removeString), 'largeicon-trash-bin');
+        const removeButton = new ToolbarButton(i18nString(UIStrings.removeString), 'bin');
         removeButton.addEventListener(ToolbarButton.Events.Click, onRemoveClicked.bind(this));
         toolbar.appendToolbarItem(removeButton);
         return controls;
@@ -165,6 +167,7 @@ export class ListWidget extends VBox {
         this.stopEditing();
         this.focusRestorer = new ElementFocusRestorer(this.element);
         this.list.classList.add('list-editing');
+        this.element.classList.add('list-editing');
         this.editItem = item;
         this.editElement = element;
         if (element) {
@@ -187,6 +190,7 @@ export class ListWidget extends VBox {
     }
     stopEditing() {
         this.list.classList.remove('list-editing');
+        this.element.classList.remove('list-editing');
         if (this.focusRestorer) {
             this.focusRestorer.restore();
         }
@@ -218,14 +222,14 @@ export class Editor {
     constructor() {
         this.element = document.createElement('div');
         this.element.classList.add('editor-container');
-        this.element.addEventListener('keydown', onKeyDown.bind(null, isEscKey, this.cancelClicked.bind(this)), false);
-        this.element.addEventListener('keydown', onKeyDown.bind(null, event => event.key === 'Enter', this.commitClicked.bind(this)), false);
+        this.element.addEventListener('keydown', onKeyDown.bind(null, Platform.KeyboardUtilities.isEscKey, this.cancelClicked.bind(this)), false);
         this.contentElementInternal = this.element.createChild('div', 'editor-content');
+        this.contentElementInternal.addEventListener('keydown', onKeyDown.bind(null, event => event.key === 'Enter', this.commitClicked.bind(this)), false);
         const buttonsRow = this.element.createChild('div', 'editor-buttons');
         this.commitButton = createTextButton('', this.commitClicked.bind(this), '', true /* primary */);
         buttonsRow.appendChild(this.commitButton);
-        this.cancelButton = createTextButton(i18nString(UIStrings.cancelString), this.cancelClicked.bind(this), '', true /* primary */, 'mousedown');
-        this.cancelButton.addEventListener('keydown', onKeyDown.bind(null, event => event.key === 'Enter', this.cancelClicked.bind(this)), false);
+        this.cancelButton =
+            createTextButton(i18nString(UIStrings.cancelString), this.cancelClicked.bind(this), '', true /* primary */);
         buttonsRow.appendChild(this.cancelButton);
         this.errorMessageContainer = this.element.createChild('div', 'list-widget-input-validation-error');
         ARIAUtils.markAsAlert(this.errorMessageContainer);
@@ -251,7 +255,7 @@ export class Editor {
         input.placeholder = title;
         input.addEventListener('input', this.validateControls.bind(this, false), false);
         input.addEventListener('blur', this.validateControls.bind(this, false), false);
-        ARIAUtils.setAccessibleName(input, title);
+        ARIAUtils.setLabel(input, title);
         this.controlByName.set(name, input);
         this.controls.push(input);
         this.validators.push(validator);
@@ -267,7 +271,7 @@ export class Editor {
         }
         if (title) {
             Tooltip.install(select, title);
-            ARIAUtils.setAccessibleName(select, title);
+            ARIAUtils.setLabel(select, title);
         }
         select.addEventListener('input', this.validateControls.bind(this, false), false);
         select.addEventListener('blur', this.validateControls.bind(this, false), false);

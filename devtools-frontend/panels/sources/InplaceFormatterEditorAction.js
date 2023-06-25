@@ -5,16 +5,16 @@ import * as i18n from '../../core/i18n/i18n.js';
 import * as Formatter from '../../models/formatter/formatter.js';
 import * as Persistence from '../../models/persistence/persistence.js';
 import * as UI from '../../ui/legacy/legacy.js';
-import { Events, registerEditorAction } from './SourcesView.js';
+import { Events, registerEditorAction, } from './SourcesView.js';
 const UIStrings = {
     /**
-    *@description Title of the format button in the Sources panel
-    *@example {file name} PH1
-    */
+     *@description Title of the format button in the Sources panel
+     *@example {file name} PH1
+     */
     formatS: 'Format {PH1}',
     /**
-    *@description Tooltip text that appears when hovering over the largeicon pretty print button in the Inplace Formatter Editor Action of the Sources panel
-    */
+     *@description Tooltip text that appears when hovering over the largeicon pretty print button in the Inplace Formatter Editor Action of the Sources panel
+     */
     format: 'Format',
 };
 const str_ = i18n.i18n.registerUIStrings('panels/sources/InplaceFormatterEditorAction.ts', UIStrings);
@@ -56,7 +56,7 @@ export class InplaceFormatterEditorAction {
         this.sourcesView = sourcesView;
         this.sourcesView.addEventListener(Events.EditorSelected, this.editorSelected.bind(this));
         this.sourcesView.addEventListener(Events.EditorClosed, this.editorClosed.bind(this));
-        this.button = new UI.Toolbar.ToolbarButton(i18nString(UIStrings.format), 'largeicon-pretty-print');
+        this.button = new UI.Toolbar.ToolbarButton(i18nString(UIStrings.format), 'brackets');
         this.button.addEventListener(UI.Toolbar.ToolbarButton.Events.Click, this.formatSourceInPlace, this);
         this.updateButton(sourcesView.currentUISourceCode());
         return this.button;
@@ -68,10 +68,10 @@ export class InplaceFormatterEditorAction {
         if (uiSourceCode.project().canSetFileContent()) {
             return true;
         }
-        if (Persistence.Persistence.PersistenceImpl.instance().binding(uiSourceCode)) {
+        if (Persistence.Persistence.PersistenceImpl.instance().binding(uiSourceCode) !== null) {
             return true;
         }
-        return uiSourceCode.contentType().isStyleSheet();
+        return false;
     }
     formatSourceInPlace() {
         const uiSourceCode = this.sourcesView.currentUISourceCode();
@@ -79,11 +79,11 @@ export class InplaceFormatterEditorAction {
             return;
         }
         if (uiSourceCode.isDirty()) {
-            this.contentLoaded(uiSourceCode, uiSourceCode.workingCopy());
+            void this.contentLoaded(uiSourceCode, uiSourceCode.workingCopy());
         }
         else {
-            uiSourceCode.requestContent().then(deferredContent => {
-                this.contentLoaded(uiSourceCode, deferredContent.content || '');
+            void uiSourceCode.requestContent().then(deferredContent => {
+                void this.contentLoaded(uiSourceCode, deferredContent.content || '');
             });
         }
     }
@@ -102,11 +102,11 @@ export class InplaceFormatterEditorAction {
         const sourceFrame = this.sourcesView.viewForFile(uiSourceCode);
         let start = [0, 0];
         if (sourceFrame) {
-            const selection = sourceFrame.selection();
-            start = formatterMapping.originalToFormatted(selection.startLine, selection.startColumn);
+            const selection = sourceFrame.textEditor.toLineColumn(sourceFrame.textEditor.state.selection.main.head);
+            start = formatterMapping.originalToFormatted(selection.lineNumber, selection.columnNumber);
         }
         uiSourceCode.setWorkingCopy(formattedContent);
-        this.sourcesView.showSourceLocation(uiSourceCode, start[0], start[1]);
+        this.sourcesView.showSourceLocation(uiSourceCode, { lineNumber: start[0], columnNumber: start[1] });
     }
 }
 registerEditorAction(InplaceFormatterEditorAction.instance);

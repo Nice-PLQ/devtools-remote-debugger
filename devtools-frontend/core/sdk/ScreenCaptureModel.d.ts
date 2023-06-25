@@ -1,13 +1,18 @@
 import type * as ProtocolProxyApi from '../../generated/protocol-proxy-api.js';
 import type * as Protocol from '../../generated/protocol.js';
-import type { Target } from './Target.js';
+import { type Target } from './Target.js';
 import { SDKModel } from './SDKModel.js';
+export declare const enum ScreenshotMode {
+    FROM_VIEWPORT = "fromViewport",
+    FROM_CLIP = "fromClip",
+    FULLPAGE = "fullpage"
+}
 export declare class ScreenCaptureModel extends SDKModel<void> implements ProtocolProxyApi.PageDispatcher {
     #private;
     constructor(target: Target);
     startScreencast(format: Protocol.Page.StartScreencastRequestFormat, quality: number, maxWidth: number | undefined, maxHeight: number | undefined, everyNthFrame: number | undefined, onFrame: (arg0: Protocol.binary, arg1: Protocol.Page.ScreencastFrameMetadata) => void, onVisibilityChanged: (arg0: boolean) => void): void;
     stopScreencast(): void;
-    captureScreenshot(format: Protocol.Page.CaptureScreenshotRequestFormat, quality: number, clip?: Protocol.Page.Viewport): Promise<string | null>;
+    captureScreenshot(format: Protocol.Page.CaptureScreenshotRequestFormat, quality: number, mode: ScreenshotMode, clip?: Protocol.Page.Viewport): Promise<string | null>;
     fetchLayoutMetrics(): Promise<{
         viewportX: number;
         viewportY: number;
@@ -41,4 +46,7 @@ export declare class ScreenCaptureModel extends SDKModel<void> implements Protoc
     compilationCacheProduced(_params: Protocol.Page.CompilationCacheProducedEvent): void;
     downloadWillBegin(_params: Protocol.Page.DownloadWillBeginEvent): void;
     downloadProgress(): void;
+    prerenderAttemptCompleted(_params: Protocol.Preload.PrerenderAttemptCompletedEvent): void;
+    prefetchStatusUpdated(_params: Protocol.Preload.PrefetchStatusUpdatedEvent): void;
+    prerenderStatusUpdated(_params: Protocol.Preload.PrerenderStatusUpdatedEvent): void;
 }

@@ -55,7 +55,7 @@ export class InspectorBackend {
     getOrCreateEventParameterNamesForDomainForTesting(domain) {
         return this.getOrCreateEventParameterNamesForDomain(domain);
     }
-    getEventParamterNames() {
+    getEventParameterNames() {
         return this.#eventParameterNamesForDomain;
     }
     static reportProtocolError(error, messageObject) {
@@ -82,13 +82,13 @@ export class InspectorBackend {
     }
     registerEnum(type, values) {
         const [domain, name] = splitQualifiedName(type);
-        // @ts-ignore Protocol global namespace pollution
-        if (!Protocol[domain]) {
-            // @ts-ignore Protocol global namespace pollution
-            Protocol[domain] = {};
+        // @ts-ignore globalThis global namespace pollution
+        if (!globalThis.Protocol[domain]) {
+            // @ts-ignore globalThis global namespace pollution
+            globalThis.Protocol[domain] = {};
         }
-        // @ts-ignore Protocol global namespace pollution
-        Protocol[domain][name] = values;
+        // @ts-ignore globalThis global namespace pollution
+        globalThis.Protocol[domain][name] = values;
         this.#initialized = true;
     }
     registerEvent(eventName, params) {
@@ -239,9 +239,9 @@ export class SessionRouter {
         session.callbacks.set(messageId, { callback, method });
         this.#connectionInternal.sendRawMessage(JSON.stringify(messageObject));
     }
-    sendRawMessageForTesting(method, params, callback) {
+    sendRawMessageForTesting(method, params, callback, sessionId = '') {
         const domain = method.split('.')[0];
-        this.sendMessage('', domain, method, params, callback || (() => { }));
+        this.sendMessage(sessionId, domain, method, params, callback || (() => { }));
     }
     onMessage(message) {
         if (test.dumpProtocol) {
@@ -284,6 +284,10 @@ export class SessionRouter {
             const callback = session.callbacks.get(messageObject.id);
             session.callbacks.delete(messageObject.id);
             if (!callback) {
+                if (messageObject.error?.code === ConnectionClosedErrorCode) {
+                    // Ignore the errors that are sent as responses after the session closes.
+                    return;
+                }
                 if (!suppressUnknownMessageErrors) {
                     InspectorBackend.reportProtocolError('Protocol Error: the message with wrong id', messageObject);
                 }
@@ -314,7 +318,7 @@ export class SessionRouter {
             this.#pendingScripts.push(script);
         }
         // Execute all promises.
-        setTimeout(() => {
+        window.setTimeout(() => {
             if (!this.hasOutstandingNonLongPollingRequests()) {
                 this.executeAfterPendingDispatches();
             }
@@ -338,7 +342,7 @@ export class SessionRouter {
             code: ConnectionClosedErrorCode,
             data: null,
         };
-        setTimeout(() => callback(error, null), 0);
+        window.setTimeout(() => callback(error, null), 0);
     }
     static dispatchUnregisterSessionError({ callback, method }) {
         const error = {
@@ -346,7 +350,7 @@ export class SessionRouter {
             code: ConnectionClosedErrorCode,
             data: null,
         };
-        setTimeout(() => callback(error, null), 0);
+        window.setTimeout(() => callback(error, null), 0);
     }
 }
 export class TargetBase {
@@ -378,7 +382,7 @@ export class TargetBase {
             agent.target = this;
             this.#agents.set(domain, agent);
         }
-        for (const [domain, eventParameterNames] of inspectorBackend.getEventParamterNames().entries()) {
+        for (const [domain, eventParameterNames] of inspectorBackend.getEventParameterNames().entries()) {
             this.#dispatchers.set(domain, new DispatcherManager(eventParameterNames));
         }
     }
@@ -464,6 +468,12 @@ export class TargetBase {
     emulationAgent() {
         return this.getAgent('Emulation');
     }
+    eventBreakpointsAgent() {
+        return this.getAgent('EventBreakpoints');
+    }
+    fetchAgent() {
+        return this.getAgent('Fetch');
+    }
     heapProfilerAgent() {
         return this.getAgent('HeapProfiler');
     }
@@ -500,6 +510,9 @@ export class TargetBase {
     pageAgent() {
         return this.getAgent('Page');
     }
+    preloadAgent() {
+        return this.getAgent('Preload');
+    }
     profilerAgent() {
         return this.getAgent('Profiler');
     }
@@ -517,6 +530,9 @@ export class TargetBase {
     }
     storageAgent() {
         return this.getAgent('Storage');
+    }
+    systemInfo() {
+        return this.getAgent('SystemInfo');
     }
     targetAgent() {
         return this.getAgent('Target');
@@ -553,6 +569,9 @@ export class TargetBase {
         }
         manager.removeDomainDispatcher(dispatcher);
     }
+    registerAccessibilityDispatcher(dispatcher) {
+        this.registerDispatcher('Accessibility', dispatcher);
+    }
     registerAnimationDispatcher(dispatcher) {
         this.registerDispatcher('Animation', dispatcher);
     }
@@ -580,6 +599,9 @@ export class TargetBase {
     registerDOMStorageDispatcher(dispatcher) {
         this.registerDispatcher('DOMStorage', dispatcher);
     }
+    registerFetchDispatcher(dispatcher) {
+        this.registerDispatcher('Fetch', dispatcher);
+    }
     registerHeapProfilerDispatcher(dispatcher) {
         this.registerDispatcher('HeapProfiler', dispatcher);
     }
@@ -603,6 +625,9 @@ export class TargetBase {
     }
     registerPageDispatcher(dispatcher) {
         this.registerDispatcher('Page', dispatcher);
+    }
+    registerPreloadDispatcher(dispatcher) {
+        this.registerDispatcher('Preload', dispatcher);
     }
     registerProfilerDispatcher(dispatcher) {
         this.registerDispatcher('Profiler', dispatcher);
@@ -628,6 +653,9 @@ export class TargetBase {
     registerWebAudioDispatcher(dispatcher) {
         this.registerDispatcher('WebAudio', dispatcher);
     }
+    registerWebAuthnDispatcher(dispatcher) {
+        this.registerDispatcher('WebAuthn', dispatcher);
+    }
     getNeedsNodeJSPatching() {
         return this.needsNodeJSPatching;
     }
@@ -645,11 +673,13 @@ export class TargetBase {
 // eslint-disable-next-line @typescript-eslint/naming-convention
 class _AgentPrototype {
     replyArgs;
+    commandParameters;
     domain;
     target;
     constructor(domain) {
         this.replyArgs = {};
         this.domain = domain;
+        this.commandParameters = {};
     }
     registerCommand(methodName, parameters, replyArgs) {
         const domainAndMethod = qualifyName(this.domain, methodName);
@@ -658,6 +688,7 @@ class _AgentPrototype {
         }
         // @ts-ignore Method code generation
         this[methodName] = sendMessagePromise;
+        this.commandParameters[domainAndMethod] = parameters;
         function invoke(request = {}) {
             return this.invoke(domainAndMethod, request);
         }

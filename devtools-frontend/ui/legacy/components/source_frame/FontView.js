@@ -32,15 +32,16 @@ import * as i18n from '../../../../core/i18n/i18n.js';
 import * as Platform from '../../../../core/platform/platform.js';
 import * as TextUtils from '../../../../models/text_utils/text_utils.js';
 import * as UI from '../../legacy.js';
+import fontViewStyles from './fontView.css.legacy.js';
 const UIStrings = {
     /**
-    *@description Text that appears on a button for the font resource type filter.
-    */
+     *@description Text that appears on a button for the font resource type filter.
+     */
     font: 'Font',
     /**
-    *@description Aria accessible name in Font View of the Sources panel
-    *@example {https://example.com} PH1
-    */
+     *@description Aria accessible name in Font View of the Sources panel
+     *@example {https://example.com} PH1
+     */
     previewOfFontFromS: 'Preview of font from {PH1}',
 };
 const str_ = i18n.i18n.registerUIStrings('ui/legacy/components/source_frame/FontView.ts', UIStrings);
@@ -56,10 +57,10 @@ export class FontView extends UI.View.SimpleView {
     inResize;
     constructor(mimeType, contentProvider) {
         super(i18nString(UIStrings.font));
-        this.registerRequiredCSS('ui/legacy/components/source_frame/fontView.css');
+        this.registerRequiredCSS(fontViewStyles);
         this.element.classList.add('font-view');
         this.url = contentProvider.contentURL();
-        UI.ARIAUtils.setAccessibleName(this.element, i18nString(UIStrings.previewOfFontFromS, { PH1: this.url }));
+        UI.ARIAUtils.setLabel(this.element, i18nString(UIStrings.previewOfFontFromS, { PH1: this.url }));
         this.mimeType = mimeType;
         this.contentProvider = contentProvider;
         this.mimeTypeLabel = new UI.Toolbar.ToolbarText(mimeType);
@@ -83,7 +84,7 @@ export class FontView extends UI.View.SimpleView {
         }
         const uniqueFontName = 'WebInspectorFontPreview' + (++_fontId);
         this.fontStyleElement = document.createElement('style');
-        this.contentProvider.requestContent().then(deferredContent => {
+        void this.contentProvider.requestContent().then(deferredContent => {
             this.onFontContentLoaded(uniqueFontName, deferredContent);
         });
         this.element.appendChild(this.fontStyleElement);

@@ -1,8 +1,9 @@
 import type * as Common from '../../core/common/common.js';
+import * as DOMPinnedProperties from './DOMPinnedProperties.js';
 export declare class JavaScriptMetadataImpl implements Common.JavaScriptMetaData.JavaScriptMetaData {
+    static readonly domPinnedProperties: typeof DOMPinnedProperties;
     private readonly uniqueFunctions;
-    private readonly instanceMethods;
-    private readonly staticMethods;
+    private readonly receiverMethods;
     static instance(opts?: {
         forceNew: boolean | null;
     }): JavaScriptMetadataImpl;

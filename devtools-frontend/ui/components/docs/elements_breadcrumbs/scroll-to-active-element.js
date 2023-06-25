@@ -1,10 +1,12 @@
 // Copyright 2020 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
+import * as FrontendHelpers from '../../../../../test/unittests/front_end/helpers/EnvironmentHelpers.js';
 import * as Elements from '../../../../panels/elements/components/components.js';
 import * as ComponentHelpers from '../../helpers/helpers.js';
 import { makeCrumb } from './helpers.js';
 await ComponentHelpers.ComponentServerSetup.setup();
+await FrontendHelpers.initializeGlobalVars();
 const component = new Elements.ElementsBreadcrumbs.ElementsBreadcrumbs();
 const bodyCrumb = makeCrumb({
     nodeType: Node.ELEMENT_NODE,
@@ -48,11 +50,15 @@ const emCrumb = makeCrumb({
     nodeNameNicelyCased: 'em',
     attributes: { id: 'my-em-has-a-long-id', class: 'and-a-very-long-class' },
 });
-document.getElementById('container')?.appendChild(component);
+const crumbs = [emCrumb, strongCrumb, spanCrumb, divCrumb, bodyCrumb];
+const crumbsReversed = [...crumbs].reverse();
+const selectedNodeParam = new URLSearchParams(location.search)?.get('selectedCrumbIndex');
+const selectedNode = selectedNodeParam ? crumbsReversed[Number(selectedNodeParam)] : bodyCrumb;
 component.data = {
-    crumbs: [emCrumb, strongCrumb, spanCrumb, divCrumb, bodyCrumb],
-    selectedNode: bodyCrumb,
+    crumbs,
+    selectedNode,
 };
+document.getElementById('container')?.appendChild(component);
 const button = component.shadowRoot?.querySelector?.('button.overflow.right');
 button?.dispatchEvent(new MouseEvent('click'));
 // Each subsequent click is timed out to allow the smooth scroll to finish.

@@ -1,3 +1,4 @@
+import type * as Platform from '../../core/platform/platform.js';
 export declare class SoftContextMenu {
     private items;
     private itemSelectedCallback;
@@ -8,11 +9,14 @@ export declare class SoftContextMenu {
     private glassPane?;
     private contextMenuElement?;
     private focusRestorer?;
-    private hideOnUserGesture?;
+    private hideOnUserMouseDownUnlessInMenu?;
     private activeSubMenuElement?;
     private subMenu?;
-    constructor(items: SoftContextMenuDescriptor[], itemSelectedCallback: (arg0: number) => void, parentMenu?: SoftContextMenu);
+    private onMenuClosed?;
+    private focusOnTheFirstItem;
+    constructor(items: SoftContextMenuDescriptor[], itemSelectedCallback: (arg0: number) => void, parentMenu?: SoftContextMenu, onMenuClosed?: () => void);
     show(document: Document, anchorBox: AnchorBox): void;
+    setContextMenuElementLabel(label: string): void;
     discard(): void;
     private createMenuItem;
     private createSubMenu;
@@ -28,9 +32,11 @@ export declare class SoftContextMenu {
     private highlightPrevious;
     private highlightNext;
     private menuKeyDown;
+    markAsMenuItemCheckBox(): void;
+    setFocusOnTheFirstItem(focusOnTheFirstItem: boolean): void;
 }
 export interface SoftContextMenuDescriptor {
-    type: string;
+    type: 'checkbox' | 'item' | 'separator' | 'subMenu';
     id?: number;
     label?: string;
     enabled?: boolean;
@@ -38,6 +44,7 @@ export interface SoftContextMenuDescriptor {
     subItems?: SoftContextMenuDescriptor[];
     element?: Element;
     shortcut?: string;
+    tooltip?: Platform.UIString.LocalizedString;
 }
 interface ElementMenuDetails {
     customElement?: HTMLElement;

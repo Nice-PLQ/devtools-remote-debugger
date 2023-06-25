@@ -7,16 +7,16 @@ import * as Root from '../../../../core/root/root.js';
 import * as UI from '../../legacy.js';
 const UIStrings = {
     /**
-       *@description Title of a setting under the Performance category in Settings
-      */
+     *@description Title of a setting under the Performance category in Settings
+     */
     flamechartMouseWheelAction: 'Flamechart mouse wheel action:',
     /**
-       *@description The action to scroll
-      */
+     *@description The action to scroll
+     */
     scroll: 'Scroll',
     /**
-       *@description Text for zooming in
-      */
+     *@description Text for zooming in
+     */
     zoom: 'Zoom',
     /**
      * @description Title of a setting under the Memory category in Settings. Live memory is memory
@@ -26,16 +26,16 @@ const UIStrings = {
      */
     liveMemoryAllocationAnnotations: 'Live memory allocation annotations',
     /**
-       *@description Title of a setting under the Memory category that can be invoked through the Command Menu
-      */
+     *@description Title of a setting under the Memory category that can be invoked through the Command Menu
+     */
     showLiveMemoryAllocation: 'Show live memory allocation annotations',
     /**
-       *@description Title of a setting under the Memory category that can be invoked through the Command Menu
-      */
+     *@description Title of a setting under the Memory category that can be invoked through the Command Menu
+     */
     hideLiveMemoryAllocation: 'Hide live memory allocation annotations',
     /**
-       *@description Title of an action in the components tool to collect garbage
-      */
+     *@description Title of an action in the components tool to collect garbage
+     */
     collectGarbage: 'Collect garbage',
 };
 const str_ = i18n.i18n.registerUIStrings('ui/legacy/components/perf_ui/perf_ui-meta.ts', UIStrings);
@@ -43,8 +43,6 @@ const i18nLazyString = i18n.i18n.getLazilyComputedLocalizedString.bind(undefined
 let loadedPerfUIModule;
 async function loadPerfUIModule() {
     if (!loadedPerfUIModule) {
-        // Side-effect import resources in module.json
-        await Root.Runtime.Runtime.instance().loadModulePromise('perf_ui');
         loadedPerfUIModule = await import('./perf_ui.js');
     }
     return loadedPerfUIModule;
@@ -53,7 +51,7 @@ UI.ActionRegistration.registerActionExtension({
     actionId: 'components.collect-garbage',
     category: UI.ActionRegistration.ActionCategory.PERFORMANCE,
     title: i18nLazyString(UIStrings.collectGarbage),
-    iconClass: "largeicon-trash-bin" /* LARGEICON_TRASH_BIN */,
+    iconClass: "bin" /* UI.ActionRegistration.IconClass.BIN */,
     async loadActionDelegate() {
         const PerfUI = await loadPerfUIModule();
         return PerfUI.GCActionDelegate.GCActionDelegate.instance();

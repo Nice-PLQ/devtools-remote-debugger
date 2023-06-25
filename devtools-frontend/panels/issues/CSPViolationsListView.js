@@ -8,12 +8,12 @@ import * as UI from '../../ui/legacy/legacy.js';
 import * as LitHtml from '../../ui/lit-html/lit-html.js';
 import cspViolationsListViewStyles from './cspViolationsListView.css.js';
 export class CSPViolationsListView extends UI.Widget.VBox {
-    table = new DataGrid.DataGridController.DataGridController();
-    categoryFilter = new Set();
-    issueRows = new Map();
+    #table = new DataGrid.DataGridController.DataGridController();
+    #categoryFilter = new Set();
+    #issueRows = new Map();
     constructor() {
         super(true);
-        this.table.data = {
+        this.#table.data = {
             columns: [
                 { id: 'sourceCode', title: 'Source Code', sortable: false, widthWeighting: 1, visible: true, hideable: false },
                 {
@@ -29,31 +29,31 @@ export class CSPViolationsListView extends UI.Widget.VBox {
             ],
             rows: [],
         };
-        this.contentElement.appendChild(this.table);
+        this.contentElement.appendChild(this.#table);
     }
     updateTextFilter(filter) {
         if (filter.length === 0) {
-            this.table.data = { ...this.table.data, filters: [] };
+            this.#table.data = { ...this.#table.data, filters: [] };
         }
         else {
-            this.table.data = {
-                ...this.table.data,
+            this.#table.data = {
+                ...this.#table.data,
                 filters: [{ text: filter, key: undefined, regex: undefined, negative: false }],
             };
         }
     }
     updateCategoryFilter(categories) {
-        this.categoryFilter = categories;
+        this.#categoryFilter = categories;
         const rows = [];
-        for (const [issue, row] of this.issueRows.entries()) {
-            if (this.isIssueInFilterCategories(issue)) {
+        for (const [issue, row] of this.#issueRows.entries()) {
+            if (this.#isIssueInFilterCategories(issue)) {
                 rows.push(row);
             }
         }
-        this.table.data = { ...this.table.data, rows: rows };
+        this.#table.data = { ...this.#table.data, rows: rows };
     }
-    isIssueInFilterCategories(issue) {
-        return (this.categoryFilter.has(issue.code()) || this.categoryFilter.size === 0);
+    #isIssueInFilterCategories(issue) {
+        return (this.#categoryFilter.has(issue.code()) || this.#categoryFilter.size === 0);
     }
     addIssue(issue) {
         const location = IssuesManager.Issue.toZeroBasedLocation(issue.details().sourceCodeLocation);
@@ -61,7 +61,7 @@ export class CSPViolationsListView extends UI.Widget.VBox {
             return;
         }
         const status = issue.details().isReportOnly ? 'report-only' : 'blocked';
-        const category = this.issueViolationCodeToCategoryName(issue.code());
+        const category = this.#issueViolationCodeToCategoryName(issue.code());
         const newIssue = {
             cells: [
                 {
@@ -76,17 +76,17 @@ export class CSPViolationsListView extends UI.Widget.VBox {
                 { columnId: 'status', value: status },
             ],
         };
-        this.issueRows.set(issue, newIssue);
-        if (this.isIssueInFilterCategories(issue)) {
-            this.table.data.rows.push(newIssue);
-            this.table.data = { ...this.table.data };
+        this.#issueRows.set(issue, newIssue);
+        if (this.#isIssueInFilterCategories(issue)) {
+            this.#table.data.rows.push(newIssue);
+            this.#table.data = { ...this.#table.data };
         }
     }
     clearIssues() {
-        this.issueRows.clear();
-        this.table.data = { ...this.table.data, rows: [] };
+        this.#issueRows.clear();
+        this.#table.data = { ...this.#table.data, rows: [] };
     }
-    issueViolationCodeToCategoryName(code) {
+    #issueViolationCodeToCategoryName(code) {
         if (code === IssuesManager.ContentSecurityPolicyIssue.inlineViolationCode) {
             return 'Inline Violation';
         }

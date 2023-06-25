@@ -1,3 +1,4 @@
+import * as Common from '../../core/common/common.js';
 import * as SDK from '../../core/sdk/sdk.js';
 import * as UI from '../../ui/legacy/legacy.js';
 export declare class MediaQueryInspector extends UI.Widget.Widget implements SDK.TargetManager.SDKModelObserver<SDK.CSSModel.CSSModel> {
@@ -9,7 +10,7 @@ export declare class MediaQueryInspector extends UI.Widget.Widget implements SDK
     elementsToCSSLocations: WeakMap<Element, SDK.CSSModel.CSSLocation[]>;
     private cssModel?;
     private cachedQueryModels?;
-    constructor(getWidthCallback: () => number, setWidthCallback: (arg0: number) => void);
+    constructor(getWidthCallback: () => number, setWidthCallback: (arg0: number) => void, mediaThrottler: Common.Throttler.Throttler);
     modelAdded(cssModel: SDK.CSSModel.CSSModel): void;
     modelRemoved(cssModel: SDK.CSSModel.CSSModel): void;
     setAxisTransform(scale: number): void;

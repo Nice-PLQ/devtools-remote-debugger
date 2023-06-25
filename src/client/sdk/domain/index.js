@@ -1,5 +1,6 @@
 import Dom from './dom';
 import DomStorage from './dom-storage';
+import Storage from './storage';
 import Overlay from './overlay';
 import Runtime from './runtime';
 import Page from './page';
@@ -36,6 +37,7 @@ export default class ChromeDomain {
     const domains = [
       new Dom(options),
       new DomStorage(options),
+      new Storage(options),
       new Overlay(options),
       new Runtime(options),
       new Page(options),

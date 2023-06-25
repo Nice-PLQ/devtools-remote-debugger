@@ -42,13 +42,15 @@ export class Item {
     idInternal;
     customElement;
     shortcut;
-    constructor(contextMenu, type, label, disabled, checked) {
+    #tooltip;
+    constructor(contextMenu, type, label, disabled, checked, tooltip) {
         this.typeInternal = type;
         this.label = label;
         this.disabled = disabled;
         this.checked = checked;
         this.contextMenu = contextMenu;
         this.idInternal = undefined;
+        this.#tooltip = tooltip;
         if (type === 'item' || type === 'checkbox') {
             this.idInternal = contextMenu ? contextMenu.nextId() : 0;
         }
@@ -78,14 +80,13 @@ export class Item {
                     enabled: !this.disabled,
                     checked: undefined,
                     subItems: undefined,
+                    tooltip: this.#tooltip,
                 };
                 if (this.customElement) {
-                    const resultAsSoftContextMenuItem = result;
-                    resultAsSoftContextMenuItem.element = this.customElement;
+                    result.element = this.customElement;
                 }
                 if (this.shortcut) {
-                    const resultAsSoftContextMenuItem = result;
-                    resultAsSoftContextMenuItem.shortcut = this.shortcut;
+                    result.shortcut = this.shortcut;
                 }
                 return result;
             }
@@ -100,7 +101,7 @@ export class Item {
                 };
             }
             case 'checkbox': {
-                return {
+                const result = {
                     type: 'checkbox',
                     id: this.idInternal,
                     label: this.label,
@@ -108,6 +109,10 @@ export class Item {
                     enabled: !this.disabled,
                     subItems: undefined,
                 };
+                if (this.customElement) {
+                    result.element = this.customElement;
+                }
+                return result;
             }
         }
         throw new Error('Invalid item type:' + this.typeInternal);
@@ -123,8 +128,11 @@ export class Section {
         this.contextMenu = contextMenu;
         this.items = [];
     }
-    appendItem(label, handler, disabled) {
-        const item = new Item(this.contextMenu, 'item', label, disabled);
+    appendItem(label, handler, disabled, additionalElement, tooltip) {
+        const item = new Item(this.contextMenu, 'item', label, disabled, undefined, tooltip);
+        if (additionalElement) {
+            item.customElement = additionalElement;
+        }
         this.items.push(item);
         if (this.contextMenu) {
             this.contextMenu.setHandler(item.id(), handler);
@@ -132,7 +140,7 @@ export class Section {
         return item;
     }
     appendCustomItem(element) {
-        const item = new Item(this.contextMenu, 'item', '<custom>');
+        const item = new Item(this.contextMenu, 'item');
         item.customElement = element;
         this.items.push(item);
         return item;
@@ -165,11 +173,14 @@ export class Section {
         this.items.push(item);
         return item;
     }
-    appendCheckboxItem(label, handler, checked, disabled) {
+    appendCheckboxItem(label, handler, checked, disabled, additionalElement) {
         const item = new Item(this.contextMenu, 'checkbox', label, disabled, checked);
         this.items.push(item);
         if (this.contextMenu) {
             this.contextMenu.setHandler(item.id(), handler);
+        }
+        if (additionalElement) {
+            item.customElement = additionalElement;
         }
         return item;
     }
@@ -298,9 +309,11 @@ export class ContextMenu extends SubMenu {
     useSoftMenu;
     x;
     y;
+    onSoftMenuClosed;
     handlers;
     idInternal;
     softMenu;
+    contextMenuLabel;
     constructor(event, options = {}) {
         super(null);
         const mouseEvent = event;
@@ -313,6 +326,7 @@ export class ContextMenu extends SubMenu {
         this.useSoftMenu = Boolean(options.useSoftMenu);
         this.x = options.x === undefined ? mouseEvent.x : options.x;
         this.y = options.y === undefined ? mouseEvent.y : options.y;
+        this.onSoftMenuClosed = options.onSoftMenuClosed;
         this.handlers = new Map();
         this.idInternal = 0;
         const target = deepElementFromEvent(event);
@@ -330,7 +344,7 @@ export class ContextMenu extends SubMenu {
         doc.body.addEventListener('contextmenu', handler, false);
         function handler(event) {
             const contextMenu = new ContextMenu(event);
-            contextMenu.show();
+            void contextMenu.show();
         }
     }
     nextId() {
@@ -370,8 +384,15 @@ export class ContextMenu extends SubMenu {
         const ownerDocument = eventTarget.ownerDocument;
         if (this.useSoftMenu || ContextMenu.useSoftMenu ||
             Host.InspectorFrontendHost.InspectorFrontendHostInstance.isHostedMode()) {
-            this.softMenu = new SoftContextMenu(menuObject, this.itemSelected.bind(this));
+            this.softMenu = new SoftContextMenu(menuObject, this.itemSelected.bind(this), undefined, this.onSoftMenuClosed);
+            // let soft context menu focus on the first item when the event is triggered by a non-mouse event
+            // add another check of button value to differentiate mouse event with 'shift + f10' keyboard event
+            const isMouseEvent = this.event.pointerType === 'mouse' && this.event.button >= 0;
+            this.softMenu.setFocusOnTheFirstItem(!isMouseEvent);
             this.softMenu.show(ownerDocument, new AnchorBox(this.x, this.y, 0, 0));
+            if (this.contextMenuLabel) {
+                this.softMenu.setContextMenuElementLabel(this.contextMenuLabel);
+            }
         }
         else {
             Host.InspectorFrontendHost.InspectorFrontendHostInstance.showContextMenuAtPoint(this.x, this.y, menuObject, ownerDocument);
@@ -383,6 +404,9 @@ export class ContextMenu extends SubMenu {
             // so we skip it before subscribing to the clear event.
             queueMicrotask(listenToEvents.bind(this));
         }
+    }
+    setContextMenuLabel(label) {
+        this.contextMenuLabel = label;
     }
     setX(x) {
         this.x = x;
@@ -396,9 +420,7 @@ export class ContextMenu extends SubMenu {
         }
     }
     buildMenuDescriptors() {
-        return /** @type {!Array.<!Host.InspectorFrontendHostAPI.ContextMenuDescriptor|!SoftContextMenuDescriptor>} */ super
-            .buildDescriptor()
-            .subItems;
+        return super.buildDescriptor().subItems;
     }
     onItemSelected(event) {
         this.itemSelected(event.data);
@@ -420,6 +442,11 @@ export class ContextMenu extends SubMenu {
     appendApplicableItems(target) {
         this.pendingPromises.push(loadApplicableRegisteredProviders(target));
         this.pendingTargets.push(target);
+    }
+    markAsMenuItemCheckBox() {
+        if (this.softMenu) {
+            this.softMenu.markAsMenuItemCheckBox();
+        }
     }
     static pendingMenu = null;
     static useSoftMenu = false;

@@ -5,14 +5,10 @@ export interface SyncSectionData {
     syncSetting: Common.Settings.Setting<boolean>;
 }
 export declare class SyncSection extends HTMLElement {
+    #private;
     static readonly litTagName: import("../../../ui/lit-html/static.js").Static;
-    private readonly shadow;
-    private syncInfo;
-    private syncSetting?;
-    private boundRender;
     connectedCallback(): void;
     set data(data: SyncSectionData);
-    private render;
 }
 declare global {
     interface HTMLElementTagNameMap {

@@ -13,7 +13,7 @@ export declare class Fragment {
 export declare const textMarker = "{{template-text}}";
 export declare const attributeMarker: (index: number) => string;
 export declare const html: (strings: TemplateDefinition, ...vararg: any[]) => Element;
-export declare type TemplateDefinition = string[] | TemplateStringsArray;
+export type TemplateDefinition = string[] | TemplateStringsArray;
 export interface Bind {
     elementId?: string;
     attr?: {

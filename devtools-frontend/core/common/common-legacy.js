@@ -13,14 +13,6 @@ Common.App = CommonModule.App.App;
  * @interface
  */
 Common.AppProvider = CommonModule.AppProvider.AppProvider;
-/**
- * @constructor
- */
-Common.Color = CommonModule.Color.Color;
-/**
- * @enum {string}
- */
-Common.Color.Format = CommonModule.Color.Format;
 Common.console = CommonModule.Console.Console.instance();
 /**
  * @constructor

@@ -7,62 +7,63 @@ import * as Platform from '../../core/platform/platform.js';
 import * as SDK from '../../core/sdk/sdk.js';
 import * as DataGrid from '../../ui/legacy/components/data_grid/data_grid.js';
 import * as UI from '../../ui/legacy/legacy.js';
+import * as ApplicationComponents from './components/components.js';
 import serviceWorkerCacheViewsStyles from './serviceWorkerCacheViews.css.js';
 import * as Network from '../network/network.js';
 const UIStrings = {
     /**
-    *@description Text in Application Panel Sidebar of the Application panel
-    */
+     *@description Text in Application Panel Sidebar of the Application panel
+     */
     cache: 'Cache',
     /**
-    *@description Text to refresh the page
-    */
+     *@description Text to refresh the page
+     */
     refresh: 'Refresh',
     /**
-    *@description Tooltip text that appears when hovering over the largeicon delete button in the Service Worker Cache Views of the Application panel
-    */
+     *@description Tooltip text that appears when hovering over the largeicon delete button in the Service Worker Cache Views of the Application panel
+     */
     deleteSelected: 'Delete Selected',
     /**
-    *@description Text in Service Worker Cache Views of the Application panel
-    */
+     *@description Text in Service Worker Cache Views of the Application panel
+     */
     filterByPath: 'Filter by Path',
     /**
-    *@description Text in Service Worker Cache Views of the Application panel
-    */
+     *@description Text in Service Worker Cache Views of the Application panel
+     */
     selectACacheEntryAboveToPreview: 'Select a cache entry above to preview',
     /**
-    *@description Text for the name of something
-    */
+     *@description Text for the name of something
+     */
     name: 'Name',
     /**
-    *@description Text in Service Worker Cache Views of the Application panel
-    */
+     *@description Text in Service Worker Cache Views of the Application panel
+     */
     timeCached: 'Time Cached',
     /**
-    * @description Tooltip text that appears when hovering over the vary header column in the Service Worker Cache Views of the Application panel
-    */
+     * @description Tooltip text that appears when hovering over the vary header column in the Service Worker Cache Views of the Application panel
+     */
     varyHeaderWarning: '⚠️ Set ignoreVary to true when matching this entry',
     /**
-    *@description Text used to show that data was retrieved from ServiceWorker Cache
-    */
+     *@description Text used to show that data was retrieved from ServiceWorker Cache
+     */
     serviceWorkerCache: '`Service Worker` Cache',
     /**
-    *@description Span text content in Service Worker Cache Views of the Application panel
-    *@example {2} PH1
-    */
+     *@description Span text content in Service Worker Cache Views of the Application panel
+     *@example {2} PH1
+     */
     matchingEntriesS: 'Matching entries: {PH1}',
     /**
-    *@description Span text content in Indexed DBViews of the Application panel
-    *@example {2} PH1
-    */
+     *@description Span text content in Indexed DBViews of the Application panel
+     *@example {2} PH1
+     */
     totalEntriesS: 'Total entries: {PH1}',
     /**
-    *@description Text for network request headers
-    */
+     *@description Text for network request headers
+     */
     headers: 'Headers',
     /**
-    *@description Text for previewing items
-    */
+     *@description Text for previewing items
+     */
     preview: 'Preview',
 };
 const str_ = i18n.i18n.registerUIStrings('panels/application/ServiceWorkerCacheViews.ts', UIStrings);
@@ -82,6 +83,7 @@ export class ServiceWorkerCacheView extends UI.View.SimpleView {
     returnCount;
     summaryBarElement;
     loadingPromise;
+    metadataView = new ApplicationComponents.StorageMetadataView.StorageMetadataView();
     constructor(model, cache) {
         super(i18nString(UIStrings.cache));
         this.model = model;
@@ -89,6 +91,7 @@ export class ServiceWorkerCacheView extends UI.View.SimpleView {
         this.element.classList.add('service-worker-cache-data-view');
         this.element.classList.add('storage-view');
         const editorToolbar = new UI.Toolbar.Toolbar('data-view-toolbar', this.element);
+        this.element.appendChild(this.metadataView);
         this.splitWidget = new UI.SplitWidget.SplitWidget(false, false);
         this.splitWidget.show(this.element);
         this.previewPanel = new UI.Widget.VBox();
@@ -97,14 +100,23 @@ export class ServiceWorkerCacheView extends UI.View.SimpleView {
         this.splitWidget.installResizer(resizer);
         this.preview = null;
         this.cache = cache;
+        const bucketInfo = this.model.target()
+            .model(SDK.StorageBucketsModel.StorageBucketsModel)
+            ?.getBucketByName(cache.storageBucket.storageKey, cache.storageBucket.name);
+        if (bucketInfo) {
+            this.metadataView.setStorageBucket(bucketInfo);
+        }
+        else if (cache.storageKey) {
+            this.metadataView.setStorageKey(cache.storageKey);
+        }
         this.dataGrid = null;
         this.refreshThrottler = new Common.Throttler.Throttler(300);
-        this.refreshButton = new UI.Toolbar.ToolbarButton(i18nString(UIStrings.refresh), 'largeicon-refresh');
+        this.refreshButton = new UI.Toolbar.ToolbarButton(i18nString(UIStrings.refresh), 'refresh');
         this.refreshButton.addEventListener(UI.Toolbar.ToolbarButton.Events.Click, this.refreshButtonClicked, this);
         editorToolbar.appendToolbarItem(this.refreshButton);
-        this.deleteSelectedButton = new UI.Toolbar.ToolbarButton(i18nString(UIStrings.deleteSelected), 'largeicon-delete');
+        this.deleteSelectedButton = new UI.Toolbar.ToolbarButton(i18nString(UIStrings.deleteSelected), 'cross');
         this.deleteSelectedButton.addEventListener(UI.Toolbar.ToolbarButton.Events.Click, _event => {
-            this.deleteButtonClicked(null);
+            void this.deleteButtonClicked(null);
         });
         editorToolbar.appendToolbarItem(this.deleteSelectedButton);
         const entryPathFilterBox = new UI.Toolbar.ToolbarInput(i18nString(UIStrings.filterByPath), '', 1);
@@ -112,7 +124,7 @@ export class ServiceWorkerCacheView extends UI.View.SimpleView {
         const entryPathFilterThrottler = new Common.Throttler.Throttler(300);
         this.entryPathFilter = '';
         entryPathFilterBox.addEventListener(UI.Toolbar.ToolbarInput.Event.TextChanged, () => {
-            entryPathFilterThrottler.schedule(() => {
+            void entryPathFilterThrottler.schedule(() => {
                 this.entryPathFilter = entryPathFilterBox.value();
                 return this.updateData(true);
             });
@@ -134,7 +146,7 @@ export class ServiceWorkerCacheView extends UI.View.SimpleView {
     wasShown() {
         this.model.addEventListener(SDK.ServiceWorkerCacheModel.Events.CacheStorageContentUpdated, this.cacheContentUpdated, this);
         this.registerCSSFiles([serviceWorkerCacheViewsStyles]);
-        this.updateData(true);
+        void this.updateData(true);
     }
     willHide() {
         this.model.removeEventListener(SDK.ServiceWorkerCacheModel.Events.CacheStorageContentUpdated, this.cacheContentUpdated, this);
@@ -190,7 +202,7 @@ export class ServiceWorkerCacheView extends UI.View.SimpleView {
         });
         dataGrid.addEventListener(DataGrid.DataGrid.Events.SortingChanged, this.sortingChanged, this);
         dataGrid.addEventListener(DataGrid.DataGrid.Events.SelectedNode, event => {
-            this.previewCachedResponse(event.data.data);
+            void this.previewCachedResponse(event.data.data);
         }, this);
         dataGrid.setStriped(true);
         return dataGrid;
@@ -242,7 +254,7 @@ export class ServiceWorkerCacheView extends UI.View.SimpleView {
     update(cache) {
         this.cache = cache;
         this.resetDataGrid();
-        this.updateData(true);
+        void this.updateData(true);
     }
     updateSummaryBar() {
         if (!this.summaryBarElement) {
@@ -315,14 +327,14 @@ export class ServiceWorkerCacheView extends UI.View.SimpleView {
         return;
     }
     refreshButtonClicked() {
-        this.updateData(true);
+        void this.updateData(true);
     }
     cacheContentUpdated(event) {
-        const { cacheName, origin } = event.data;
-        if (this.cache.securityOrigin !== origin || this.cache.cacheName !== cacheName) {
+        const { cacheName, storageBucket } = event.data;
+        if ((!this.cache.inBucket(storageBucket) || this.cache.cacheName !== cacheName)) {
             return;
         }
-        this.refreshThrottler.schedule(() => Promise.resolve(this.updateData(true)), true);
+        void this.refreshThrottler.schedule(() => Promise.resolve(this.updateData(true)), true);
     }
     async previewCachedResponse(request) {
         let preview = networkRequestToPreview.get(request);
@@ -336,7 +348,7 @@ export class ServiceWorkerCacheView extends UI.View.SimpleView {
         }
     }
     createRequest(entry) {
-        const request = SDK.NetworkRequest.NetworkRequest.createWithoutBackendRequest('cache-storage-' + entry.requestURL, entry.requestURL, '', null);
+        const request = SDK.NetworkRequest.NetworkRequest.createWithoutBackendRequest('cache-storage-' + entry.requestURL, entry.requestURL, Platform.DevToolsPath.EmptyUrlString, null);
         request.requestMethod = entry.requestMethod;
         request.setRequestHeaders(entry.requestHeaders);
         request.statusCode = entry.responseStatus;
@@ -431,7 +443,12 @@ export class DataGridNode extends DataGrid.DataGrid.DataGridNode {
                 tooltip = i18nString(UIStrings.varyHeaderWarning);
             }
         }
-        DataGrid.DataGrid.DataGridImpl.setElementText(cell, value || '', true);
+        const parentElement = cell.parentElement;
+        let gridNode;
+        if (parentElement && this.dataGrid) {
+            gridNode = this.dataGrid.elementToDataGridNode.get(parentElement);
+        }
+        DataGrid.DataGrid.DataGridImpl.setElementText(cell, value || '', /* longText= */ true, gridNode);
         UI.Tooltip.Tooltip.install(cell, tooltip);
         return cell;
     }

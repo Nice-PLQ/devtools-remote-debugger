@@ -2,6 +2,7 @@ import * as SDK from '../../core/sdk/sdk.js';
 import * as NetworkForward from '../../panels/network/forward/forward.js';
 import * as UI from '../../ui/legacy/legacy.js';
 export declare class RequestHeadersView extends UI.Widget.VBox {
+    #private;
     private request;
     private showRequestHeadersText;
     private showResponseHeadersText;
@@ -12,7 +13,7 @@ export declare class RequestHeadersView extends UI.Widget.VBox {
     private readonly statusCodeItem;
     private readonly remoteAddressItem;
     private readonly referrerPolicyItem;
-    private readonly responseHeadersCategory;
+    readonly responseHeadersCategory: Category;
     private readonly requestHeadersCategory;
     constructor(request: SDK.NetworkRequest.NetworkRequest);
     wasShown(): void;

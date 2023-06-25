@@ -1,5 +1,6 @@
-import type { ValueType, ValueTypeMode } from './ValueInterpreterDisplayUtils.js';
-import { Endianness } from './ValueInterpreterDisplayUtils.js';
+import { Endianness, type ValueType, type ValueTypeMode } from './ValueInterpreterDisplayUtils.js';
+import { type DeleteMemoryHighlightEvent } from './LinearMemoryHighlightChipList.js';
+import { type HighlightInfo } from './LinearMemoryViewerUtils.js';
 export interface LinearMemoryInspectorData {
     memory: Uint8Array;
     address: number;
@@ -8,8 +9,9 @@ export interface LinearMemoryInspectorData {
     valueTypes?: Set<ValueType>;
     valueTypeModes?: Map<ValueType, ValueTypeMode>;
     endianness?: Endianness;
+    highlightInfo?: HighlightInfo;
 }
-export declare type Settings = {
+export type Settings = {
     valueTypes: Set<ValueType>;
     modes: Map<ValueType, ValueTypeMode>;
     endianness: Endianness;
@@ -34,38 +36,10 @@ export declare class SettingsChangedEvent extends Event {
     constructor(settings: Settings);
 }
 export declare class LinearMemoryInspector extends HTMLElement {
+    #private;
     static readonly litTagName: import("../../lit-html/static.js").Static;
-    private readonly shadow;
-    private readonly history;
-    private memory;
-    private memoryOffset;
-    private outerMemoryLength;
-    private address;
-    private currentNavigatorMode;
-    private currentNavigatorAddressLine;
-    private numBytesPerPage;
-    private valueTypeModes;
-    private valueTypes;
-    private endianness;
     connectedCallback(): void;
     set data(data: LinearMemoryInspectorData);
-    private render;
-    private onJumpToPointerAddress;
-    private onRefreshRequest;
-    private onByteSelected;
-    private createSettings;
-    private onEndiannessChanged;
-    private isValidAddress;
-    private onAddressChange;
-    private onValueTypeToggled;
-    private onValueTypeModeChanged;
-    private navigateHistory;
-    private navigatePage;
-    private jumpToAddress;
-    private getPageRangeForAddress;
-    private resize;
-    private update;
-    private setAddress;
 }
 declare global {
     interface HTMLElementTagNameMap {
@@ -75,5 +49,6 @@ declare global {
         'memoryrequest': MemoryRequestEvent;
         'addresschanged': AddressChangedEvent;
         'settingschanged': SettingsChangedEvent;
+        'deletememoryhighlight': DeleteMemoryHighlightEvent;
     }
 }

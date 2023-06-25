@@ -78,6 +78,6 @@ component.setAttribute('toplevelbordercolor', 'var(--color-syntax-1)');
 component.data = data;
 document.getElementById('container')?.appendChild(component);
 document.getElementById('recursively-expand')?.addEventListener('click', () => {
-    component.expandRecursively();
+    void component.expandRecursively();
 });
 //# sourceMappingURL=lazy-children.js.map

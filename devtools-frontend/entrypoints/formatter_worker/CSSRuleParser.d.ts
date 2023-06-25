@@ -1,4 +1,4 @@
-import type { ChunkCallback } from './FormatterWorker.js';
+import { type ChunkCallback } from './FormatterWorker.js';
 export declare const CSSParserStates: {
     Initial: string;
     Selector: string;

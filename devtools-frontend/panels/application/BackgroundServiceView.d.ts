@@ -1,15 +1,17 @@
+import * as Protocol from '../../generated/protocol.js';
 import * as DataGrid from '../../ui/legacy/components/data_grid/data_grid.js';
 import * as UI from '../../ui/legacy/legacy.js';
-import * as Protocol from '../../generated/protocol.js';
-import type { BackgroundServiceModel } from './BackgroundServiceModel.js';
+import { type BackgroundServiceModel } from './BackgroundServiceModel.js';
 export declare class BackgroundServiceView extends UI.Widget.VBox {
     private readonly serviceName;
     private readonly model;
     private readonly serviceWorkerManager;
     private readonly securityOriginManager;
+    private readonly storageKeyManager;
     private recordAction;
     private recordButton;
     private originCheckbox;
+    private storageKeyCheckbox;
     private saveButton;
     private readonly toolbar;
     private readonly splitWidget;
@@ -19,6 +21,7 @@ export declare class BackgroundServiceView extends UI.Widget.VBox {
     private preview;
     static getUIString(serviceName: string): string;
     constructor(serviceName: Protocol.BackgroundService.ServiceName, model: BackgroundServiceModel);
+    getDataGrid(): DataGrid.DataGrid.DataGridImpl<EventData>;
     /**
      * Creates the toolbar UI element.
      */
@@ -43,6 +46,7 @@ export declare class BackgroundServiceView extends UI.Widget.VBox {
     private updateRecordButtonTooltip;
     private onEventReceived;
     private onOriginChanged;
+    private onStorageKeyChanged;
     private addEvent;
     private createDataGrid;
     /**
@@ -80,6 +84,7 @@ export interface EventData {
     id: number;
     timestamp: string;
     origin: string;
+    storageKey: string;
     swScope: string;
     eventName: string;
     instanceId: string;

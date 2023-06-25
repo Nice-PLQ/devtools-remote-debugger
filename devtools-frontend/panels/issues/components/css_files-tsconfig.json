@@ -4,6 +4,7 @@
         "outDir": "."
     },
     "files": [
+        "./elementsPanelLink.css.js",
         "./hideIssuesMenu.css.js"
     ]
 }

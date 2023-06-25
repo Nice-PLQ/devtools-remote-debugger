@@ -1,5 +1,5 @@
-import type { DOMNode } from './Helper.js';
-export declare type UserScrollPosition = 'start' | 'middle' | 'end';
+import { type DOMNode } from './Helper.js';
+export type UserScrollPosition = 'start' | 'middle' | 'end';
 export interface Crumb {
     title: CrumbTitle;
     selected: boolean;

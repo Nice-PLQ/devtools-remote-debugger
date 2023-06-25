@@ -1,11 +1,14 @@
 import * as SDK from '../../core/sdk/sdk.js';
 import * as NetworkForward from '../../panels/network/forward/forward.js';
 import * as UI from '../../ui/legacy/legacy.js';
-import type { NetworkTimeCalculator } from './NetworkTimeCalculator.js';
+import * as NetworkComponents from './components/components.js';
+import { type NetworkTimeCalculator } from './NetworkTimeCalculator.js';
+import { RequestHeadersView } from './RequestHeadersView.js';
 export declare class NetworkItemView extends UI.TabbedPane.TabbedPane {
     private requestInternal;
     private readonly resourceViewTabSetting;
     private readonly headersView;
+    private readonly headersViewComponent;
     private payloadView;
     private readonly responseView;
     private cookiesView;
@@ -22,4 +25,6 @@ export declare class NetworkItemView extends UI.TabbedPane.TabbedPane {
     request(): SDK.NetworkRequest.NetworkRequest;
     revealResponseBody(line?: number): Promise<void>;
     revealHeader(section: NetworkForward.UIRequestLocation.UIHeaderSection, header: string | undefined): void;
+    getHeadersView(): RequestHeadersView;
+    getHeadersViewComponent(): NetworkComponents.RequestHeadersView.RequestHeadersView;
 }

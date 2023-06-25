@@ -3,13 +3,13 @@
 // found in the LICENSE file.
 const SkipSubTreeObject = {};
 export class ESTreeWalker {
-    beforeVisit;
-    afterVisit;
-    walkNulls;
+    #beforeVisit;
+    #afterVisit;
+    #walkNulls;
     constructor(beforeVisit, afterVisit) {
-        this.beforeVisit = beforeVisit;
-        this.afterVisit = afterVisit || function () { };
-        this.walkNulls = false;
+        this.#beforeVisit = beforeVisit;
+        this.#afterVisit = afterVisit || function () { };
+        this.#walkNulls = false;
     }
     // TODO(crbug.com/1172300) Ignored during the jsdoc to ts migration
     // eslint-disable-next-line @typescript-eslint/naming-convention
@@ -17,13 +17,13 @@ export class ESTreeWalker {
         return SkipSubTreeObject;
     }
     setWalkNulls(value) {
-        this.walkNulls = value;
+        this.#walkNulls = value;
     }
     walk(ast) {
-        this.innerWalk(ast, null);
+        this.#innerWalk(ast, null);
     }
-    innerWalk(node, parent) {
-        if (!node && parent && this.walkNulls) {
+    #innerWalk(node, parent) {
+        if (!node && parent && this.#walkNulls) {
             const result = { raw: 'null', value: null, parent: null };
             // Otherwise Closure can't handle the definition
             result.type = 'Literal';
@@ -33,8 +33,8 @@ export class ESTreeWalker {
             return;
         }
         node.parent = parent;
-        if (this.beforeVisit.call(null, node) === ESTreeWalker.SkipSubtree) {
-            this.afterVisit.call(null, node);
+        if (this.#beforeVisit.call(null, node) === ESTreeWalker.SkipSubtree) {
+            this.#afterVisit.call(null, node);
             return;
         }
         const walkOrder = _walkOrder[node.type];
@@ -46,10 +46,10 @@ export class ESTreeWalker {
             const templateLiteral = node;
             const expressionsLength = templateLiteral.expressions.length;
             for (let i = 0; i < expressionsLength; ++i) {
-                this.innerWalk(templateLiteral.quasis[i], templateLiteral);
-                this.innerWalk(templateLiteral.expressions[i], templateLiteral);
+                this.#innerWalk(templateLiteral.quasis[i], templateLiteral);
+                this.#innerWalk(templateLiteral.expressions[i], templateLiteral);
             }
-            this.innerWalk(templateLiteral.quasis[expressionsLength], templateLiteral);
+            this.#innerWalk(templateLiteral.quasis[expressionsLength], templateLiteral);
         }
         else {
             for (let i = 0; i < walkOrder.length; ++i) {
@@ -60,18 +60,18 @@ export class ESTreeWalker {
                 // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 const entity = node[walkOrder[i]];
                 if (Array.isArray(entity)) {
-                    this.walkArray(entity, node);
+                    this.#walkArray(entity, node);
                 }
                 else {
-                    this.innerWalk(entity, node);
+                    this.#innerWalk(entity, node);
                 }
             }
         }
-        this.afterVisit.call(null, node);
+        this.#afterVisit.call(null, node);
     }
-    walkArray(nodeArray, parentNode) {
+    #walkArray(nodeArray, parentNode) {
         for (let i = 0; i < nodeArray.length; ++i) {
-            this.innerWalk(nodeArray[i], parentNode);
+            this.#innerWalk(nodeArray[i], parentNode);
         }
     }
 }

@@ -23,11 +23,11 @@ async function loadAnimationModule() {
     return loadedAnimationModule;
 }
 UI.ViewManager.registerViewExtension({
-    location: "drawer-view" /* DRAWER_VIEW */,
+    location: "drawer-view" /* UI.ViewManager.ViewLocationValues.DRAWER_VIEW */,
     id: 'animations',
     title: i18nLazyString(UIStrings.animations),
     commandPrompt: i18nLazyString(UIStrings.showAnimations),
-    persistence: "closeable" /* CLOSEABLE */,
+    persistence: "closeable" /* UI.ViewManager.ViewPersistence.CLOSEABLE */,
     order: 0,
     async loadView() {
         const Animation = await loadAnimationModule();

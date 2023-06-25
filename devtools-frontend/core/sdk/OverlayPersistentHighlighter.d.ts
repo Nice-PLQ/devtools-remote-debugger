@@ -39,15 +39,9 @@ export declare class OverlayPersistentHighlighter {
     updateContainerQueryHighlightsInOverlay(): void;
     updateIsolatedElementHighlightsInOverlay(): void;
 }
-/**
- * @interface
- */
 export interface DOMModel {
     nodeForId(nodeId: Protocol.DOM.NodeId): void;
 }
-/**
- * @interface
- */
 export interface OverlayAgent {
     invoke_setShowGridOverlays(param: {
         gridNodeHighlightConfigs: Array<{
@@ -79,15 +73,9 @@ export interface OverlayAgent {
         }>;
     }): void;
 }
-/**
- * @interface
- */
 export interface Target {
     overlayAgent(): OverlayAgent;
 }
-/**
- * @interface
- */
 export interface OverlayModel {
     getDOMModel(): DOMModel;
     target(): Target;

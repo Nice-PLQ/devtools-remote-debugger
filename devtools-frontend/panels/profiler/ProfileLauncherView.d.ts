@@ -1,12 +1,12 @@
 import * as Common from '../../core/common/common.js';
 import * as UI from '../../ui/legacy/legacy.js';
-import type { ProfileType } from './ProfileHeader.js';
-import type { ProfilesPanel } from './ProfilesPanel.js';
+import { type ProfileType } from './ProfileHeader.js';
+import { type ProfilesPanel } from './ProfilesPanel.js';
 declare const ProfileLauncherView_base: (new (...args: any[]) => {
-    "__#8@#events": Common.ObjectWrapper.ObjectWrapper<EventTypes>;
-    addEventListener<T extends Events.ProfileTypeSelected>(eventType: T, listener: (arg0: Common.EventTarget.EventTargetEvent<EventTypes[T]>) => void, thisObject?: Object | undefined): Common.EventTarget.EventDescriptor<EventTypes, T>;
+    "__#13@#events": Common.ObjectWrapper.ObjectWrapper<EventTypes>;
+    addEventListener<T extends Events.ProfileTypeSelected>(eventType: T, listener: (arg0: Common.EventTarget.EventTargetEvent<EventTypes[T], any>) => void, thisObject?: Object | undefined): Common.EventTarget.EventDescriptor<EventTypes, T>;
     once<T_1 extends Events.ProfileTypeSelected>(eventType: T_1): Promise<EventTypes[T_1]>;
-    removeEventListener<T_2 extends Events.ProfileTypeSelected>(eventType: T_2, listener: (arg0: Common.EventTarget.EventTargetEvent<EventTypes[T_2]>) => void, thisObject?: Object | undefined): void;
+    removeEventListener<T_2 extends Events.ProfileTypeSelected>(eventType: T_2, listener: (arg0: Common.EventTarget.EventTargetEvent<EventTypes[T_2], any>) => void, thisObject?: Object | undefined): void;
     hasEventListeners(eventType: Events.ProfileTypeSelected): boolean;
     dispatchEventToListeners<T_3 extends Events.ProfileTypeSelected>(eventType: import("../../core/platform/typescript-utilities.js").NoUnion<T_3>, ...eventData: Common.EventTarget.EventPayloadToRestParameters<EventTypes, T_3>): void;
 }) & typeof UI.Widget.VBox;
@@ -41,7 +41,7 @@ export declare class ProfileLauncherView extends ProfileLauncherView_base {
 export declare enum Events {
     ProfileTypeSelected = "ProfileTypeSelected"
 }
-export declare type EventTypes = {
+export type EventTypes = {
     [Events.ProfileTypeSelected]: ProfileType;
 };
 export {};

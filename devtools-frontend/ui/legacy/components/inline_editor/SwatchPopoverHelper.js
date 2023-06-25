@@ -19,8 +19,8 @@ export class SwatchPopoverHelper extends Common.ObjectWrapper.ObjectWrapper {
     constructor() {
         super();
         this.popover = new UI.GlassPane.GlassPane();
-        this.popover.setSizeBehavior("MeasureContent" /* MeasureContent */);
-        this.popover.setMarginBehavior("Arrow" /* Arrow */);
+        this.popover.setSizeBehavior("MeasureContent" /* UI.GlassPane.SizeBehavior.MeasureContent */);
+        this.popover.setMarginBehavior("Arrow" /* UI.GlassPane.MarginBehavior.Arrow */);
         this.popover.element.addEventListener('mousedown', e => e.consume(), false);
         this.hideProxy = this.hide.bind(this, true);
         this.boundOnKeyDown = this.onKeyDown.bind(this);

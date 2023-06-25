@@ -127,14 +127,14 @@ class Input {
     }
 }
 function makeError() {
-    return { kind: 0 /* ERROR */ };
+    return { kind: 0 /* ResultKind.ERROR */ };
 }
 // 4.2.1. Parsing a list
 function parseListInternal(input) {
-    const result = { kind: 11 /* LIST */, items: [] };
+    const result = { kind: 11 /* ResultKind.LIST */, items: [] };
     while (!input.atEnd()) {
         const piece = parseItemOrInnerList(input);
-        if (piece.kind === 0 /* ERROR */) {
+        if (piece.kind === 0 /* ResultKind.ERROR */) {
             return piece;
         }
         result.items.push(piece);
@@ -173,17 +173,17 @@ function parseInnerList(input) {
         if (input.peek() === ')') {
             input.eat();
             const params = parseParameters(input);
-            if (params.kind === 0 /* ERROR */) {
+            if (params.kind === 0 /* ResultKind.ERROR */) {
                 return params;
             }
             return {
-                kind: 12 /* INNER_LIST */,
+                kind: 12 /* ResultKind.INNER_LIST */,
                 items: items,
                 parameters: params,
             };
         }
         const item = parseItemInternal(input);
-        if (item.kind === 0 /* ERROR */) {
+        if (item.kind === 0 /* ResultKind.ERROR */) {
             return item;
         }
         items.push(item);
@@ -197,14 +197,14 @@ function parseInnerList(input) {
 // 4.2.3.  Parsing an Item
 function parseItemInternal(input) {
     const bareItem = parseBareItem(input);
-    if (bareItem.kind === 0 /* ERROR */) {
+    if (bareItem.kind === 0 /* ResultKind.ERROR */) {
         return bareItem;
     }
     const params = parseParameters(input);
-    if (params.kind === 0 /* ERROR */) {
+    if (params.kind === 0 /* ResultKind.ERROR */) {
         return params;
     }
-    return { kind: 4 /* ITEM */, value: bareItem, parameters: params };
+    return { kind: 4 /* ResultKind.ITEM */, value: bareItem, parameters: params };
 }
 // 4.2.3.1.  Parsing a Bare Item
 function parseBareItem(input) {
@@ -245,14 +245,14 @@ function parseParameters(input) {
         input.eat();
         input.skipSP();
         const paramName = parseKey(input);
-        if (paramName.kind === 0 /* ERROR */) {
+        if (paramName.kind === 0 /* ResultKind.ERROR */) {
             return paramName;
         }
-        let paramValue = { kind: 10 /* BOOLEAN */, value: true };
+        let paramValue = { kind: 10 /* ResultKind.BOOLEAN */, value: true };
         if (input.peek() === '=') {
             input.eat();
             const parsedParamValue = parseBareItem(input);
-            if (parsedParamValue.kind === 0 /* ERROR */) {
+            if (parsedParamValue.kind === 0 /* ResultKind.ERROR */) {
                 return parsedParamValue;
             }
             paramValue = parsedParamValue;
@@ -261,9 +261,9 @@ function parseParameters(input) {
         if (items.has(paramName.value)) {
             items.delete(paramName.value);
         }
-        items.set(paramName.value, { kind: 2 /* PARAMETER */, name: paramName, value: paramValue });
+        items.set(paramName.value, { kind: 2 /* ResultKind.PARAMETER */, name: paramName, value: paramValue });
     }
-    return { kind: 3 /* PARAMETERS */, items: [...items.values()] };
+    return { kind: 3 /* ResultKind.PARAMETERS */, items: [...items.values()] };
 }
 // 4.2.3.3.  Parsing a Key
 function parseKey(input) {
@@ -281,11 +281,11 @@ function parseKey(input) {
         outputString += input.peek();
         input.eat();
     }
-    return { kind: 1 /* PARAM_NAME */, value: outputString };
+    return { kind: 1 /* ResultKind.PARAM_NAME */, value: outputString };
 }
 // 4.2.4.  Parsing an Integer or Decimal
 function parseIntegerOrDecimal(input) {
-    let resultKind = 5 /* INTEGER */;
+    let resultKind = 5 /* ResultKind.INTEGER */;
     let sign = 1;
     let inputNumber = '';
     if (input.peek() === '-') {
@@ -302,36 +302,36 @@ function parseIntegerOrDecimal(input) {
             input.eat();
             inputNumber += String.fromCodePoint(char);
         }
-        else if (char === CHAR_DOT && resultKind === 5 /* INTEGER */) {
+        else if (char === CHAR_DOT && resultKind === 5 /* ResultKind.INTEGER */) {
             input.eat();
             if (inputNumber.length > 12) {
                 return makeError();
             }
             inputNumber += '.';
-            resultKind = 6 /* DECIMAL */;
+            resultKind = 6 /* ResultKind.DECIMAL */;
         }
         else {
             break;
         }
-        if (resultKind === 5 /* INTEGER */ && inputNumber.length > 15) {
+        if (resultKind === 5 /* ResultKind.INTEGER */ && inputNumber.length > 15) {
             return makeError();
         }
-        if (resultKind === 6 /* DECIMAL */ && inputNumber.length > 16) {
+        if (resultKind === 6 /* ResultKind.DECIMAL */ && inputNumber.length > 16) {
             return makeError();
         }
     }
-    if (resultKind === 5 /* INTEGER */) {
+    if (resultKind === 5 /* ResultKind.INTEGER */) {
         const num = sign * Number.parseInt(inputNumber, 10);
         if (num < -999999999999999 || num > 999999999999999) {
             return makeError();
         }
-        return { kind: 5 /* INTEGER */, value: num };
+        return { kind: 5 /* ResultKind.INTEGER */, value: num };
     }
     const afterDot = inputNumber.length - 1 - inputNumber.indexOf('.');
     if (afterDot > 3 || afterDot === 0) {
         return makeError();
     }
-    return { kind: 6 /* DECIMAL */, value: sign * Number.parseFloat(inputNumber) };
+    return { kind: 6 /* ResultKind.DECIMAL */, value: sign * Number.parseFloat(inputNumber) };
 }
 // 4.2.5.  Parsing a String
 function parseString(input) {
@@ -359,7 +359,7 @@ function parseString(input) {
             outputString += String.fromCodePoint(nextChar);
         }
         else if (char === CHAR_DQUOTE) {
-            return { kind: 7 /* STRING */, value: outputString };
+            return { kind: 7 /* ResultKind.STRING */, value: outputString };
         }
         else if (char < CHAR_MIN_ASCII_PRINTABLE || char > CHAR_MAX_ASCII_PRINTABLE) {
             return makeError();
@@ -386,7 +386,7 @@ function parseToken(input) {
         input.eat();
         outputString += String.fromCodePoint(upcoming);
     }
-    return { kind: 8 /* TOKEN */, value: outputString };
+    return { kind: 8 /* ResultKind.TOKEN */, value: outputString };
 }
 // 4.2.7.  Parsing a Byte Sequence
 function parseByteSequence(input) {
@@ -403,7 +403,7 @@ function parseByteSequence(input) {
         }
         input.eat();
         if (char === CHAR_COLON) {
-            return { kind: 9 /* BINARY */, value: outputString };
+            return { kind: 9 /* ResultKind.BINARY */, value: outputString };
         }
         if (isDigit(char) || isAlpha(char) || char === CHAR_PLUS || char === CHAR_SLASH || char === CHAR_EQUALS) {
             outputString += String.fromCodePoint(char);
@@ -423,11 +423,11 @@ function parseBoolean(input) {
     input.eat();
     if (input.peek() === '0') {
         input.eat();
-        return { kind: 10 /* BOOLEAN */, value: false };
+        return { kind: 10 /* ResultKind.BOOLEAN */, value: false };
     }
     if (input.peek() === '1') {
         input.eat();
-        return { kind: 10 /* BOOLEAN */, value: true };
+        return { kind: 10 /* ResultKind.BOOLEAN */, value: true };
     }
     return makeError();
 }
@@ -446,55 +446,55 @@ export function parseList(input) {
 // 4.1.3.  Serializing an Item
 export function serializeItem(input) {
     const bareItemVal = serializeBareItem(input.value);
-    if (bareItemVal.kind === 0 /* ERROR */) {
+    if (bareItemVal.kind === 0 /* ResultKind.ERROR */) {
         return bareItemVal;
     }
     const paramVal = serializeParameters(input.parameters);
-    if (paramVal.kind === 0 /* ERROR */) {
+    if (paramVal.kind === 0 /* ResultKind.ERROR */) {
         return paramVal;
     }
-    return { kind: 13 /* SERIALIZATION_RESULT */, value: bareItemVal.value + paramVal.value };
+    return { kind: 13 /* ResultKind.SERIALIZATION_RESULT */, value: bareItemVal.value + paramVal.value };
 }
 // 4.1.1.  Serializing a List
 export function serializeList(input) {
     const outputPieces = [];
     for (let i = 0; i < input.items.length; ++i) {
         const item = input.items[i];
-        if (item.kind === 12 /* INNER_LIST */) {
+        if (item.kind === 12 /* ResultKind.INNER_LIST */) {
             const itemResult = serializeInnerList(item);
-            if (itemResult.kind === 0 /* ERROR */) {
+            if (itemResult.kind === 0 /* ResultKind.ERROR */) {
                 return itemResult;
             }
             outputPieces.push(itemResult.value);
         }
         else {
             const itemResult = serializeItem(item);
-            if (itemResult.kind === 0 /* ERROR */) {
+            if (itemResult.kind === 0 /* ResultKind.ERROR */) {
                 return itemResult;
             }
             outputPieces.push(itemResult.value);
         }
     }
     const output = outputPieces.join(', ');
-    return { kind: 13 /* SERIALIZATION_RESULT */, value: output };
+    return { kind: 13 /* ResultKind.SERIALIZATION_RESULT */, value: output };
 }
 // 4.1.1.1.  Serializing an Inner List
 function serializeInnerList(input) {
     const outputPieces = [];
     for (let i = 0; i < input.items.length; ++i) {
         const itemResult = serializeItem(input.items[i]);
-        if (itemResult.kind === 0 /* ERROR */) {
+        if (itemResult.kind === 0 /* ResultKind.ERROR */) {
             return itemResult;
         }
         outputPieces.push(itemResult.value);
     }
     let output = '(' + outputPieces.join(' ') + ')';
     const paramResult = serializeParameters(input.parameters);
-    if (paramResult.kind === 0 /* ERROR */) {
+    if (paramResult.kind === 0 /* ResultKind.ERROR */) {
         return paramResult;
     }
     output += paramResult.value;
-    return { kind: 13 /* SERIALIZATION_RESULT */, value: output };
+    return { kind: 13 /* ResultKind.SERIALIZATION_RESULT */, value: output };
 }
 // 4.1.1.2.  Serializing Parameters
 function serializeParameters(input) {
@@ -502,21 +502,21 @@ function serializeParameters(input) {
     for (const item of input.items) {
         output += ';';
         const nameResult = serializeKey(item.name);
-        if (nameResult.kind === 0 /* ERROR */) {
+        if (nameResult.kind === 0 /* ResultKind.ERROR */) {
             return nameResult;
         }
         output += nameResult.value;
         const itemVal = item.value;
-        if (itemVal.kind !== 10 /* BOOLEAN */ || !itemVal.value) {
+        if (itemVal.kind !== 10 /* ResultKind.BOOLEAN */ || !itemVal.value) {
             output += '=';
             const itemValResult = serializeBareItem(itemVal);
-            if (itemValResult.kind === 0 /* ERROR */) {
+            if (itemValResult.kind === 0 /* ResultKind.ERROR */) {
                 return itemValResult;
             }
             output += itemValResult.value;
         }
     }
-    return { kind: 13 /* SERIALIZATION_RESULT */, value: output };
+    return { kind: 13 /* ResultKind.SERIALIZATION_RESULT */, value: output };
 }
 // 4.1.1.3.  Serializing a Key
 function serializeKey(input) {
@@ -534,26 +534,26 @@ function serializeKey(input) {
             return makeError();
         }
     }
-    return { kind: 13 /* SERIALIZATION_RESULT */, value: input.value };
+    return { kind: 13 /* ResultKind.SERIALIZATION_RESULT */, value: input.value };
 }
 // 4.1.3.1.  Serializing a Bare Item
 function serializeBareItem(input) {
-    if (input.kind === 5 /* INTEGER */) {
+    if (input.kind === 5 /* ResultKind.INTEGER */) {
         return serializeInteger(input);
     }
-    if (input.kind === 6 /* DECIMAL */) {
+    if (input.kind === 6 /* ResultKind.DECIMAL */) {
         return serializeDecimal(input);
     }
-    if (input.kind === 7 /* STRING */) {
+    if (input.kind === 7 /* ResultKind.STRING */) {
         return serializeString(input);
     }
-    if (input.kind === 8 /* TOKEN */) {
+    if (input.kind === 8 /* ResultKind.TOKEN */) {
         return serializeToken(input);
     }
-    if (input.kind === 10 /* BOOLEAN */) {
+    if (input.kind === 10 /* ResultKind.BOOLEAN */) {
         return serializeBoolean(input);
     }
-    if (input.kind === 9 /* BINARY */) {
+    if (input.kind === 9 /* ResultKind.BINARY */) {
         return serializeByteSequence(input);
     }
     return makeError();
@@ -563,7 +563,7 @@ function serializeInteger(input) {
     if (input.value < -999999999999999 || input.value > 999999999999999 || !Number.isInteger(input.value)) {
         return makeError();
     }
-    return { kind: 13 /* SERIALIZATION_RESULT */, value: input.value.toString(10) };
+    return { kind: 13 /* ResultKind.SERIALIZATION_RESULT */, value: input.value.toString(10) };
 }
 // 4.1.5.  Serializing a Decimal
 function serializeDecimal(_input) {
@@ -587,7 +587,7 @@ function serializeString(input) {
         output += charStr;
     }
     output += '"';
-    return { kind: 13 /* SERIALIZATION_RESULT */, value: output };
+    return { kind: 13 /* ResultKind.SERIALIZATION_RESULT */, value: output };
 }
 // 4.1.7.  Serializing a Token
 function serializeToken(input) {
@@ -604,7 +604,7 @@ function serializeToken(input) {
             return makeError();
         }
     }
-    return { kind: 13 /* SERIALIZATION_RESULT */, value: input.value };
+    return { kind: 13 /* ResultKind.SERIALIZATION_RESULT */, value: input.value };
 }
 // 4.1.8.  Serializing a Byte Sequence
 function serializeByteSequence(_input) {
@@ -612,6 +612,6 @@ function serializeByteSequence(_input) {
 }
 // 4.1.9.  Serializing a Boolean
 function serializeBoolean(input) {
-    return { kind: 13 /* SERIALIZATION_RESULT */, value: input.value ? '?1' : '?0' };
+    return { kind: 13 /* ResultKind.SERIALIZATION_RESULT */, value: input.value ? '?1' : '?0' };
 }
 //# sourceMappingURL=StructuredHeaders.js.map

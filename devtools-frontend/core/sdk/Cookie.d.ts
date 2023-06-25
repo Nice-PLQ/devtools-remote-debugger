@@ -1,3 +1,4 @@
+import type * as Platform from '../platform/platform.js';
 import type * as Protocol from '../../generated/protocol.js';
 export declare class Cookie {
     #private;
@@ -10,7 +11,10 @@ export declare class Cookie {
     httpOnly(): boolean;
     secure(): boolean;
     sameSite(): Protocol.Network.CookieSameSite;
-    sameParty(): boolean;
+    partitionKey(): string;
+    setPartitionKey(key: string): void;
+    partitionKeyOpaque(): boolean;
+    setPartitionKeyOpaque(): void;
     priority(): Protocol.Network.CookiePriority;
     session(): boolean;
     path(): string;
@@ -23,7 +27,7 @@ export declare class Cookie {
     /**
      * @deprecated
      */
-    url(): string | null;
+    url(): Platform.DevToolsPath.UrlString | null;
     setSize(size: number): void;
     expiresDate(requestDate: Date): Date | null;
     addAttribute(key: string, value?: string | number | boolean): void;
@@ -46,18 +50,8 @@ export declare enum Attributes {
     HttpOnly = "httpOnly",
     Secure = "secure",
     SameSite = "sameSite",
-    SameParty = "sameParty",
     SourceScheme = "sourceScheme",
     SourcePort = "sourcePort",
-    Priority = "priority"
-}
-/**
- * A `CookieReference` uniquely identifies a cookie by the triple (#name,domain,#path). Additionally, a context may be
- * included to make it clear which site under Application>Cookies should be opened when revealing a `CookieReference`.
- */
-export declare class CookieReference {
-    #private;
-    constructor(name: string, domain: string, path: string, contextUrl: string | undefined);
-    domain(): string;
-    contextUrl(): string | undefined;
+    Priority = "priority",
+    PartitionKey = "partitionKey"
 }

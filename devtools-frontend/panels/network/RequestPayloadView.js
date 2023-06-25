@@ -44,69 +44,69 @@ import requestPayloadTreeStyles from './requestPayloadTree.css.js';
 import requestPayloadViewStyles from './requestPayloadView.css.js';
 const UIStrings = {
     /**
-    *@description A context menu item in the Watch Expressions Sidebar Pane of the Sources panel and Network pane request.
-    */
+     *@description A context menu item in the Watch Expressions Sidebar Pane of the Sources panel and Network pane request.
+     */
     copyValue: 'Copy value',
     /**
-    * @description Text in Request Payload View of the Network panel. This is a noun-phrase meaning the
-    * payload of a network request.
-    */
+     * @description Text in Request Payload View of the Network panel. This is a noun-phrase meaning the
+     * payload of a network request.
+     */
     requestPayload: 'Request Payload',
     /**
-    *@description Text in Request Payload View of the Network panel
-    */
+     *@description Text in Request Payload View of the Network panel
+     */
     unableToDecodeValue: '(unable to decode value)',
     /**
-    *@description Text in Request Payload View of the Network panel
-    */
+     *@description Text in Request Payload View of the Network panel
+     */
     queryStringParameters: 'Query String Parameters',
     /**
-    *@description Text in Request Payload View of the Network panel
-    */
+     *@description Text in Request Payload View of the Network panel
+     */
     formData: 'Form Data',
     /**
-    *@description Text to show more content
-    */
+     *@description Text to show more content
+     */
     showMore: 'Show more',
     /**
-    *@description Text for toggling the view of payload data (e.g. query string parameters) from source to parsed in the payload tab
-    */
+     *@description Text for toggling the view of payload data (e.g. query string parameters) from source to parsed in the payload tab
+     */
     viewParsed: 'View parsed',
     /**
-    *@description Text to show an item is empty
-    */
+     *@description Text to show an item is empty
+     */
     empty: '(empty)',
     /**
-    *@description Text for toggling the view of payload data (e.g. query string parameters) from parsed to source in the payload tab
-    */
+     *@description Text for toggling the view of payload data (e.g. query string parameters) from parsed to source in the payload tab
+     */
     viewSource: 'View source',
     /**
-    * @description Text for toggling payload data (e.g. query string parameters) from decoded to
-    * encoded in the payload tab or in the cookies preview. URL-encoded is a different data format for
-    * the same data, which the user sees when they click this command.
-    */
+     * @description Text for toggling payload data (e.g. query string parameters) from decoded to
+     * encoded in the payload tab or in the cookies preview. URL-encoded is a different data format for
+     * the same data, which the user sees when they click this command.
+     */
     viewUrlEncoded: 'View URL-encoded',
     /**
-    *@description Text for toggling payload data (e.g. query string parameters) from encoded to decoded in the payload tab or in the cookies preview
-    */
+     *@description Text for toggling payload data (e.g. query string parameters) from encoded to decoded in the payload tab or in the cookies preview
+     */
     viewDecoded: 'View decoded',
     /**
-    *@description Text for toggling payload data (e.g. query string parameters) from decoded to
-    * encoded in the payload tab or in the cookies preview. URL-encoded is a different data format for
-    * the same data, which the user sees when they click this command.
-    */
+     *@description Text for toggling payload data (e.g. query string parameters) from decoded to
+     * encoded in the payload tab or in the cookies preview. URL-encoded is a different data format for
+     * the same data, which the user sees when they click this command.
+     */
     viewUrlEncodedL: 'view URL-encoded',
     /**
-    *@description Text in Request Payload View of the Network panel
-    */
+     *@description Text in Request Payload View of the Network panel
+     */
     viewDecodedL: 'view decoded',
     /**
-    *@description Text in Request Payload View of the Network panel
-    */
+     *@description Text in Request Payload View of the Network panel
+     */
     viewParsedL: 'view parsed',
     /**
-    *@description Text in Request Payload View of the Network panel
-    */
+     *@description Text in Request Payload View of the Network panel
+     */
     viewSourceL: 'view source',
 };
 const str_ = i18n.i18n.registerUIStrings('panels/network/RequestPayloadView.ts', UIStrings);
@@ -139,7 +139,7 @@ export class RequestPayloadView extends UI.Widget.VBox {
         this.registerCSSFiles([requestPayloadViewStyles]);
         this.request.addEventListener(SDK.NetworkRequest.Events.RequestHeadersChanged, this.refreshFormData, this);
         this.refreshQueryString();
-        this.refreshFormData();
+        void this.refreshFormData();
         // this._root.select(/* omitFocus */ true, /* selectedByUser */ false);
     }
     willHide() {
@@ -155,7 +155,7 @@ export class RequestPayloadView extends UI.Widget.VBox {
                 Host.InspectorFrontendHost.InspectorFrontendHostInstance.copyText(decodedValue);
             };
             contextMenu.clipboardSection().appendItem(i18nString(UIStrings.copyValue), copyDecodedValueHandler);
-            contextMenu.show();
+            void contextMenu.show();
         });
     }
     formatParameter(value, className, decodeParameters) {
@@ -248,7 +248,7 @@ export class RequestPayloadView extends UI.Widget.VBox {
             const contextMenu = new UI.ContextMenu.ContextMenu(event);
             const section = contextMenu.newSection();
             section.appendItem(i18nString(UIStrings.showMore), showMore);
-            contextMenu.show();
+            void contextMenu.show();
         }
         sourceTreeElement.listItemElement.addEventListener('contextmenu', onContextMenuShowMore);
         sourceTextElement.appendChild(showMoreButton);
@@ -286,7 +286,7 @@ export class RequestPayloadView extends UI.Widget.VBox {
             }
             const contextMenu = new UI.ContextMenu.ContextMenu(event);
             contextMenu.newSection().appendItem(i18nString(UIStrings.viewParsed), viewParsed.bind(this, event));
-            contextMenu.show();
+            void contextMenu.show();
         };
         const viewParsedButton = this.createViewSourceToggle(/* viewSource */ true, viewParsed.bind(this));
         listItemElement.appendChild(viewParsedButton);
@@ -329,7 +329,7 @@ export class RequestPayloadView extends UI.Widget.VBox {
             section.appendItem(i18nString(UIStrings.viewSource), viewSource.bind(this, event));
             const viewURLEncodedText = this.decodeRequestParameters ? i18nString(UIStrings.viewUrlEncoded) : i18nString(UIStrings.viewDecoded);
             section.appendItem(viewURLEncodedText, toggleURLDecoding.bind(this, event));
-            contextMenu.show();
+            void contextMenu.show();
         };
         const viewSourceButton = this.createViewSourceToggle(/* viewSource */ false, viewSource.bind(this));
         listItemElement.appendChild(viewSourceButton);
@@ -374,7 +374,7 @@ export class RequestPayloadView extends UI.Widget.VBox {
             }
             const contextMenu = new UI.ContextMenu.ContextMenu(event);
             contextMenu.newSection().appendItem(i18nString(UIStrings.viewParsed), viewParsed.bind(this, event));
-            contextMenu.show();
+            void contextMenu.show();
         };
         rootListItemElement.addEventListener('contextmenu', viewParsedContextMenu);
     }
@@ -405,7 +405,7 @@ export class RequestPayloadView extends UI.Widget.VBox {
             }
             const contextMenu = new UI.ContextMenu.ContextMenu(event);
             contextMenu.newSection().appendItem(i18nString(UIStrings.viewSource), viewSource.bind(this, event));
-            contextMenu.show();
+            void contextMenu.show();
         };
         const viewSourceButton = this.createViewSourceToggle(/* viewSource */ false, viewSource.bind(this));
         rootListItemElement.appendChild(viewSourceButton);
@@ -420,12 +420,14 @@ export class RequestPayloadView extends UI.Widget.VBox {
     toggleURLDecoding(event) {
         this.decodeRequestParameters = !this.decodeRequestParameters;
         this.refreshQueryString();
-        this.refreshFormData();
+        void this.refreshFormData();
         event.consume();
     }
     createToggleButton(title) {
         const button = document.createElement('span');
         button.classList.add('payload-toggle');
+        button.tabIndex = 0;
+        button.setAttribute('role', 'button');
         button.textContent = title;
         return button;
     }

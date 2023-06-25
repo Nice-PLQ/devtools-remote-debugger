@@ -25,6 +25,7 @@ export declare class CubicBezier {
     static readonly Regex: RegExp;
     static readonly KeywordValues: Map<string, string>;
 }
+export declare const LINEAR_BEZIER: CubicBezier;
 export declare class EulerAngles {
     alpha: number;
     beta: number;
@@ -76,7 +77,7 @@ export declare const boundsForTransformedPoints: (matrix: DOMMatrix, points: num
     maxX: number;
     minY: number;
     maxY: number;
-} | undefined) => {
+}) => {
     minX: number;
     maxX: number;
     minY: number;

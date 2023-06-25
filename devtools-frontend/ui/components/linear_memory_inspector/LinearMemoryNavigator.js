@@ -8,28 +8,28 @@ import * as IconButton from '../icon_button/icon_button.js';
 import linearMemoryNavigatorStyles from './linearMemoryNavigator.css.js';
 const UIStrings = {
     /**
-    *@description Tooltip text that appears when hovering over a valid memory address (e.g. 0x0) in the address line in the Linear Memory Inspector.
-    */
+     *@description Tooltip text that appears when hovering over a valid memory address (e.g. 0x0) in the address line in the Linear Memory Inspector.
+     */
     enterAddress: 'Enter address',
     /**
-    *@description Tooltip text that appears when hovering over the button to go back in history in the Linear Memory Navigator
-    */
+     *@description Tooltip text that appears when hovering over the button to go back in history in the Linear Memory Navigator
+     */
     goBackInAddressHistory: 'Go back in address history',
     /**
-    *@description Tooltip text that appears when hovering over the button to go forward in history in the Linear Memory Navigator
-    */
+     *@description Tooltip text that appears when hovering over the button to go forward in history in the Linear Memory Navigator
+     */
     goForwardInAddressHistory: 'Go forward in address history',
     /**
-    *@description Tooltip text that appears when hovering over the page back icon in the Linear Memory Navigator
-    */
+     *@description Tooltip text that appears when hovering over the page back icon in the Linear Memory Navigator
+     */
     previousPage: 'Previous page',
     /**
-    *@description Tooltip text that appears when hovering over the next page icon in the Linear Memory Navigator
-    */
+     *@description Tooltip text that appears when hovering over the next page icon in the Linear Memory Navigator
+     */
     nextPage: 'Next page',
     /**
-    *@description Text to refresh the page
-    */
+     *@description Text to refresh the page
+     */
     refresh: 'Refresh',
 };
 const str_ = i18n.i18n.registerUIStrings('ui/components/linear_memory_inspector/LinearMemoryNavigator.ts', UIStrings);
@@ -67,77 +67,76 @@ export class RefreshRequestedEvent extends Event {
 }
 export class LinearMemoryNavigator extends HTMLElement {
     static litTagName = LitHtml.literal `devtools-linear-memory-inspector-navigator`;
-    shadow = this.attachShadow({ mode: 'open' });
-    address = '0';
-    error = undefined;
-    valid = true;
-    canGoBackInHistory = false;
-    canGoForwardInHistory = false;
+    #shadow = this.attachShadow({ mode: 'open' });
+    #address = '0';
+    #error = undefined;
+    #valid = true;
+    #canGoBackInHistory = false;
+    #canGoForwardInHistory = false;
     connectedCallback() {
-        this.shadow.adoptedStyleSheets = [linearMemoryNavigatorStyles];
+        this.#shadow.adoptedStyleSheets = [linearMemoryNavigatorStyles];
     }
     set data(data) {
-        this.address = data.address;
-        this.error = data.error;
-        this.valid = data.valid;
-        this.canGoBackInHistory = data.canGoBackInHistory;
-        this.canGoForwardInHistory = data.canGoForwardInHistory;
-        this.render();
-        const addressInput = this.shadow.querySelector('.address-input');
+        this.#address = data.address;
+        this.#error = data.error;
+        this.#valid = data.valid;
+        this.#canGoBackInHistory = data.canGoBackInHistory;
+        this.#canGoForwardInHistory = data.canGoForwardInHistory;
+        this.#render();
+        const addressInput = this.#shadow.querySelector('.address-input');
         if (addressInput) {
-            if (data.mode === "Submitted" /* Submitted */) {
+            if (data.mode === "Submitted" /* Mode.Submitted */) {
                 addressInput.blur();
             }
-            else if (data.mode === "InvalidSubmit" /* InvalidSubmit */) {
+            else if (data.mode === "InvalidSubmit" /* Mode.InvalidSubmit */) {
                 addressInput.select();
             }
         }
     }
-    render() {
+    #render() {
         // Disabled until https://crbug.com/1079231 is fixed.
         // clang-format off
         const result = html `
       <div class="navigator">
         <div class="navigator-item">
-          ${this.createButton({ icon: 'ic_undo_16x16_icon', title: i18nString(UIStrings.goBackInAddressHistory),
-            event: new HistoryNavigationEvent("Backward" /* Backward */), enabled: this.canGoBackInHistory })}
-          ${this.createButton({ icon: 'ic_redo_16x16_icon', title: i18nString(UIStrings.goForwardInAddressHistory),
-            event: new HistoryNavigationEvent("Forward" /* Forward */), enabled: this.canGoForwardInHistory })}
+          ${this.#createButton({ icon: 'undo', title: i18nString(UIStrings.goBackInAddressHistory),
+            event: new HistoryNavigationEvent("Backward" /* Navigation.Backward */), enabled: this.#canGoBackInHistory })}
+          ${this.#createButton({ icon: 'redo', title: i18nString(UIStrings.goForwardInAddressHistory),
+            event: new HistoryNavigationEvent("Forward" /* Navigation.Forward */), enabled: this.#canGoForwardInHistory })}
         </div>
         <div class="navigator-item">
-          ${this.createButton({ icon: 'ic_page_prev_16x16_icon', title: i18nString(UIStrings.previousPage),
-            event: new PageNavigationEvent("Backward" /* Backward */), enabled: true })}
-          ${this.createAddressInput()}
-          ${this.createButton({ icon: 'ic_page_next_16x16_icon', title: i18nString(UIStrings.nextPage),
-            event: new PageNavigationEvent("Forward" /* Forward */), enabled: true })}
+          ${this.#createButton({ icon: 'chevron-left', title: i18nString(UIStrings.previousPage),
+            event: new PageNavigationEvent("Backward" /* Navigation.Backward */), enabled: true })}
+          ${this.#createAddressInput()}
+          ${this.#createButton({ icon: 'chevron-right', title: i18nString(UIStrings.nextPage),
+            event: new PageNavigationEvent("Forward" /* Navigation.Forward */), enabled: true })}
         </div>
-        ${this.createButton({ icon: 'refresh_12x12_icon', title: i18nString(UIStrings.refresh),
+        ${this.#createButton({ icon: 'refresh', title: i18nString(UIStrings.refresh),
             event: new RefreshRequestedEvent(), enabled: true })}
       </div>
       `;
-        render(result, this.shadow, { host: this });
+        render(result, this.#shadow, { host: this });
         // clang-format on
     }
-    createAddressInput() {
+    #createAddressInput() {
         const classMap = {
             'address-input': true,
-            invalid: !this.valid,
+            invalid: !this.#valid,
         };
         return html `
-      <input class=${LitHtml.Directives.classMap(classMap)} data-input="true" .value=${this.address}
-        title=${this.valid ? i18nString(UIStrings.enterAddress) : this.error} @change=${this.onAddressChange.bind(this, "Submitted" /* Submitted */)} @input=${this.onAddressChange.bind(this, "Edit" /* Edit */)}/>`;
+      <input class=${LitHtml.Directives.classMap(classMap)} data-input="true" .value=${this.#address}
+        title=${this.#valid ? i18nString(UIStrings.enterAddress) : this.#error} @change=${this.#onAddressChange.bind(this, "Submitted" /* Mode.Submitted */)} @input=${this.#onAddressChange.bind(this, "Edit" /* Mode.Edit */)}/>`;
     }
-    onAddressChange(mode, event) {
+    #onAddressChange(mode, event) {
         const addressInput = event.target;
         this.dispatchEvent(new AddressInputChangedEvent(addressInput.value, mode));
     }
-    createButton(data) {
-        const iconColor = data.enabled ? 'var(--color-text-secondary)' : 'var(--color-background-highlight)';
+    #createButton(data) {
         return html `
       <button class="navigator-button" ?disabled=${!data.enabled}
         data-button=${data.event.type} title=${data.title}
         @click=${this.dispatchEvent.bind(this, data.event)}>
-        <${IconButton.Icon.Icon.litTagName} .data=${{ iconName: data.icon, color: iconColor, width: '14px' }}>
+        <${IconButton.Icon.Icon.litTagName} .data=${{ iconName: data.icon, color: 'var(--icon-default)', width: '20px', height: '20px' }}>
         </${IconButton.Icon.Icon.litTagName}>
       </button>`;
     }

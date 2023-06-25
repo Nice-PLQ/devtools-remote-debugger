@@ -6,39 +6,39 @@ import * as SDK from '../../core/sdk/sdk.js';
 import { AffectedElementsView } from './AffectedElementsView.js';
 const UIStrings = {
     /**
-    *@description Noun for singular or plural number of affected document nodes indication in issue view.
-    */
+     *@description Noun for singular or plural number of affected document nodes indication in issue view.
+     */
     nDocuments: '{n, plural, =1 { document} other { documents}}',
     /**
      *@description Column title for the Document in the DOM tree column in the quirks mode issue view
      */
     documentInTheDOMTree: 'Document in the DOM tree',
     /**
-    *@description Column title for the url column in the quirks mode issue view
-    */
+     *@description Column title for the url column in the quirks mode issue view
+     */
     url: 'URL',
     /**
-    *@description Column title for the Mode column in the quirks mode issue view
-    */
+     *@description Column title for the Mode column in the quirks mode issue view
+     */
     mode: 'Mode',
 };
 const str_ = i18n.i18n.registerUIStrings('panels/issues/AffectedDocumentsInQuirksModeView.ts', UIStrings);
 const i18nString = i18n.i18n.getLocalizedString.bind(undefined, str_);
 export class AffectedDocumentsInQuirksModeView extends AffectedElementsView {
-    runningUpdatePromise = Promise.resolve();
+    #runningUpdatePromise = Promise.resolve();
     update() {
         // Ensure that doUpdate is invoked atomically by serializing the update calls
         // because it's not re-entrace safe.
-        this.runningUpdatePromise = this.runningUpdatePromise.then(this.doUpdate.bind(this));
+        this.#runningUpdatePromise = this.#runningUpdatePromise.then(this.#doUpdate.bind(this));
     }
     getResourceName(count) {
         return i18nString(UIStrings.nDocuments, { n: count });
     }
-    async doUpdate() {
+    async #doUpdate() {
         this.clear();
-        await this.appendQuirksModeDocuments(this.issue.getQuirksModeIssues());
+        await this.#appendQuirksModeDocuments(this.issue.getQuirksModeIssues());
     }
-    async appendQuirksModeDocument(issue) {
+    async #appendQuirksModeDocument(issue) {
         const row = document.createElement('tr');
         row.classList.add('affected-resource-quirks-mode');
         const details = issue.details();
@@ -48,7 +48,7 @@ export class AffectedDocumentsInQuirksModeView extends AffectedElementsView {
         this.appendIssueDetailCell(row, details.url);
         this.affectedResources.appendChild(row);
     }
-    async appendQuirksModeDocuments(issues) {
+    async #appendQuirksModeDocuments(issues) {
         const header = document.createElement('tr');
         this.appendColumnTitle(header, i18nString(UIStrings.documentInTheDOMTree));
         this.appendColumnTitle(header, i18nString(UIStrings.mode));
@@ -57,7 +57,7 @@ export class AffectedDocumentsInQuirksModeView extends AffectedElementsView {
         let count = 0;
         for (const issue of issues) {
             count++;
-            await this.appendQuirksModeDocument(issue);
+            await this.#appendQuirksModeDocument(issue);
         }
         this.updateAffectedResourceCount(count);
     }

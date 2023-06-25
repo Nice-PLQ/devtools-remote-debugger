@@ -7,15 +7,11 @@ import * as DataGrid from '../../ui/legacy/components/data_grid/data_grid.js';
 import * as PerfUI from '../../ui/legacy/components/perf_ui/perf_ui.js';
 import * as Components from '../../ui/legacy/components/utils/utils.js';
 import * as UI from '../../ui/legacy/legacy.js';
-import type { HeapSnapshotSortableDataGrid } from './HeapSnapshotDataGrids.js';
-import { AllocationDataGrid, HeapSnapshotConstructorsDataGrid, HeapSnapshotDiffDataGrid, HeapSnapshotRetainmentDataGrid, HeapSnapshotContainmentDataGrid } from './HeapSnapshotDataGrids.js';
-import type { HeapSnapshotGridNode } from './HeapSnapshotGridNodes.js';
-import type { HeapSnapshotProxy } from './HeapSnapshotProxy.js';
-import { HeapSnapshotWorkerProxy } from './HeapSnapshotProxy.js';
-import type { IdsRangeChangedEvent } from './HeapTimelineOverview.js';
-import { HeapTimelineOverview, Samples } from './HeapTimelineOverview.js';
-import type { DataDisplayDelegate } from './ProfileHeader.js';
-import { ProfileHeader, ProfileType } from './ProfileHeader.js';
+import { AllocationDataGrid, HeapSnapshotConstructorsDataGrid, HeapSnapshotDiffDataGrid, HeapSnapshotRetainmentDataGrid, HeapSnapshotContainmentDataGrid, type HeapSnapshotSortableDataGrid } from './HeapSnapshotDataGrids.js';
+import { type HeapSnapshotGridNode } from './HeapSnapshotGridNodes.js';
+import { HeapSnapshotWorkerProxy, type HeapSnapshotProxy } from './HeapSnapshotProxy.js';
+import { HeapTimelineOverview, Samples, type IdsRangeChangedEvent } from './HeapTimelineOverview.js';
+import { ProfileHeader, ProfileType, type DataDisplayDelegate } from './ProfileHeader.js';
 import { ProfileSidebarTreeElement } from './ProfileSidebarTreeElement.js';
 export declare class HeapSnapshotView extends UI.View.SimpleView implements DataDisplayDelegate, UI.SearchableView.Searchable {
     searchResults: number[];
@@ -69,7 +65,7 @@ export declare class HeapSnapshotView extends UI.View.SimpleView implements Data
     willHide(): void;
     supportsCaseSensitiveSearch(): boolean;
     supportsRegexSearch(): boolean;
-    searchCanceled(): void;
+    onSearchCanceled(): void;
     selectRevealedNode(node: HeapSnapshotGridNode | null): void;
     performSearch(searchConfig: UI.SearchableView.SearchConfig, shouldJump: boolean, jumpBackwards?: boolean): void;
     performSearchInternal(nextQuery: HeapSnapshotModel.HeapSnapshotModel.SearchConfig): Promise<void>;
@@ -137,15 +133,15 @@ export declare class StatisticsPerspective extends Perspective {
     masterGrid(_heapSnapshotView: HeapSnapshotView): HeapSnapshotSortableDataGrid | null;
 }
 declare const HeapSnapshotProfileType_base: (new (...args: any[]) => {
-    "__#8@#events": Common.ObjectWrapper.ObjectWrapper<HeapSnapshotProfileTypeEventTypes>;
-    addEventListener<T extends HeapSnapshotProfileTypeEvents.SnapshotReceived>(eventType: T, listener: (arg0: Common.EventTarget.EventTargetEvent<HeapSnapshotProfileTypeEventTypes[T]>) => void, thisObject?: Object | undefined): Common.EventTarget.EventDescriptor<HeapSnapshotProfileTypeEventTypes, T>;
+    "__#13@#events": Common.ObjectWrapper.ObjectWrapper<HeapSnapshotProfileTypeEventTypes>;
+    addEventListener<T extends HeapSnapshotProfileTypeEvents.SnapshotReceived>(eventType: T, listener: (arg0: Common.EventTarget.EventTargetEvent<HeapSnapshotProfileTypeEventTypes[T], any>) => void, thisObject?: Object | undefined): Common.EventTarget.EventDescriptor<HeapSnapshotProfileTypeEventTypes, T>;
     once<T_1 extends HeapSnapshotProfileTypeEvents.SnapshotReceived>(eventType: T_1): Promise<HeapSnapshotProfileTypeEventTypes[T_1]>;
-    removeEventListener<T_2 extends HeapSnapshotProfileTypeEvents.SnapshotReceived>(eventType: T_2, listener: (arg0: Common.EventTarget.EventTargetEvent<HeapSnapshotProfileTypeEventTypes[T_2]>) => void, thisObject?: Object | undefined): void;
+    removeEventListener<T_2 extends HeapSnapshotProfileTypeEvents.SnapshotReceived>(eventType: T_2, listener: (arg0: Common.EventTarget.EventTargetEvent<HeapSnapshotProfileTypeEventTypes[T_2], any>) => void, thisObject?: Object | undefined): void;
     hasEventListeners(eventType: HeapSnapshotProfileTypeEvents.SnapshotReceived): boolean;
     dispatchEventToListeners<T_3 extends HeapSnapshotProfileTypeEvents.SnapshotReceived>(eventType: Platform.TypeScriptUtilities.NoUnion<T_3>, ...eventData: Common.EventTarget.EventPayloadToRestParameters<HeapSnapshotProfileTypeEventTypes, T_3>): void;
 }) & typeof ProfileType;
 export declare class HeapSnapshotProfileType extends HeapSnapshotProfileType_base implements SDK.TargetManager.SDKModelObserver<SDK.HeapProfilerModel.HeapProfilerModel> {
-    readonly treatGlobalObjectsAsRoots: Common.Settings.Setting<boolean>;
+    readonly exposeInternals: Common.Settings.Setting<boolean>;
     readonly captureNumericValue: Common.Settings.Setting<boolean>;
     customContentInternal: HTMLElement | null;
     constructor(id?: string, title?: string);
@@ -172,14 +168,14 @@ export declare class HeapSnapshotProfileType extends HeapSnapshotProfileType_bas
 export declare const enum HeapSnapshotProfileTypeEvents {
     SnapshotReceived = "SnapshotReceived"
 }
-export declare type HeapSnapshotProfileTypeEventTypes = {
+export type HeapSnapshotProfileTypeEventTypes = {
     [HeapSnapshotProfileTypeEvents.SnapshotReceived]: ProfileHeader;
 };
 declare const TrackingHeapSnapshotProfileType_base: (new (...args: any[]) => {
-    "__#8@#events": Common.ObjectWrapper.ObjectWrapper<TrackingHeapSnapshotProfileTypeEventTypes>;
-    addEventListener<T extends keyof TrackingHeapSnapshotProfileTypeEventTypes>(eventType: T, listener: (arg0: Common.EventTarget.EventTargetEvent<TrackingHeapSnapshotProfileTypeEventTypes[T]>) => void, thisObject?: Object | undefined): Common.EventTarget.EventDescriptor<TrackingHeapSnapshotProfileTypeEventTypes, T>;
+    "__#13@#events": Common.ObjectWrapper.ObjectWrapper<TrackingHeapSnapshotProfileTypeEventTypes>;
+    addEventListener<T extends keyof TrackingHeapSnapshotProfileTypeEventTypes>(eventType: T, listener: (arg0: Common.EventTarget.EventTargetEvent<TrackingHeapSnapshotProfileTypeEventTypes[T], any>) => void, thisObject?: Object | undefined): Common.EventTarget.EventDescriptor<TrackingHeapSnapshotProfileTypeEventTypes, T>;
     once<T_1 extends keyof TrackingHeapSnapshotProfileTypeEventTypes>(eventType: T_1): Promise<TrackingHeapSnapshotProfileTypeEventTypes[T_1]>;
-    removeEventListener<T_2 extends keyof TrackingHeapSnapshotProfileTypeEventTypes>(eventType: T_2, listener: (arg0: Common.EventTarget.EventTargetEvent<TrackingHeapSnapshotProfileTypeEventTypes[T_2]>) => void, thisObject?: Object | undefined): void;
+    removeEventListener<T_2 extends keyof TrackingHeapSnapshotProfileTypeEventTypes>(eventType: T_2, listener: (arg0: Common.EventTarget.EventTargetEvent<TrackingHeapSnapshotProfileTypeEventTypes[T_2], any>) => void, thisObject?: Object | undefined): void;
     hasEventListeners(eventType: keyof TrackingHeapSnapshotProfileTypeEventTypes): boolean;
     dispatchEventToListeners<T_3 extends keyof TrackingHeapSnapshotProfileTypeEventTypes>(eventType: Platform.TypeScriptUtilities.NoUnion<T_3>, ...eventData: Common.EventTarget.EventPayloadToRestParameters<TrackingHeapSnapshotProfileTypeEventTypes, T_3>): void;
 }) & typeof HeapSnapshotProfileType;
@@ -219,7 +215,7 @@ export declare const enum TrackingHeapSnapshotProfileTypeEvents {
     TrackingStarted = "TrackingStarted",
     TrackingStopped = "TrackingStopped"
 }
-export declare type TrackingHeapSnapshotProfileTypeEventTypes = {
+export type TrackingHeapSnapshotProfileTypeEventTypes = {
     [TrackingHeapSnapshotProfileTypeEvents.HeapStatsUpdate]: Samples;
     [TrackingHeapSnapshotProfileTypeEvents.TrackingStarted]: void;
     [TrackingHeapSnapshotProfileTypeEvents.TrackingStopped]: void;
@@ -237,7 +233,7 @@ export declare class HeapProfileHeader extends ProfileHeader {
     onTempFileReady: (() => void) | null;
     failedToCreateTempFile?: boolean;
     wasDisposed?: boolean;
-    fileName?: string;
+    fileName?: Platform.DevToolsPath.RawPathString;
     constructor(heapProfilerModel: SDK.HeapProfilerModel.HeapProfilerModel | null, type: HeapSnapshotProfileType, title?: string);
     heapProfilerModel(): SDK.HeapProfilerModel.HeapProfilerModel | null;
     getLocation(nodeIndex: number): Promise<HeapSnapshotModel.HeapSnapshotModel.Location | null>;

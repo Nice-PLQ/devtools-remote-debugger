@@ -32,20 +32,20 @@ import platformFontsWidgetStyles from './platformFontsWidget.css.js';
 import * as UI from '../../ui/legacy/legacy.js';
 const UIStrings = {
     /**
-    *@description Section title text content in Platform Fonts Widget of the Elements panel
-    */
+     *@description Section title text content in Platform Fonts Widget of the Elements panel
+     */
     renderedFonts: 'Rendered Fonts',
     /**
-    *@description Text in Platform Fonts Widget of the Elements panel
-    */
+     *@description Text in Platform Fonts Widget of the Elements panel
+     */
     networkResource: 'Network resource',
     /**
-    *@description Text in Platform Fonts Widget of the Elements panel
-    */
+     *@description Text in Platform Fonts Widget of the Elements panel
+     */
     localFile: 'Local file',
     /**
-    *@description Text in Platform Fonts Widget of the Elements panel. Indicates a number of glyphs (characters) .
-    */
+     *@description Text in Platform Fonts Widget of the Elements panel. Indicates a number of glyphs (characters) .
+     */
     dGlyphs: '{n, plural, =1 {(# glyph)} other {(# glyphs)}}',
 };
 const str_ = i18n.i18n.registerUIStrings('panels/elements/PlatformFontsWidget.ts', UIStrings);
@@ -57,7 +57,7 @@ export class PlatformFontsWidget extends UI.ThrottledWidget.ThrottledWidget {
     constructor(sharedModel) {
         super(true);
         this.sharedModel = sharedModel;
-        this.sharedModel.addEventListener("ComputedStyleChanged" /* ComputedStyleChanged */, this.update, this);
+        this.sharedModel.addEventListener("ComputedStyleChanged" /* Events.ComputedStyleChanged */, this.update, this);
         this.sectionTitle = document.createElement('div');
         this.sectionTitle.classList.add('title');
         this.contentElement.classList.add('platform-fonts');
@@ -73,7 +73,7 @@ export class PlatformFontsWidget extends UI.ThrottledWidget.ThrottledWidget {
         if (!node || !cssModel) {
             return Promise.resolve();
         }
-        return cssModel.platformFontsPromise(node.id).then(this.refreshUI.bind(this, node));
+        return cssModel.getPlatformFonts(node.id).then(this.refreshUI.bind(this, node));
     }
     refreshUI(node, platformFonts) {
         if (this.sharedModel.node() !== node) {

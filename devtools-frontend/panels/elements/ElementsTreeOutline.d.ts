@@ -2,16 +2,18 @@ import * as Common from '../../core/common/common.js';
 import * as SDK from '../../core/sdk/sdk.js';
 import * as UI from '../../ui/legacy/legacy.js';
 import { ElementsTreeElement } from './ElementsTreeElement.js';
-import type { MarkerDecoratorRegistration } from './MarkerDecorator.js';
+import { TopLayerContainer } from './TopLayerContainer.js';
+import { type MarkerDecoratorRegistration } from './MarkerDecorator.js';
 declare const ElementsTreeOutline_base: (new (...args: any[]) => {
-    "__#8@#events": Common.ObjectWrapper.ObjectWrapper<ElementsTreeOutline.EventTypes>;
-    addEventListener<T extends keyof ElementsTreeOutline.EventTypes>(eventType: T, listener: (arg0: Common.EventTarget.EventTargetEvent<ElementsTreeOutline.EventTypes[T]>) => void, thisObject?: Object | undefined): Common.EventTarget.EventDescriptor<ElementsTreeOutline.EventTypes, T>;
+    "__#13@#events": Common.ObjectWrapper.ObjectWrapper<ElementsTreeOutline.EventTypes>;
+    addEventListener<T extends keyof ElementsTreeOutline.EventTypes>(eventType: T, listener: (arg0: Common.EventTarget.EventTargetEvent<ElementsTreeOutline.EventTypes[T], any>) => void, thisObject?: Object | undefined): Common.EventTarget.EventDescriptor<ElementsTreeOutline.EventTypes, T>;
     once<T_1 extends keyof ElementsTreeOutline.EventTypes>(eventType: T_1): Promise<ElementsTreeOutline.EventTypes[T_1]>;
-    removeEventListener<T_2 extends keyof ElementsTreeOutline.EventTypes>(eventType: T_2, listener: (arg0: Common.EventTarget.EventTargetEvent<ElementsTreeOutline.EventTypes[T_2]>) => void, thisObject?: Object | undefined): void;
+    removeEventListener<T_2 extends keyof ElementsTreeOutline.EventTypes>(eventType: T_2, listener: (arg0: Common.EventTarget.EventTargetEvent<ElementsTreeOutline.EventTypes[T_2], any>) => void, thisObject?: Object | undefined): void;
     hasEventListeners(eventType: keyof ElementsTreeOutline.EventTypes): boolean;
     dispatchEventToListeners<T_3 extends keyof ElementsTreeOutline.EventTypes>(eventType: import("../../core/platform/typescript-utilities.js").NoUnion<T_3>, ...eventData: Common.EventTarget.EventPayloadToRestParameters<ElementsTreeOutline.EventTypes, T_3>): void;
 }) & typeof UI.TreeOutline.TreeOutline;
 export declare class ElementsTreeOutline extends ElementsTreeOutline_base {
+    #private;
     treeElementByNode: WeakMap<SDK.DOMModel.DOMNode, ElementsTreeElement>;
     private readonly shadowRoot;
     readonly elementInternal: HTMLElement;
@@ -114,6 +116,7 @@ export declare class ElementsTreeOutline extends ElementsTreeOutline_base {
     private updateModifiedNode;
     private updateModifiedParentNode;
     populateTreeElement(treeElement: ElementsTreeElement): Promise<void>;
+    createTopLayerContainer(parent: UI.TreeOutline.TreeElement, domModel: SDK.DOMModel.DOMModel): Promise<void>;
     private createElementTreeElement;
     private showChild;
     private visibleChildren;
@@ -121,10 +124,11 @@ export declare class ElementsTreeOutline extends ElementsTreeOutline_base {
     private createExpandAllButtonTreeElement;
     setExpandedChildrenLimit(treeElement: ElementsTreeElement, expandedChildrenLimit: number): void;
     private updateChildren;
-    insertChildElement(treeElement: ElementsTreeElement, child: SDK.DOMModel.DOMNode, index: number, isClosingTag?: boolean): ElementsTreeElement;
+    insertChildElement(treeElement: ElementsTreeElement | TopLayerContainer, child: SDK.DOMModel.DOMNode, index: number, isClosingTag?: boolean): ElementsTreeElement;
     private moveChild;
     private innerUpdateChildren;
     private markersChanged;
+    private topLayerElementsChanged;
     private static treeOutlineSymbol;
 }
 export declare namespace ElementsTreeOutline {
@@ -172,10 +176,13 @@ export declare class ShortcutTreeElement extends UI.TreeOutline.TreeElement {
     private readonly nodeShortcut;
     private hoveredInternal?;
     constructor(nodeShortcut: SDK.DOMModel.DOMNodeShortcut);
+    addRevealAdorner(): void;
     get hovered(): boolean;
     set hovered(x: boolean);
     deferredNode(): SDK.DOMModel.DeferredDOMNode;
     domModel(): SDK.DOMModel.DOMModel;
+    private setLeftIndentOverlay;
+    onattach(): void;
     onselect(selectedByUser?: boolean): boolean;
 }
 export interface MultilineEditorController {

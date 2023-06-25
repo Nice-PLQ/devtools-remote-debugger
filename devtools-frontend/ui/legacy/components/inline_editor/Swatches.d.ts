@@ -1,5 +1,5 @@
 import { ColorSwatch } from './ColorSwatch.js';
-import type { CSSShadowModel } from './CSSShadowModel.js';
+import { type CSSShadowModel } from './CSSShadowModel.js';
 export declare class BezierSwatch extends HTMLSpanElement {
     private readonly iconElementInternal;
     private textElement;

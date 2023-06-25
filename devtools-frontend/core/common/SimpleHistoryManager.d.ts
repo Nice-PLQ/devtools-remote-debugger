@@ -1,6 +1,3 @@
-/**
- * @interface
- */
 export interface HistoryEntry {
     valid(): boolean;
     reveal(): void;

@@ -9,13 +9,10 @@ export interface MarkdownLinkData {
  * This makes sure that all links are accounted for and no bad links are introduced to devtools via markdown.
  */
 export declare class MarkdownLink extends HTMLElement {
+    #private;
     static readonly litTagName: import("../../lit-html/static.js").Static;
-    private readonly shadow;
-    private linkText;
-    private linkUrl;
     connectedCallback(): void;
     set data(data: MarkdownLinkData);
-    private render;
 }
 declare global {
     interface HTMLElementTagNameMap {

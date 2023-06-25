@@ -11,14 +11,10 @@ export declare class TypeToggleEvent extends Event {
     constructor(type: ValueType, checked: boolean);
 }
 export declare class ValueInterpreterSettings extends HTMLElement {
+    #private;
     static readonly litTagName: import("../../lit-html/static.js").Static;
-    private readonly shadow;
-    private valueTypes;
     connectedCallback(): void;
     set data(data: ValueInterpreterSettingsData);
-    private render;
-    private plotTypeSelections;
-    private onTypeToggle;
 }
 declare global {
     interface HTMLElementTagNameMap {

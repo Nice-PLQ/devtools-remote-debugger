@@ -1,5 +1,5 @@
 import * as Common from '../../core/common/common.js';
-import type { SuggestBoxDelegate, Suggestion } from './SuggestBox.js';
+import { SuggestBox, type SuggestBoxDelegate, type Suggestion } from './SuggestBox.js';
 export declare class TextPrompt extends Common.ObjectWrapper.ObjectWrapper<EventTypes> implements SuggestBoxDelegate {
     private proxyElement;
     private proxyElementDisplay;
@@ -28,7 +28,7 @@ export declare class TextPrompt extends Common.ObjectWrapper.ObjectWrapper<Event
     private completeTimeout?;
     private disableDefaultSuggestionForEmptyInputInternal?;
     constructor();
-    initialize(completions: (this: null, arg1: string, arg2: string, arg3?: boolean | undefined) => Promise<Suggestion[]>, stopCharacters?: string, usesSuggestionBuilder?: boolean): void;
+    initialize(completions: (this: null, expression: string, filter: string, force?: boolean | undefined) => Promise<Suggestion[]>, stopCharacters?: string, usesSuggestionBuilder?: boolean): void;
     setAutocompletionTimeout(timeout: number): void;
     renderAsBlock(): void;
     /**
@@ -82,7 +82,7 @@ export declare class TextPrompt extends Common.ObjectWrapper.ObjectWrapper<Event
     private isCaretAtEndOfPrompt;
     moveCaretToEndOfPrompt(): void;
     /** -1 if no caret can be found in text prompt
-       */
+     */
     private getCaretPosition;
     tabKeyPressed(_event: Event): boolean;
     proxyElementForTests(): Element | null;
@@ -93,10 +93,11 @@ export declare class TextPrompt extends Common.ObjectWrapper.ObjectWrapper<Event
      */
     private tryMatchingLeftParenthesis;
     private updateLeftParenthesesIndices;
+    suggestBoxForTest(): SuggestBox | undefined;
 }
 export declare enum Events {
     TextChanged = "TextChanged"
 }
-export declare type EventTypes = {
+export type EventTypes = {
     [Events.TextChanged]: void;
 };

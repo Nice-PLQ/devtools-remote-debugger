@@ -41,7 +41,7 @@ export interface Boolean {
     kind: ResultKind.BOOLEAN;
     value: boolean;
 }
-export declare type BareItem = Integer | Decimal | String | Token | Binary | Boolean;
+export type BareItem = Integer | Decimal | String | Token | Binary | Boolean;
 export interface ParamName {
     kind: ResultKind.PARAM_NAME;
     value: string;
@@ -65,7 +65,7 @@ export interface InnerList {
     items: Item[];
     parameters: Parameters;
 }
-export declare type ListMember = Item | InnerList;
+export type ListMember = Item | InnerList;
 export interface List {
     kind: ResultKind.LIST;
     items: ListMember[];

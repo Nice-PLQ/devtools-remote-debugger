@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2013 Google Inc. All rights reserved.
+ * Copyright (C) 2022 Google Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -27,70 +27,33 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-import * as TextRange from './TextRange.js';
-export function toPos(range) {
-    return {
-        start: new CodeMirror.Pos(range.startLine, range.startColumn),
-        end: new CodeMirror.Pos(range.endLine, range.endColumn),
-    };
-}
-export function toRange(start, end) {
-    return new TextRange.TextRange(start.line, start.ch, end.line, end.ch);
-}
-export function changeObjectToEditOperation(changeObject) {
-    const oldRange = toRange(changeObject.from, changeObject.to);
-    const newRange = oldRange.clone();
-    const linesAdded = changeObject.text.length;
-    if (linesAdded === 0) {
-        newRange.endLine = newRange.startLine;
-        newRange.endColumn = newRange.startColumn;
-    }
-    else if (linesAdded === 1) {
-        newRange.endLine = newRange.startLine;
-        newRange.endColumn = newRange.startColumn + changeObject.text[0].length;
-    }
-    else {
-        newRange.endLine = newRange.startLine + linesAdded - 1;
-        newRange.endColumn = changeObject.text[linesAdded - 1].length;
-    }
-    return { oldRange: oldRange, newRange: newRange };
-}
-export function pullLines(codeMirror, linesCount) {
-    const lines = [];
-    // @ts-expect-error CodeMirror types do not specify eachLine.
-    codeMirror.eachLine(0, linesCount, onLineHandle);
-    return lines;
-    function onLineHandle(lineHandle) {
-        lines.push(lineHandle.text);
-    }
-}
-let tokenizerFactoryInstance;
-export class TokenizerFactory {
-    static instance(opts = { forceNew: null }) {
-        const { forceNew } = opts;
-        if (!tokenizerFactoryInstance || forceNew) {
-            tokenizerFactoryInstance = new TokenizerFactory();
-        }
-        return tokenizerFactoryInstance;
-    }
-    // https://crbug.com/1151919 * = CodeMirror.Mode
-    getMode(mimeType) {
-        return CodeMirror.getMode({ indentUnit: 2 }, mimeType);
-    }
-    // https://crbug.com/1151919 * = CodeMirror.Mode
-    createTokenizer(mimeType, mode) {
-        const cmMode = mode || CodeMirror.getMode({ indentUnit: 2 }, mimeType);
-        const state = CodeMirror.startState(cmMode);
-        function tokenize(line, callback) {
-            const stream = new CodeMirror.StringStream(line);
-            while (!stream.eol()) {
-                const style = cmMode.token(stream, state);
-                const value = stream.current();
-                callback(value, style, stream.start, stream.start + value.length);
-                stream.start = stream.pos;
+import * as CodeMirror from '../../third_party/codemirror.next/codemirror.next.js';
+export function createCssTokenizer() {
+    async function tokenize(line, callback) {
+        const streamParser = await CodeMirror.cssStreamParser();
+        const stream = new CodeMirror.StringStream(line, 4, 2);
+        const state = streamParser.startState();
+        let lastPos = stream.pos;
+        while (!stream.eol()) {
+            stream.start = lastPos;
+            let tokenType = streamParser.token(stream, state);
+            /**
+             * We expect unknown properties (like `unknownProp: unknownPropVal`) to still be
+             * formatted correctly. However, `tokenType` for such properties are marked
+             * as `error` from CodeMirror side and the internal state of the parser becomes `maybeprop`.
+             *
+             * So, we handle that specific keyword to be marked as `property` even though it is
+             * not a known property. We do this because for our formatting purposes it doesn't matter
+             * whether a property is a known CSS property or not.
+             */
+            if (tokenType === 'error' && state.state === 'maybeprop') {
+                tokenType = 'property';
             }
+            const segment = stream.current();
+            callback(segment, tokenType);
+            lastPos = stream.pos;
         }
-        return tokenize;
     }
+    return tokenize;
 }
 //# sourceMappingURL=CodeMirrorUtils.js.map

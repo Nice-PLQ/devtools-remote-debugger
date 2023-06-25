@@ -1,22 +1,23 @@
 import * as Common from '../common/common.js';
 import * as Host from '../host/host.js';
+import type * as Platform from '../platform/platform.js';
 import type * as Protocol from '../../generated/protocol.js';
-import type { ResourceTreeFrame } from './ResourceTreeModel.js';
-import type { Target } from './Target.js';
-export declare type PageResourceLoadInitiator = {
+import { type ResourceTreeFrame, type PrimaryPageChangeType } from './ResourceTreeModel.js';
+import { type Target } from './Target.js';
+export type PageResourceLoadInitiator = {
     target: null;
     frameId: Protocol.Page.FrameId;
-    initiatorUrl: string | null;
+    initiatorUrl: Platform.DevToolsPath.UrlString | null;
 } | {
     target: Target;
     frameId: Protocol.Page.FrameId | null;
-    initiatorUrl: string | null;
+    initiatorUrl: Platform.DevToolsPath.UrlString | null;
 };
 export interface PageResource {
     success: boolean | null;
     errorMessage?: string;
     initiator: PageResourceLoadInitiator;
-    url: string;
+    url: Platform.DevToolsPath.UrlString;
     size: number | null;
 }
 /**
@@ -30,8 +31,8 @@ export declare class PageResourceLoader extends Common.ObjectWrapper.ObjectWrapp
         success: boolean;
         content: string;
         errorDescription: Host.ResourceLoader.LoadErrorDescription;
-    }>) | null, maxConcurrentLoads: number, loadTimeout: number);
-    static instance({ forceNew, loadOverride, maxConcurrentLoads, loadTimeout }?: {
+    }>) | null, maxConcurrentLoads: number);
+    static instance({ forceNew, loadOverride, maxConcurrentLoads }?: {
         forceNew: boolean;
         loadOverride: (null | ((arg0: string) => Promise<{
             success: boolean;
@@ -39,9 +40,12 @@ export declare class PageResourceLoader extends Common.ObjectWrapper.ObjectWrapp
             errorDescription: Host.ResourceLoader.LoadErrorDescription;
         }>));
         maxConcurrentLoads: number;
-        loadTimeout: number;
     }): PageResourceLoader;
-    onMainFrameNavigated(event: Common.EventTarget.EventTargetEvent<ResourceTreeFrame>): void;
+    static removeInstance(): void;
+    onPrimaryPageChanged(event: Common.EventTarget.EventTargetEvent<{
+        frame: ResourceTreeFrame;
+        type: PrimaryPageChangeType;
+    }>): void;
     getResourcesLoaded(): Map<string, PageResource>;
     /**
      * Loading is the number of currently loading and queued items. Resources is the total number of resources,
@@ -55,9 +59,8 @@ export declare class PageResourceLoader extends Common.ObjectWrapper.ObjectWrapp
     };
     private acquireLoadSlot;
     private releaseLoadSlot;
-    static withTimeout<T>(promise: Promise<T>, timeout: number): Promise<T>;
-    static makeKey(url: string, initiator: PageResourceLoadInitiator): string;
-    loadResource(url: string, initiator: PageResourceLoadInitiator): Promise<{
+    static makeKey(url: Platform.DevToolsPath.UrlString, initiator: PageResourceLoadInitiator): string;
+    loadResource(url: Platform.DevToolsPath.UrlString, initiator: PageResourceLoadInitiator): Promise<{
         content: string;
     }>;
     private dispatchLoad;
@@ -68,6 +71,6 @@ export declare function getLoadThroughTargetSetting(): Common.Settings.Setting<b
 export declare enum Events {
     Update = "Update"
 }
-export declare type EventTypes = {
+export type EventTypes = {
     [Events.Update]: void;
 };

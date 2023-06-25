@@ -11,7 +11,10 @@ export declare class AccessibilitySidebarView extends UI.ThrottledWidget.Throttl
     private readonly axNodeSubPane;
     private readonly sourceOrderSubPane;
     private constructor();
-    static instance(): AccessibilitySidebarView;
+    static instance(opts?: {
+        forceNew: boolean;
+        throttlingTimeout: number;
+    }): AccessibilitySidebarView;
     node(): SDK.DOMModel.DOMNode | null;
     axNode(): SDK.AccessibilityModel.AccessibilityNode | null;
     setNode(node: SDK.DOMModel.DOMNode | null, fromAXTree?: boolean): void;
@@ -20,6 +23,5 @@ export declare class AccessibilitySidebarView extends UI.ThrottledWidget.Throttl
     wasShown(): void;
     willHide(): void;
     private pullNode;
-    private onAttrChange;
     private onNodeChange;
 }

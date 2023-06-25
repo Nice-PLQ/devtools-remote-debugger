@@ -5,6 +5,7 @@ import * as CM from '../../../third_party/codemirror.next/codemirror.next.js';
 export const editorTheme = CM.EditorView.theme({
     '&.cm-editor': {
         color: 'color: var(--color-text-primary)',
+        cursor: 'auto',
         '&.cm-focused': {
             outline: 'none',
         },
@@ -14,7 +15,7 @@ export const editorTheme = CM.EditorView.theme({
         fontFamily: 'var(--source-code-font-family)',
         fontSize: 'var(--source-code-font-size)',
     },
-    '.cm-panels, .cm-tooltip': {
+    '.cm-panels': {
         backgroundColor: 'var(--color-background-elevation-1)',
     },
     '.cm-selectionMatch': {
@@ -30,7 +31,7 @@ export const editorTheme = CM.EditorView.theme({
         borderLeft: '1px solid var(--color-secondary-cursor)',
     },
     '.cm-selectionBackground': {
-        background: 'var(--color-editor-selection-selection)',
+        background: 'var(--color-editor-selection)',
     },
     '&.cm-focused .cm-selectionBackground': {
         background: 'var(--color-editor-selection)',
@@ -40,9 +41,26 @@ export const editorTheme = CM.EditorView.theme({
         whiteSpace: 'nowrap',
         backgroundColor: 'var(--color-background)',
     },
+    '.cm-gutters .cm-foldGutterElement': {
+        cursor: 'pointer',
+        opacity: '0%',
+        transition: 'opacity 0.2s',
+    },
+    '.cm-gutters .cm-foldGutterElement-folded, .cm-gutters:hover .cm-foldGutterElement': {
+        opacity: '100%',
+    },
+    '.cm-lineNumbers': {
+        overflow: 'visible',
+        minWidth: '40px',
+    },
     '.cm-lineNumbers .cm-gutterElement': {
         color: 'var(--color-line-number)',
         padding: '0 3px 0 9px',
+    },
+    '.cm-foldPlaceholder': {
+        background: 'transparent',
+        border: 'none',
+        color: 'var(--color-text-secondary)',
     },
     '.cm-matchingBracket, .cm-nonmatchingBracket': {
         background: 'transparent',
@@ -58,7 +76,7 @@ export const editorTheme = CM.EditorView.theme({
         borderBottom: '1px solid var(--color-nonmatching-bracket-underline)',
     },
     '.cm-trailingWhitespace': {
-        backgroundColor: 'var(--color-error-text)',
+        backgroundColor: 'var(--color-trailing-whitespace)',
     },
     '.cm-highlightedTab': {
         display: 'inline-block',
@@ -85,22 +103,74 @@ export const editorTheme = CM.EditorView.theme({
     '.cm-completionHint': {
         color: 'var(--color-text-secondary)',
     },
+    '.cm-tooltip': {
+        boxShadow: 'var(--drop-shadow)',
+        backgroundColor: 'var(--color-background-elevation-1)',
+    },
     '.cm-argumentHints': {
         pointerEvents: 'none',
         padding: '0 4px',
         whiteSpace: 'nowrap',
         lineHeight: '20px',
         marginBottom: '4px',
-        boxShadow: 'var(--drop-shadow)',
-        backgroundColor: 'var(--color-background)',
         width: 'fit-content',
     },
     '.cm-tooltip.cm-tooltip-autocomplete > ul': {
+        backgroundColor: 'var(--color-background)',
+        maxHeight: '25em',
         minWidth: '16em',
+        '& > li': {
+            display: 'flex',
+            justifyContent: 'space-between',
+            border: '1px solid var(--color-background)',
+        },
+        '& > li.cm-secondaryCompletion': {
+            display: 'flex',
+            backgroundColor: 'var(--color-background-elevation-1)',
+            borderColor: 'var(--color-background-elevation-1)',
+            justifyContent: 'space-between',
+            '&::before': {
+                content: '">"',
+                fontWeight: 'bold',
+                color: 'var(--color-primary-variant)',
+                marginRight: '5px',
+            },
+        },
+        '& > li:hover': {
+            backgroundColor: 'var(--item-hover-color)',
+        },
         '& > li[aria-selected]': {
             backgroundColor: 'var(--color-selected-option-background)',
-            color: 'var(--color-selected-option)',
+            borderColor: 'var(--color-selected-option-background)',
+            '&, &.cm-secondaryCompletion::before': {
+                color: 'var(--color-selected-option)',
+            },
+            '&::after': {
+                content: '"tab"',
+                color: 'var(--color-button-primary-text)',
+                border: '1px solid var(--color-selected-option-outline)',
+                borderRadius: '2px',
+                marginLeft: '5px',
+                padding: '1px 3px',
+                fontSize: '10px',
+                lineHeight: '10px',
+            },
         },
+    },
+    '.cm-tooltip.cm-tooltip-autocomplete.cm-conservativeCompletion > ul > li[aria-selected]': {
+        backgroundColor: 'var(--color-background)',
+        border: '1px dotted var(--color-text-primary)',
+        '&, &.cm-secondaryCompletion::before': {
+            color: 'var(--color-text-primary)',
+        },
+        '&::after': {
+            border: '1px solid var(--color-button-secondary-border)',
+            color: 'var(--color-text-secondary)',
+        },
+    },
+    '.cm-completionMatchedText': {
+        textDecoration: 'none',
+        fontWeight: 'bold',
     },
     '.cm-highlightedLine': {
         animation: 'cm-fading-highlight 2s 0s',

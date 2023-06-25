@@ -1,4 +1,4 @@
-import type { LocalizedMessages, UIStrings } from './i18n-impl.js';
+import { type LocalizedMessages, type UIStrings } from './i18n-impl.js';
 import * as IntlMessageFormat from '../intl-messageformat/intl-messageformat.js';
 /**
  * This class is usually created at module instantiation time and
@@ -26,7 +26,7 @@ export declare class RegisteredFileStrings {
     constructor(filename: string, stringStructure: UIStrings, localizedMessages: Map<Intl.UnicodeBCP47LocaleIdentifier, LocalizedMessages>);
     getLocalizedStringSetFor(locale: Intl.UnicodeBCP47LocaleIdentifier): LocalizedStringSet;
 }
-export declare type Values = Record<string, string | number | boolean>;
+export type Values = Record<string, string | number | boolean>;
 /**
  * A set of translated strings for a single file in a specific locale.
  *

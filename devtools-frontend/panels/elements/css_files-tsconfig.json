@@ -4,13 +4,14 @@
         "outDir": "."
     },
     "files": [
+        "accessibilityTreeView.css.js",
         "classesPaneWidget.css.js",
         "computedStyleSidebarPane.css.js",
-        "computedStyleWidgetTree.css.js",
         "domLinkifier.css.js",
         "elementStatePaneWidget.css.js",
         "elementsPanel.css.js",
         "elementsTreeOutline.css.js",
+        "layersWidget.css.js",
         "layoutPane.css.js",
         "metricsSidebarPane.css.js",
         "nodeStackTraceWidget.css.js",

@@ -10,37 +10,27 @@ interface StackTraceRowData {
     stackTraceRowItem: Components.JSPresentationUtils.StackTraceRegularRow;
 }
 export declare class StackTraceRow extends HTMLElement {
+    #private;
     static readonly litTagName: import("../../../ui/lit-html/static.js").Static;
-    private readonly shadow;
-    private stackTraceRowItem;
     set data(data: StackTraceRowData);
     connectedCallback(): void;
-    private render;
 }
 interface StackTraceLinkButtonData {
     onShowAllClick: () => void;
     hiddenCallFramesCount: number;
+    expandedView: boolean;
 }
 export declare class StackTraceLinkButton extends HTMLElement {
+    #private;
     static readonly litTagName: import("../../../ui/lit-html/static.js").Static;
-    private readonly shadow;
-    private onShowAllClick;
-    private hiddenCallFramesCount;
     set data(data: StackTraceLinkButtonData);
     connectedCallback(): void;
-    private render;
 }
 export declare class StackTrace extends HTMLElement {
+    #private;
     static readonly litTagName: import("../../../ui/lit-html/static.js").Static;
-    private readonly shadow;
-    private readonly linkifier;
-    private stackTraceRows;
-    private showHidden;
     set data(data: StackTraceData);
-    private onStackTraceRowsUpdated;
-    private onShowAllClick;
     createRowTemplates(): LitHtml.TemplateResult[];
-    private render;
 }
 declare global {
     interface HTMLElementTagNameMap {

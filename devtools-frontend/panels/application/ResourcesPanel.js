@@ -92,7 +92,7 @@ export class ResourcesPanel extends UI.Panel.PanelWithSidebar {
         this.storageViewToolbar.removeToolbarItems();
         this.storageViewToolbar.element.classList.toggle('hidden', true);
         if (view instanceof UI.View.SimpleView) {
-            view.toolbarItems().then(items => {
+            void view.toolbarItems().then(items => {
                 items.map(item => this.storageViewToolbar.appendToolbarItem(item));
                 this.storageViewToolbar.element.classList.toggle('hidden', !items.length);
             });
@@ -145,7 +145,7 @@ export class ResourcesPanel extends UI.Panel.PanelWithSidebar {
         if (!model) {
             return;
         }
-        model.clear(cookieDomain).then(() => {
+        void model.clear(cookieDomain).then(() => {
             if (this.cookieView) {
                 this.cookieView.refreshItems();
             }
@@ -171,38 +171,6 @@ export class ResourceRevealer {
         }
         const sidebar = await ResourcesPanel.showAndGetSidebar();
         await sidebar.showResource(resource);
-    }
-}
-let cookieReferenceRevealerInstance;
-export class CookieReferenceRevealer {
-    static instance(opts = { forceNew: null }) {
-        const { forceNew } = opts;
-        if (!cookieReferenceRevealerInstance || forceNew) {
-            cookieReferenceRevealerInstance = new CookieReferenceRevealer();
-        }
-        return cookieReferenceRevealerInstance;
-    }
-    async reveal(cookie) {
-        if (!(cookie instanceof SDK.Cookie.CookieReference)) {
-            throw new Error('Internal error: not a cookie reference');
-        }
-        const sidebar = await ResourcesPanel.showAndGetSidebar();
-        await sidebar.cookieListTreeElement.select();
-        const contextUrl = cookie.contextUrl();
-        if (contextUrl && await this.revealByDomain(sidebar, contextUrl)) {
-            return;
-        }
-        // Fallback: try to reveal the cookie using its domain as context, which may not work, because the
-        // Application Panel shows cookies grouped by context, see crbug.com/1060563.
-        this.revealByDomain(sidebar, cookie.domain());
-    }
-    async revealByDomain(sidebar, domain) {
-        const item = sidebar.cookieListTreeElement.children().find(c => /** @type {!CookieTreeElement} */ c.cookieDomain().endsWith(domain));
-        if (item) {
-            await item.revealAndSelect();
-            return true;
-        }
-        return false;
     }
 }
 let frameDetailsRevealerInstance;

@@ -7,16 +7,16 @@ import * as SDK from '../../core/sdk/sdk.js';
 import { ThrottlingPresets } from './ThrottlingPresets.js';
 const UIStrings = {
     /**
-    *@description Text to indicate something is not enabled
-    */
+     *@description Text to indicate something is not enabled
+     */
     disabled: 'Disabled',
     /**
-    *@description Title for a group of configuration options
-    */
+     *@description Title for a group of configuration options
+     */
     presets: 'Presets',
     /**
-    *@description Text in Network Throttling Selector of the Network panel
-    */
+     *@description Text in Network Throttling Selector of the Network panel
+     */
     custom: 'Custom',
 };
 const str_ = i18n.i18n.registerUIStrings('panels/mobile_throttling/NetworkThrottlingSelector.ts', UIStrings);
@@ -37,7 +37,7 @@ export class NetworkThrottlingSelector {
         this.populateOptions();
     }
     revealAndUpdate() {
-        Common.Revealer.reveal(this.customNetworkConditionsSetting);
+        void Common.Revealer.reveal(this.customNetworkConditionsSetting);
         this.networkConditionsChanged();
     }
     optionSelected(conditions) {

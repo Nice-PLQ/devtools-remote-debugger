@@ -9,8 +9,8 @@ import * as LitHtml from '../../../ui/lit-html/lit-html.js';
 import accessibilityTreeNodeStyles from './accessibilityTreeNode.css.js';
 const UIStrings = {
     /**
-    *@description Ignored node element text content in Accessibility Tree View of the Elements panel
-    */
+     *@description Ignored node element text content in Accessibility Tree View of the Elements panel
+     */
     ignored: 'Ignored',
 };
 const str_ = i18n.i18n.registerUIStrings('panels/elements/components/AccessibilityTreeNode.ts', UIStrings);
@@ -24,27 +24,47 @@ function truncateTextIfNeeded(text) {
     }
     return text;
 }
+function isPrintable(valueType) {
+    switch (valueType) {
+        case "boolean" /* Protocol.Accessibility.AXValueType.Boolean */:
+        case "booleanOrUndefined" /* Protocol.Accessibility.AXValueType.BooleanOrUndefined */:
+        case "string" /* Protocol.Accessibility.AXValueType.String */:
+        case "number" /* Protocol.Accessibility.AXValueType.Number */:
+            return true;
+        default:
+            return false;
+    }
+}
 export class AccessibilityTreeNode extends HTMLElement {
     static litTagName = LitHtml.literal `devtools-accessibility-tree-node`;
-    shadow = this.attachShadow({ mode: 'open' });
-    ignored = true;
-    name = '';
-    role = '';
+    #shadow = this.attachShadow({ mode: 'open' });
+    #ignored = true;
+    #name = '';
+    #role = '';
+    #properties = [];
+    #id = '';
     set data(data) {
-        this.ignored = data.ignored;
-        this.name = data.name;
-        this.role = data.role;
-        this.render();
+        this.#ignored = data.ignored;
+        this.#name = data.name;
+        this.#role = data.role;
+        this.#properties = data.properties;
+        this.#id = data.id;
+        void this.#render();
     }
     connectedCallback() {
-        this.shadow.adoptedStyleSheets = [accessibilityTreeNodeStyles];
+        this.#shadow.adoptedStyleSheets = [accessibilityTreeNodeStyles];
     }
-    async render() {
-        await Coordinator.RenderCoordinator.RenderCoordinator.instance().write('Accessibility node render', () => {
+    async #render() {
+        const role = LitHtml.html `<span class='role-value'>${truncateTextIfNeeded(this.#role)}</span>`;
+        const name = LitHtml.html `"<span class='attribute-value'>${this.#name}</span>"`;
+        const properties = this.#properties.map(({ name, value }) => isPrintable(value.type) ?
+            LitHtml.html ` <span class='attribute-name'>${name}</span>:&nbsp;<span class='attribute-value'>${value.value}</span>` :
+            LitHtml.nothing);
+        const content = this.#ignored ? LitHtml.html `<span>${i18nString(UIStrings.ignored)}</span>` :
+            LitHtml.html `${role}&nbsp;${name}${properties}`;
+        await Coordinator.RenderCoordinator.RenderCoordinator.instance().write(`Accessibility node ${this.#id} render`, () => {
             // clang-format off
-            LitHtml.render(LitHtml.html `${this.ignored ?
-                LitHtml.html `<span>${i18nString(UIStrings.ignored)}</span>` :
-                LitHtml.html `<span class='role-value'>${truncateTextIfNeeded(this.role)}</span>&nbsp"<span class='attribute-value'>${this.name}</span>"`}`, this.shadow, { host: this });
+            LitHtml.render(LitHtml.html `<div class='container'>${content}</div>`, this.#shadow, { host: this });
             // clang-format on
         });
     }

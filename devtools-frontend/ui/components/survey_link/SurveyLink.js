@@ -9,16 +9,16 @@ import * as IconButton from '../icon_button/icon_button.js';
 import surveyLinkStyles from './surveyLink.css.js';
 const UIStrings = {
     /**
-    *@description Text shown when the link to open a survey is clicked but the survey has not yet appeared
-    */
+     *@description Text shown when the link to open a survey is clicked but the survey has not yet appeared
+     */
     openingSurvey: 'Opening survey …',
     /**
-    *@description Text displayed instead of the survey link after the survey link is clicked, if the survey was shown successfully
-    */
+     *@description Text displayed instead of the survey link after the survey link is clicked, if the survey was shown successfully
+     */
     thankYouForYourFeedback: 'Thank you for your feedback',
     /**
-    *@description Text displayed instead of the survey link after the survey link is clicked, if the survey was not shown successfully
-    */
+     *@description Text displayed instead of the survey link after the survey link is clicked, if the survey was not shown successfully
+     */
     anErrorOccurredWithTheSurvey: 'An error occurred with the survey',
 };
 const str_ = i18n.i18n.registerUIStrings('ui/components/survey_link/SurveyLink.ts', UIStrings);
@@ -27,80 +27,80 @@ const i18nString = i18n.i18n.getLocalizedString.bind(undefined, str_);
 // canShowSurvey succeeds.
 export class SurveyLink extends HTMLElement {
     static litTagName = LitHtml.literal `devtools-survey-link`;
-    shadow = this.attachShadow({ mode: 'open' });
-    trigger = '';
-    promptText = Common.UIString.LocalizedEmptyString;
-    canShowSurvey = () => { };
-    showSurvey = () => { };
-    state = "Checking" /* Checking */;
+    #shadow = this.attachShadow({ mode: 'open' });
+    #trigger = '';
+    #promptText = Common.UIString.LocalizedEmptyString;
+    #canShowSurvey = () => { };
+    #showSurvey = () => { };
+    #state = "Checking" /* State.Checking */;
     connectedCallback() {
-        this.shadow.adoptedStyleSheets = [surveyLinkStyles];
+        this.#shadow.adoptedStyleSheets = [surveyLinkStyles];
     }
     // Re-setting data will cause the state to go back to 'Checking' which hides the link.
     set data(data) {
-        this.trigger = data.trigger;
-        this.promptText = data.promptText;
-        this.canShowSurvey = data.canShowSurvey;
-        this.showSurvey = data.showSurvey;
-        this.checkSurvey();
+        this.#trigger = data.trigger;
+        this.#promptText = data.promptText;
+        this.#canShowSurvey = data.canShowSurvey;
+        this.#showSurvey = data.showSurvey;
+        this.#checkSurvey();
     }
-    checkSurvey() {
-        this.state = "Checking" /* Checking */;
-        this.canShowSurvey(this.trigger, ({ canShowSurvey }) => {
+    #checkSurvey() {
+        this.#state = "Checking" /* State.Checking */;
+        this.#canShowSurvey(this.#trigger, ({ canShowSurvey }) => {
             if (!canShowSurvey) {
-                this.state = "DontShowLink" /* DontShowLink */;
+                this.#state = "DontShowLink" /* State.DontShowLink */;
             }
             else {
-                this.state = "ShowLink" /* ShowLink */;
+                this.#state = "ShowLink" /* State.ShowLink */;
             }
-            this.render();
+            this.#render();
         });
     }
-    sendSurvey() {
-        this.state = "Sending" /* Sending */;
-        this.render();
-        this.showSurvey(this.trigger, ({ surveyShown }) => {
+    #sendSurvey() {
+        this.#state = "Sending" /* State.Sending */;
+        this.#render();
+        this.#showSurvey(this.#trigger, ({ surveyShown }) => {
             if (!surveyShown) {
-                this.state = "Failed" /* Failed */;
+                this.#state = "Failed" /* State.Failed */;
             }
             else {
-                this.state = "SurveyShown" /* SurveyShown */;
+                this.#state = "SurveyShown" /* State.SurveyShown */;
             }
-            this.render();
+            this.#render();
         });
     }
-    render() {
-        if (this.state === "Checking" /* Checking */ || this.state === "DontShowLink" /* DontShowLink */) {
+    #render() {
+        if (this.#state === "Checking" /* State.Checking */ || this.#state === "DontShowLink" /* State.DontShowLink */) {
             return;
         }
-        let linkText = this.promptText;
-        if (this.state === "Sending" /* Sending */) {
+        let linkText = this.#promptText;
+        if (this.#state === "Sending" /* State.Sending */) {
             linkText = i18nString(UIStrings.openingSurvey);
         }
-        else if (this.state === "SurveyShown" /* SurveyShown */) {
+        else if (this.#state === "SurveyShown" /* State.SurveyShown */) {
             linkText = i18nString(UIStrings.thankYouForYourFeedback);
         }
-        else if (this.state === "Failed" /* Failed */) {
+        else if (this.#state === "Failed" /* State.Failed */) {
             linkText = i18nString(UIStrings.anErrorOccurredWithTheSurvey);
         }
         let linkState = '';
-        if (this.state === "Sending" /* Sending */) {
+        if (this.#state === "Sending" /* State.Sending */) {
             linkState = 'pending-link';
         }
-        else if (this.state === "Failed" /* Failed */ || this.state === "SurveyShown" /* SurveyShown */) {
+        else if (this.#state === "Failed" /* State.Failed */ || this.#state === "SurveyShown" /* State.SurveyShown */) {
             linkState = 'disabled-link';
         }
-        const ariaDisabled = this.state !== "ShowLink" /* ShowLink */;
+        const ariaDisabled = this.#state !== "ShowLink" /* State.ShowLink */;
         // clang-format off
         // eslint-disable-next-line rulesdir/ban_style_tags_in_lit_html
         const output = LitHtml.html `
-      <button class="link ${linkState}" tabindex=${ariaDisabled ? '-1' : '0'} .disabled=${ariaDisabled} aria-disabled=${ariaDisabled} @click=${this.sendSurvey}>
-        <${IconButton.Icon.Icon.litTagName} class="link-icon" .data=${{ iconName: 'feedback_thin_16x16_icon', color: 'var(--color-link)', width: 'var(--issue-link-icon-size, 16px)', height: 'var(--issue-link-icon-size, 16px)' }}></${IconButton.Icon.Icon.litTagName}><!--
+      <button class="link ${linkState}" tabindex=${ariaDisabled ? '-1' : '0'} .disabled=${ariaDisabled} aria-disabled=${ariaDisabled} @click=${this.#sendSurvey}>
+        <${IconButton.Icon.Icon.litTagName} class="link-icon" .data=${{ iconName: 'review', color: 'var(--color-link)', width: 'var(--issue-link-icon-size, 16px)', height: 'var(--issue-link-icon-size, 16px)' }}></${IconButton.Icon.Icon.litTagName}><!--
       -->${linkText}
       </button>
     `;
         // clang-format on
-        LitHtml.render(output, this.shadow, { host: this });
+        LitHtml.render(output, this.#shadow, { host: this });
     }
 }
 ComponentHelpers.CustomElements.defineComponent('devtools-survey-link', SurveyLink);

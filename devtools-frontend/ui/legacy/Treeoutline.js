@@ -33,11 +33,13 @@
 import * as Common from '../../core/common/common.js';
 import * as Platform from '../../core/platform/platform.js';
 import * as ARIAUtils from './ARIAUtils.js';
+import * as ThemeSupport from './theme_support/theme_support.js';
 import * as Utils from './utils/utils.js';
 import { InplaceEditor } from './InplaceEditor.js';
 import { Keys } from './KeyboardShortcut.js';
 import { Tooltip } from './Tooltip.js';
 import { deepElementFromPoint, enclosingNodeOrSelfWithNodeNameInArray, isEditing } from './UIUtils.js';
+import treeoutlineStyles from './treeoutline.css.legacy.js';
 const nodeToParentTreeElementMap = new WeakMap();
 // TODO(crbug.com/1167717): Make this a const enum again
 // eslint-disable-next-line rulesdir/const_enum
@@ -345,13 +347,14 @@ export class TreeOutlineInShadow extends TreeOutline {
         super();
         this.contentElement.classList.add('tree-outline');
         this.element = document.createElement('div');
-        this.shadowRoot = Utils.createShadowRootWithCoreStyles(this.element, { cssFile: 'ui/legacy/treeoutline.css', delegatesFocus: undefined });
+        this.shadowRoot =
+            Utils.createShadowRootWithCoreStyles(this.element, { cssFile: treeoutlineStyles, delegatesFocus: undefined });
         this.disclosureElement = this.shadowRoot.createChild('div', 'tree-outline-disclosure');
         this.disclosureElement.appendChild(this.contentElement);
         this.renderSelection = true;
     }
     registerRequiredCSS(cssFile) {
-        Utils.appendStyle(this.shadowRoot, cssFile);
+        ThemeSupport.ThemeSupport.instance().appendStyle(this.shadowRoot, cssFile);
     }
     registerCSSFiles(cssFiles) {
         this.shadowRoot.adoptedStyleSheets = this.shadowRoot.adoptedStyleSheets.concat(cssFiles);
@@ -387,6 +390,7 @@ export class TreeElement {
     expanded;
     selected;
     expandable;
+    #expandRecursively = true;
     collapsible;
     toggleOnClick;
     button;
@@ -737,6 +741,15 @@ export class TreeElement {
             ARIAUtils.setExpanded(this.listItemNode, false);
         }
     }
+    isExpandRecursively() {
+        return this.#expandRecursively;
+    }
+    setExpandRecursively(expandRecursively) {
+        this.#expandRecursively = expandRecursively;
+    }
+    isCollapsible() {
+        return this.collapsible;
+    }
     setCollapsible(collapsible) {
         if (this.collapsible === collapsible) {
             return;
@@ -802,7 +815,7 @@ export class TreeElement {
         }
         else {
             if (event.altKey) {
-                this.expandRecursively();
+                void this.expandRecursively();
             }
             else {
                 this.expand();
@@ -885,7 +898,7 @@ export class TreeElement {
         // sure the expanded flag is true before calling those functions. This prevents the possibility
         // of an infinite loop if onpopulate were to call expand.
         this.expanded = true;
-        this.populateIfNeeded();
+        void this.populateIfNeeded();
         this.listItemNode.classList.add('expanded');
         this.childrenListNode.classList.add('expanded');
         ARIAUtils.setExpanded(this.listItemNode, true);
@@ -904,14 +917,16 @@ export class TreeElement {
         if (maxDepth === undefined || isNaN(maxDepth)) {
             maxDepth = 3;
         }
-        while (item) {
-            await item.populateIfNeeded();
-            if (depth < maxDepth) {
-                item.expand();
+        do {
+            if (item.isExpandRecursively()) {
+                await item.populateIfNeeded();
+                if (depth < maxDepth) {
+                    item.expand();
+                }
             }
-            item = item.traverseNextTreeElement(false, this, (depth >= maxDepth), info);
+            item = item.traverseNextTreeElement(!item.isExpandRecursively(), this, true, info);
             depth += info.depthChange;
-        }
+        } while (item !== null);
     }
     collapseOrAscend(altKey) {
         if (this.expanded && this.collapsible) {
@@ -946,7 +961,7 @@ export class TreeElement {
         }
         if (!this.expanded) {
             if (altKey) {
-                this.expandRecursively();
+                void this.expandRecursively();
             }
             else {
                 this.expand();
@@ -1113,7 +1128,7 @@ export class TreeElement {
     }
     traverseNextTreeElement(skipUnrevealed, stayWithin, dontPopulate, info) {
         if (!dontPopulate) {
-            this.populateIfNeeded();
+            void this.populateIfNeeded();
         }
         if (info) {
             info.depthChange = 0;
@@ -1149,13 +1164,13 @@ export class TreeElement {
     traversePreviousTreeElement(skipUnrevealed, dontPopulate) {
         let element = skipUnrevealed ? (this.revealed() ? this.previousSibling : null) : this.previousSibling;
         if (!dontPopulate && element) {
-            element.populateIfNeeded();
+            void element.populateIfNeeded();
         }
         while (element &&
             (skipUnrevealed ? (element.revealed() && element.expanded ? element.lastChild() : null) :
                 element.lastChild())) {
             if (!dontPopulate) {
-                element.populateIfNeeded();
+                void element.populateIfNeeded();
             }
             element =
                 (skipUnrevealed ? (element.revealed() && element.expanded ? element.lastChild() : null) :
@@ -1175,7 +1190,7 @@ export class TreeElement {
         const paddingLeftValue = window.getComputedStyle(this.listItemNode).paddingLeft;
         console.assert(paddingLeftValue.endsWith('px'));
         const computedLeftPadding = parseFloat(paddingLeftValue);
-        const left = this.listItemNode.totalOffsetLeft() + computedLeftPadding;
+        const left = this.listItemNode.getBoundingClientRect().left + computedLeftPadding;
         return event.pageX >= left && event.pageX <= left + arrowToggleWidth && this.expandable;
     }
     setDisableSelectFocus(toggle) {

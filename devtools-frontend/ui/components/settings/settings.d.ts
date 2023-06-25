@@ -1,2 +1,3 @@
 import * as SettingCheckbox from './SettingCheckbox.js';
-export { SettingCheckbox };
+import * as SettingDeprecationWarning from './SettingDeprecationWarning.js';
+export { SettingCheckbox, SettingDeprecationWarning };

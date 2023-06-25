@@ -30,14 +30,14 @@ export class ResizerWidget extends Common.ObjectWrapper.ObjectWrapper {
     addElement(element) {
         if (!this.elementsInternal.has(element)) {
             this.elementsInternal.add(element);
-            element.addEventListener('mousedown', this.installDragOnMouseDownBound, false);
+            element.addEventListener('pointerdown', this.installDragOnMouseDownBound, false);
             this.updateElementCursor(element);
         }
     }
     removeElement(element) {
         if (this.elementsInternal.has(element)) {
             this.elementsInternal.delete(element);
-            element.removeEventListener('mousedown', this.installDragOnMouseDownBound, false);
+            element.removeEventListener('pointerdown', this.installDragOnMouseDownBound, false);
             element.style.removeProperty('cursor');
         }
     }
@@ -47,9 +47,11 @@ export class ResizerWidget extends Common.ObjectWrapper.ObjectWrapper {
     updateElementCursor(element) {
         if (this.isEnabledInternal) {
             element.style.setProperty('cursor', this.cursor());
+            element.style.setProperty('touch-action', 'none');
         }
         else {
             element.style.removeProperty('cursor');
+            element.style.removeProperty('touch-action');
         }
     }
     cursor() {

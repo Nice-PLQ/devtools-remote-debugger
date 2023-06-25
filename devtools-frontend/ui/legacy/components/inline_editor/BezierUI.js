@@ -7,13 +7,13 @@ export class BezierUI {
     height;
     marginTop;
     radius;
-    linearLine;
-    constructor(width, height, marginTop, controlPointRadius, linearLine) {
+    shouldDrawLine;
+    constructor({ width, height, marginTop, controlPointRadius, shouldDrawLine }) {
         this.width = width;
         this.height = height;
         this.marginTop = marginTop;
         this.radius = controlPointRadius;
-        this.linearLine = linearLine;
+        this.shouldDrawLine = shouldDrawLine;
     }
     static drawVelocityChart(bezier, path, width) {
         const height = Height;
@@ -61,7 +61,7 @@ export class BezierUI {
         svg.setAttribute('height', String(this.height));
         svg.removeChildren();
         const group = UI.UIUtils.createSVGChild(svg, 'g');
-        if (this.linearLine) {
+        if (this.shouldDrawLine) {
             this.drawLine(group, 'linear-line', 0, height, width, 0);
         }
         const curve = UI.UIUtils.createSVGChild(group, 'path', 'bezier-path');

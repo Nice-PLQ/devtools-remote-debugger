@@ -1,10 +1,10 @@
-import type { TabbedPane } from './TabbedPane.js';
-import type { ToolbarItem, ToolbarMenuButton } from './Toolbar.js';
-import type { Widget } from './Widget.js';
-import { VBox } from './Widget.js';
+import type * as Platform from '../../core/platform/platform.js';
+import { type TabbedPane } from './TabbedPane.js';
+import { type ToolbarItem, type ToolbarMenuButton } from './Toolbar.js';
+import { VBox, type Widget } from './Widget.js';
 export interface View {
     viewId(): string;
-    title(): string;
+    title(): Platform.UIString.LocalizedString;
     isCloseable(): boolean;
     isPreviewFeature(): boolean;
     isTransient(): boolean;
@@ -13,10 +13,10 @@ export interface View {
     disposeView(): void | Promise<void>;
 }
 export declare class SimpleView extends VBox implements View {
-    private readonly titleInternal;
-    constructor(title: string, isWebComponent?: boolean);
+    #private;
+    constructor(title: Platform.UIString.LocalizedString, isWebComponent?: boolean, viewId?: string);
     viewId(): string;
-    title(): string;
+    title(): Platform.UIString.LocalizedString;
     isCloseable(): boolean;
     isTransient(): boolean;
     toolbarItems(): Promise<ToolbarItem[]>;

@@ -1,5 +1,5 @@
 import * as UI from '../../ui/legacy/legacy.js';
-import type { ExtensionServer } from './ExtensionServer.js';
+import { type ExtensionServer } from './ExtensionServer.js';
 export declare class ExtensionView extends UI.Widget.Widget {
     private readonly server;
     private readonly id;

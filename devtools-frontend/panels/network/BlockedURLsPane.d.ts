@@ -1,3 +1,4 @@
+import * as Common from '../../core/common/common.js';
 import * as SDK from '../../core/sdk/sdk.js';
 import * as UI from '../../ui/legacy/legacy.js';
 export declare let blockedURLsPaneInstance: BlockedURLsPane | null;
@@ -9,9 +10,10 @@ export declare class BlockedURLsPane extends UI.Widget.VBox implements UI.ListWi
     private editor;
     private blockedCountForUrl;
     private readonly updateThrottler;
-    constructor();
+    constructor(updateThrottler: Common.Throttler.Throttler);
     static instance(opts?: {
-        forceNew: boolean | null;
+        forceNew: boolean;
+        updateThrottler: Common.Throttler.Throttler;
     }): BlockedURLsPane;
     private createEmptyPlaceholder;
     static reset(): void;

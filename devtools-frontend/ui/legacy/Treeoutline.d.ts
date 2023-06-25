@@ -1,6 +1,8 @@
 import * as Common from '../../core/common/common.js';
-import type { Icon } from './Icon.js';
-import type { Config } from './InplaceEditor.js';
+import type * as IconButton from '../components/icon_button/icon_button.js';
+import { type Icon } from './Icon.js';
+import { type Config } from './InplaceEditor.js';
+type AnyIcon = Icon | IconButton.Icon.Icon;
 export declare enum Events {
     ElementAttached = "ElementAttached",
     ElementsDetached = "ElementsDetached",
@@ -8,7 +10,7 @@ export declare enum Events {
     ElementCollapsed = "ElementCollapsed",
     ElementSelected = "ElementSelected"
 }
-export declare type EventTypes = {
+export type EventTypes = {
     [Events.ElementAttached]: TreeElement;
     [Events.ElementsDetached]: void;
     [Events.ElementExpanded]: TreeElement;
@@ -64,7 +66,9 @@ export declare class TreeOutlineInShadow extends TreeOutline {
     private readonly disclosureElement;
     renderSelection: boolean;
     constructor();
-    registerRequiredCSS(cssFile: string): void;
+    registerRequiredCSS(cssFile: {
+        cssContent: string;
+    }): void;
     registerCSSFiles(cssFiles: CSSStyleSheet[]): void;
     hideOverflow(): void;
     makeDense(): void;
@@ -72,6 +76,7 @@ export declare class TreeOutlineInShadow extends TreeOutline {
 }
 export declare const treeElementBylistItemNode: WeakMap<Node, TreeElement>;
 export declare class TreeElement {
+    #private;
     treeOutline: TreeOutline | null;
     parent: TreeElement | null;
     previousSibling: TreeElement | null;
@@ -121,12 +126,15 @@ export declare class TreeElement {
     set title(x: string | Node);
     titleAsText(): string;
     startEditingTitle<T>(editingConfig: Config<T>): void;
-    setLeadingIcons(icons: Icon[]): void;
-    setTrailingIcons(icons: Icon[]): void;
+    setLeadingIcons(icons: AnyIcon[]): void;
+    setTrailingIcons(icons: AnyIcon[]): void;
     get tooltip(): string;
     set tooltip(x: string);
     isExpandable(): boolean;
     setExpandable(expandable: boolean): void;
+    isExpandRecursively(): boolean;
+    setExpandRecursively(expandRecursively: boolean): void;
+    isCollapsible(): boolean;
     setCollapsible(collapsible: boolean): void;
     get hidden(): boolean;
     set hidden(x: boolean);
@@ -171,3 +179,4 @@ export declare class TreeElement {
     isEventWithinDisclosureTriangle(event: MouseEvent): boolean;
     setDisableSelectFocus(toggle: boolean): void;
 }
+export {};

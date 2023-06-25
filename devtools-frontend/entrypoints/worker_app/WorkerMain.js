@@ -8,8 +8,8 @@ import * as MobileThrottling from '../../panels/mobile_throttling/mobile_throttl
 import * as Components from '../../ui/legacy/components/utils/utils.js';
 const UIStrings = {
     /**
-    *@description Text that refers to the main target.
-    */
+     *@description Text that refers to the main target.
+     */
     main: 'Main',
 };
 const str_ = i18n.i18n.registerUIStrings('entrypoints/worker_app/WorkerMain.ts', UIStrings);
@@ -24,7 +24,7 @@ export class WorkerMainImpl {
         return workerMainImplInstance;
     }
     async run() {
-        SDK.Connections.initMainConnection(async () => {
+        void SDK.Connections.initMainConnection(async () => {
             if (await SDK.TargetManager.TargetManager.instance().maybeAttachInitialTarget()) {
                 return;
             }

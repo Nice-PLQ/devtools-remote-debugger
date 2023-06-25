@@ -3,6 +3,7 @@ export interface LiveLocation {
     update(): Promise<void>;
     uiLocation(): Promise<Workspace.UISourceCode.UILocation | null>;
     dispose(): void;
+    isDisposed(): boolean;
     isIgnoreListed(): Promise<boolean>;
 }
 export declare class LiveLocationWithPool implements LiveLocation {
@@ -11,6 +12,7 @@ export declare class LiveLocationWithPool implements LiveLocation {
     update(): Promise<void>;
     uiLocation(): Promise<Workspace.UISourceCode.UILocation | null>;
     dispose(): void;
+    isDisposed(): boolean;
     isIgnoreListed(): Promise<boolean>;
 }
 export declare class LiveLocationPool {
@@ -18,5 +20,6 @@ export declare class LiveLocationPool {
     constructor();
     add(location: LiveLocation): void;
     delete(location: LiveLocation): void;
+    has(location: LiveLocation): boolean;
     disposeAll(): void;
 }

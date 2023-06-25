@@ -11,6 +11,9 @@ export function assertNotNullOrUndefined(val) {
         throw new Error(`Expected given value to not be null/undefined but it was: ${val}`);
     }
 }
+export function assertNever(type, message) {
+    throw new Error(message);
+}
 /**
  * This is useful to check on the type-level that the unhandled cases of
  * a switch are exactly `T` (where T is usually a union type of enum values).

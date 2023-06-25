@@ -2,15 +2,16 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 import * as i18n from '../../core/i18n/i18n.js';
+import targetCrashedScreenStyles from './targetCrashedScreen.css.legacy.js';
 import { VBox } from './Widget.js';
 const UIStrings = {
     /**
-    *@description Text in dialog box when the target page crashed
-    */
+     *@description Text in dialog box when the target page crashed
+     */
     devtoolsWasDisconnectedFromThe: 'DevTools was disconnected from the page.',
     /**
-    *@description Text content of content element
-    */
+     *@description Text content of content element
+     */
     oncePageIsReloadedDevtoolsWill: 'Once page is reloaded, DevTools will automatically reconnect.',
 };
 const str_ = i18n.i18n.registerUIStrings('ui/legacy/TargetCrashedScreen.ts', UIStrings);
@@ -19,7 +20,7 @@ export class TargetCrashedScreen extends VBox {
     hideCallback;
     constructor(hideCallback) {
         super(true);
-        this.registerRequiredCSS('ui/legacy/targetCrashedScreen.css');
+        this.registerRequiredCSS(targetCrashedScreenStyles);
         this.contentElement.createChild('div', 'message').textContent =
             i18nString(UIStrings.devtoolsWasDisconnectedFromThe);
         this.contentElement.createChild('div', 'message').textContent =

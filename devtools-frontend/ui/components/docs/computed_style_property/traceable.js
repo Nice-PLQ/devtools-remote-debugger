@@ -3,22 +3,11 @@
 // found in the LICENSE file.
 import * as Elements from '../../../../panels/elements/components/components.js';
 const component = new Elements.ComputedStyleProperty.ComputedStyleProperty();
-const propertyName = document.createElement('span');
-propertyName.textContent = 'display';
-propertyName.slot = 'property-name';
-component.appendChild(propertyName);
-const propertyValue = document.createElement('span');
-propertyValue.textContent = 'grid';
-propertyValue.slot = 'property-value';
-component.appendChild(propertyValue);
-const trace = document.createElement('pre');
-trace.textContent = 'block    body         (style.css):42';
-trace.slot = 'property-traces';
-component.appendChild(trace);
 document.getElementById('container')?.appendChild(component);
-component.data = {
-    inherited: false,
-    traceable: true,
-    onNavigateToSource: () => { },
-};
+component.innerHTML = `
+<span slot="name">display</span>
+<span slot="value">grid</span>
+  `;
+component.traceable = true;
+component.inherited = false;
 //# sourceMappingURL=traceable.js.map

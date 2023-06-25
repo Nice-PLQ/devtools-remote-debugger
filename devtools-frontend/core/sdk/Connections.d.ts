@@ -1,3 +1,4 @@
+import type * as Platform from '../platform/platform.js';
 import * as ProtocolClient from '../protocol_client/protocol_client.js';
 export declare class MainConnection implements ProtocolClient.InspectorBackend.Connection {
     #private;
@@ -13,7 +14,7 @@ export declare class MainConnection implements ProtocolClient.InspectorBackend.C
 export declare class WebSocketConnection implements ProtocolClient.InspectorBackend.Connection {
     #private;
     onMessage: ((arg0: (Object | string)) => void) | null;
-    constructor(url: string, onWebSocketDisconnect: () => void);
+    constructor(url: Platform.DevToolsPath.UrlString, onWebSocketDisconnect: () => void);
     setOnMessage(onMessage: (arg0: (Object | string)) => void): void;
     setOnDisconnect(onDisconnect: (arg0: string) => void): void;
     private onError;
@@ -33,7 +34,11 @@ export declare class StubConnection implements ProtocolClient.InspectorBackend.C
     private respondWithError;
     disconnect(): Promise<void>;
 }
-export declare class ParallelConnection implements ProtocolClient.InspectorBackend.Connection {
+export interface ParallelConnectionInterface extends ProtocolClient.InspectorBackend.Connection {
+    getSessionId: () => string;
+    getOnDisconnect: () => ((arg0: string) => void) | null;
+}
+export declare class ParallelConnection implements ParallelConnectionInterface {
     #private;
     onMessage: ((arg0: Object) => void) | null;
     constructor(connection: ProtocolClient.InspectorBackend.Connection, sessionId: string);
@@ -44,4 +49,4 @@ export declare class ParallelConnection implements ProtocolClient.InspectorBacke
     getSessionId(): string;
     disconnect(): Promise<void>;
 }
-export declare function initMainConnection(createMainTarget: () => Promise<void>, websocketConnectionLost: () => void): Promise<void>;
+export declare function initMainConnection(createRootTarget: () => Promise<void>, websocketConnectionLost: () => void): Promise<void>;

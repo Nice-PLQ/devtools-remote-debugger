@@ -4,133 +4,133 @@
 import * as Common from '../../core/common/common.js';
 import * as i18n from '../../core/i18n/i18n.js';
 import * as UI from '../../ui/legacy/legacy.js';
+import { RuntimeSettings } from './LighthouseController.js';
 import lighthouseDialogStyles from './lighthouseDialog.css.js';
-import { Events, RuntimeSettings } from './LighthouseController.js';
 const UIStrings = {
     /**
-    *@description Text to cancel something
-    */
+     *@description Text to cancel something
+     */
     cancel: 'Cancel',
     /**
-    *@description Text when something is loading
-    */
+     *@description Text when something is loading
+     */
     loading: 'Loading…',
     /**
-    *@description Status text in Lighthouse splash screen while an audit is being performed
-    *@example {github.com} PH1
-    */
+     *@description Status text in Lighthouse splash screen while an audit is being performed
+     *@example {github.com} PH1
+     */
     auditingS: 'Auditing {PH1}',
     /**
-    *@description Status text in Lighthouse splash screen while an audit is being performed
-    */
+     *@description Status text in Lighthouse splash screen while an audit is being performed
+     */
     auditingYourWebPage: 'Auditing your web page',
     /**
-    *@description Status text in Lighthouse splash screen while an audit is being performed, and cancellation to take effect
-    */
+     *@description Status text in Lighthouse splash screen while an audit is being performed, and cancellation to take effect
+     */
     cancelling: 'Cancelling…',
     /**
-    *@description Status text in Lighthouse splash screen while preparing for an audit
-    */
+     *@description Status text in Lighthouse splash screen while preparing for an audit
+     */
     lighthouseIsWarmingUp: '`Lighthouse` is warming up…',
     /**
-    *@description Status text in Lighthouse splash screen while an audit is being performed
-    */
+     *@description Status text in Lighthouse splash screen while an audit is being performed
+     */
     lighthouseIsLoadingYourPage: '`Lighthouse` is loading your page',
     /**
-    *@description Text in Lighthouse Status View
-    *@example {75% of global mobile users in 2016 were on 2G or 3G [Source: GSMA Mobile]} PH1
-    */
+     *@description Text in Lighthouse Status View
+     *@example {75% of global mobile users in 2016 were on 2G or 3G [Source: GSMA Mobile]} PH1
+     */
     fastFactMessageWithPlaceholder: '💡 {PH1}',
     /**
-    *@description Text of a DOM element in Lighthouse Status View
-    */
+     *@description Text of a DOM element in Lighthouse Status View
+     */
     ahSorryWeRanIntoAnError: 'Ah, sorry! We ran into an error.',
     /**
-    *@description Text in Lighthouse Status View
-    */
+     *@description Text in Lighthouse Status View
+     */
     tryToNavigateToTheUrlInAFresh: 'Try to navigate to the URL in a fresh `Chrome` profile without any other tabs or extensions open and try again.',
     /**
-    *@description Text of a DOM element in Lighthouse Status View
-    */
+     *@description Text of a DOM element in Lighthouse Status View
+     */
     ifThisIssueIsReproduciblePlease: 'If this issue is reproducible, please report it at the `Lighthouse` `GitHub` repo.',
     /**
-    *@description Text in Lighthouse splash screen when loading the page for auditing
-    */
+     *@description Text in Lighthouse splash screen when loading the page for auditing
+     */
     lighthouseIsLoadingThePage: 'Lighthouse is loading the page.',
     /**
-    *@description Text in Lighthouse splash screen when Lighthouse is gathering information for display
-    */
+     *@description Text in Lighthouse splash screen when Lighthouse is gathering information for display
+     */
     lighthouseIsGatheringInformation: '`Lighthouse` is gathering information about the page to compute your score.',
     /**
-    *@description Text in Lighthouse splash screen when Lighthouse is generating a report.
-    */
+     *@description Text in Lighthouse splash screen when Lighthouse is generating a report.
+     */
     almostThereLighthouseIsNow: 'Almost there! `Lighthouse` is now generating your report.',
     /**
-    *@description Text in Lighthouse splash screen when loading the page for auditing
-    */
+     *@description Text in Lighthouse splash screen when loading the page for auditing
+     */
     lighthouseIsLoadingYourPageWith: '`Lighthouse` is loading your page with throttling to measure performance on a mobile device on 3G.',
     /**
-    *@description Text in Lighthouse splash screen when loading the page for auditing
-    */
+     *@description Text in Lighthouse splash screen when loading the page for auditing
+     */
     lighthouseIsLoadingYourPageWithThrottling: '`Lighthouse` is loading your page with throttling to measure performance on a slow desktop on 3G.',
     /**
-    *@description Text in Lighthouse splash screen when loading the page for auditing
-    */
+     *@description Text in Lighthouse splash screen when loading the page for auditing
+     */
     lighthouseIsLoadingYourPageWithMobile: '`Lighthouse` is loading your page with mobile emulation.',
     /**
-    *@description Fast fact in the splash screen while Lighthouse is performing an audit
-    */
+     *@description Fast fact in the splash screen while Lighthouse is performing an audit
+     */
     mbTakesAMinimumOfSecondsTo: '1MB takes a minimum of 5 seconds to download on a typical 3G connection [Source: `WebPageTest` and `DevTools` 3G definition].',
     /**
-    *@description Fast fact in the splash screen while Lighthouse is performing an audit
-    */
+     *@description Fast fact in the splash screen while Lighthouse is performing an audit
+     */
     rebuildingPinterestPagesFor: 'Rebuilding Pinterest pages for performance increased conversion rates by 15% [Source: `WPO Stats`]',
     /**
-    *@description Fast fact in the splash screen while Lighthouse is performing an audit
-    */
+     *@description Fast fact in the splash screen while Lighthouse is performing an audit
+     */
     byReducingTheResponseSizeOfJson: 'By reducing the response size of JSON needed for displaying comments, Instagram saw increased impressions [Source: `WPO Stats`]',
     /**
-    *@description Fast fact in the splash screen while Lighthouse is performing an audit
-    */
+     *@description Fast fact in the splash screen while Lighthouse is performing an audit
+     */
     walmartSawAIncreaseInRevenueFor: 'Walmart saw a 1% increase in revenue for every 100ms improvement in page load [Source: `WPO Stats`]',
     /**
-    *@description Fast fact in the splash screen while Lighthouse is performing an audit
-    */
+     *@description Fast fact in the splash screen while Lighthouse is performing an audit
+     */
     ifASiteTakesSecondToBecome: 'If a site takes >1 second to become interactive, users lose attention, and their perception of completing the page task is broken [Source: `Google Developers Blog`]',
     /**
-    *@description Fast fact in the splash screen while Lighthouse is performing an audit
-    */
+     *@description Fast fact in the splash screen while Lighthouse is performing an audit
+     */
     OfGlobalMobileUsersInWereOnGOrG: '75% of global mobile users in 2016 were on 2G or 3G [Source: `GSMA Mobile`]',
     /**
-    *@description Fast fact in the splash screen while Lighthouse is performing an audit
-    */
+     *@description Fast fact in the splash screen while Lighthouse is performing an audit
+     */
     theAverageUserDeviceCostsLess: 'The average user device costs less than 200 USD. [Source: `International Data Corporation`]',
     /**
-    *@description Fast fact in the splash screen while Lighthouse is performing an audit
-    */
+     *@description Fast fact in the splash screen while Lighthouse is performing an audit
+     */
     SecondsIsTheAverageTimeAMobile: '19 seconds is the average time a mobile web page takes to load on a 3G connection [Source: `Google DoubleClick blog`]',
     /**
-    *@description Fast fact in the splash screen while Lighthouse is performing an audit
-    */
+     *@description Fast fact in the splash screen while Lighthouse is performing an audit
+     */
     OfMobilePagesTakeNearlySeconds: '70% of mobile pages take nearly 7 seconds for the visual content above the fold to display on the screen. [Source: `Think with Google`]',
     /**
-    *@description Fast fact in the splash screen while Lighthouse is performing an audit
-    */
+     *@description Fast fact in the splash screen while Lighthouse is performing an audit
+     */
     asPageLoadTimeIncreasesFromOne: 'As page load time increases from one second to seven seconds, the probability of a mobile site visitor bouncing increases 113%. [Source: `Think with Google`]',
     /**
-    *@description Fast fact in the splash screen while Lighthouse is performing an audit
-    */
+     *@description Fast fact in the splash screen while Lighthouse is performing an audit
+     */
     asTheNumberOfElementsOnAPage: 'As the number of elements on a page increases from 400 to 6,000, the probability of conversion drops 95%. [Source: `Think with Google`]',
     /**
-    *@description Fast fact in the splash screen while Lighthouse is performing an audit
-    */
+     *@description Fast fact in the splash screen while Lighthouse is performing an audit
+     */
     lighthouseOnlySimulatesMobile: '`Lighthouse` only simulates mobile performance; to measure performance on a real device, try WebPageTest.org [Source: `Lighthouse` team]',
 };
 const str_ = i18n.i18n.registerUIStrings('panels/lighthouse/LighthouseStatusView.ts', UIStrings);
 const i18nString = i18n.i18n.getLocalizedString.bind(undefined, str_);
 const i18nLazyString = i18n.i18n.getLazilyComputedLocalizedString.bind(undefined, str_);
 export class StatusView {
-    controller;
+    panel;
     statusView;
     statusHeader;
     progressWrapper;
@@ -141,11 +141,10 @@ export class StatusView {
     textChangedAt;
     fastFactsQueued;
     currentPhase;
-    scheduledTextChangeTimeout;
     scheduledFastFactTimeout;
     dialog;
-    constructor(controller) {
-        this.controller = controller;
+    constructor(panel) {
+        this.panel = panel;
         this.statusView = null;
         this.statusHeader = null;
         this.progressWrapper = null;
@@ -156,7 +155,6 @@ export class StatusView {
         this.textChangedAt = 0;
         this.fastFactsQueued = FastFacts.map(lazyString => lazyString());
         this.currentPhase = null;
-        this.scheduledTextChangeTimeout = null;
         this.scheduledFastFactTimeout = null;
         this.dialog = new UI.Dialog.Dialog();
         this.dialog.setDimmed(true);
@@ -191,7 +189,7 @@ export class StatusView {
         this.cancelButton = cancelButton;
         UI.ARIAUtils.markAsStatus(this.statusText);
         this.dialog.setDefaultFocusedElement(cancelButton);
-        this.dialog.setSizeBehavior("SetExactWidthMaxHeight" /* SetExactWidthMaxHeight */);
+        this.dialog.setSizeBehavior("SetExactWidthMaxHeight" /* UI.GlassPane.SizeBehavior.SetExactWidthMaxHeight */);
         this.dialog.setMaxContentSize(new UI.Geometry.Size(500, 400));
     }
     reset() {
@@ -200,7 +198,6 @@ export class StatusView {
         this.textChangedAt = 0;
         this.fastFactsQueued = FastFacts.map(lazyString => lazyString());
         this.currentPhase = null;
-        this.scheduledTextChangeTimeout = null;
         this.scheduledFastFactTimeout = null;
     }
     show(dialogRenderElement) {
@@ -236,28 +233,26 @@ export class StatusView {
             return;
         }
         const nextPhase = this.getPhaseForMessage(message);
-        // @ts-ignore indexOf null is valid.
-        const nextPhaseIndex = StatusPhases.indexOf(nextPhase);
-        // @ts-ignore indexOf null is valid.
-        const currentPhaseIndex = StatusPhases.indexOf(this.currentPhase);
         if (!nextPhase && !this.currentPhase) {
             this.commitTextChange(i18nString(UIStrings.lighthouseIsWarmingUp));
             clearTimeout(this.scheduledFastFactTimeout);
         }
-        else if (nextPhase && (!this.currentPhase || currentPhaseIndex < nextPhaseIndex)) {
+        else if (nextPhase) {
             this.currentPhase = nextPhase;
             const text = this.getMessageForPhase(nextPhase);
-            this.scheduleTextChange(text);
+            this.commitTextChange(text);
             this.scheduleFastFactCheck();
             this.resetProgressBarClasses();
             if (this.progressBar) {
                 this.progressBar.classList.add(nextPhase.progressBarClass);
+                // @ts-ignore indexOf null is valid.
+                const nextPhaseIndex = StatusPhases.indexOf(nextPhase);
                 UI.ARIAUtils.setProgressBarValue(this.progressBar, nextPhaseIndex, text);
             }
         }
     }
     cancel() {
-        this.controller.dispatchEventToListeners(Events.RequestLighthouseCancel);
+        void this.panel.handleRunCancel();
     }
     getMessageForPhase(phase) {
         if (phase.message()) {
@@ -273,7 +268,7 @@ export class StatusView {
         return match ? match.message() : i18nString(UIStrings.lighthouseIsLoadingYourPage);
     }
     getPhaseForMessage(message) {
-        return StatusPhases.find(phase => message.startsWith(phase.statusMessagePrefix)) || null;
+        return StatusPhases.find(phase => phase.statusMessageRegex.test(message)) || null;
     }
     resetProgressBarClasses() {
         if (this.progressBar) {
@@ -299,7 +294,7 @@ export class StatusView {
             return;
         }
         const fastFactIndex = Math.floor(Math.random() * this.fastFactsQueued.length);
-        this.scheduleTextChange(i18nString(UIStrings.fastFactMessageWithPlaceholder, { PH1: this.fastFactsQueued[fastFactIndex] }));
+        this.commitTextChange(i18nString(UIStrings.fastFactMessageWithPlaceholder, { PH1: this.fastFactsQueued[fastFactIndex] }));
         this.fastFactsQueued.splice(fastFactIndex, 1);
     }
     commitTextChange(text) {
@@ -309,23 +304,10 @@ export class StatusView {
         this.textChangedAt = performance.now();
         this.statusText.textContent = text;
     }
-    scheduleTextChange(text) {
-        if (this.scheduledTextChangeTimeout) {
-            clearTimeout(this.scheduledTextChangeTimeout);
-        }
-        const msSinceLastChange = performance.now() - this.textChangedAt;
-        const msToTextChange = minimumTextVisibilityDuration - msSinceLastChange;
-        this.scheduledTextChangeTimeout = window.setTimeout(() => {
-            this.commitTextChange(text);
-        }, Math.max(msToTextChange, 0));
-    }
     renderBugReport(err) {
         console.error(err);
         if (this.scheduledFastFactTimeout) {
             window.clearTimeout(this.scheduledFastFactTimeout);
-        }
-        if (this.scheduledTextChangeTimeout) {
-            window.clearTimeout(this.scheduledTextChangeTimeout);
         }
         this.resetProgressBarClasses();
         if (this.progressBar) {
@@ -387,19 +369,19 @@ export const StatusPhases = [
         id: 'loading',
         progressBarClass: 'loading',
         message: i18nLazyString(UIStrings.lighthouseIsLoadingThePage),
-        statusMessagePrefix: 'Loading page',
+        statusMessageRegex: /^(Navigating to)/,
     },
     {
         id: 'gathering',
         progressBarClass: 'gathering',
         message: i18nLazyString(UIStrings.lighthouseIsGatheringInformation),
-        statusMessagePrefix: 'Gathering',
+        statusMessageRegex: /(Gather|artifact)/i,
     },
     {
         id: 'auditing',
         progressBarClass: 'auditing',
         message: i18nLazyString(UIStrings.almostThereLighthouseIsNow),
-        statusMessagePrefix: 'Auditing',
+        statusMessageRegex: /^Audit/,
     },
 ];
 const LoadingMessages = [

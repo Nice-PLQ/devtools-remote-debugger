@@ -2,10 +2,10 @@ import * as Common from '../../../../core/common/common.js';
 import * as Platform from '../../../../core/platform/platform.js';
 import * as UI from '../../legacy.js';
 declare const FilteredListWidget_base: (new (...args: any[]) => {
-    "__#8@#events": Common.ObjectWrapper.ObjectWrapper<EventTypes>;
-    addEventListener<T extends Events.Hidden>(eventType: T, listener: (arg0: Common.EventTarget.EventTargetEvent<EventTypes[T]>) => void, thisObject?: Object | undefined): Common.EventTarget.EventDescriptor<EventTypes, T>;
+    "__#13@#events": Common.ObjectWrapper.ObjectWrapper<EventTypes>;
+    addEventListener<T extends Events.Hidden>(eventType: T, listener: (arg0: Common.EventTarget.EventTargetEvent<EventTypes[T], any>) => void, thisObject?: Object | undefined): Common.EventTarget.EventDescriptor<EventTypes, T>;
     once<T_1 extends Events.Hidden>(eventType: T_1): Promise<EventTypes[T_1]>;
-    removeEventListener<T_2 extends Events.Hidden>(eventType: T_2, listener: (arg0: Common.EventTarget.EventTargetEvent<EventTypes[T_2]>) => void, thisObject?: Object | undefined): void;
+    removeEventListener<T_2 extends Events.Hidden>(eventType: T_2, listener: (arg0: Common.EventTarget.EventTargetEvent<EventTypes[T_2], any>) => void, thisObject?: Object | undefined): void;
     hasEventListeners(eventType: Events.Hidden): boolean;
     dispatchEventToListeners<T_3 extends Events.Hidden>(eventType: Platform.TypeScriptUtilities.NoUnion<T_3>, ...eventData: Common.EventTarget.EventPayloadToRestParameters<EventTypes, T_3>): void;
 }) & typeof UI.Widget.VBox;
@@ -55,7 +55,7 @@ export declare class FilteredListWidget extends FilteredListWidget_base implemen
     isItemSelectable(_item: number): boolean;
     selectedItemChanged(_from: number | null, _to: number | null, fromElement: Element | null, toElement: Element | null): void;
     private onClick;
-    private onMouseOver;
+    private onMouseMove;
     setQuery(query: string): void;
     private tabKeyPressed;
     private itemsFilteredForTest;
@@ -72,7 +72,7 @@ export declare class FilteredListWidget extends FilteredListWidget_base implemen
 export declare const enum Events {
     Hidden = "hidden"
 }
-export declare type EventTypes = {
+export type EventTypes = {
     [Events.Hidden]: void;
 };
 export declare class Provider {
@@ -97,6 +97,7 @@ export declare function getRegisteredProviders(): ProviderRegistration[];
 export interface ProviderRegistration {
     prefix: string;
     iconName: string;
+    iconWidth: string;
     provider: () => Promise<Provider>;
     titlePrefix: (() => string);
     titleSuggestion?: (() => string);

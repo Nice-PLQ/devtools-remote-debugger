@@ -1,9 +1,9 @@
 import type * as Platform from '../platform/platform.js';
-import type { Color } from './Color.js';
-import { Format } from './Color.js';
-import type { GenericEvents, EventDescriptor, EventTargetEvent } from './EventTarget.js';
+import * as Root from '../root/root.js';
+import { Format, type Color } from './Color.js';
+import { type GenericEvents, type EventDescriptor, type EventTargetEvent } from './EventTarget.js';
 import { ObjectWrapper } from './Object.js';
-import { getLocalizedSettingsCategory, getRegisteredSettings, maybeRemoveSettingExtension, RegExpSettingItem, registerSettingExtension, registerSettingsForTest, resetSettings, SettingCategory, SettingExtensionOption, SettingRegistration, SettingType } from './SettingRegistration.js';
+import { getLocalizedSettingsCategory, getRegisteredSettings, maybeRemoveSettingExtension, type RegExpSettingItem, registerSettingExtension, registerSettingsForTest, resetSettings, SettingCategory, type SettingExtensionOption, type SettingRegistration, SettingType } from './SettingRegistration.js';
 export declare class Settings {
     #private;
     private readonly syncedStorage;
@@ -33,6 +33,7 @@ export declare class Settings {
 }
 export interface SettingsBackingStore {
     register(setting: string): void;
+    get(setting: string): Promise<string>;
     set(setting: string, value: string): void;
     remove(setting: string): void;
     clear(): void;
@@ -47,9 +48,16 @@ export declare class SettingsStorage {
     set(name: string, value: string): void;
     has(name: string): boolean;
     get(name: string): string;
+    forceGet(originalName: string): Promise<string>;
     remove(name: string): void;
     removeAll(): void;
     dumpSizes(): void;
+}
+export declare class Deprecation {
+    readonly disabled: boolean;
+    readonly warning: Platform.UIString.LocalizedString;
+    readonly experiment?: Root.Runtime.Experiment;
+    constructor({ deprecationNotice }: SettingRegistration);
 }
 export declare class Setting<V> {
     #private;
@@ -65,7 +73,10 @@ export declare class Setting<V> {
     setTitleFunction(titleFunction: (() => Platform.UIString.LocalizedString) | undefined): void;
     setTitle(title: string): void;
     setRequiresUserAction(requiresUserAction: boolean): void;
+    disabled(): boolean;
+    setDisabled(disabled: boolean): void;
     get(): V;
+    forceGet(): Promise<V>;
     set(value: V): void;
     setRegistration(registration: SettingRegistration): void;
     type(): SettingType | null;
@@ -74,6 +85,7 @@ export declare class Setting<V> {
     category(): SettingCategory | null;
     tags(): string | null;
     order(): number | null;
+    get deprecation(): Deprecation | null;
     private printSettingsSavingError;
 }
 export declare class RegExpSetting extends Setting<any> {
@@ -86,8 +98,24 @@ export declare class RegExpSetting extends Setting<any> {
     asRegExp(): RegExp | null;
 }
 export declare class VersionController {
-    static get currentVersionName(): string;
-    static get currentVersion(): number;
+    #private;
+    static readonly GLOBAL_VERSION_SETTING_NAME = "inspectorVersion";
+    static readonly SYNCED_VERSION_SETTING_NAME = "syncedInspectorVersion";
+    static readonly LOCAL_VERSION_SETTING_NAME = "localInspectorVersion";
+    static readonly CURRENT_VERSION = 35;
+    constructor();
+    /**
+     * Force re-sets all version number settings to the current version without
+     * running any migrations.
+     */
+    resetToCurrent(): void;
+    /**
+     * Runs the appropriate migrations and updates the version settings accordingly.
+     *
+     * To determine what migrations to run we take the minimum of all version number settings.
+     *
+     * IMPORTANT: All migrations must be idempotent since they might be applied multiple times.
+     */
     updateVersion(): void;
     private methodsToRunToUpdateVersion;
     private updateVersionFrom0To1;
@@ -121,6 +149,10 @@ export declare class VersionController {
     private updateVersionFrom28To29;
     private updateVersionFrom29To30;
     private updateVersionFrom30To31;
+    updateVersionFrom31To32(): void;
+    updateVersionFrom32To33(): void;
+    updateVersionFrom33To34(): void;
+    updateVersionFrom34To35(): void;
     private migrateSettingsFromLocalStorage;
     private clearBreakpointsWhenTooMany;
 }

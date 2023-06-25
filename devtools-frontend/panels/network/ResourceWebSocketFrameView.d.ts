@@ -1,3 +1,4 @@
+import * as Platform from '../../core/platform/platform.js';
 import * as SDK from '../../core/sdk/sdk.js';
 import * as DataGrid from '../../ui/legacy/components/data_grid/data_grid.js';
 import * as UI from '../../ui/legacy/legacy.js';
@@ -47,7 +48,7 @@ export declare class ResourceWebSocketFrameNode extends DataGrid.SortableDataGri
     private readonly isTextFrame;
     private dataTextInternal;
     private binaryViewInternal;
-    constructor(url: string, frame: SDK.NetworkRequest.WebSocketFrame);
+    constructor(url: Platform.DevToolsPath.UrlString, frame: SDK.NetworkRequest.WebSocketFrame);
     createCells(element: Element): void;
     nodeSelfHeight(): number;
     dataText(): string;

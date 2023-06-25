@@ -1,6 +1,6 @@
 import type * as Common from '../../core/common/common.js';
-import type { ListDelegate } from './ListControl.js';
-import type { ListModel } from './ListModel.js';
+import { type ListDelegate } from './ListControl.js';
+import { type ListModel } from './ListModel.js';
 export declare class SoftDropDown<T> implements ListDelegate<T> {
     private delegate;
     private selectedItem;
@@ -23,6 +23,7 @@ export declare class SoftDropDown<T> implements ListDelegate<T> {
     setRowHeight(rowHeight: number): void;
     setPlaceholderText(text: Common.UIString.LocalizedString): void;
     private itemsReplaced;
+    getSelectedItem(): T | null;
     selectItem(item: T | null): void;
     createElementForItem(item: T): Element;
     heightForItem(_item: T): number;

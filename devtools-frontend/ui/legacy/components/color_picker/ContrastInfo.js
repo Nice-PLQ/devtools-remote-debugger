@@ -33,7 +33,7 @@ export class ContrastInfo extends Common.ObjectWrapper.ObjectWrapper {
         this.contrastRationAPCAThreshold =
             Common.ColorUtils.getAPCAThreshold(contrastInfo.computedFontSize, contrastInfo.computedFontWeight);
         const bgColorText = contrastInfo.backgroundColors[0];
-        const bgColor = Common.Color.Color.parse(bgColorText);
+        const bgColor = Common.Color.parse(bgColorText)?.asLegacyColor();
         if (bgColor) {
             this.setBgColorInternal(bgColor);
         }
@@ -45,7 +45,7 @@ export class ContrastInfo extends Common.ObjectWrapper.ObjectWrapper {
         this.fgColor = fgColor;
         this.colorFormatInternal = colorFormat;
         this.updateContrastRatio();
-        this.dispatchEventToListeners("ContrastInfoUpdated" /* ContrastInfoUpdated */);
+        this.dispatchEventToListeners("ContrastInfoUpdated" /* Events.ContrastInfoUpdated */);
     }
     colorFormat() {
         return this.colorFormatInternal;
@@ -64,7 +64,7 @@ export class ContrastInfo extends Common.ObjectWrapper.ObjectWrapper {
     }
     setBgColor(bgColor) {
         this.setBgColorInternal(bgColor);
-        this.dispatchEventToListeners("ContrastInfoUpdated" /* ContrastInfoUpdated */);
+        this.dispatchEventToListeners("ContrastInfoUpdated" /* Events.ContrastInfoUpdated */);
     }
     setBgColorInternal(bgColor) {
         this.bgColorInternal = bgColor;
@@ -77,7 +77,7 @@ export class ContrastInfo extends Common.ObjectWrapper.ObjectWrapper {
         // the unknown background is the same color as the text.
         if (bgColor.hasAlpha()) {
             const blendedRGBA = Common.ColorUtils.blendColors(bgColor.rgba(), fgRGBA);
-            this.bgColorInternal = new Common.Color.Color(blendedRGBA, Common.Color.Format.RGBA);
+            this.bgColorInternal = new Common.Color.Legacy(blendedRGBA, "rgba" /* Common.Color.Format.RGBA */);
         }
         this.contrastRatioInternal = Common.ColorUtils.contrastRatio(fgRGBA, this.bgColorInternal.rgba());
         this.contrastRatioAPCAInternal =

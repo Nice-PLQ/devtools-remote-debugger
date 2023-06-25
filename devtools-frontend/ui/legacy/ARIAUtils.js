@@ -72,6 +72,9 @@ export function markAsMenu(element) {
 export function markAsMenuItem(element) {
     element.setAttribute('role', 'menuitem');
 }
+export function markAsMenuItemCheckBox(element) {
+    element.setAttribute('role', 'menuitemcheckbox');
+}
 export function markAsMenuItemSubMenu(element) {
     markAsMenuItem(element);
     element.setAttribute('aria-haspopup', 'true');
@@ -217,8 +220,8 @@ export function setAutocomplete(element, interactionModel = AutocompleteInteract
 export function clearAutocomplete(element) {
     element.removeAttribute('aria-autocomplete');
 }
-export function setHasPopup(element, value = "false" /* False */) {
-    if (value !== "false" /* False */) {
+export function setHasPopup(element, value = "false" /* PopupRole.False */) {
+    if (value !== "false" /* PopupRole.False */) {
         element.setAttribute('aria-haspopup', value);
     }
     else {
@@ -260,12 +263,9 @@ export function setProgressBarValue(element, valueNow, valueText) {
         element.setAttribute('aria-valuetext', valueText);
     }
 }
-export function setAccessibleName(element, name) {
+export function setLabel(element, name) {
     element.setAttribute('aria-label', name);
 }
-// TODO(crbug.com/1172300) Ignored during the jsdoc to ts migration
-// eslint-disable-next-line @typescript-eslint/naming-convention
-const _descriptionMap = new WeakMap();
 export function setDescription(element, description) {
     // Nodes in the accessibility tree are made up of a core
     // triplet of "name", "value", "description"
@@ -278,70 +278,7 @@ export function setDescription(element, description) {
     // to appear with the description when the element is hovered.
     // This is usually fine, except that DevTools has its own styled
     // tooltips which would interfere with the browser tooltips.
-    //
-    // In future, the aria-description attribute may be used once it
-    // is unflagged.
-    //
-    // aria-describedby requires that an extra element exist in DOM
-    // that this element can point to. Both elements also have to
-    // be in the same shadow root. This is not trivial to manage.
-    // The rest of DevTools shouldn't have to worry about this,
-    // so there is some unfortunate code below.
-    const oldDescription = _descriptionMap.get(element);
-    if (oldDescription) {
-        oldDescription.remove();
-    }
-    element.removeAttribute('data-aria-utils-animation-hack');
-    if (!description) {
-        _descriptionMap.delete(element);
-        element.removeAttribute('aria-describedby');
-        return;
-    }
-    // We make a hidden element that contains the decsription
-    // and will be pointed to by aria-describedby.
-    const descriptionElement = document.createElement('span');
-    descriptionElement.textContent = description;
-    descriptionElement.style.display = 'none';
-    ensureId(descriptionElement);
-    element.setAttribute('aria-describedby', descriptionElement.id);
-    _descriptionMap.set(element, descriptionElement);
-    // Now we have to actually put this description element
-    // somewhere in the DOM so that we can point to it.
-    // It would be nice to just put it in the body, but that
-    // wouldn't work if the main element is in a shadow root.
-    // So the cleanest approach is to add the description element
-    // as a child of the main element. But wait! Some HTML elements
-    // aren't supposed to have children. Blink won't search inside
-    // these elements, and won't find our description element.
-    const contentfulVoidTags = new Set(['INPUT', 'IMG']);
-    if (!contentfulVoidTags.has(element.tagName)) {
-        element.appendChild(descriptionElement);
-        // If we made it here, someone setting .textContent
-        // or removeChildren on the element will blow away
-        // our description. At least we tried our best!
-        return;
-    }
-    // We have some special element, like an <input>, where putting the
-    // description element inside it doesn't work.
-    // Lets try the next best thing, and just put the description element
-    // next to it in the DOM.
-    const inserted = element.insertAdjacentElement('afterend', descriptionElement);
-    if (inserted) {
-        return;
-    }
-    // Uh oh, the insertion didn't work! That means we aren't currently in the DOM.
-    // How can we find out when the element enters the DOM?
-    // See inspectorCommon.css
-    element.setAttribute('data-aria-utils-animation-hack', 'sorry');
-    element.addEventListener('animationend', () => {
-        // Someone might have made a new description in the meantime.
-        if (_descriptionMap.get(element) !== descriptionElement) {
-            return;
-        }
-        element.removeAttribute('data-aria-utils-animation-hack');
-        // Try it again. This time we are in the DOM, so it *should* work.
-        element.insertAdjacentElement('afterend', descriptionElement);
-    }, { once: true });
+    element.setAttribute('aria-description', description);
 }
 export function setActiveDescendant(element, activedescendant) {
     if (!activedescendant) {
@@ -349,10 +286,8 @@ export function setActiveDescendant(element, activedescendant) {
         return;
     }
     if (activedescendant.isConnected && element.isConnected) {
-        console.assert(element.hasSameShadowRoot(activedescendant), 'elements are not in the same shadow dom');
-    }
-    else {
-        console.warn('One or more elements in an active-descendant relationship are not yet attached to the DOM tree.');
+        console.assert(Platform.DOMUtilities.getEnclosingShadowRootForNode(activedescendant) ===
+            Platform.DOMUtilities.getEnclosingShadowRootForNode(element), 'elements are not in the same shadow dom');
     }
     ensureId(activedescendant);
     element.setAttribute('aria-activedescendant', activedescendant.id);

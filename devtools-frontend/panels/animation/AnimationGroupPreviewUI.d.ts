@@ -1,4 +1,4 @@
-import type { AnimationGroup } from './AnimationModel.js';
+import { type AnimationGroup } from './AnimationModel.js';
 export declare class AnimationGroupPreviewUI {
     #private;
     element: HTMLDivElement;

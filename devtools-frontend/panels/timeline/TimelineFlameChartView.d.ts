@@ -1,17 +1,18 @@
 import * as SDK from '../../core/sdk/sdk.js';
+import * as TraceEngine from '../../models/trace/trace.js';
 import * as PerfUI from '../../ui/legacy/components/perf_ui/perf_ui.js';
 import * as UI from '../../ui/legacy/legacy.js';
-import type { PerformanceModel } from './PerformanceModel.js';
-import type { TimelineModeViewDelegate } from './TimelinePanel.js';
-import { TimelineSelection } from './TimelinePanel.js';
-import type { TimelineMarkerStyle } from './TimelineUIUtils.js';
+import { type PerformanceModel } from './PerformanceModel.js';
+import { type TimelineModeViewDelegate } from './TimelinePanel.js';
+import { TimelineSelection } from './TimelineSelection.js';
+import { type TimelineMarkerStyle } from './TimelineUIUtils.js';
 export declare class TimelineFlameChartView extends UI.Widget.VBox implements PerfUI.FlameChart.FlameChartDelegate, UI.SearchableView.Searchable {
+    #private;
     private readonly delegate;
     private model;
     private searchResults;
     private eventListeners;
     private readonly showMemoryGraphSetting;
-    private readonly showWebVitalsSetting;
     private readonly networkSplitWidget;
     private mainDataProvider;
     private readonly mainFlameChart;
@@ -20,34 +21,28 @@ export declare class TimelineFlameChartView extends UI.Widget.VBox implements Pe
     private readonly networkFlameChart;
     private readonly networkPane;
     private readonly splitResizer;
-    private readonly webVitals;
-    private readonly mainSplitWidget;
     private readonly chartSplitWidget;
     private readonly countersView;
     private readonly detailsSplitWidget;
     private readonly detailsView;
     private readonly onMainEntrySelected;
     private readonly onNetworkEntrySelected;
-    private nextExtensionIndex;
     private readonly boundRefresh;
-    private selectedTrack;
     private readonly groupBySetting;
     private searchableView;
-    private urlToColorCache?;
     private needsResizeToPreferredHeights?;
     private selectedSearchResult?;
     private searchRegex?;
     constructor(delegate: TimelineModeViewDelegate);
-    toggleWebVitalsLane(): void;
-    private updateColorMapper;
+    isNetworkTrackShownForTests(): boolean;
+    updateColorMapper(): void;
     private onWindowChanged;
     windowChanged(windowStartTime: number, windowEndTime: number, animate: boolean): void;
     updateRangeSelection(startTime: number, endTime: number): void;
     updateSelectedGroup(flameChart: PerfUI.FlameChart.FlameChart, group: PerfUI.FlameChart.Group | null): void;
-    setModel(model: PerformanceModel | null): void;
+    setModel(model: PerformanceModel | null, newTraceEngineData: TraceEngine.Handlers.Migration.PartialTraceData | null, filmStripModel: SDK.FilmStripModel.FilmStripModel | null): void;
     private updateTrack;
     private refresh;
-    private appendExtensionData;
     private onEntryHighlighted;
     highlightEvent(event: SDK.TracingModel.Event | null): void;
     willHide(): void;
@@ -63,7 +58,14 @@ export declare class TimelineFlameChartView extends UI.Widget.VBox implements Pe
     supportsRegexSearch(): boolean;
     private selectSearchResult;
     private updateSearchResults;
-    searchCanceled(): void;
+    /**
+     * Returns the indexes of the elements that matched the most recent
+     * query. Elements are indexed by the data provider and correspond
+     * to their position in the data provider entry data array.
+     * Public only for tests.
+     */
+    getSearchResults(): number[] | undefined;
+    onSearchCanceled(): void;
     performSearch(searchConfig: UI.SearchableView.SearchConfig, shouldJump: boolean, jumpBackwards?: boolean): void;
 }
 export declare class Selection {

@@ -54,13 +54,13 @@ Elements.InspectElementModeController.ToggleSearchActionDelegate =
 Elements.MarkerDecorator = ElementsModule.MarkerDecorator.MarkerDecorator;
 Elements.GenericDecorator = ElementsModule.MarkerDecorator.GenericDecorator;
 /** @constructor */
-Elements.LayoutSidebarPane = ElementsModule.LayoutSidebarPane.LayoutSidebarPane;
-/** @constructor */
 Elements.MetricsSidebarPane = ElementsModule.MetricsSidebarPane.MetricsSidebarPane;
 /** @constructor */
 Elements.NodeStackTraceWidget = ElementsModule.NodeStackTraceWidget.NodeStackTraceWidget;
 /** @constructor */
 Elements.PropertiesWidget = ElementsModule.PropertiesWidget.PropertiesWidget;
+/** @constructor */
+Elements.StylePropertiesSection = ElementsModule.StylePropertiesSection.StylePropertiesSection;
 /** @constructor */
 Elements.StylePropertyTreeElement = ElementsModule.StylePropertyTreeElement.StylePropertyTreeElement;
 /** @constructor */
@@ -69,6 +69,4 @@ Elements.StylesSidebarPane = ElementsModule.StylesSidebarPane.StylesSidebarPane;
 Elements.StylesSidebarPane.CSSPropertyPrompt = ElementsModule.StylesSidebarPane.CSSPropertyPrompt;
 /** @constructor */
 Elements.StylesSidebarPane.ButtonProvider = ElementsModule.StylesSidebarPane.ButtonProvider;
-/** @constructor */
-Elements.StylePropertiesSection = ElementsModule.StylesSidebarPane.StylePropertiesSection;
 //# sourceMappingURL=elements-legacy.js.map

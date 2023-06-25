@@ -1,29 +1,23 @@
-declare class UrlStringTag {
-    private urlTag;
-}
+import { type Brand } from './brand.js';
 /**
  * File paths in DevTools that are represented as URLs
  * @example
  * “file:///Hello%20World/file/js”
  */
-export declare type UrlString = string & UrlStringTag;
-declare class RawPathStringTag {
-    private rawPathTag;
-}
+export type UrlString = Brand<string, 'UrlString'>;
+export declare const EmptyUrlString: UrlString;
 /**
  * File paths in DevTools that are represented as unencoded absolute
  * or relative paths
  * @example
  * “/Hello World/file.js”
  */
-export declare type RawPathString = string & RawPathStringTag;
-declare class EncodedPathStringTag {
-    private encodedPathTag;
-}
+export type RawPathString = Brand<string, 'RawPathString'>;
+export declare const EmptyRawPathString: RawPathString;
 /**
  * File paths in DevTools that are represented as encoded paths
  * @example
  * “/Hello%20World/file.js”
  */
-export declare type EncodedPathString = string & EncodedPathStringTag;
-export {};
+export type EncodedPathString = Brand<string, 'EncodedPathString'>;
+export declare const EmptyEncodedPathString: EncodedPathString;

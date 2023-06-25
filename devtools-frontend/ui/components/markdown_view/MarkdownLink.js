@@ -13,25 +13,25 @@ import { getMarkdownLink } from './MarkdownLinksMap.js';
  */
 export class MarkdownLink extends HTMLElement {
     static litTagName = LitHtml.literal `devtools-markdown-link`;
-    shadow = this.attachShadow({ mode: 'open' });
-    linkText = '';
-    linkUrl = '';
+    #shadow = this.attachShadow({ mode: 'open' });
+    #linkText = '';
+    #linkUrl = '';
     connectedCallback() {
-        this.shadow.adoptedStyleSheets = [markdownLinkStyles];
+        this.#shadow.adoptedStyleSheets = [markdownLinkStyles];
     }
     set data(data) {
         const { key, title } = data;
         const markdownLink = getMarkdownLink(key);
-        this.linkText = title;
-        this.linkUrl = markdownLink;
-        this.render();
+        this.#linkText = title;
+        this.#linkUrl = markdownLink;
+        this.#render();
     }
-    render() {
+    #render() {
         // clang-format off
         const output = LitHtml.html `
-      <x-link class="devtools-link" href=${this.linkUrl}>${this.linkText}</x-link>
+      <x-link class="devtools-link" href=${this.#linkUrl}>${this.#linkText}</x-link>
     `;
-        LitHtml.render(output, this.shadow, { host: this });
+        LitHtml.render(output, this.#shadow, { host: this });
         // clang-format on
     }
 }

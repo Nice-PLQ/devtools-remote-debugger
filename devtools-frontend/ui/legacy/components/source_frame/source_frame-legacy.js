@@ -26,13 +26,6 @@ SourceFrame.SourceFrame = SourceFrameModule.SourceFrame.SourceFrameImpl;
 /** @interface */
 SourceFrame.LineDecorator = SourceFrameModule.SourceFrame.LineDecorator;
 /** @constructor */
-SourceFrame.SourcesTextEditor = SourceFrameModule.SourcesTextEditor.SourcesTextEditor;
-SourceFrame.SourcesTextEditor.Events = SourceFrameModule.SourcesTextEditor.Events;
-SourceFrame.SourcesTextEditor.lineNumbersGutterType = SourceFrameModule.SourcesTextEditor.lineNumbersGutterType;
-/** @interface */
-SourceFrame.SourcesTextEditorDelegate = SourceFrameModule.SourcesTextEditor.SourcesTextEditorDelegate;
-SourceFrame.SourcesTextEditor.TokenHighlighter = SourceFrameModule.SourcesTextEditor.TokenHighlighter;
-/** @constructor */
 SourceFrame.XMLView = SourceFrameModule.XMLView.XMLView;
 /** @constructor */
 SourceFrame.XMLView.Node = SourceFrameModule.XMLView.XMLViewNode;

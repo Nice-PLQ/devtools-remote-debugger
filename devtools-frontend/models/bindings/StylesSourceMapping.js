@@ -197,21 +197,21 @@ export class StyleFile {
             return;
         }
         const mirrorContentBound = this.mirrorContent.bind(this, header, true /* majorChange */);
-        this.#throttler.schedule(mirrorContentBound, false /* asSoonAsPossible */);
+        void this.#throttler.schedule(mirrorContentBound, false /* asSoonAsPossible */);
     }
     workingCopyCommitted() {
         if (this.#isAddingRevision) {
             return;
         }
         const mirrorContentBound = this.mirrorContent.bind(this, this.uiSourceCode, true /* majorChange */);
-        this.#throttler.schedule(mirrorContentBound, true /* asSoonAsPossible */);
+        void this.#throttler.schedule(mirrorContentBound, true /* asSoonAsPossible */);
     }
     workingCopyChanged() {
         if (this.#isAddingRevision) {
             return;
         }
         const mirrorContentBound = this.mirrorContent.bind(this, this.uiSourceCode, false /* majorChange */);
-        this.#throttler.schedule(mirrorContentBound, false /* asSoonAsPossible */);
+        void this.#throttler.schedule(mirrorContentBound, false /* asSoonAsPossible */);
     }
     async mirrorContent(fromProvider, majorChange) {
         if (this.#terminated) {
@@ -255,7 +255,7 @@ export class StyleFile {
             return;
         }
         this.#terminated = true;
-        this.#project.removeFile(this.uiSourceCode.url());
+        this.#project.removeUISourceCode(this.uiSourceCode.url());
         Common.EventTarget.removeEventListeners(this.#eventListeners);
     }
     contentURL() {
@@ -265,10 +265,6 @@ export class StyleFile {
     contentType() {
         console.assert(this.headers.size > 0);
         return this.headers.values().next().value.originalContentProvider().contentType();
-    }
-    contentEncoded() {
-        console.assert(this.headers.size > 0);
-        return this.headers.values().next().value.originalContentProvider().contentEncoded();
     }
     requestContent() {
         console.assert(this.headers.size > 0);

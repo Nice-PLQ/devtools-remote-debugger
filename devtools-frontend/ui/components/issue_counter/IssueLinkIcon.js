@@ -35,112 +35,116 @@ export const extractShortPath = (path) => {
 const coordinator = Coordinator.RenderCoordinator.RenderCoordinator.instance();
 export class IssueLinkIcon extends HTMLElement {
     static litTagName = LitHtml.literal `devtools-issue-link-icon`;
-    shadow = this.attachShadow({ mode: 'open' });
+    #shadow = this.attachShadow({ mode: 'open' });
     // The value `null` indicates that the issue is not available,
     // `undefined` that it is still being resolved.
-    issue;
-    issueTitle = null;
-    issueTitlePromise = Promise.resolve(undefined);
-    issueId;
-    issueResolver;
-    additionalOnClickAction;
-    reveal = Common.Revealer.reveal;
-    issueResolvedPromise = Promise.resolve(undefined);
+    #issue;
+    #issueTitle = null;
+    #issueTitlePromise = Promise.resolve(undefined);
+    #issueId;
+    #issueResolver;
+    #additionalOnClickAction;
+    #reveal = Common.Revealer.reveal;
+    #issueResolvedPromise = Promise.resolve(undefined);
     set data(data) {
-        this.issue = data.issue;
-        this.issueId = data.issueId;
-        if (!this.issue && !this.issueId) {
+        this.#issue = data.issue;
+        this.#issueId = data.issueId;
+        if (!this.#issue && !this.#issueId) {
             throw new Error('Either `issue` or `issueId` must be provided');
         }
-        this.issueResolver = data.issueResolver;
-        this.additionalOnClickAction = data.additionalOnClickAction;
+        this.#issueResolver = data.issueResolver;
+        this.#additionalOnClickAction = data.additionalOnClickAction;
         if (data.revealOverride) {
-            this.reveal = data.revealOverride;
+            this.#reveal = data.revealOverride;
         }
-        if (!this.issue && this.issueId) {
-            this.issueResolvedPromise = this.resolveIssue(this.issueId);
-            this.issueTitlePromise = this.issueResolvedPromise.then(() => this.fetchIssueTitle());
+        if (!this.#issue && this.#issueId) {
+            this.#issueResolvedPromise = this.#resolveIssue(this.#issueId);
+            this.#issueTitlePromise = this.#issueResolvedPromise.then(() => this.#fetchIssueTitle());
         }
         else {
-            this.issueTitlePromise = this.fetchIssueTitle();
+            this.#issueTitlePromise = this.#fetchIssueTitle();
         }
-        this.render();
+        void this.#render();
     }
-    async fetchIssueTitle() {
-        const description = this.issue?.getDescription();
+    async #fetchIssueTitle() {
+        const description = this.#issue?.getDescription();
         if (!description) {
             return;
         }
         const title = await IssuesManager.MarkdownIssueDescription.getIssueTitleFromMarkdownDescription(description);
         if (title) {
-            this.issueTitle = title;
+            this.#issueTitle = title;
         }
     }
     connectedCallback() {
-        this.shadow.adoptedStyleSheets = [IssueLinkIconStyles];
+        this.#shadow.adoptedStyleSheets = [IssueLinkIconStyles];
     }
-    resolveIssue(issueId) {
-        if (!this.issueResolver) {
+    #resolveIssue(issueId) {
+        if (!this.#issueResolver) {
             throw new Error('An `IssueResolver` must be provided if an `issueId` is provided.');
         }
-        return this.issueResolver.waitFor(issueId)
+        return this.#issueResolver.waitFor(issueId)
             .then(issue => {
-            this.issue = issue;
+            this.#issue = issue;
         })
             .catch(() => {
-            this.issue = null;
+            this.#issue = null;
         });
     }
     get data() {
         return {
-            issue: this.issue,
-            issueId: this.issueId,
-            issueResolver: this.issueResolver,
-            additionalOnClickAction: this.additionalOnClickAction,
-            revealOverride: this.reveal !== Common.Revealer.reveal ? this.reveal : undefined,
+            issue: this.#issue,
+            issueId: this.#issueId,
+            issueResolver: this.#issueResolver,
+            additionalOnClickAction: this.#additionalOnClickAction,
+            revealOverride: this.#reveal !== Common.Revealer.reveal ? this.#reveal : undefined,
         };
     }
     iconData() {
-        if (this.issue) {
-            return getIssueKindIconData(this.issue.getKind());
+        if (this.#issue) {
+            return {
+                ...getIssueKindIconData(this.#issue.getKind()),
+                width: '16px',
+                height: '16px',
+            };
         }
-        return { iconName: 'issue-questionmark-icon', color: 'var(--color-text-secondary)', width: '16px', height: '16px' };
+        return { iconName: 'issue-questionmark-filled', color: 'var(--icon-default)', width: '16px', height: '16px' };
     }
     handleClick(event) {
         if (event.button !== 0) {
             return; // Only handle left-click for now.
         }
-        if (this.issue) {
-            this.reveal(this.issue);
+        if (this.#issue) {
+            void this.#reveal(this.#issue);
         }
-        this.additionalOnClickAction?.();
+        this.#additionalOnClickAction?.();
     }
-    getTooltip() {
-        if (this.issueTitle) {
-            return i18nString(UIStrings.clickToShowIssueWithTitle, { title: this.issueTitle });
+    #getTooltip() {
+        if (this.#issueTitle) {
+            return i18nString(UIStrings.clickToShowIssueWithTitle, { title: this.#issueTitle });
         }
-        if (this.issue) {
+        if (this.#issue) {
             return i18nString(UIStrings.clickToShowIssue);
         }
         return i18nString(UIStrings.issueUnavailable);
     }
-    render() {
+    #render() {
         return coordinator.write(() => {
             // clang-format off
             LitHtml.render(LitHtml.html `
-        ${LitHtml.Directives.until(this.issueTitlePromise.then(() => this.renderComponent()), this.issueResolvedPromise.then(() => this.renderComponent()), this.renderComponent())}
-      `, this.shadow, { host: this });
+        ${LitHtml.Directives.until(this.#issueTitlePromise.then(() => this.#renderComponent()), this.#issueResolvedPromise.then(() => this.#renderComponent()), this.#renderComponent())}
+      `, this.#shadow, { host: this });
             // clang-format on
         });
     }
-    renderComponent() {
+    #renderComponent() {
         // clang-format off
         return LitHtml.html `
-      <span class=${LitHtml.Directives.classMap({ 'link': Boolean(this.issue) })}
+      <span class=${LitHtml.Directives.classMap({ 'link': Boolean(this.#issue) })}
             tabindex="0"
             @click=${this.handleClick}>
         <${IconButton.Icon.Icon.litTagName} .data=${this.iconData()}
-          title=${this.getTooltip()}></${IconButton.Icon.Icon.litTagName}>
+          title=${this.#getTooltip()}></${IconButton.Icon.Icon.litTagName}>
       </span>`;
         // clang-format on
     }

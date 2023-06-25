@@ -37,53 +37,54 @@ import * as Root from '../../../../core/root/root.js';
 import * as SDK from '../../../../core/sdk/sdk.js';
 import * as IssuesManager from '../../../../models/issues_manager/issues_manager.js';
 import * as NetworkForward from '../../../../panels/network/forward/forward.js';
+import * as IconButton from '../../../components/icon_button/icon_button.js';
 import * as UI from '../../legacy.js';
 import * as DataGrid from '../data_grid/data_grid.js';
 import cookiesTableStyles from './cookiesTable.css.js';
 const UIStrings = {
     /**
-    *@description Cookie table cookies table expires session value in Cookies Table of the Cookies table in the Application panel
-    */
+     *@description Cookie table cookies table expires session value in Cookies Table of the Cookies table in the Application panel
+     */
     session: 'Session',
     /**
-    *@description Text for the name of something
-    */
+     *@description Text for the name of something
+     */
     name: 'Name',
     /**
-    *@description Text for the value of something
-    */
+     *@description Text for the value of something
+     */
     value: 'Value',
     /**
-    *@description Text for the size of something
-    */
+     *@description Text for the size of something
+     */
     size: 'Size',
     /**
-    *@description Data grid name for Editable Cookies data grid
-    */
+     *@description Data grid name for Editable Cookies data grid
+     */
     editableCookies: 'Editable Cookies',
     /**
-    *@description Text for web cookies
-    */
+     *@description Text for web cookies
+     */
     cookies: 'Cookies',
     /**
-    *@description Text for something not available
-    */
+     *@description Text for something not available
+     */
     na: 'N/A',
     /**
-    *@description Text for Context Menu entry
-    */
+     *@description Text for Context Menu entry
+     */
     showRequestsWithThisCookie: 'Show Requests With This Cookie',
     /**
-    *@description Text for Context Menu entry
-    */
+     *@description Text for Context Menu entry
+     */
     showIssueAssociatedWithThis: 'Show issue associated with this cookie',
     /**
-    *@description Tooltip for the cell that shows the sourcePort property of a cookie in the cookie table. The source port is numberic attribute of a cookie.
-    */
+     *@description Tooltip for the cell that shows the sourcePort property of a cookie in the cookie table. The source port is numberic attribute of a cookie.
+     */
     sourcePortTooltip: 'Shows the source port (range 1-65535) the cookie was set on. If the port is unknown, this shows -1.',
     /**
-    *@description Tooltip for the cell that shows the sourceScheme property of a cookie in the cookie table. The source scheme is a trinary attribute of a cookie.
-    */
+     *@description Tooltip for the cell that shows the sourceScheme property of a cookie in the cookie table. The source scheme is a trinary attribute of a cookie.
+     */
     sourceSchemeTooltip: 'Shows the source scheme (`Secure`, `NonSecure`) the cookie was set on. If the scheme is unknown, this shows `Unset`.',
     /**
      * @description Text for the date column displayed if the expiration time of the cookie is extremely far out in the future.
@@ -96,6 +97,10 @@ const UIStrings = {
      * @example {9001628746521180} seconds
      */
     timeAfterTooltip: 'The expiration timestamp is {seconds}, which corresponds to a date after {date}',
+    /**
+     * @description Text to be show in the Partition Key column in case it is an opaque origin.
+     */
+    opaquePartitionKey: '(opaque)',
 };
 const str_ = i18n.i18n.registerUIStrings('ui/legacy/components/cookie_table/CookiesTable.ts', UIStrings);
 const i18nString = i18n.i18n.getLocalizedString.bind(undefined, str_);
@@ -190,12 +195,10 @@ export class CookiesTable extends UI.Widget.VBox {
                 editable: editable,
             },
             {
-                id: SDK.Cookie.Attributes.SameParty,
-                title: 'SameParty',
+                id: SDK.Cookie.Attributes.PartitionKey,
+                title: 'Partition Key',
                 sortable: true,
-                align: DataGrid.DataGrid.Align.Center,
                 weight: 7,
-                dataType: DataGrid.DataGrid.DataType.Boolean,
                 editable: editable,
             },
             {
@@ -331,7 +334,6 @@ export class CookiesTable extends UI.Widget.VBox {
                 groupData[SDK.Cookie.Attributes.HttpOnly] = '';
                 groupData[SDK.Cookie.Attributes.Secure] = '';
                 groupData[SDK.Cookie.Attributes.SameSite] = '';
-                groupData[SDK.Cookie.Attributes.SameParty] = '';
                 groupData[SDK.Cookie.Attributes.SourcePort] = '';
                 groupData[SDK.Cookie.Attributes.SourceScheme] = '';
                 groupData[SDK.Cookie.Attributes.Priority] = '';
@@ -405,8 +407,8 @@ export class CookiesTable extends UI.Widget.VBox {
                     return String(cookie.secure());
                 case SDK.Cookie.Attributes.SameSite:
                     return String(cookie.sameSite());
-                case SDK.Cookie.Attributes.SameParty:
-                    return String(cookie.sameParty());
+                case SDK.Cookie.Attributes.PartitionKey:
+                    return cookie.partitionKeyOpaque() ? i18nString(UIStrings.opaquePartitionKey) : String(cookie.partitionKey());
                 case SDK.Cookie.Attributes.SourceScheme:
                     return String(cookie.sourceScheme());
                 default:
@@ -421,9 +423,9 @@ export class CookiesTable extends UI.Widget.VBox {
         }
         function priorityCompare(cookie1, cookie2) {
             const priorities = [
-                "Low" /* Low */,
-                "Medium" /* Medium */,
-                "High" /* High */,
+                "Low" /* Protocol.Network.CookiePriority.Low */,
+                "Medium" /* Protocol.Network.CookiePriority.Medium */,
+                "High" /* Protocol.Network.CookiePriority.High */,
             ];
             const priority1 = priorities.indexOf(cookie1.priority());
             const priority2 = priorities.indexOf(cookie2.priority());
@@ -505,10 +507,10 @@ export class CookiesTable extends UI.Widget.VBox {
         data[SDK.Cookie.Attributes.HttpOnly] = cookie.httpOnly();
         data[SDK.Cookie.Attributes.Secure] = cookie.secure();
         data[SDK.Cookie.Attributes.SameSite] = cookie.sameSite() || '';
-        data[SDK.Cookie.Attributes.SameParty] = cookie.sameParty();
         data[SDK.Cookie.Attributes.SourcePort] = cookie.sourcePort();
         data[SDK.Cookie.Attributes.SourceScheme] = cookie.sourceScheme();
         data[SDK.Cookie.Attributes.Priority] = cookie.priority() || '';
+        data[SDK.Cookie.Attributes.PartitionKey] = cookie.partitionKey() || '';
         const blockedReasons = this.cookieToBlockedReasons?.get(cookie);
         const node = new DataGridNode(data, cookie, blockedReasons || null);
         if (expiresTooltip) {
@@ -548,6 +550,9 @@ export class CookiesTable extends UI.Widget.VBox {
         if (node.data[SDK.Cookie.Attributes.Expires] === null) {
             node.data[SDK.Cookie.Attributes.Expires] = expiresSessionValue();
         }
+        if (node.data[SDK.Cookie.Attributes.PartitionKey] === null) {
+            node.data[SDK.Cookie.Attributes.PartitionKey] = '';
+        }
     }
     saveNode(node) {
         const oldCookie = node.cookie;
@@ -556,7 +561,7 @@ export class CookiesTable extends UI.Widget.VBox {
         if (!this.saveCallback) {
             return;
         }
-        this.saveCallback(newCookie, oldCookie).then(success => {
+        void this.saveCallback(newCookie, oldCookie).then(success => {
             if (success) {
                 this.refresh();
             }
@@ -581,14 +586,14 @@ export class CookiesTable extends UI.Widget.VBox {
         if (data[SDK.Cookie.Attributes.SameSite]) {
             cookie.addAttribute(SDK.Cookie.Attributes.SameSite, data[SDK.Cookie.Attributes.SameSite]);
         }
-        if (data[SDK.Cookie.Attributes.SameParty]) {
-            cookie.addAttribute(SDK.Cookie.Attributes.SameParty);
-        }
         if (SDK.Cookie.Attributes.SourceScheme in data) {
             cookie.addAttribute(SDK.Cookie.Attributes.SourceScheme, data[SDK.Cookie.Attributes.SourceScheme]);
         }
         if (SDK.Cookie.Attributes.SourcePort in data) {
             cookie.addAttribute(SDK.Cookie.Attributes.SourcePort, Number.parseInt(data[SDK.Cookie.Attributes.SourcePort], 10) || undefined);
+        }
+        if (data[SDK.Cookie.Attributes.PartitionKey]) {
+            cookie.addAttribute(SDK.Cookie.Attributes.PartitionKey, data[SDK.Cookie.Attributes.PartitionKey]);
         }
         cookie.setSize(data[SDK.Cookie.Attributes.Name].length + data[SDK.Cookie.Attributes.Value].length);
         return cookie;
@@ -633,12 +638,12 @@ export class CookiesTable extends UI.Widget.VBox {
                     filterValue: cookie.name(),
                 },
             ]);
-            Common.Revealer.reveal(requestFilter);
+            void Common.Revealer.reveal(requestFilter);
         });
         if (IssuesManager.RelatedIssue.hasIssues(cookie)) {
             contextMenu.revealSection().appendItem(i18nString(UIStrings.showIssueAssociatedWithThis), () => {
                 // TODO(chromium:1077719): Just filter for the cookie instead of revealing one of the associated issues.
-                IssuesManager.RelatedIssue.reveal(cookie);
+                void IssuesManager.RelatedIssue.reveal(cookie);
             });
         }
     }
@@ -689,7 +694,8 @@ export class DataGridNode extends DataGrid.DataGrid.DataGridNode {
             }
         }
         if (blockedReasonString) {
-            const infoElement = UI.Icon.Icon.create('smallicon-info', 'cookie-warning-icon');
+            const infoElement = new IconButton.Icon.Icon();
+            infoElement.data = { iconName: 'info', color: 'var(--icon-info)', width: '14px', height: '14px' };
             UI.Tooltip.Tooltip.install(infoElement, blockedReasonString);
             cell.insertBefore(infoElement, cell.firstChild);
             cell.classList.add('flagged-cookie-attribute-cell');

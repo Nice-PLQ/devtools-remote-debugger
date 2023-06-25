@@ -4,16 +4,18 @@
 import * as TextUtils from '../../models/text_utils/text_utils.js';
 import * as Common from '../common/common.js';
 import * as i18n from '../i18n/i18n.js';
+import * as Platform from '../platform/platform.js';
+import * as Root from '../root/root.js';
 import { DeferredDOMNode } from './DOMModel.js';
 import { ResourceTreeModel } from './ResourceTreeModel.js';
 const UIStrings = {
     /**
-    *@description Error message for when a CSS file can't be loaded
-    */
+     *@description Error message for when a CSS file can't be loaded
+     */
     couldNotFindTheOriginalStyle: 'Could not find the original style sheet.',
     /**
-    *@description Error message to display when a source CSS file could not be retrieved.
-    */
+     *@description Error message to display when a source CSS file could not be retrieved.
+     */
     thereWasAnErrorRetrievingThe: 'There was an error retrieving the source styles.',
 };
 const str_ = i18n.i18n.registerUIStrings('core/sdk/CSSStyleSheetHeader.ts', UIStrings);
@@ -37,6 +39,7 @@ export class CSSStyleSheetHeader {
     contentLength;
     ownerNode;
     sourceMapURL;
+    loadingFailed;
     #originalContentProviderInternal;
     constructor(cssModel, payload) {
         this.#cssModelInternal = cssModel;
@@ -59,6 +62,7 @@ export class CSSStyleSheetHeader {
             this.ownerNode = new DeferredDOMNode(cssModel.target(), payload.ownerNode);
         }
         this.sourceMapURL = payload.sourceMapURL;
+        this.loadingFailed = payload.loadingFailed ?? false;
         this.#originalContentProviderInternal = null;
     }
     originalContentProvider() {
@@ -88,9 +92,13 @@ export class CSSStyleSheetHeader {
         return this.isConstructed && this.sourceURL.length === 0;
     }
     resourceURL() {
-        return this.isViaInspector() ? this.viaInspectorResourceURL() : this.sourceURL;
+        const url = this.isViaInspector() ? this.viaInspectorResourceURL() : this.sourceURL;
+        if (!url && Root.Runtime.experiments.isEnabled(Root.Runtime.ExperimentName.STYLES_PANE_CSS_CHANGES)) {
+            return this.dynamicStyleURL();
+        }
+        return url;
     }
-    viaInspectorResourceURL() {
+    getFrameURLPath() {
         const model = this.#cssModelInternal.target().model(ResourceTreeModel);
         console.assert(Boolean(model));
         if (!model) {
@@ -102,12 +110,17 @@ export class CSSStyleSheetHeader {
         }
         console.assert(Boolean(frame));
         const parsedURL = new Common.ParsedURL.ParsedURL(frame.url);
-        let fakeURL = 'inspector://' + parsedURL.host + parsedURL.folderPathComponents;
-        if (!fakeURL.endsWith('/')) {
-            fakeURL += '/';
+        let urlPath = parsedURL.host + parsedURL.folderPathComponents;
+        if (!urlPath.endsWith('/')) {
+            urlPath += '/';
         }
-        fakeURL += 'inspector-stylesheet';
-        return fakeURL;
+        return urlPath;
+    }
+    viaInspectorResourceURL() {
+        return `inspector://${this.getFrameURLPath()}inspector-stylesheet`;
+    }
+    dynamicStyleURL() {
+        return `stylesheet://${this.getFrameURLPath()}style#${this.id}`;
     }
     lineNumberInSource(lineNumberInStyleSheet) {
         return this.startLine + lineNumberInStyleSheet;
@@ -124,15 +137,11 @@ export class CSSStyleSheetHeader {
         const beforeEnd = lineNumber < this.endLine || (lineNumber === this.endLine && columnNumber <= this.endColumn);
         return afterStart && beforeEnd;
     }
-    // TODO(crbug.com/1253323): Cast to RawPathString will be removed when migration to branded types is complete.
     contentURL() {
         return this.resourceURL();
     }
     contentType() {
         return Common.ResourceType.resourceTypes.Stylesheet;
-    }
-    contentEncoded() {
-        return Promise.resolve(false);
     }
     async requestContent() {
         try {
@@ -158,7 +167,11 @@ export class CSSStyleSheetHeader {
         return this.origin === 'inspector';
     }
     createPageResourceLoadInitiator() {
-        return { target: null, frameId: this.frameId, initiatorUrl: this.hasSourceURL ? '' : this.sourceURL };
+        return {
+            target: null,
+            frameId: this.frameId,
+            initiatorUrl: this.hasSourceURL ? Platform.DevToolsPath.EmptyUrlString : this.sourceURL,
+        };
     }
 }
 //# sourceMappingURL=CSSStyleSheetHeader.js.map

@@ -9,36 +9,35 @@ import { Capability } from './Target.js';
 import { SDKModel } from './SDKModel.js';
 export class EmulationModel extends SDKModel {
     #emulationAgent;
-    #pageAgent;
     #deviceOrientationAgent;
     #cssModel;
     #overlayModelInternal;
     #mediaConfiguration;
     #touchEnabled;
     #touchMobile;
+    #touchEmulationAllowed;
     #customTouchEnabled;
     #touchConfiguration;
     constructor(target) {
         super(target);
         this.#emulationAgent = target.emulationAgent();
-        this.#pageAgent = target.pageAgent();
         this.#deviceOrientationAgent = target.deviceOrientationAgent();
         this.#cssModel = target.model(CSSModel);
         this.#overlayModelInternal = target.model(OverlayModel);
         if (this.#overlayModelInternal) {
             this.#overlayModelInternal.addEventListener(Events.InspectModeWillBeToggled, () => {
-                this.updateTouch();
+                void this.updateTouch();
             }, this);
         }
         const disableJavascriptSetting = Common.Settings.Settings.instance().moduleSetting('javaScriptDisabled');
         disableJavascriptSetting.addChangeListener(async () => await this.#emulationAgent.invoke_setScriptExecutionDisabled({ value: disableJavascriptSetting.get() }));
         if (disableJavascriptSetting.get()) {
-            this.#emulationAgent.invoke_setScriptExecutionDisabled({ value: true });
+            void this.#emulationAgent.invoke_setScriptExecutionDisabled({ value: true });
         }
         const touchSetting = Common.Settings.Settings.instance().moduleSetting('emulation.touch');
         touchSetting.addChangeListener(() => {
             const settingValue = touchSetting.get();
-            this.overrideEmulateTouch(settingValue === 'force');
+            void this.overrideEmulateTouch(settingValue === 'force');
         });
         const idleDetectionSetting = Common.Settings.Settings.instance().moduleSetting('emulation.idleDetection');
         idleDetectionSetting.addChangeListener(async () => {
@@ -53,6 +52,7 @@ export class EmulationModel extends SDKModel {
         const mediaTypeSetting = Common.Settings.Settings.instance().moduleSetting('emulatedCSSMedia');
         const mediaFeatureColorGamutSetting = Common.Settings.Settings.instance().moduleSetting('emulatedCSSMediaFeatureColorGamut');
         const mediaFeaturePrefersColorSchemeSetting = Common.Settings.Settings.instance().moduleSetting('emulatedCSSMediaFeaturePrefersColorScheme');
+        const mediaFeatureForcedColorsSetting = Common.Settings.Settings.instance().moduleSetting('emulatedCSSMediaFeatureForcedColors');
         const mediaFeaturePrefersContrastSetting = Common.Settings.Settings.instance().moduleSetting('emulatedCSSMediaFeaturePrefersContrast');
         const mediaFeaturePrefersReducedDataSetting = Common.Settings.Settings.instance().moduleSetting('emulatedCSSMediaFeaturePrefersReducedData');
         const mediaFeaturePrefersReducedMotionSetting = Common.Settings.Settings.instance().moduleSetting('emulatedCSSMediaFeaturePrefersReducedMotion');
@@ -64,44 +64,56 @@ export class EmulationModel extends SDKModel {
             ['type', mediaTypeSetting.get()],
             ['color-gamut', mediaFeatureColorGamutSetting.get()],
             ['prefers-color-scheme', mediaFeaturePrefersColorSchemeSetting.get()],
+            ['forced-colors', mediaFeatureForcedColorsSetting.get()],
             ['prefers-contrast', mediaFeaturePrefersContrastSetting.get()],
             ['prefers-reduced-data', mediaFeaturePrefersReducedDataSetting.get()],
             ['prefers-reduced-motion', mediaFeaturePrefersReducedMotionSetting.get()],
         ]);
         mediaTypeSetting.addChangeListener(() => {
             this.#mediaConfiguration.set('type', mediaTypeSetting.get());
-            this.updateCssMedia();
+            void this.updateCssMedia();
         });
         mediaFeatureColorGamutSetting.addChangeListener(() => {
             this.#mediaConfiguration.set('color-gamut', mediaFeatureColorGamutSetting.get());
-            this.updateCssMedia();
+            void this.updateCssMedia();
         });
         mediaFeaturePrefersColorSchemeSetting.addChangeListener(() => {
             this.#mediaConfiguration.set('prefers-color-scheme', mediaFeaturePrefersColorSchemeSetting.get());
-            this.updateCssMedia();
+            void this.updateCssMedia();
+        });
+        mediaFeatureForcedColorsSetting.addChangeListener(() => {
+            this.#mediaConfiguration.set('forced-colors', mediaFeatureForcedColorsSetting.get());
+            void this.updateCssMedia();
         });
         mediaFeaturePrefersContrastSetting.addChangeListener(() => {
             this.#mediaConfiguration.set('prefers-contrast', mediaFeaturePrefersContrastSetting.get());
-            this.updateCssMedia();
+            void this.updateCssMedia();
         });
         mediaFeaturePrefersReducedDataSetting.addChangeListener(() => {
             this.#mediaConfiguration.set('prefers-reduced-data', mediaFeaturePrefersReducedDataSetting.get());
-            this.updateCssMedia();
+            void this.updateCssMedia();
         });
         mediaFeaturePrefersReducedMotionSetting.addChangeListener(() => {
             this.#mediaConfiguration.set('prefers-reduced-motion', mediaFeaturePrefersReducedMotionSetting.get());
-            this.updateCssMedia();
+            void this.updateCssMedia();
         });
-        this.updateCssMedia();
+        void this.updateCssMedia();
         const autoDarkModeSetting = Common.Settings.Settings.instance().moduleSetting('emulateAutoDarkMode');
-        autoDarkModeSetting.addChangeListener(() => this.emulateAutoDarkMode(autoDarkModeSetting.get()));
+        autoDarkModeSetting.addChangeListener(() => {
+            const enabled = autoDarkModeSetting.get();
+            mediaFeaturePrefersColorSchemeSetting.setDisabled(enabled);
+            mediaFeaturePrefersColorSchemeSetting.set(enabled ? 'dark' : '');
+            void this.emulateAutoDarkMode(enabled);
+        });
         if (autoDarkModeSetting.get()) {
-            this.emulateAutoDarkMode(autoDarkModeSetting.get());
+            mediaFeaturePrefersColorSchemeSetting.setDisabled(true);
+            mediaFeaturePrefersColorSchemeSetting.set('dark');
+            void this.emulateAutoDarkMode(true);
         }
         const visionDeficiencySetting = Common.Settings.Settings.instance().moduleSetting('emulatedVisionDeficiency');
         visionDeficiencySetting.addChangeListener(() => this.emulateVisionDeficiency(visionDeficiencySetting.get()));
         if (visionDeficiencySetting.get()) {
-            this.emulateVisionDeficiency(visionDeficiencySetting.get());
+            void this.emulateVisionDeficiency(visionDeficiencySetting.get());
         }
         const localFontsDisabledSetting = Common.Settings.Settings.instance().moduleSetting('localFontsDisabled');
         localFontsDisabledSetting.addChangeListener(() => this.setLocalFontsDisabled(localFontsDisabledSetting.get()));
@@ -109,34 +121,33 @@ export class EmulationModel extends SDKModel {
             this.setLocalFontsDisabled(localFontsDisabledSetting.get());
         }
         const avifFormatDisabledSetting = Common.Settings.Settings.instance().moduleSetting('avifFormatDisabled');
-        const jpegXlFormatDisabledSetting = Common.Settings.Settings.instance().moduleSetting('jpegXlFormatDisabled');
         const webpFormatDisabledSetting = Common.Settings.Settings.instance().moduleSetting('webpFormatDisabled');
         const updateDisabledImageFormats = () => {
             const types = [];
             if (avifFormatDisabledSetting.get()) {
-                types.push("avif" /* Avif */);
-            }
-            if (jpegXlFormatDisabledSetting.get()) {
-                types.push("jxl" /* Jxl */);
+                types.push("avif" /* Protocol.Emulation.DisabledImageType.Avif */);
             }
             if (webpFormatDisabledSetting.get()) {
-                types.push("webp" /* Webp */);
+                types.push("webp" /* Protocol.Emulation.DisabledImageType.Webp */);
             }
             this.setDisabledImageTypes(types);
         };
         avifFormatDisabledSetting.addChangeListener(updateDisabledImageFormats);
         webpFormatDisabledSetting.addChangeListener(updateDisabledImageFormats);
-        jpegXlFormatDisabledSetting.addChangeListener(updateDisabledImageFormats);
-        if (avifFormatDisabledSetting.get() || jpegXlFormatDisabledSetting.get() || webpFormatDisabledSetting.get()) {
+        if (avifFormatDisabledSetting.get() || webpFormatDisabledSetting.get()) {
             updateDisabledImageFormats();
         }
+        this.#touchEmulationAllowed = true;
         this.#touchEnabled = false;
         this.#touchMobile = false;
         this.#customTouchEnabled = false;
         this.#touchConfiguration = {
             enabled: false,
-            configuration: "mobile" /* Mobile */,
+            configuration: "mobile" /* Protocol.Emulation.SetEmitTouchEventsForMouseRequestConfiguration.Mobile */,
         };
+    }
+    setTouchEmulationAllowed(touchEmulationAllowed) {
+        this.#touchEmulationAllowed = touchEmulationAllowed;
     }
     supportsDeviceEmulation() {
         return this.target().hasAllCapabilities(Capability.DeviceEmulation);
@@ -222,21 +233,14 @@ export class EmulationModel extends SDKModel {
             this.#cssModel.mediaQueryResultChanged();
         }
     }
-    static parseAutoDarkModeSetting(setting) {
-        switch (setting) {
-            case 'default':
-                return undefined;
-            case 'enabled':
-                return true;
-            case 'disabled':
-                return false;
-            default:
-                throw Error('unrecognized auto dark mode setting');
+    async emulateAutoDarkMode(enabled) {
+        if (enabled) {
+            this.#mediaConfiguration.set('prefers-color-scheme', 'dark');
+            await this.updateCssMedia();
         }
-    }
-    async emulateAutoDarkMode(setting) {
-        const enabled = EmulationModel.parseAutoDarkModeSetting(setting);
-        await this.#emulationAgent.invoke_setAutoDarkModeOverride({ enabled });
+        // We never send `enabled: false` since that would explicitly disable
+        // autodark mode. We either enable it or clear any existing override.
+        await this.#emulationAgent.invoke_setAutoDarkModeOverride({ enabled: enabled || undefined });
     }
     async emulateVisionDeficiency(type) {
         await this.#emulationAgent.invoke_setEmulatedVisionDeficiency({ type });
@@ -245,39 +249,45 @@ export class EmulationModel extends SDKModel {
         if (!this.#cssModel) {
             return;
         }
-        this.#cssModel.setLocalFontsEnabled(!disabled);
+        void this.#cssModel.setLocalFontsEnabled(!disabled);
     }
     setDisabledImageTypes(imageTypes) {
-        this.#emulationAgent.invoke_setDisabledImageTypes({ imageTypes });
+        void this.#emulationAgent.invoke_setDisabledImageTypes({ imageTypes });
     }
     async setCPUThrottlingRate(rate) {
         await this.#emulationAgent.invoke_setCPUThrottlingRate({ rate });
     }
+    async setHardwareConcurrency(hardwareConcurrency) {
+        if (hardwareConcurrency < 1) {
+            throw new Error('hardwareConcurrency must be a positive value');
+        }
+        await this.#emulationAgent.invoke_setHardwareConcurrencyOverride({ hardwareConcurrency });
+    }
     async emulateTouch(enabled, mobile) {
-        this.#touchEnabled = enabled;
-        this.#touchMobile = mobile;
+        this.#touchEnabled = enabled && this.#touchEmulationAllowed;
+        this.#touchMobile = mobile && this.#touchEmulationAllowed;
         await this.updateTouch();
     }
     async overrideEmulateTouch(enabled) {
-        this.#customTouchEnabled = enabled;
+        this.#customTouchEnabled = enabled && this.#touchEmulationAllowed;
         await this.updateTouch();
     }
     async updateTouch() {
         let configuration = {
             enabled: this.#touchEnabled,
-            configuration: this.#touchMobile ? "mobile" /* Mobile */ :
-                "desktop" /* Desktop */,
+            configuration: this.#touchMobile ? "mobile" /* Protocol.Emulation.SetEmitTouchEventsForMouseRequestConfiguration.Mobile */ :
+                "desktop" /* Protocol.Emulation.SetEmitTouchEventsForMouseRequestConfiguration.Desktop */,
         };
         if (this.#customTouchEnabled) {
             configuration = {
                 enabled: true,
-                configuration: "mobile" /* Mobile */,
+                configuration: "mobile" /* Protocol.Emulation.SetEmitTouchEventsForMouseRequestConfiguration.Mobile */,
             };
         }
         if (this.#overlayModelInternal && this.#overlayModelInternal.inspectModeEnabled()) {
             configuration = {
                 enabled: false,
-                configuration: "mobile" /* Mobile */,
+                configuration: "mobile" /* Protocol.Emulation.SetEmitTouchEventsForMouseRequestConfiguration.Mobile */,
             };
         }
         if (!this.#touchConfiguration.enabled && !configuration.enabled) {
@@ -291,7 +301,7 @@ export class EmulationModel extends SDKModel {
         await this.#emulationAgent.invoke_setTouchEmulationEnabled({ enabled: configuration.enabled, maxTouchPoints: 1 });
         await this.#emulationAgent.invoke_setEmitTouchEventsForMouse({ enabled: configuration.enabled, configuration: configuration.configuration });
     }
-    updateCssMedia() {
+    async updateCssMedia() {
         // See the note above, where this.#mediaConfiguration is defined.
         const type = this.#mediaConfiguration.get('type') ?? '';
         const features = [
@@ -302,6 +312,10 @@ export class EmulationModel extends SDKModel {
             {
                 name: 'prefers-color-scheme',
                 value: this.#mediaConfiguration.get('prefers-color-scheme') ?? '',
+            },
+            {
+                name: 'forced-colors',
+                value: this.#mediaConfiguration.get('forced-colors') ?? '',
             },
             {
                 name: 'prefers-contrast',
@@ -316,7 +330,7 @@ export class EmulationModel extends SDKModel {
                 value: this.#mediaConfiguration.get('prefers-reduced-motion') ?? '',
             },
         ];
-        this.emulateCSSMedia(type, features);
+        return this.emulateCSSMedia(type, features);
     }
 }
 export class Location {

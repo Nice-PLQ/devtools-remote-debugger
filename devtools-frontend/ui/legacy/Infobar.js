@@ -6,18 +6,19 @@ import * as Utils from './utils/utils.js';
 import * as ARIAUtils from './ARIAUtils.js';
 import { Keys } from './KeyboardShortcut.js';
 import { createTextButton } from './UIUtils.js';
+import infobarStyles from './infobar.css.legacy.js';
 const UIStrings = {
     /**
-    *@description Text on a button to close the infobar and never show the infobar in the future
-    */
+     *@description Text on a button to close the infobar and never show the infobar in the future
+     */
     dontShowAgain: 'Don\'t show again',
     /**
-    *@description Text that is usually a hyperlink to more documentation
-    */
+     *@description Text that is usually a hyperlink to more documentation
+     */
     learnMore: 'Learn more',
     /**
-    *@description Text to close something
-    */
+     *@description Text to close something
+     */
     close: 'Close',
 };
 const str_ = i18n.i18n.registerUIStrings('ui/legacy/Infobar.ts', UIStrings);
@@ -40,16 +41,16 @@ export class Infobar {
     closeContainer;
     toggleElement;
     closeButton;
-    // TODO(crbug.com/1172300) Ignored during the jsdoc to ts migration
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     closeCallback;
+    #firstFocusableElement = null;
     parentView;
     // TODO(crbug.com/1172300) Ignored during the jsdoc to ts migration
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     constructor(type, text, actions, disableSetting) {
         this.element = document.createElement('div');
         this.element.classList.add('flex-none');
-        this.shadowRoot = Utils.createShadowRootWithCoreStyles(this.element, { cssFile: 'ui/legacy/infobar.css', delegatesFocus: undefined });
+        this.shadowRoot =
+            Utils.createShadowRootWithCoreStyles(this.element, { cssFile: infobarStyles, delegatesFocus: undefined });
         this.contentElement = this.shadowRoot.createChild('div', 'infobar infobar-' + type);
         this.mainRow = this.contentElement.createChild('div', 'infobar-main-row');
         this.detailsRows = this.contentElement.createChild('div', 'infobar-details-rows hidden');
@@ -72,6 +73,9 @@ export class Infobar {
                     buttonClass += ' primary-button';
                 }
                 const button = createTextButton(action.text, actionCallback, buttonClass);
+                if (action.highlight && !this.#firstFocusableElement) {
+                    this.#firstFocusableElement = button;
+                }
                 this.actionContainer.appendChild(button);
             }
         }
@@ -93,7 +97,7 @@ export class Infobar {
         if (type !== Type.Issue) {
             this.contentElement.tabIndex = 0;
         }
-        ARIAUtils.setAccessibleName(this.contentElement, text);
+        ARIAUtils.setLabel(this.contentElement, text);
         this.contentElement.addEventListener('keydown', event => {
             if (event.keyCode === Keys.Esc.code) {
                 this.dispose();
@@ -130,8 +134,6 @@ export class Infobar {
         this.infoText.textContent = text;
         this.onResize();
     }
-    // TODO(crbug.com/1172300) Ignored during the jsdoc to ts migration
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     setCloseCallback(callback) {
         this.closeCallback = callback;
     }
@@ -167,15 +169,26 @@ export class Infobar {
         this.detailsRows.classList.remove('hidden');
         this.toggleElement.remove();
         this.onResize();
-        ARIAUtils.alert(this.detailsMessage);
+        ARIAUtils.alert(typeof this.detailsMessage === 'string' ? this.detailsMessage : this.detailsMessage.textContent || '');
+        if (this.#firstFocusableElement) {
+            this.#firstFocusableElement.focus();
+        }
+        else {
+            this.closeButton.focus();
+        }
     }
     createDetailsRowMessage(message) {
         this.hasDetails = true;
-        this.detailsMessage = message || '';
+        this.detailsMessage = message;
         this.toggleElement.classList.remove('hidden');
         const infobarDetailsRow = this.detailsRows.createChild('div', 'infobar-details-row');
         const detailsRowMessage = infobarDetailsRow.createChild('span', 'infobar-row-message');
-        detailsRowMessage.textContent = this.detailsMessage;
+        if (typeof message === 'string') {
+            detailsRowMessage.textContent = message;
+        }
+        else {
+            detailsRowMessage.appendChild(message);
+        }
         return detailsRowMessage;
     }
 }
@@ -186,5 +199,6 @@ export var Type;
     Type["Warning"] = "warning";
     Type["Info"] = "info";
     Type["Issue"] = "issue";
+    Type["Error"] = "error";
 })(Type || (Type = {}));
 //# sourceMappingURL=Infobar.js.map

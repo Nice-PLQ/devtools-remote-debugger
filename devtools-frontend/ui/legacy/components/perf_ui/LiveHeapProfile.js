@@ -18,7 +18,7 @@ export class LiveHeapProfile {
         this.setting = Common.Settings.Settings.instance().moduleSetting('memoryLiveHeapProfile');
         this.setting.addChangeListener(event => event.data ? this.startProfiling() : this.stopProfiling());
         if (this.setting.get()) {
-            this.startProfiling();
+            void this.startProfiling();
         }
     }
     static instance(opts = { forceNew: null }) {
@@ -28,11 +28,11 @@ export class LiveHeapProfile {
         }
         return liveHeapProfileInstance;
     }
-    run() {
-        return Promise.resolve();
+    async run() {
+        return;
     }
     modelAdded(model) {
-        model.startSampling(1e4);
+        void model.startSampling(1e4);
     }
     modelRemoved(_model) {
         // Cannot do much when the model has already been removed.
@@ -60,7 +60,7 @@ export class LiveHeapProfile {
                 Memory.instance().appendHeapProfile(profile, models[i].target());
             }
             await Promise.race([
-                new Promise(r => setTimeout(r, Host.InspectorFrontendHost.isUnderTest() ? 10 : 5000)),
+                new Promise(r => window.setTimeout(r, Host.InspectorFrontendHost.isUnderTest() ? 10 : 5000)),
                 new Promise(r => {
                     this.loadEventCallback = r;
                 }),
@@ -69,7 +69,7 @@ export class LiveHeapProfile {
         SDK.TargetManager.TargetManager.instance().unobserveModels(SDK.HeapProfilerModel.HeapProfilerModel, this);
         SDK.TargetManager.TargetManager.instance().removeModelListener(SDK.ResourceTreeModel.ResourceTreeModel, SDK.ResourceTreeModel.Events.Load, this.loadEventFired, this);
         for (const model of SDK.TargetManager.TargetManager.instance().models(SDK.HeapProfilerModel.HeapProfilerModel)) {
-            model.stopSampling();
+            void model.stopSampling();
         }
         Memory.instance().reset();
     }

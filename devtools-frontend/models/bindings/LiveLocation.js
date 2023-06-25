@@ -34,6 +34,9 @@ export class LiveLocationWithPool {
         this.#locationPool.delete(this);
         this.#updateDelegate = null;
     }
+    isDisposed() {
+        return !this.#locationPool.has(this);
+    }
     async isIgnoreListed() {
         throw 'Not implemented';
     }
@@ -48,6 +51,9 @@ export class LiveLocationPool {
     }
     delete(location) {
         this.#locations.delete(location);
+    }
+    has(location) {
+        return this.#locations.has(location);
     }
     disposeAll() {
         for (const location of this.#locations) {

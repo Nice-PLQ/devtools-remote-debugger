@@ -8,10 +8,11 @@ export class WebAuthnModel extends SDKModel {
     constructor(target) {
         super(target);
         this.#agent = target.webAuthnAgent();
+        target.registerWebAuthnDispatcher(new WebAuthnDispatcher(this));
     }
     setVirtualAuthEnvEnabled(enable) {
         if (enable) {
-            return this.#agent.invoke_enable();
+            return this.#agent.invoke_enable({ enableUI: true });
         }
         return this.#agent.invoke_disable();
     }
@@ -31,6 +32,24 @@ export class WebAuthnModel extends SDKModel {
     }
     async removeCredential(authenticatorId, credentialId) {
         await this.#agent.invoke_removeCredential({ authenticatorId, credentialId });
+    }
+    credentialAdded(params) {
+        this.dispatchEventToListeners("CredentialAdded" /* Events.CredentialAdded */, params);
+    }
+    credentialAsserted(params) {
+        this.dispatchEventToListeners("CredentialAsserted" /* Events.CredentialAsserted */, params);
+    }
+}
+class WebAuthnDispatcher {
+    #model;
+    constructor(model) {
+        this.#model = model;
+    }
+    credentialAdded(params) {
+        this.#model.credentialAdded(params);
+    }
+    credentialAsserted(params) {
+        this.#model.credentialAsserted(params);
     }
 }
 SDKModel.register(WebAuthnModel, { capabilities: Capability.WebAuthn, autostart: false });

@@ -1,4 +1,4 @@
-import type { ContrastInfo } from './ContrastInfo.js';
+import { type ContrastInfo } from './ContrastInfo.js';
 export declare class ContrastOverlay {
     private contrastInfo;
     private visible;

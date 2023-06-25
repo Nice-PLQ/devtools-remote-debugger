@@ -1,6 +1,6 @@
 import * as SDK from '../../core/sdk/sdk.js';
 import { NetworkGroupNode } from './NetworkDataGridNode.js';
-import type { GroupLookupInterface, NetworkLogView } from './NetworkLogView.js';
+import { type GroupLookupInterface, type NetworkLogView } from './NetworkLogView.js';
 export declare class NetworkFrameGrouper implements GroupLookupInterface {
     private parentView;
     private readonly activeGroups;

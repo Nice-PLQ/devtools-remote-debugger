@@ -9,17 +9,17 @@ import * as UI from '../../ui/legacy/legacy.js';
 import { StepTimingFunction } from './AnimationTimeline.js';
 const UIStrings = {
     /**
-    *@description Title of the first and last points of an animation
-    */
+     *@description Title of the first and last points of an animation
+     */
     animationEndpointSlider: 'Animation Endpoint slider',
     /**
-    *@description Title of an Animation Keyframe point
-    */
+     *@description Title of an Animation Keyframe point
+     */
     animationKeyframeSlider: 'Animation Keyframe slider',
     /**
-    *@description Title of an animation keyframe group
-    *@example {anilogo} PH1
-    */
+     *@description Title of an animation keyframe group
+     *@example {anilogo} PH1
+     */
     sSlider: '{PH1} slider',
 };
 const str_ = i18n.i18n.registerUIStrings('panels/animation/AnimationUI.ts', UIStrings);
@@ -27,7 +27,6 @@ const i18nString = i18n.i18n.getLocalizedString.bind(undefined, str_);
 export class AnimationUI {
     #animationInternal;
     #timeline;
-    #parentElement;
     #keyframes;
     #nameElement;
     #svg;
@@ -46,7 +45,6 @@ export class AnimationUI {
     constructor(animation, timeline, parentElement) {
         this.#animationInternal = animation;
         this.#timeline = timeline;
-        this.#parentElement = parentElement;
         const keyframesRule = this.#animationInternal.source().keyframesRule();
         if (keyframesRule) {
             this.#keyframes = keyframesRule.keyframes();
@@ -58,8 +56,8 @@ export class AnimationUI {
         this.#svg.style.marginLeft = '-' + Options.AnimationMargin + 'px';
         this.#svg.addEventListener('contextmenu', this.onContextMenu.bind(this));
         this.#activeIntervalGroup = UI.UIUtils.createSVGChild(this.#svg, 'g');
-        UI.UIUtils.installDragHandle(this.#activeIntervalGroup, this.mouseDown.bind(this, "AnimationDrag" /* AnimationDrag */, null), this.mouseMove.bind(this), this.mouseUp.bind(this), '-webkit-grabbing', '-webkit-grab');
-        AnimationUI.installDragHandleKeyboard(this.#activeIntervalGroup, this.keydownMove.bind(this, "AnimationDrag" /* AnimationDrag */, null));
+        UI.UIUtils.installDragHandle(this.#activeIntervalGroup, this.mouseDown.bind(this, "AnimationDrag" /* Events.AnimationDrag */, null), this.mouseMove.bind(this), this.mouseUp.bind(this), '-webkit-grabbing', '-webkit-grab');
+        AnimationUI.installDragHandleKeyboard(this.#activeIntervalGroup, this.keydownMove.bind(this, "AnimationDrag" /* Events.AnimationDrag */, null));
         this.#cachedElements = [];
         this.#movementInMs = 0;
         this.#keyboardMovementRateMs = 50;
@@ -74,7 +72,7 @@ export class AnimationUI {
         if (!color) {
             throw new Error('Unable to locate color');
         }
-        return color.asString(Common.Color.Format.RGB) || '';
+        return color.asString("rgb" /* Common.Color.Format.RGB */) || '';
     }
     static installDragHandleKeyboard(element, elementDrag) {
         element.addEventListener('keydown', elementDrag, false);
@@ -140,7 +138,7 @@ export class AnimationUI {
         circle.style.stroke = this.#color;
         circle.setAttribute('r', (Options.AnimationMargin / 2).toString());
         circle.tabIndex = 0;
-        UI.ARIAUtils.setAccessibleName(circle, keyframeIndex <= 0 ? i18nString(UIStrings.animationEndpointSlider) :
+        UI.ARIAUtils.setLabel(circle, keyframeIndex <= 0 ? i18nString(UIStrings.animationEndpointSlider) :
             i18nString(UIStrings.animationKeyframeSlider));
         if (keyframeIndex <= 0) {
             circle.style.fill = this.#color;
@@ -151,13 +149,13 @@ export class AnimationUI {
         }
         let eventType;
         if (keyframeIndex === 0) {
-            eventType = "StartEndpointMove" /* StartEndpointMove */;
+            eventType = "StartEndpointMove" /* Events.StartEndpointMove */;
         }
         else if (keyframeIndex === -1) {
-            eventType = "FinishEndpointMove" /* FinishEndpointMove */;
+            eventType = "FinishEndpointMove" /* Events.FinishEndpointMove */;
         }
         else {
-            eventType = "KeyframeMove" /* KeyframeMove */;
+            eventType = "KeyframeMove" /* Events.KeyframeMove */;
         }
         UI.UIUtils.installDragHandle(circle, this.mouseDown.bind(this, eventType, keyframeIndex), this.mouseMove.bind(this), this.mouseUp.bind(this), 'ew-resize');
         AnimationUI.installDragHandleKeyboard(circle, this.keydownMove.bind(this, eventType, keyframeIndex));
@@ -180,7 +178,7 @@ export class AnimationUI {
         }
         const group = cache[keyframeIndex];
         group.tabIndex = 0;
-        UI.ARIAUtils.setAccessibleName(group, i18nString(UIStrings.sSlider, { PH1: this.#animationInternal.name() }));
+        UI.ARIAUtils.setLabel(group, i18nString(UIStrings.sSlider, { PH1: this.#animationInternal.name() }));
         group.style.transform = 'translateX(' + leftDistance.toFixed(2) + 'px)';
         if (easing === 'linear') {
             group.style.fill = this.#color;
@@ -223,7 +221,8 @@ export class AnimationUI {
         const iterationWidth = this.duration() * this.#timeline.pixelMsRatio();
         let iteration;
         for (iteration = 1; iteration < this.#animationInternal.source().iterations() &&
-            iterationWidth * (iteration - 1) < this.#timeline.width(); iteration++) {
+            iterationWidth * (iteration - 1) < this.#timeline.width() &&
+            (iterationWidth > 0 || this.#animationInternal.source().iterations() !== Infinity); iteration++) {
             this.renderIteration(this.#tailGroup, iteration);
         }
         while (iteration < this.#cachedElements.length) {
@@ -273,7 +272,7 @@ export class AnimationUI {
     }
     delay() {
         let delay = this.#animationInternal.source().delay();
-        if (this.#mouseEventType === "AnimationDrag" /* AnimationDrag */ || this.#mouseEventType === "StartEndpointMove" /* StartEndpointMove */) {
+        if (this.#mouseEventType === "AnimationDrag" /* Events.AnimationDrag */ || this.#mouseEventType === "StartEndpointMove" /* Events.StartEndpointMove */) {
             delay += this.#movementInMs;
         }
         // FIXME: add support for negative start delay
@@ -281,10 +280,10 @@ export class AnimationUI {
     }
     duration() {
         let duration = this.#animationInternal.source().duration();
-        if (this.#mouseEventType === "FinishEndpointMove" /* FinishEndpointMove */) {
+        if (this.#mouseEventType === "FinishEndpointMove" /* Events.FinishEndpointMove */) {
             duration += this.#movementInMs;
         }
-        else if (this.#mouseEventType === "StartEndpointMove" /* StartEndpointMove */) {
+        else if (this.#mouseEventType === "StartEndpointMove" /* Events.StartEndpointMove */) {
             duration -= Math.max(this.#movementInMs, -this.#animationInternal.source().delay());
             // Cannot have negative delay
         }
@@ -295,7 +294,7 @@ export class AnimationUI {
             throw new Error('Unable to calculate offset; keyframes do not exist');
         }
         let offset = this.#keyframes[i].offsetAsNumber();
-        if (this.#mouseEventType === "KeyframeMove" /* KeyframeMove */ && i === this.#keyframeMoved) {
+        if (this.#mouseEventType === "KeyframeMove" /* Events.KeyframeMove */ && i === this.#keyframeMoved) {
             console.assert(i > 0 && i < this.#keyframes.length - 1, 'First and last keyframe cannot be moved');
             offset += this.#movementInMs / this.#animationInternal.source().duration();
             offset = Math.max(offset, this.#keyframes[i - 1].offsetAsNumber());
@@ -316,7 +315,7 @@ export class AnimationUI {
         this.#downMouseX = mouseEvent.clientX;
         event.consume(true);
         if (this.#node) {
-            Common.Revealer.reveal(this.#node);
+            void Common.Revealer.reveal(this.#node);
         }
         return true;
     }
@@ -335,7 +334,7 @@ export class AnimationUI {
         const mouseEvent = event;
         this.#movementInMs = (mouseEvent.clientX - (this.#downMouseX || 0)) / this.#timeline.pixelMsRatio();
         // Commit changes
-        if (this.#mouseEventType === "KeyframeMove" /* KeyframeMove */) {
+        if (this.#mouseEventType === "KeyframeMove" /* Events.KeyframeMove */) {
             if (this.#keyframes && this.#keyframeMoved !== null && typeof this.#keyframeMoved !== 'undefined') {
                 this.#keyframes[this.#keyframeMoved].setOffset(this.offset(this.#keyframeMoved));
             }
@@ -365,7 +364,7 @@ export class AnimationUI {
             default:
                 return;
         }
-        if (this.#mouseEventType === "KeyframeMove" /* KeyframeMove */) {
+        if (this.#mouseEventType === "KeyframeMove" /* Events.KeyframeMove */) {
             if (this.#keyframes && this.#keyframeMoved !== null) {
                 this.#keyframes[this.#keyframeMoved].setOffset(this.offset(this.#keyframeMoved));
             }
@@ -385,9 +384,9 @@ export class AnimationUI {
             }
             const contextMenu = new UI.ContextMenu.ContextMenu(event);
             contextMenu.appendApplicableItems(remoteObject);
-            contextMenu.show();
+            void contextMenu.show();
         }
-        this.#animationInternal.remoteObjectPromise().then(showContextMenu);
+        void this.#animationInternal.remoteObjectPromise().then(showContextMenu);
         event.consume(true);
     }
 }
@@ -399,15 +398,15 @@ export const Options = {
     GridCanvasHeight: 40,
 };
 export const Colors = new Map([
-    ['Purple', Common.Color.Color.parse('#9C27B0')],
-    ['Light Blue', Common.Color.Color.parse('#03A9F4')],
-    ['Deep Orange', Common.Color.Color.parse('#FF5722')],
-    ['Blue', Common.Color.Color.parse('#5677FC')],
-    ['Lime', Common.Color.Color.parse('#CDDC39')],
-    ['Blue Grey', Common.Color.Color.parse('#607D8B')],
-    ['Pink', Common.Color.Color.parse('#E91E63')],
-    ['Green', Common.Color.Color.parse('#0F9D58')],
-    ['Brown', Common.Color.Color.parse('#795548')],
-    ['Cyan', Common.Color.Color.parse('#00BCD4')],
+    ['Purple', Common.Color.parse('#9C27B0')],
+    ['Light Blue', Common.Color.parse('#03A9F4')],
+    ['Deep Orange', Common.Color.parse('#FF5722')],
+    ['Blue', Common.Color.parse('#5677FC')],
+    ['Lime', Common.Color.parse('#CDDC39')],
+    ['Blue Grey', Common.Color.parse('#607D8B')],
+    ['Pink', Common.Color.parse('#E91E63')],
+    ['Green', Common.Color.parse('#0F9D58')],
+    ['Brown', Common.Color.parse('#795548')],
+    ['Cyan', Common.Color.parse('#00BCD4')],
 ]);
 //# sourceMappingURL=AnimationUI.js.map

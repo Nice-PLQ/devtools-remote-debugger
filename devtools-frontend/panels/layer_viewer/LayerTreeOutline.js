@@ -30,21 +30,21 @@
 import * as Common from '../../core/common/common.js';
 import * as i18n from '../../core/i18n/i18n.js';
 import * as UI from '../../ui/legacy/legacy.js';
-import { LayerSelection } from './LayerViewHost.js';
+import { LayerSelection, } from './LayerViewHost.js';
 const UIStrings = {
     /**
-    *@description Label for layers sidepanel tree
-    */
+     *@description Label for layers sidepanel tree
+     */
     layersTreePane: 'Layers Tree Pane',
     /**
-    *@description A context menu item in the DView of the Layers panel
-    */
+     *@description A context menu item in the DView of the Layers panel
+     */
     showPaintProfiler: 'Show Paint Profiler',
     /**
-    *@description Details text content in Layer Tree Outline of the Layers panel
-    *@example {10} PH1
-    *@example {10} PH2
-    */
+     *@description Details text content in Layer Tree Outline of the Layers panel
+     *@example {10} PH1
+     *@example {10} PH2
+     */
     updateChildDimension: ' ({PH1} × {PH2})',
 };
 const str_ = i18n.i18n.registerUIStrings('panels/layer_viewer/LayerTreeOutline.ts', UIStrings);
@@ -65,7 +65,7 @@ export class LayerTreeOutline extends Common.ObjectWrapper.eventMixin(UI.TreeOut
         this.treeOutline.element.addEventListener('mousemove', this.onMouseMove.bind(this), false);
         this.treeOutline.element.addEventListener('mouseout', this.onMouseMove.bind(this), false);
         this.treeOutline.element.addEventListener('contextmenu', this.onContextMenu.bind(this), true);
-        UI.ARIAUtils.setAccessibleName(this.treeOutline.contentElement, i18nString(UIStrings.layersTreePane));
+        UI.ARIAUtils.setLabel(this.treeOutline.contentElement, i18nString(UIStrings.layersTreePane));
         this.lastHoveredNode = null;
         this.element = this.treeOutline.element;
         this.layerViewHost.showInternalLayersSetting().addChangeListener(this.update, this);
@@ -202,7 +202,7 @@ export class LayerTreeOutline extends Common.ObjectWrapper.eventMixin(UI.TreeOut
         if (layer) {
             this.layerSnapshotMap = this.layerViewHost.getLayerSnapshotMap();
             if (this.layerSnapshotMap.has(layer)) {
-                contextMenu.defaultSection().appendItem(i18nString(UIStrings.showPaintProfiler), () => this.dispatchEventToListeners("PaintProfilerRequested" /* PaintProfilerRequested */, selection), false);
+                contextMenu.defaultSection().appendItem(i18nString(UIStrings.showPaintProfiler), () => this.dispatchEventToListeners("PaintProfilerRequested" /* Events.PaintProfilerRequested */, selection), false);
             }
         }
         this.layerViewHost.showContextMenu(contextMenu, selection);

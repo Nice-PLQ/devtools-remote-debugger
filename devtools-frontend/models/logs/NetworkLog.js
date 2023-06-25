@@ -80,6 +80,9 @@ export class NetworkLog extends Common.ObjectWrapper.ObjectWrapper {
         }
         return networkLogInstance;
     }
+    static removeInstance() {
+        networkLogInstance = undefined;
+    }
     modelAdded(networkManager) {
         const eventListeners = [];
         eventListeners.push(networkManager.addEventListener(SDK.NetworkManager.Events.RequestStarted, this.onRequestStarted, this));
@@ -91,7 +94,7 @@ export class NetworkLog extends Common.ObjectWrapper.ObjectWrapper {
         const resourceTreeModel = networkManager.target().model(SDK.ResourceTreeModel.ResourceTreeModel);
         if (resourceTreeModel) {
             eventListeners.push(resourceTreeModel.addEventListener(SDK.ResourceTreeModel.Events.WillReloadPage, this.willReloadPage, this));
-            eventListeners.push(resourceTreeModel.addEventListener(SDK.ResourceTreeModel.Events.MainFrameNavigated, this.onMainFrameNavigated, this));
+            eventListeners.push(resourceTreeModel.addEventListener(SDK.ResourceTreeModel.Events.PrimaryPageChanged, this.onPrimaryPageChanged, this));
             eventListeners.push(resourceTreeModel.addEventListener(SDK.ResourceTreeModel.Events.Load, this.onLoad, this));
             eventListeners.push(resourceTreeModel.addEventListener(SDK.ResourceTreeModel.Events.DOMContentLoaded, this.onDOMContentLoaded.bind(this, resourceTreeModel)));
         }
@@ -162,15 +165,16 @@ export class NetworkLog extends Common.ObjectWrapper.ObjectWrapper {
         this.initiatorData.set(request, initiatorInfo);
         return initiatorInfo;
     }
-    initiatorInfoForRequest(request) {
-        const initiatorInfo = this.initializeInitiatorSymbolIfNeeded(request);
-        if (initiatorInfo.info) {
-            return initiatorInfo.info;
-        }
+    static initiatorInfoForRequest(request, existingInitiatorData) {
+        const initiatorInfo = existingInitiatorData || {
+            info: null,
+            chain: null,
+            request: undefined,
+        };
         let type = SDK.NetworkRequest.InitiatorType.Other;
-        let url = '';
-        let lineNumber = -Infinity;
-        let columnNumber = -Infinity;
+        let url = Platform.DevToolsPath.EmptyUrlString;
+        let lineNumber = undefined;
+        let columnNumber = undefined;
         let scriptId = null;
         let initiatorStack = null;
         let initiatorRequest = null;
@@ -181,13 +185,13 @@ export class NetworkLog extends Common.ObjectWrapper.ObjectWrapper {
             url = redirectSource.url();
         }
         else if (initiator) {
-            if (initiator.type === "parser" /* Parser */) {
+            if (initiator.type === "parser" /* Protocol.Network.InitiatorType.Parser */) {
                 type = SDK.NetworkRequest.InitiatorType.Parser;
                 url = initiator.url ? initiator.url : url;
-                lineNumber = typeof initiator.lineNumber === 'number' ? initiator.lineNumber : lineNumber;
-                columnNumber = typeof initiator.columnNumber === 'number' ? initiator.columnNumber : columnNumber;
+                lineNumber = initiator.lineNumber;
+                columnNumber = initiator.columnNumber;
             }
-            else if (initiator.type === "script" /* Script */) {
+            else if (initiator.type === "script" /* Protocol.Network.InitiatorType.Script */) {
                 for (let stack = initiator.stack; stack;) {
                     const topFrame = stack.callFrames.length ? stack.callFrames[0] : null;
                     if (!topFrame) {
@@ -195,7 +199,7 @@ export class NetworkLog extends Common.ObjectWrapper.ObjectWrapper {
                         continue;
                     }
                     type = SDK.NetworkRequest.InitiatorType.Script;
-                    url = topFrame.url || i18nString(UIStrings.anonymous);
+                    url = (topFrame.url || i18nString(UIStrings.anonymous));
                     lineNumber = topFrame.lineNumber;
                     columnNumber = topFrame.columnNumber;
                     scriptId = topFrame.scriptId;
@@ -204,26 +208,33 @@ export class NetworkLog extends Common.ObjectWrapper.ObjectWrapper {
                 if (!initiator.stack && initiator.url) {
                     type = SDK.NetworkRequest.InitiatorType.Script;
                     url = initiator.url;
-                    lineNumber = initiator.lineNumber || 0;
+                    lineNumber = initiator.lineNumber;
                 }
-                if (initiator.stack && initiator.stack.callFrames && initiator.stack.callFrames.length) {
-                    initiatorStack = initiator.stack || null;
+                if (initiator.stack?.callFrames?.length) {
+                    initiatorStack = initiator.stack;
                 }
             }
-            else if (initiator.type === "preload" /* Preload */) {
+            else if (initiator.type === "preload" /* Protocol.Network.InitiatorType.Preload */) {
                 type = SDK.NetworkRequest.InitiatorType.Preload;
             }
-            else if (initiator.type === "preflight" /* Preflight */) {
+            else if (initiator.type === "preflight" /* Protocol.Network.InitiatorType.Preflight */) {
                 type = SDK.NetworkRequest.InitiatorType.Preflight;
                 initiatorRequest = request.preflightInitiatorRequest();
             }
-            else if (initiator.type === "SignedExchange" /* SignedExchange */) {
+            else if (initiator.type === "SignedExchange" /* Protocol.Network.InitiatorType.SignedExchange */) {
                 type = SDK.NetworkRequest.InitiatorType.SignedExchange;
-                url = initiator.url || '';
+                url = initiator.url || Platform.DevToolsPath.EmptyUrlString;
             }
         }
         initiatorInfo.info = { type, url, lineNumber, columnNumber, scriptId, stack: initiatorStack, initiatorRequest };
         return initiatorInfo.info;
+    }
+    initiatorInfoForRequest(request) {
+        const initiatorInfo = this.initializeInitiatorSymbolIfNeeded(request);
+        if (initiatorInfo.info) {
+            return initiatorInfo.info;
+        }
+        return NetworkLog.initiatorInfoForRequest(request, initiatorInfo);
     }
     initiatorGraphForRequest(request) {
         const initiated = new Map();
@@ -278,10 +289,10 @@ export class NetworkLog extends Common.ObjectWrapper.ObjectWrapper {
             this.reset(true);
         }
     }
-    onMainFrameNavigated(event) {
-        const mainFrame = event.data;
+    onPrimaryPageChanged(event) {
+        const mainFrame = event.data.frame;
         const manager = mainFrame.resourceTreeModel().target().model(SDK.NetworkManager.NetworkManager);
-        if (!manager || mainFrame.resourceTreeModel().target().parentTarget()) {
+        if (!manager || mainFrame.resourceTreeModel().target().parentTarget()?.type() === SDK.Target.Type.Frame) {
             return;
         }
         // If a page resulted in an error, the browser will navigate to an internal error page
@@ -458,9 +469,9 @@ export class NetworkLog extends Common.ObjectWrapper.ObjectWrapper {
     }
     networkMessageGenerated(networkManager, event) {
         const { message, warning, requestId } = event.data;
-        const consoleMessage = new SDK.ConsoleModel.ConsoleMessage(networkManager.target().model(SDK.RuntimeModel.RuntimeModel), "network" /* Network */, warning ? "warning" /* Warning */ : "info" /* Info */, message);
+        const consoleMessage = new SDK.ConsoleModel.ConsoleMessage(networkManager.target().model(SDK.RuntimeModel.RuntimeModel), "network" /* Protocol.Log.LogEntrySource.Network */, warning ? "warning" /* Protocol.Log.LogEntryLevel.Warning */ : "info" /* Protocol.Log.LogEntryLevel.Info */, message);
         this.associateConsoleMessageWithRequest(consoleMessage, requestId);
-        SDK.ConsoleModel.ConsoleModel.instance().addMessage(consoleMessage);
+        networkManager.target().model(SDK.ConsoleModel.ConsoleModel)?.addMessage(consoleMessage);
     }
     associateConsoleMessageWithRequest(consoleMessage, requestId) {
         const target = consoleMessage.target();

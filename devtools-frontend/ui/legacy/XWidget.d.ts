@@ -9,7 +9,6 @@ export declare class XWidget extends XElement {
     private onResizedCallback;
     constructor();
     isShowing(): boolean;
-    registerRequiredCSS(cssFile: string): void;
     setOnShown(callback: (() => void) | null): void;
     setOnHidden(callback: (() => void) | null): void;
     setOnResized(callback: (() => void) | null): void;

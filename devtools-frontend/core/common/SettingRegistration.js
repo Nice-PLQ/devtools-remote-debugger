@@ -5,64 +5,64 @@ import * as i18n from '../i18n/i18n.js';
 import * as Root from '../root/root.js';
 const UIStrings = {
     /**
-    *@description Title of the Elements Panel
-    */
+     *@description Title of the Elements Panel
+     */
     elements: 'Elements',
     /**
-    *@description Text for DevTools appearance
-    */
+     *@description Text for DevTools appearance
+     */
     appearance: 'Appearance',
     /**
-    *@description Name of the Sources panel
-    */
+     *@description Name of the Sources panel
+     */
     sources: 'Sources',
     /**
-    *@description Title of the Network tool
-    */
+     *@description Title of the Network tool
+     */
     network: 'Network',
     /**
-    *@description Text for the performance of something
-    */
+     *@description Text for the performance of something
+     */
     performance: 'Performance',
     /**
-    *@description Title of the Console tool
-    */
+     *@description Title of the Console tool
+     */
     console: 'Console',
     /**
-    *@description A title of the 'Persistence' setting category
-    */
+     *@description A title of the 'Persistence' setting category
+     */
     persistence: 'Persistence',
     /**
-    *@description Text that refers to the debugger
-    */
+     *@description Text that refers to the debugger
+     */
     debugger: 'Debugger',
     /**
-    *@description Text describing global shortcuts and settings that are available throughout the DevTools
-    */
+     *@description Text describing global shortcuts and settings that are available throughout the DevTools
+     */
     global: 'Global',
     /**
-    *@description Title of the Rendering tool
-    */
+     *@description Title of the Rendering tool
+     */
     rendering: 'Rendering',
     /**
-    *@description Title of a section on CSS Grid tooling
-    */
+     *@description Title of a section on CSS Grid tooling
+     */
     grid: 'Grid',
     /**
-    *@description Text for the mobile platform, as opposed to desktop
-    */
+     *@description Text for the mobile platform, as opposed to desktop
+     */
     mobile: 'Mobile',
     /**
-    *@description Text for the memory of the page
-    */
+     *@description Text for the memory of the page
+     */
     memory: 'Memory',
     /**
-    *@description Text for the extension of the page
-    */
+     *@description Text for the extension of the page
+     */
     extension: 'Extension',
     /**
-    *@description Text for the adorner of the page
-    */
+     *@description Text for the adorner of the page
+     */
     adorner: 'Adorner',
     /**
      * @description Header for the "Sync" section in the settings UI. The "Sync"
@@ -100,6 +100,7 @@ export function registerSettingsForTest(settings, forceReset = false) {
 }
 export function resetSettings() {
     registeredSettings = [];
+    settingNameSet.clear();
 }
 export function maybeRemoveSettingExtension(settingName) {
     const settingIndex = registeredSettings.findIndex(setting => setting.settingName === settingName);
@@ -167,7 +168,7 @@ export function getLocalizedSettingsCategory(category) {
         case SettingCategory.ADORNER:
             return i18nString(UIStrings.adorner);
         case SettingCategory.NONE:
-            return '';
+            return i18n.i18n.lockedString('');
         case SettingCategory.SYNC:
             return i18nString(UIStrings.sync);
     }

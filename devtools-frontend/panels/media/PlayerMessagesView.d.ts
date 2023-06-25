@@ -12,5 +12,7 @@ export declare class PlayerMessagesView extends UI.Widget.VBox {
     private matchesHiddenLevels;
     private filterByString;
     addMessage(message: Protocol.Media.PlayerMessage): void;
+    private errorToDiv;
+    addError(error: Protocol.Media.PlayerError): void;
     wasShown(): void;
 }

@@ -38,10 +38,9 @@ export var IssueCategory;
     IssueCategory["CrossOriginEmbedderPolicy"] = "CrossOriginEmbedderPolicy";
     IssueCategory["Generic"] = "Generic";
     IssueCategory["MixedContent"] = "MixedContent";
-    IssueCategory["SameSiteCookie"] = "SameSiteCookie";
+    IssueCategory["Cookie"] = "Cookie";
     IssueCategory["HeavyAd"] = "HeavyAd";
     IssueCategory["ContentSecurityPolicy"] = "ContentSecurityPolicy";
-    IssueCategory["TrustedWebActivity"] = "TrustedWebActivity";
     IssueCategory["LowTextContrast"] = "LowTextContrast";
     IssueCategory["Cors"] = "Cors";
     IssueCategory["AttributionReporting"] = "AttributionReporting";
@@ -106,19 +105,19 @@ export function getShowThirdPartyIssuesSetting() {
     return Common.Settings.Settings.instance().createSetting('showThirdPartyIssues', false);
 }
 export class Issue {
-    issueCode;
-    issuesModel;
+    #issueCode;
+    #issuesModel;
     issueId = undefined;
-    hidden;
+    #hidden;
     constructor(code, issuesModel = null, issueId) {
-        this.issueCode = typeof code === 'object' ? code.code : code;
-        this.issuesModel = issuesModel;
+        this.#issueCode = typeof code === 'object' ? code.code : code;
+        this.#issuesModel = issuesModel;
         this.issueId = issueId;
         Host.userMetrics.issueCreated(typeof code === 'string' ? code : code.umaCode);
-        this.hidden = false;
+        this.#hidden = false;
     }
     code() {
-        return this.issueCode;
+        return this.#issueCode;
     }
     getBlockedByResponseDetails() {
         return [];
@@ -138,6 +137,9 @@ export class Issue {
     sources() {
         return [];
     }
+    trackingSites() {
+        return [];
+    }
     isAssociatedWithRequestId(requestId) {
         for (const request of this.requests()) {
             if (request.requestId === requestId) {
@@ -150,7 +152,7 @@ export class Issue {
      * The model might be unavailable or belong to a target that has already been disposed.
      */
     model() {
-        return this.issuesModel;
+        return this.#issuesModel;
     }
     isCausedByThirdParty() {
         return false;
@@ -159,10 +161,10 @@ export class Issue {
         return this.issueId;
     }
     isHidden() {
-        return this.hidden;
+        return this.#hidden;
     }
     setHidden(hidden) {
-        this.hidden = hidden;
+        this.#hidden = hidden;
     }
 }
 export function toZeroBasedLocation(location) {

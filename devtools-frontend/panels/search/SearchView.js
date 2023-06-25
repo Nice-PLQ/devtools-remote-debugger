@@ -10,67 +10,67 @@ import { SearchConfig } from './SearchConfig.js';
 import { SearchResultsPane } from './SearchResultsPane.js';
 const UIStrings = {
     /**
-    *@description Title of a search bar or tool
-    */
+     *@description Title of a search bar or tool
+     */
     search: 'Search',
     /**
-    *@description Accessibility label for search query text box
-    */
+     *@description Accessibility label for search query text box
+     */
     searchQuery: 'Search Query',
     /**
-    *@description Text to search by matching case of the input
-    */
+     *@description Text to search by matching case of the input
+     */
     matchCase: 'Match Case',
     /**
-    *@description Text for searching with regular expressinn
-    */
+     *@description Text for searching with regular expressinn
+     */
     useRegularExpression: 'Use Regular Expression',
     /**
-    *@description Text to refresh the page
-    */
+     *@description Text to refresh the page
+     */
     refresh: 'Refresh',
     /**
-    *@description Text to clear content
-    */
+     *@description Text to clear content
+     */
     clear: 'Clear',
     /**
-    *@description Search message element text content in Search View of the Search tab
-    */
+     *@description Search message element text content in Search View of the Search tab
+     */
     indexing: 'Indexing…',
     /**
-    *@description Text to indicate the searching is in progress
-    */
+     *@description Text to indicate the searching is in progress
+     */
     searching: 'Searching…',
     /**
-    *@description Text in Search View of the Search tab
-    */
+     *@description Text in Search View of the Search tab
+     */
     indexingInterrupted: 'Indexing interrupted.',
     /**
-    *@description Search results message element text content in Search View of the Search tab
-    */
+     *@description Search results message element text content in Search View of the Search tab
+     */
     foundMatchingLineInFile: 'Found 1 matching line in 1 file.',
     /**
-    *@description Search results message element text content in Search View of the Search tab
-    *@example {2} PH1
-    */
+     *@description Search results message element text content in Search View of the Search tab
+     *@example {2} PH1
+     */
     foundDMatchingLinesInFile: 'Found {PH1} matching lines in 1 file.',
     /**
-    *@description Search results message element text content in Search View of the Search tab
-    *@example {2} PH1
-    *@example {2} PH2
-    */
+     *@description Search results message element text content in Search View of the Search tab
+     *@example {2} PH1
+     *@example {2} PH2
+     */
     foundDMatchingLinesInDFiles: 'Found {PH1} matching lines in {PH2} files.',
     /**
-    *@description Search results message element text content in Search View of the Search tab
-    */
+     *@description Search results message element text content in Search View of the Search tab
+     */
     noMatchesFound: 'No matches found.',
     /**
-    *@description Text in Search View of the Search tab
-    */
+     *@description Text in Search View of the Search tab
+     */
     searchFinished: 'Search finished.',
     /**
-    *@description Text in Search View of the Search tab
-    */
+     *@description Text in Search View of the Search tab
+     */
     searchInterrupted: 'Search interrupted.',
 };
 const str_ = i18n.i18n.registerUIStrings('panels/search/SearchView.ts', UIStrings);
@@ -126,6 +126,7 @@ export class SearchView extends UI.Widget.VBox {
         searchContainer.style.flex = 'auto';
         searchContainer.style.justifyContent = 'start';
         searchContainer.style.maxWidth = '300px';
+        searchContainer.style.overflow = 'revert';
         this.search = UI.HistoryInput.HistoryInput.create();
         this.search.addEventListener('keydown', event => {
             this.onKeyDown(event);
@@ -135,14 +136,14 @@ export class SearchView extends UI.Widget.VBox {
         this.search.setAttribute('type', 'text');
         this.search.setAttribute('results', '0');
         this.search.setAttribute('size', '42');
-        UI.ARIAUtils.setAccessibleName(this.search, i18nString(UIStrings.searchQuery));
+        UI.ARIAUtils.setLabel(this.search, i18nString(UIStrings.searchQuery));
         const searchItem = new UI.Toolbar.ToolbarItem(searchContainer);
         const toolbar = new UI.Toolbar.Toolbar('search-toolbar', this.searchPanelElement);
         this.matchCaseButton = SearchView.appendToolbarToggle(toolbar, 'Aa', i18nString(UIStrings.matchCase));
         this.regexButton = SearchView.appendToolbarToggle(toolbar, '.*', i18nString(UIStrings.useRegularExpression));
         toolbar.appendToolbarItem(searchItem);
-        const refreshButton = new UI.Toolbar.ToolbarButton(i18nString(UIStrings.refresh), 'largeicon-refresh');
-        const clearButton = new UI.Toolbar.ToolbarButton(i18nString(UIStrings.clear), 'largeicon-clear');
+        const refreshButton = new UI.Toolbar.ToolbarButton(i18nString(UIStrings.refresh), 'refresh');
+        const clearButton = new UI.Toolbar.ToolbarButton(i18nString(UIStrings.clear), 'clear');
         toolbar.appendToolbarItem(refreshButton);
         toolbar.appendToolbarItem(clearButton);
         refreshButton.addEventListener(UI.Toolbar.ToolbarButton.Events.Click, () => this.onAction());
@@ -281,7 +282,7 @@ export class SearchView extends UI.Widget.VBox {
         this.progressIndicator = new UI.ProgressIndicator.ProgressIndicator();
         this.searchStarted(this.progressIndicator);
         if (this.searchScope) {
-            this.searchScope.performSearch(searchConfig, this.progressIndicator, this.onSearchResult.bind(this, this.searchId), this.onSearchFinished.bind(this, this.searchId));
+            void this.searchScope.performSearch(searchConfig, this.progressIndicator, this.onSearchResult.bind(this, this.searchId), this.onSearchFinished.bind(this, this.searchId));
         }
     }
     resetSearch() {
@@ -382,16 +383,34 @@ export class SearchView extends UI.Widget.VBox {
                 break;
         }
     }
+    /**
+     * Handles keydown event on panel itself for handling expand/collapse all shortcut
+     *
+     * We use `event.code` instead of `event.key` here to check whether the shortcut is triggered.
+     * The reason is, `event.key` is dependent on the modification keys, locale and keyboard layout.
+     * Usually it is useful when we care about the character that needs to be printed.
+     *
+     * However, our aim in here is to assign a shortcut to the physical key combination on the keyboard
+     * not on the character that the key combination prints.
+     *
+     * For example, `Cmd + [` shortcut in global shortcuts map to focusing on previous panel.
+     * In Turkish - Q keyboard layout, the key combination that triggers the shortcut prints `ğ`
+     * character. Whereas in Turkish - Q Legacy keyboard layout, the shortcut that triggers focusing
+     * on previous panel prints `[` character. So, if we use `event.key` and check
+     * whether it is `[`, we break the shortcut in Turkish - Q keyboard layout.
+     *
+     * @param event KeyboardEvent
+     */
     onKeyDownOnPanel(event) {
         const isMac = Host.Platform.isMac();
         // "Command + Alt + ]" for Mac
-        const shouldShowAllForMac = isMac && event.metaKey && !event.ctrlKey && event.altKey && event.key === ']';
+        const shouldShowAllForMac = isMac && event.metaKey && !event.ctrlKey && event.altKey && event.code === 'BracketRight';
         // "Ctrl + Shift + }" for other platforms
-        const shouldShowAllForOtherPlatforms = !isMac && event.ctrlKey && !event.metaKey && event.shiftKey && event.key === '}';
+        const shouldShowAllForOtherPlatforms = !isMac && event.ctrlKey && !event.metaKey && event.shiftKey && event.code === 'BracketRight';
         // "Command + Alt + [" for Mac
-        const shouldCollapseAllForMac = isMac && event.metaKey && !event.ctrlKey && event.altKey && event.key === '[';
+        const shouldCollapseAllForMac = isMac && event.metaKey && !event.ctrlKey && event.altKey && event.code === 'BracketLeft';
         // "Command + Alt + {" for other platforms
-        const shouldCollapseAllForOtherPlatforms = !isMac && event.ctrlKey && !event.metaKey && event.shiftKey && event.key === '{';
+        const shouldCollapseAllForOtherPlatforms = !isMac && event.ctrlKey && !event.metaKey && event.shiftKey && event.code === 'BracketLeft';
         if (shouldShowAllForMac || shouldShowAllForOtherPlatforms) {
             this.searchResultsPane?.showAllMatches();
         }
@@ -413,7 +432,7 @@ export class SearchView extends UI.Widget.VBox {
         if (!searchConfig.query() || !searchConfig.query().length) {
             return;
         }
-        this.startSearch(searchConfig);
+        void this.startSearch(searchConfig);
     }
 }
 //# sourceMappingURL=SearchView.js.map

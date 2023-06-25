@@ -1,5 +1,4 @@
 export function _executeTestScript(): Promise<void>;
-export { TestRunner };
 /**
  * @implements {SDK.TargetManager.Observer}
  */
@@ -8,11 +7,12 @@ export class _TestObserver implements SDK.TargetManager.Observer {
      * @param {!SDK.Target} target
      * @override
      */
-    override targetAdded(target: any): void;
+    override targetAdded(target: SDK.Target): void;
     /**
      * @param {!SDK.Target} target
      * @override
      */
-    override targetRemoved(target: any): void;
+    override targetRemoved(target: SDK.Target): void;
 }
-import * as TestRunner from "./TestRunner.js";
+export { globalTestRunner as TestRunner };
+declare const globalTestRunner: any;

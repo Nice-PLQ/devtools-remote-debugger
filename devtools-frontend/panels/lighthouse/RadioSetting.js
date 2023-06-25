@@ -24,9 +24,10 @@ export class RadioSetting {
   </label>
   `;
             this.element.appendChild(fragment.element());
+            const tooltip = option.tooltip?.() || description;
             if (description) {
-                UI.Tooltip.Tooltip.install(fragment.$('input'), description);
-                UI.Tooltip.Tooltip.install(fragment.$('span'), description);
+                UI.Tooltip.Tooltip.install(fragment.$('input'), tooltip);
+                UI.Tooltip.Tooltip.install(fragment.$('span'), tooltip);
             }
             const radioElement = fragment.$('input');
             radioElement.addEventListener('change', this.valueChanged.bind(this));

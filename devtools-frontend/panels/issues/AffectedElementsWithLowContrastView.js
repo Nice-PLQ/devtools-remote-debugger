@@ -5,17 +5,17 @@ import * as i18n from '../../core/i18n/i18n.js';
 import * as Platform from '../../core/platform/platform.js';
 import { AffectedElementsView } from './AffectedElementsView.js';
 export class AffectedElementsWithLowContrastView extends AffectedElementsView {
-    runningUpdatePromise = Promise.resolve();
+    #runningUpdatePromise = Promise.resolve();
     update() {
         // Ensure that doUpdate is invoked atomically by serializing the update calls
         // because it's not re-entrace safe.
-        this.runningUpdatePromise = this.runningUpdatePromise.then(this.doUpdate.bind(this));
+        this.#runningUpdatePromise = this.#runningUpdatePromise.then(this.#doUpdate.bind(this));
     }
-    async doUpdate() {
+    async #doUpdate() {
         this.clear();
-        await this.appendLowContrastElements(this.issue.getLowContrastIssues());
+        await this.#appendLowContrastElements(this.issue.getLowContrastIssues());
     }
-    async appendLowContrastElement(issue) {
+    async #appendLowContrastElement(issue) {
         const row = document.createElement('tr');
         row.classList.add('affected-resource-low-contrast');
         const details = issue.details();
@@ -28,7 +28,7 @@ export class AffectedElementsWithLowContrastView extends AffectedElementsView {
         this.appendIssueDetailCell(row, details.fontWeight);
         this.affectedResources.appendChild(row);
     }
-    async appendLowContrastElements(issues) {
+    async #appendLowContrastElements(issues) {
         const header = document.createElement('tr');
         this.appendColumnTitle(header, i18nString(UIStrings.element));
         this.appendColumnTitle(header, i18nString(UIStrings.contrastRatio));
@@ -40,35 +40,35 @@ export class AffectedElementsWithLowContrastView extends AffectedElementsView {
         let count = 0;
         for (const lowContrastIssue of issues) {
             count++;
-            await this.appendLowContrastElement(lowContrastIssue);
+            await this.#appendLowContrastElement(lowContrastIssue);
         }
         this.updateAffectedResourceCount(count);
     }
 }
 const UIStrings = {
     /**
-    *@description Column title for the element column in the low contrast issue view
-    */
+     *@description Column title for the element column in the low contrast issue view
+     */
     element: 'Element',
     /**
-    *@description Column title for the contrast ratio column in the low contrast issue view
-    */
+     *@description Column title for the contrast ratio column in the low contrast issue view
+     */
     contrastRatio: 'Contrast ratio',
     /**
-    *@description Column title for the minimum AA contrast ratio column in the low contrast issue view
-    */
+     *@description Column title for the minimum AA contrast ratio column in the low contrast issue view
+     */
     minimumAA: 'Minimum AA ratio',
     /**
-    *@description Column title for the minimum AAA contrast ratio column in the low contrast issue view
-    */
+     *@description Column title for the minimum AAA contrast ratio column in the low contrast issue view
+     */
     minimumAAA: 'Minimum AAA ratio',
     /**
-    *@description Column title for the text size column in the low contrast issue view
-    */
+     *@description Column title for the text size column in the low contrast issue view
+     */
     textSize: 'Text size',
     /**
-    *@description Column title for the text weight column in the low contrast issue view
-    */
+     *@description Column title for the text weight column in the low contrast issue view
+     */
     textWeight: 'Text weight',
 };
 const str_ = i18n.i18n.registerUIStrings('panels/issues/AffectedElementsWithLowContrastView.ts', UIStrings);

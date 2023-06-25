@@ -33,124 +33,130 @@
 import * as Common from '../../core/common/common.js';
 import * as Host from '../../core/host/host.js';
 import * as i18n from '../../core/i18n/i18n.js';
+import * as Platform from '../../core/platform/platform.js';
 import * as Root from '../../core/root/root.js';
 import * as SDK from '../../core/sdk/sdk.js';
 import * as Extensions from '../../models/extensions/extensions.js';
 import elementsPanelStyles from './elementsPanel.css.js';
-import * as IconButton from '../../ui/components/icon_button/icon_button.js';
-import * as Components from '../../ui/legacy/components/utils/utils.js';
+import * as Buttons from '../../ui/components/buttons/buttons.js';
 import * as UI from '../../ui/legacy/legacy.js';
+import * as TreeOutline from '../../ui/components/tree_outline/tree_outline.js';
 import { AccessibilityTreeView } from './AccessibilityTreeView.js';
 import * as ElementsComponents from './components/components.js';
 import { ComputedStyleWidget } from './ComputedStyleWidget.js';
 import { ElementsTreeElementHighlighter } from './ElementsTreeElementHighlighter.js';
 import { ElementsTreeOutline } from './ElementsTreeOutline.js';
 import { MetricsSidebarPane } from './MetricsSidebarPane.js';
-import { StylesSidebarPane } from './StylesSidebarPane.js';
+import { StylesSidebarPane, } from './StylesSidebarPane.js';
+import { ColorSwatchPopoverIcon } from './ColorSwatchPopoverIcon.js';
 const UIStrings = {
     /**
-    * @description Placeholder text for the search box the Elements Panel. Selector refers to CSS
-    * selectors.
-    */
+     * @description Placeholder text for the search box the Elements Panel. Selector refers to CSS
+     * selectors.
+     */
     findByStringSelectorOrXpath: 'Find by string, selector, or `XPath`',
     /**
-    * @description Button text for a button that takes the user to the Accessibility Tree View from the
-    * DOM tree view, in the Elements panel.
-    */
+     * @description Button text for a button that takes the user to the Accessibility Tree View from the
+     * DOM tree view, in the Elements panel.
+     */
     switchToAccessibilityTreeView: 'Switch to Accessibility Tree view',
     /**
-    * @description Button text for a button that takes the user to the DOM tree view from the
-    * Accessibility Tree View, in the Elements panel.
-    */
+     * @description Button text for a button that takes the user to the DOM tree view from the
+     * Accessibility Tree View, in the Elements panel.
+     */
     switchToDomTreeView: 'Switch to DOM Tree view',
     /**
-    * @description Label for a link to a rendering frame.
-    */
-    frame: 'Frame',
-    /**
-    * @description Tooltip for the the Computed Styles sidebar toggle in the Styles pane. Command to
-    * open/show the sidebar.
-    */
+     * @description Tooltip for the the Computed Styles sidebar toggle in the Styles pane. Command to
+     * open/show the sidebar.
+     */
     showComputedStylesSidebar: 'Show Computed Styles sidebar',
     /**
-    * @description Tooltip for the the Computed Styles sidebar toggle in the Styles pane. Command to
-    * close/hide the sidebar.
-    */
+     * @description Tooltip for the the Computed Styles sidebar toggle in the Styles pane. Command to
+     * close/hide the sidebar.
+     */
     hideComputedStylesSidebar: 'Hide Computed Styles sidebar',
     /**
-    * @description Title of a pane in the Elements panel that shows computed styles for the selected
-    * HTML element. Computed styles are the final, actual styles of the element, including all
-    * implicit and specified styles.
-    */
+     * @description Screen reader announcement when the computed styles sidebar is shown in the Elements panel.
+     */
+    computedStylesShown: 'Computed Styles sidebar shown',
+    /**
+     * @description Screen reader announcement when the computed styles sidebar is hidden in the Elements panel.
+     */
+    computedStylesHidden: 'Computed Styles sidebar hidden',
+    /**
+     * @description Title of a pane in the Elements panel that shows computed styles for the selected
+     * HTML element. Computed styles are the final, actual styles of the element, including all
+     * implicit and specified styles.
+     */
     computed: 'Computed',
     /**
-    * @description Title of a pane in the Elements panel that shows the CSS styles for the selected
-    * HTML element.
-    */
+     * @description Title of a pane in the Elements panel that shows the CSS styles for the selected
+     * HTML element.
+     */
     styles: 'Styles',
     /**
-    * @description A context menu item to reveal a node in the DOM tree of the Elements Panel
-    */
+     * @description A context menu item to reveal a node in the DOM tree of the Elements Panel
+     */
     revealInElementsPanel: 'Reveal in Elements panel',
     /**
-    * @description Warning/error text displayed when a node cannot be found in the current page.
-    */
+     * @description Warning/error text displayed when a node cannot be found in the current page.
+     */
     nodeCannotBeFoundInTheCurrent: 'Node cannot be found in the current page.',
     /**
-    * @description Console warning when a user tries to reveal a non-node type Remote Object. A remote
-    * object is a JavaScript object that is not stored in DevTools, that DevTools has a connection to.
-    * It should correspond to a local node.
-    */
+     * @description Console warning when a user tries to reveal a non-node type Remote Object. A remote
+     * object is a JavaScript object that is not stored in DevTools, that DevTools has a connection to.
+     * It should correspond to a local node.
+     */
     theRemoteObjectCouldNotBe: 'The remote object could not be resolved to a valid node.',
     /**
-    * @description Console warning when the user tries to reveal a deferred DOM Node that resolves as
-    * null. A deferred DOM node is a node we know about but have not yet fetched from the backend (we
-    * defer the work until later).
-    */
+     * @description Console warning when the user tries to reveal a deferred DOM Node that resolves as
+     * null. A deferred DOM node is a node we know about but have not yet fetched from the backend (we
+     * defer the work until later).
+     */
     theDeferredDomNodeCouldNotBe: 'The deferred `DOM` Node could not be resolved to a valid node.',
     /**
-    * @description Text in Elements Panel of the Elements panel. Shows the current CSS Pseudo-classes
-    * applicable to the selected HTML element.
-    * @example {::after, ::before} PH1
-    */
+     * @description Text in Elements Panel of the Elements panel. Shows the current CSS Pseudo-classes
+     * applicable to the selected HTML element.
+     * @example {::after, ::before} PH1
+     */
     elementStateS: 'Element state: {PH1}',
     /**
-    * @description Accessible name for side panel toolbar.
-    */
+     * @description Accessible name for side panel toolbar.
+     */
     sidePanelToolbar: 'Side panel toolbar',
     /**
-    * @description Accessible name for side panel contents.
-    */
+     * @description Accessible name for side panel contents.
+     */
     sidePanelContent: 'Side panel content',
     /**
-    * @description Accessible name for the DOM tree explorer view.
-    */
+     * @description Accessible name for the DOM tree explorer view.
+     */
     domTreeExplorer: 'DOM tree explorer',
 };
 const str_ = i18n.i18n.registerUIStrings('panels/elements/ElementsPanel.ts', UIStrings);
 const i18nString = i18n.i18n.getLocalizedString.bind(undefined, str_);
 const createAccessibilityTreeToggleButton = (isActive) => {
-    const button = document.createElement('button');
-    if (isActive) {
-        button.classList.add('axtree-button', 'axtree-button-active');
-    }
-    else {
-        button.classList.add('axtree-button');
-    }
+    const button = new Buttons.Button.Button();
+    const title = isActive ? i18nString(UIStrings.switchToDomTreeView) : i18nString(UIStrings.switchToAccessibilityTreeView);
+    button.data = {
+        active: isActive,
+        variant: "toolbar" /* Buttons.Button.Variant.TOOLBAR */,
+        iconUrl: new URL('../../Images/person.svg', import.meta.url).toString(),
+        title,
+    };
     button.tabIndex = 0;
-    button.title =
-        isActive ? i18nString(UIStrings.switchToDomTreeView) : i18nString(UIStrings.switchToAccessibilityTreeView);
-    const icon = new IconButton.Icon.Icon();
-    const bgColor = isActive ? 'var(--color-primary)' : 'var(--color-text-secondary)';
-    icon.data = { iconName: 'accessibility-icon', color: bgColor, width: '16px', height: '16px' };
-    button.appendChild(icon);
+    button.classList.add('axtree-button');
+    if (isActive) {
+        button.classList.add('active');
+    }
     return button;
 };
 let elementsPanelInstance;
 export class ElementsPanel extends UI.Panel.Panel {
     splitWidget;
     searchableViewInternal;
-    contentElementInternal;
+    mainContainer;
+    domTreeContainer;
     splitMode;
     accessibilityTreeView;
     breadcrumbs;
@@ -158,7 +164,6 @@ export class ElementsPanel extends UI.Panel.Panel {
     computedStyleWidget;
     metricsWidget;
     treeOutlines = new Set();
-    treeOutlineHeaders = new Map();
     searchResults;
     currentSearchResultIndex;
     pendingNodeReveal;
@@ -184,28 +189,33 @@ export class ElementsPanel extends UI.Panel.Panel {
         this.searchableViewInternal.setMinimumSize(25, 28);
         this.searchableViewInternal.setPlaceholder(i18nString(UIStrings.findByStringSelectorOrXpath));
         const stackElement = this.searchableViewInternal.element;
-        this.contentElementInternal = document.createElement('div');
+        this.mainContainer = document.createElement('div');
+        this.domTreeContainer = document.createElement('div');
         const crumbsContainer = document.createElement('div');
         if (Root.Runtime.experiments.isEnabled('fullAccessibilityTree')) {
-            this.initializeFullAccessibilityTreeView(stackElement);
+            this.initializeFullAccessibilityTreeView();
         }
-        stackElement.appendChild(this.contentElementInternal);
+        this.mainContainer.appendChild(this.domTreeContainer);
+        stackElement.appendChild(this.mainContainer);
         stackElement.appendChild(crumbsContainer);
-        UI.ARIAUtils.markAsMain(this.contentElementInternal);
-        UI.ARIAUtils.setAccessibleName(this.contentElementInternal, i18nString(UIStrings.domTreeExplorer));
+        UI.ARIAUtils.markAsMain(this.domTreeContainer);
+        UI.ARIAUtils.setLabel(this.domTreeContainer, i18nString(UIStrings.domTreeExplorer));
         this.splitWidget.setMainWidget(this.searchableViewInternal);
         this.splitMode = null;
-        this.contentElementInternal.id = 'elements-content';
+        this.mainContainer.id = 'main-content';
+        this.domTreeContainer.id = 'elements-content';
+        this.domTreeContainer.tabIndex = -1;
         // FIXME: crbug.com/425984
         if (Common.Settings.Settings.instance().moduleSetting('domWordWrap').get()) {
-            this.contentElementInternal.classList.add('elements-wrap');
+            this.domTreeContainer.classList.add('elements-wrap');
         }
         Common.Settings.Settings.instance()
             .moduleSetting('domWordWrap')
             .addChangeListener(this.domWordWrapSettingChanged.bind(this));
         crumbsContainer.id = 'elements-crumbs';
         if (this.domTreeButton) {
-            this.accessibilityTreeView = new AccessibilityTreeView(this.domTreeButton);
+            this.accessibilityTreeView =
+                new AccessibilityTreeView(this.domTreeButton, new TreeOutline.TreeOutline.TreeOutline());
         }
         this.breadcrumbs = new ElementsComponents.ElementsBreadcrumbs.ElementsBreadcrumbs();
         this.breadcrumbs.addEventListener('breadcrumbsnodeselected', event => {
@@ -220,12 +230,11 @@ export class ElementsPanel extends UI.Panel.Panel {
             .addChangeListener(this.updateSidebarPosition.bind(this));
         this.updateSidebarPosition();
         this.cssStyleTrackerByCSSModel = new Map();
-        SDK.TargetManager.TargetManager.instance().observeModels(SDK.DOMModel.DOMModel, this);
+        SDK.TargetManager.TargetManager.instance().observeModels(SDK.DOMModel.DOMModel, this, { scoped: true });
         SDK.TargetManager.TargetManager.instance().addEventListener(SDK.TargetManager.Events.NameChanged, event => this.targetNameChanged(event.data));
         Common.Settings.Settings.instance()
             .moduleSetting('showUAShadowDOM')
             .addChangeListener(this.showUAShadowDOMChanged.bind(this));
-        SDK.TargetManager.TargetManager.instance().addModelListener(SDK.DOMModel.DOMModel, SDK.DOMModel.Events.DocumentUpdated, this.documentUpdatedEvent, this);
         Extensions.ExtensionServer.ExtensionServer.instance().addEventListener(Extensions.ExtensionServer.Events.SidebarPaneAdded, this.extensionSidebarPaneAdded, this);
         this.currentSearchResultIndex = -1; // -1 represents the initial invalid state
         this.pendingNodeReveal = false;
@@ -233,12 +242,12 @@ export class ElementsPanel extends UI.Panel.Panel {
         this.adornerSettingsPane = null;
         this.adornersByName = new Map();
     }
-    initializeFullAccessibilityTreeView(stackElement) {
+    initializeFullAccessibilityTreeView() {
         this.accessibilityTreeButton = createAccessibilityTreeToggleButton(false);
         this.accessibilityTreeButton.addEventListener('click', this.showAccessibilityTree.bind(this));
         this.domTreeButton = createAccessibilityTreeToggleButton(true);
         this.domTreeButton.addEventListener('click', this.showDOMTree.bind(this));
-        stackElement.appendChild(this.accessibilityTreeButton);
+        this.mainContainer.appendChild(this.accessibilityTreeButton);
     }
     showAccessibilityTree() {
         if (this.accessibilityTreeView) {
@@ -246,8 +255,16 @@ export class ElementsPanel extends UI.Panel.Panel {
         }
     }
     showDOMTree() {
-        // TODO(meredithl): Scroll to inspected DOM node.
         this.splitWidget.setMainWidget(this.searchableViewInternal);
+        const selectedNode = this.selectedDOMNode();
+        if (!selectedNode) {
+            return;
+        }
+        const treeElement = this.treeElementForNode(selectedNode);
+        if (!treeElement) {
+            return;
+        }
+        treeElement.select();
     }
     static instance(opts = { forceNew: null }) {
         const { forceNew } = opts;
@@ -273,25 +290,14 @@ export class ElementsPanel extends UI.Panel.Panel {
     }
     modelAdded(domModel) {
         const parentModel = domModel.parentModel();
-        // Different frames will have different DOMModels, we only want to add the accessibility model
-        // for the top level frame, as the accessibility tree does not yet support exploring IFrames.
-        if (this.accessibilityTreeView) {
-            this.accessibilityTreeView.wireToDOMModel(domModel);
-        }
         let treeOutline = parentModel ? ElementsTreeOutline.forDOMModel(parentModel) : null;
         if (!treeOutline) {
             treeOutline = new ElementsTreeOutline(true, true);
             treeOutline.setWordWrap(Common.Settings.Settings.instance().moduleSetting('domWordWrap').get());
             treeOutline.addEventListener(ElementsTreeOutline.Events.SelectedNodeChanged, this.selectedNodeChanged, this);
             treeOutline.addEventListener(ElementsTreeOutline.Events.ElementsTreeUpdated, this.updateBreadcrumbIfNeeded, this);
-            new ElementsTreeElementHighlighter(treeOutline);
+            new ElementsTreeElementHighlighter(treeOutline, new Common.Throttler.Throttler(100));
             this.treeOutlines.add(treeOutline);
-            if (domModel.target().parentTarget()) {
-                const element = document.createElement('div');
-                element.classList.add('elements-tree-header');
-                this.treeOutlineHeaders.set(treeOutline, element);
-                this.targetNameChanged(domModel.target());
-            }
         }
         treeOutline.wireToDOMModel(domModel);
         this.setupStyleTracking(domModel.cssModel());
@@ -299,8 +305,13 @@ export class ElementsPanel extends UI.Panel.Panel {
         if (this.isShowing()) {
             this.wasShown();
         }
+        if (this.domTreeContainer.hasFocus()) {
+            treeOutline.focus();
+        }
+        domModel.addEventListener(SDK.DOMModel.Events.DocumentUpdated, this.documentUpdatedEvent, this);
     }
     modelRemoved(domModel) {
+        domModel.removeEventListener(SDK.DOMModel.Events.DocumentUpdated, this.documentUpdatedEvent, this);
         const treeOutline = ElementsTreeOutline.forDOMModel(domModel);
         if (!treeOutline) {
             return;
@@ -310,11 +321,6 @@ export class ElementsPanel extends UI.Panel.Panel {
             return;
         }
         this.treeOutlines.delete(treeOutline);
-        const header = this.treeOutlineHeaders.get(treeOutline);
-        if (header) {
-            header.remove();
-        }
-        this.treeOutlineHeaders.delete(treeOutline);
         treeOutline.element.remove();
         this.removeStyleTracking(domModel.cssModel());
     }
@@ -327,13 +333,6 @@ export class ElementsPanel extends UI.Panel.Panel {
         if (!treeOutline) {
             return;
         }
-        const header = this.treeOutlineHeaders.get(treeOutline);
-        if (!header) {
-            return;
-        }
-        header.removeChildren();
-        header.createChild('div', 'elements-tree-header-frame').textContent = i18nString(UIStrings.frame);
-        header.appendChild(Components.Linkifier.Linkifier.linkifyURL(target.inspectedURL(), { text: target.name() }));
     }
     updateTreeOutlineVisibleWidth() {
         if (!this.treeOutlines.size) {
@@ -351,6 +350,9 @@ export class ElementsPanel extends UI.Panel.Panel {
         if (this.treeOutlines.size) {
             this.treeOutlines.values().next().value.focus();
         }
+        else {
+            this.domTreeContainer.focus();
+        }
     }
     searchableView() {
         return this.searchableViewInternal;
@@ -361,15 +363,11 @@ export class ElementsPanel extends UI.Panel.Panel {
         this.registerCSSFiles([elementsPanelStyles]);
         for (const treeOutline of this.treeOutlines) {
             // Attach heavy component lazily
-            if (treeOutline.element.parentElement !== this.contentElementInternal) {
-                const header = this.treeOutlineHeaders.get(treeOutline);
-                if (header) {
-                    this.contentElementInternal.appendChild(header);
-                }
-                this.contentElementInternal.appendChild(treeOutline.element);
+            if (treeOutline.element.parentElement !== this.domTreeContainer) {
+                this.domTreeContainer.appendChild(treeOutline.element);
             }
         }
-        const domModels = SDK.TargetManager.TargetManager.instance().models(SDK.DOMModel.DOMModel);
+        const domModels = SDK.TargetManager.TargetManager.instance().models(SDK.DOMModel.DOMModel, { scoped: true });
         for (const domModel of domModels) {
             if (domModel.parentModel()) {
                 continue;
@@ -385,7 +383,7 @@ export class ElementsPanel extends UI.Panel.Panel {
                     this.documentUpdated(domModel);
                 }
                 else {
-                    domModel.requestDocument();
+                    void domModel.requestDocument();
                 }
             }
         }
@@ -395,11 +393,7 @@ export class ElementsPanel extends UI.Panel.Panel {
         for (const treeOutline of this.treeOutlines) {
             treeOutline.setVisible(false);
             // Detach heavy component on hide
-            this.contentElementInternal.removeChild(treeOutline.element);
-            const header = this.treeOutlineHeaders.get(treeOutline);
-            if (header) {
-                this.contentElementInternal.removeChild(header);
-            }
+            this.domTreeContainer.removeChild(treeOutline.element);
         }
         super.willHide();
         UI.Context.Context.instance().setFlavor(ElementsPanel, null);
@@ -430,6 +424,9 @@ export class ElementsPanel extends UI.Panel.Panel {
                 crumbs,
                 selectedNode: ElementsComponents.Helper.legacyNodeToElementsComponentsNode(selectedNode),
             };
+            if (this.accessibilityTreeView) {
+                void this.accessibilityTreeView.selectedNodeChanged(selectedNode);
+            }
         }
         else {
             this.breadcrumbs.data = { crumbs: [], selectedNode: null };
@@ -438,7 +435,7 @@ export class ElementsPanel extends UI.Panel.Panel {
         if (!selectedNode) {
             return;
         }
-        selectedNode.setAsInspectedNode();
+        void selectedNode.setAsInspectedNode();
         if (focus) {
             this.selectedNodeOnReset = selectedNode;
             this.hasNonDefaultSelectedNode = true;
@@ -459,10 +456,10 @@ export class ElementsPanel extends UI.Panel.Panel {
         this.setupStyleTracking(domModel.cssModel());
     }
     documentUpdated(domModel) {
-        this.searchableViewInternal.resetSearch();
+        this.searchableViewInternal.cancelSearch();
         if (!domModel.existingDocument()) {
             if (this.isShowing()) {
-                domModel.requestDocument();
+                void domModel.requestDocument();
             }
             return;
         }
@@ -471,7 +468,7 @@ export class ElementsPanel extends UI.Panel.Panel {
             return;
         }
         const savedSelectedNodeOnReset = this.selectedNodeOnReset;
-        restoreNode.call(this, domModel, this.selectedNodeOnReset || null);
+        void restoreNode.call(this, domModel, this.selectedNodeOnReset || null);
         async function restoreNode(domModel, staleNode) {
             const nodePath = staleNode ? staleNode.path() : null;
             const restoredNodeId = nodePath ? await domModel.pushNodeByPathToFrontend(nodePath) : null;
@@ -508,7 +505,18 @@ export class ElementsPanel extends UI.Panel.Panel {
             treeOutline.selectedTreeElement.expand();
         }
     }
-    searchCanceled() {
+    onSearchClosed() {
+        const selectedNode = this.selectedDOMNode();
+        if (!selectedNode) {
+            return;
+        }
+        const treeElement = this.treeElementForNode(selectedNode);
+        if (!treeElement) {
+            return;
+        }
+        treeElement.select();
+    }
+    onSearchCanceled() {
         this.searchConfig = undefined;
         this.hideSearchHighlights();
         this.searchableViewInternal.updateSearchMatchesCount(0);
@@ -523,16 +531,16 @@ export class ElementsPanel extends UI.Panel.Panel {
             return;
         }
         if (!this.searchConfig || this.searchConfig.query !== query) {
-            this.searchCanceled();
+            this.onSearchCanceled();
         }
         else {
             this.hideSearchHighlights();
         }
         this.searchConfig = searchConfig;
         const showUAShadowDOM = Common.Settings.Settings.instance().moduleSetting('showUAShadowDOM').get();
-        const domModels = SDK.TargetManager.TargetManager.instance().models(SDK.DOMModel.DOMModel);
+        const domModels = SDK.TargetManager.TargetManager.instance().models(SDK.DOMModel.DOMModel, { scoped: true });
         const promises = domModels.map(domModel => domModel.performSearch(whitespaceTrimmedQuery, showUAShadowDOM));
-        Promise.all(promises).then(resultCounts => {
+        void Promise.all(promises).then(resultCounts => {
             this.searchResults = [];
             for (let i = 0; i < resultCounts.length; ++i) {
                 const resultCount = resultCounts[i];
@@ -560,7 +568,7 @@ export class ElementsPanel extends UI.Panel.Panel {
         });
     }
     domWordWrapSettingChanged(event) {
-        this.contentElementInternal.classList.toggle('elements-wrap', event.data);
+        this.domTreeContainer.classList.toggle('elements-wrap', event.data);
         for (const treeOutline of this.treeOutlines) {
             treeOutline.setWordWrap(event.data);
         }
@@ -568,7 +576,7 @@ export class ElementsPanel extends UI.Panel.Panel {
     switchToAndFocus(node) {
         // Reset search restore.
         this.searchableViewInternal.cancelSearch();
-        UI.ViewManager.ViewManager.instance().showView('elements').then(() => this.selectDOMNode(node, true));
+        void UI.ViewManager.ViewManager.instance().showView('elements').then(() => this.selectDOMNode(node, true));
     }
     jumpToSearchResult(index) {
         if (!this.searchResults) {
@@ -608,7 +616,7 @@ export class ElementsPanel extends UI.Panel.Panel {
         }
         if (typeof searchResult.node === 'undefined') {
             // No data for slot, request it.
-            searchResult.domModel.searchResult(searchResult.index).then(node => {
+            void searchResult.domModel.searchResult(searchResult.index).then(node => {
                 searchResult.node = node;
                 // If any of these properties are undefined or reset to an invalid value,
                 // this means the search/highlight request is outdated.
@@ -620,7 +628,7 @@ export class ElementsPanel extends UI.Panel.Panel {
             return;
         }
         const treeElement = this.treeElementForNode(searchResult.node);
-        searchResult.node.scrollIntoView();
+        void searchResult.node.scrollIntoView();
         if (treeElement) {
             this.searchConfig && treeElement.highlightSearchResults(this.searchConfig.query);
             treeElement.reveal();
@@ -628,6 +636,7 @@ export class ElementsPanel extends UI.Panel.Panel {
             if (matches.length) {
                 matches[0].scrollIntoViewIfNeeded(false);
             }
+            treeElement.select(/* omitFocus */ true);
         }
     }
     hideSearchHighlights() {
@@ -660,6 +669,15 @@ export class ElementsPanel extends UI.Panel.Panel {
             else {
                 treeOutline.selectDOMNode(null);
             }
+        }
+    }
+    selectAndShowSidebarTab(tabId) {
+        if (!this.sidebarPaneView) {
+            return;
+        }
+        this.sidebarPaneView.tabbedPane().selectTab(tabId);
+        if (!this.isShowing()) {
+            void UI.ViewManager.ViewManager.instance().showView('elements');
         }
     }
     updateBreadcrumbIfNeeded(event) {
@@ -714,7 +732,7 @@ export class ElementsPanel extends UI.Panel.Panel {
         if (!treeOutline) {
             return null;
         }
-        return /** @type {?ElementsTreeElement} */ treeOutline.findTreeElement(node);
+        return treeOutline.findTreeElement(node);
     }
     leaveUserAgentShadowDOM(node) {
         let userAgentShadowRoot;
@@ -723,16 +741,16 @@ export class ElementsPanel extends UI.Panel.Panel {
         }
         return node;
     }
-    async revealAndSelectNode(node, focus, omitHighlight) {
+    async revealAndSelectNode(nodeToReveal, focus, omitHighlight) {
         this.omitDefaultSelection = true;
-        node = Common.Settings.Settings.instance().moduleSetting('showUAShadowDOM').get() ?
-            node :
-            this.leaveUserAgentShadowDOM(node);
+        const node = Common.Settings.Settings.instance().moduleSetting('showUAShadowDOM').get() ?
+            nodeToReveal :
+            this.leaveUserAgentShadowDOM(nodeToReveal);
         if (!omitHighlight) {
             node.highlightForTwoSeconds();
         }
         if (this.accessibilityTreeView) {
-            this.accessibilityTreeView.selectedNodeChanged(node);
+            void this.accessibilityTreeView.revealAndSelectNode(nodeToReveal);
         }
         await UI.ViewManager.ViewManager.instance().showView('elements', false, !focus);
         this.selectDOMNode(node, focus);
@@ -792,7 +810,7 @@ export class ElementsPanel extends UI.Panel.Panel {
         }
     }
     initializeSidebarPanes(splitMode) {
-        this.splitWidget.setVertical(splitMode === "Vertical" /* Vertical */);
+        this.splitWidget.setVertical(splitMode === "Vertical" /* _splitMode.Vertical */);
         this.showToolbarPane(null /* widget */, null /* toggle */);
         const matchedStylePanesWrapper = new UI.Widget.VBox();
         matchedStylePanesWrapper.element.classList.add('style-panes-wrapper');
@@ -808,13 +826,13 @@ export class ElementsPanel extends UI.Panel.Panel {
         stylesSplitWidget.addEventListener(UI.SplitWidget.Events.ShowModeChanged, () => {
             showMetricsWidgetInStylesPane();
         });
-        this.stylesWidget.addEventListener("InitialUpdateCompleted" /* InitialUpdateCompleted */, () => {
-            this.stylesWidget.appendToolbarItem(stylesSplitWidget.createShowHideSidebarButton(i18nString(UIStrings.showComputedStylesSidebar), i18nString(UIStrings.hideComputedStylesSidebar)));
+        this.stylesWidget.addEventListener("InitialUpdateCompleted" /* StylesSidebarPaneEvents.InitialUpdateCompleted */, () => {
+            this.stylesWidget.appendToolbarItem(stylesSplitWidget.createShowHideSidebarButton(i18nString(UIStrings.showComputedStylesSidebar), i18nString(UIStrings.hideComputedStylesSidebar), i18nString(UIStrings.computedStylesShown), i18nString(UIStrings.computedStylesHidden)));
         });
         const showMetricsWidgetInComputedPane = () => {
             this.metricsWidget.show(computedStylePanesWrapper.element, this.computedStyleWidget.element);
             this.metricsWidget.toggleVisibility(true /* visible */);
-            this.stylesWidget.removeEventListener("StylesUpdateCompleted" /* StylesUpdateCompleted */, toggleMetricsWidget);
+            this.stylesWidget.removeEventListener("StylesUpdateCompleted" /* StylesSidebarPaneEvents.StylesUpdateCompleted */, toggleMetricsWidget);
         };
         const showMetricsWidgetInStylesPane = () => {
             const showMergedComputedPane = stylesSplitWidget.showMode() === UI.SplitWidget.ShowMode.Both;
@@ -826,7 +844,7 @@ export class ElementsPanel extends UI.Panel.Panel {
                 if (!this.stylesWidget.hasMatchedStyles) {
                     this.metricsWidget.toggleVisibility(false /* invisible */);
                 }
-                this.stylesWidget.addEventListener("StylesUpdateCompleted" /* StylesUpdateCompleted */, toggleMetricsWidget);
+                this.stylesWidget.addEventListener("StylesUpdateCompleted" /* StylesSidebarPaneEvents.StylesUpdateCompleted */, toggleMetricsWidget);
             }
         };
         let skippedInitialTabSelectedEvent = false;
@@ -835,39 +853,39 @@ export class ElementsPanel extends UI.Panel.Panel {
         };
         const tabSelected = (event) => {
             const { tabId } = event.data;
-            if (tabId === i18nString(UIStrings.computed)) {
+            if (tabId === "Computed" /* SidebarPaneTabId.Computed */) {
                 computedStylePanesWrapper.show(computedView.element);
                 showMetricsWidgetInComputedPane();
             }
-            else if (tabId === i18nString(UIStrings.styles)) {
+            else if (tabId === "Styles" /* SidebarPaneTabId.Styles */) {
                 stylesSplitWidget.setSidebarWidget(computedStylePanesWrapper);
                 showMetricsWidgetInStylesPane();
             }
             if (skippedInitialTabSelectedEvent) {
                 // We don't log the initially selected sidebar pane to UMA because
                 // it will skew the histogram heavily toward the Styles pane
-                Host.userMetrics.sidebarPaneShown(tabId);
+                Host.userMetrics.elementsSidebarTabShown(tabId);
             }
             else {
                 skippedInitialTabSelectedEvent = true;
             }
         };
-        this.sidebarPaneView = UI.ViewManager.ViewManager.instance().createTabbedLocation(() => UI.ViewManager.ViewManager.instance().showView('elements'));
+        this.sidebarPaneView = UI.ViewManager.ViewManager.instance().createTabbedLocation(() => UI.ViewManager.ViewManager.instance().showView('elements'), 'Styles-pane-sidebar', false, true);
         const tabbedPane = this.sidebarPaneView.tabbedPane();
-        if (this.splitMode !== "Vertical" /* Vertical */) {
+        if (this.splitMode !== "Vertical" /* _splitMode.Vertical */) {
             this.splitWidget.installResizer(tabbedPane.headerElement());
         }
         const headerElement = tabbedPane.headerElement();
         UI.ARIAUtils.markAsNavigation(headerElement);
-        UI.ARIAUtils.setAccessibleName(headerElement, i18nString(UIStrings.sidePanelToolbar));
+        UI.ARIAUtils.setLabel(headerElement, i18nString(UIStrings.sidePanelToolbar));
         const contentElement = tabbedPane.tabbedPaneContentElement();
         UI.ARIAUtils.markAsComplementary(contentElement);
-        UI.ARIAUtils.setAccessibleName(contentElement, i18nString(UIStrings.sidePanelContent));
-        const stylesView = new UI.View.SimpleView(i18nString(UIStrings.styles));
+        UI.ARIAUtils.setLabel(contentElement, i18nString(UIStrings.sidePanelContent));
+        const stylesView = new UI.View.SimpleView(i18nString(UIStrings.styles), /* isWebComponent */ undefined, "Styles" /* SidebarPaneTabId.Styles */);
         this.sidebarPaneView.appendView(stylesView);
         stylesView.element.classList.add('flex-auto');
         stylesSplitWidget.show(stylesView.element);
-        const computedView = new UI.View.SimpleView(i18nString(UIStrings.computed));
+        const computedView = new UI.View.SimpleView(i18nString(UIStrings.computed), /* isWebComponent */ undefined, "Computed" /* SidebarPaneTabId.Computed */);
         computedView.element.classList.add('composite', 'fill');
         tabbedPane.addEventListener(UI.TabbedPane.Events.TabSelected, tabSelected, this);
         this.sidebarPaneView.appendView(computedView);
@@ -884,10 +902,10 @@ export class ElementsPanel extends UI.Panel.Panel {
             return;
         } // We can't reparent extension iframes.
         const position = Common.Settings.Settings.instance().moduleSetting('sidebarPosition').get();
-        let splitMode = "Horizontal" /* Horizontal */;
+        let splitMode = "Horizontal" /* _splitMode.Horizontal */;
         if (position === 'right' ||
             (position === 'auto' && UI.InspectorView.InspectorView.instance().element.offsetWidth > 680)) {
-            splitMode = "Vertical" /* Vertical */;
+            splitMode = "Vertical" /* _splitMode.Vertical */;
         }
         if (!this.sidebarPaneView) {
             this.initializeSidebarPanes(splitMode);
@@ -899,9 +917,9 @@ export class ElementsPanel extends UI.Panel.Panel {
         this.splitMode = splitMode;
         const tabbedPane = this.sidebarPaneView.tabbedPane();
         this.splitWidget.uninstallResizer(tabbedPane.headerElement());
-        this.splitWidget.setVertical(this.splitMode === "Vertical" /* Vertical */);
+        this.splitWidget.setVertical(this.splitMode === "Vertical" /* _splitMode.Vertical */);
         this.showToolbarPane(null /* widget */, null /* toggle */);
-        if (this.splitMode !== "Vertical" /* Vertical */) {
+        if (this.splitMode !== "Vertical" /* _splitMode.Vertical */) {
             this.splitWidget.installResizer(tabbedPane.headerElement());
         }
     }
@@ -938,8 +956,9 @@ export class ElementsPanel extends UI.Panel.Panel {
             }
             const treeElement = this.treeElementForNode(domNode);
             if (treeElement) {
-                treeElement.updateStyleAdorners();
+                void treeElement.updateStyleAdorners();
             }
+            void ElementsComponents.LayoutPane.LayoutPane.instance().render();
         }
     }
     showAdornerSettingsPane() {
@@ -1055,7 +1074,19 @@ export class DOMNodeRevealer {
     reveal(node, omitFocus) {
         const panel = ElementsPanel.instance();
         panel.pendingNodeReveal = true;
-        return new Promise(revealPromise);
+        return (new Promise(revealPromise)).catch((reason) => {
+            let message;
+            if (Platform.UserVisibleError.isUserVisibleError(reason)) {
+                message = reason.message;
+            }
+            else {
+                message = i18nString(UIStrings.nodeCannotBeFoundInTheCurrent);
+            }
+            Common.Console.Console.instance().warn(message);
+            // Blink tests expect an exception to be raised and unhandled here to detect that the node
+            // was actually not successfully viewed.
+            throw reason;
+        });
         function revealPromise(resolve, reject) {
             if (node instanceof SDK.DOMModel.DOMNode) {
                 onNodeResolved(node);
@@ -1064,20 +1095,18 @@ export class DOMNodeRevealer {
                 node.resolve(checkDeferredDOMNodeThenReveal);
             }
             else if (node instanceof SDK.RemoteObject.RemoteObject) {
-                const domModel = 
-                /** @type {!SDK.RemoteObject.RemoteObject} */ node
-                    .runtimeModel()
-                    .target()
-                    .model(SDK.DOMModel.DOMModel);
+                const domModel = node.runtimeModel().target().model(SDK.DOMModel.DOMModel);
                 if (domModel) {
-                    domModel.pushObjectAsNodeToFrontend(node).then(checkRemoteObjectThenReveal);
+                    void domModel.pushObjectAsNodeToFrontend(node).then(checkRemoteObjectThenReveal);
                 }
                 else {
-                    reject(new Error('Could not resolve a node to reveal.'));
+                    const msg = i18nString(UIStrings.nodeCannotBeFoundInTheCurrent);
+                    reject(new Platform.UserVisibleError.UserVisibleError(msg));
                 }
             }
             else {
-                reject(new Error('Can\'t reveal a non-node.'));
+                const msg = i18nString(UIStrings.theRemoteObjectCouldNotBe);
+                reject(new Platform.UserVisibleError.UserVisibleError(msg));
                 panel.pendingNodeReveal = false;
             }
             function onNodeResolved(resolvedNode) {
@@ -1094,21 +1123,20 @@ export class DOMNodeRevealer {
                 const isDocument = node instanceof SDK.DOMModel.DOMDocument;
                 if (!isDocument && isDetached) {
                     const msg = i18nString(UIStrings.nodeCannotBeFoundInTheCurrent);
-                    Common.Console.Console.instance().warn(msg);
-                    reject(new Error(msg));
+                    reject(new Platform.UserVisibleError.UserVisibleError(msg));
                     return;
                 }
                 if (resolvedNode) {
-                    panel.revealAndSelectNode(resolvedNode, !omitFocus).then(resolve);
+                    void panel.revealAndSelectNode(resolvedNode, !omitFocus).then(resolve);
                     return;
                 }
-                reject(new Error('Could not resolve node to reveal.'));
+                const msg = i18nString(UIStrings.nodeCannotBeFoundInTheCurrent);
+                reject(new Platform.UserVisibleError.UserVisibleError(msg));
             }
             function checkRemoteObjectThenReveal(resolvedNode) {
                 if (!resolvedNode) {
                     const msg = i18nString(UIStrings.theRemoteObjectCouldNotBe);
-                    Common.Console.Console.instance().warn(msg);
-                    reject(new Error(msg));
+                    reject(new Platform.UserVisibleError.UserVisibleError(msg));
                     return;
                 }
                 onNodeResolved(resolvedNode);
@@ -1116,8 +1144,7 @@ export class DOMNodeRevealer {
             function checkDeferredDOMNodeThenReveal(resolvedNode) {
                 if (!resolvedNode) {
                     const msg = i18nString(UIStrings.theDeferredDomNodeCouldNotBe);
-                    Common.Console.Console.instance().warn(msg);
-                    reject(new Error(msg));
+                    reject(new Platform.UserVisibleError.UserVisibleError(msg));
                     return;
                 }
                 onNodeResolved(resolvedNode);
@@ -1152,7 +1179,7 @@ export class ElementsActionDelegate {
         }
         switch (actionId) {
             case 'elements.hide-element':
-                treeOutline.toggleHideElement(node);
+                void treeOutline.toggleHideElement(node);
                 return true;
             case 'elements.edit-as-html':
                 treeOutline.toggleEditAsHTML(node);
@@ -1161,16 +1188,29 @@ export class ElementsActionDelegate {
                 treeOutline.duplicateNode(node);
                 return true;
             case 'elements.copy-styles':
-                treeOutline.findTreeElement(node)?.copyStyles();
+                void treeOutline.findTreeElement(node)?.copyStyles();
                 return true;
             case 'elements.undo':
-                SDK.DOMModel.DOMModelUndoStack.instance().undo();
+                void SDK.DOMModel.DOMModelUndoStack.instance().undo();
                 ElementsPanel.instance().stylesWidget.forceUpdate();
                 return true;
             case 'elements.redo':
-                SDK.DOMModel.DOMModelUndoStack.instance().redo();
+                void SDK.DOMModel.DOMModelUndoStack.instance().redo();
                 ElementsPanel.instance().stylesWidget.forceUpdate();
                 return true;
+            case 'elements.show-styles':
+                ElementsPanel.instance().selectAndShowSidebarTab("Styles" /* SidebarPaneTabId.Styles */);
+                return true;
+            case 'elements.show-computed':
+                ElementsPanel.instance().selectAndShowSidebarTab("Computed" /* SidebarPaneTabId.Computed */);
+                return true;
+            case 'elements.toggle-eye-dropper': {
+                const colorSwatchPopoverIcon = UI.Context.Context.instance().flavor(ColorSwatchPopoverIcon);
+                if (!colorSwatchPopoverIcon) {
+                    return false;
+                }
+                void colorSwatchPopoverIcon.toggleEyeDropper();
+            }
         }
         return false;
     }

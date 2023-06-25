@@ -2,16 +2,17 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import '../test_runner/test_runner.js';
 import '../../panels/accessibility/accessibility-legacy.js';
 import '../elements_test_runner/elements_test_runner.js';
 import '../../core/i18n/i18n.js';
+
+import {TestRunner} from '../test_runner/test_runner.js';
 
 /**
  * @fileoverview using private properties isn't a Closure violation in tests.
  */
 
-self.AccessibilityTestRunner = self.AccessibilityTestRunner || {};
+export const AccessibilityTestRunner = {};
 
 AccessibilityTestRunner.accessibilitySidebarPane = function() {
   return Accessibility.AccessibilitySidebarView.instance();

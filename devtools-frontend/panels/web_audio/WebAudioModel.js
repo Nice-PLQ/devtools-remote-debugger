@@ -21,10 +21,10 @@ export class WebAudioModel extends SDK.SDKModel.SDKModel {
         SDK.TargetManager.TargetManager.instance().addModelListener(SDK.ResourceTreeModel.ResourceTreeModel, SDK.ResourceTreeModel.Events.FrameNavigated, this.flushContexts, this);
     }
     flushContexts() {
-        this.dispatchEventToListeners("ModelReset" /* ModelReset */);
+        this.dispatchEventToListeners("ModelReset" /* Events.ModelReset */);
     }
     async suspendModel() {
-        this.dispatchEventToListeners("ModelSuspend" /* ModelSuspend */);
+        this.dispatchEventToListeners("ModelSuspend" /* Events.ModelSuspend */);
         await this.agent.invoke_disable();
     }
     async resumeModel() {
@@ -37,47 +37,47 @@ export class WebAudioModel extends SDK.SDKModel.SDKModel {
         if (this.enabled) {
             return;
         }
-        this.agent.invoke_enable();
+        void this.agent.invoke_enable();
         this.enabled = true;
     }
     contextCreated({ context }) {
-        this.dispatchEventToListeners("ContextCreated" /* ContextCreated */, context);
+        this.dispatchEventToListeners("ContextCreated" /* Events.ContextCreated */, context);
     }
     contextWillBeDestroyed({ contextId }) {
-        this.dispatchEventToListeners("ContextDestroyed" /* ContextDestroyed */, contextId);
+        this.dispatchEventToListeners("ContextDestroyed" /* Events.ContextDestroyed */, contextId);
     }
     contextChanged({ context }) {
-        this.dispatchEventToListeners("ContextChanged" /* ContextChanged */, context);
+        this.dispatchEventToListeners("ContextChanged" /* Events.ContextChanged */, context);
     }
     audioListenerCreated({ listener }) {
-        this.dispatchEventToListeners("AudioListenerCreated" /* AudioListenerCreated */, listener);
+        this.dispatchEventToListeners("AudioListenerCreated" /* Events.AudioListenerCreated */, listener);
     }
     audioListenerWillBeDestroyed({ listenerId, contextId }) {
-        this.dispatchEventToListeners("AudioListenerWillBeDestroyed" /* AudioListenerWillBeDestroyed */, { listenerId, contextId });
+        this.dispatchEventToListeners("AudioListenerWillBeDestroyed" /* Events.AudioListenerWillBeDestroyed */, { listenerId, contextId });
     }
     audioNodeCreated({ node }) {
-        this.dispatchEventToListeners("AudioNodeCreated" /* AudioNodeCreated */, node);
+        this.dispatchEventToListeners("AudioNodeCreated" /* Events.AudioNodeCreated */, node);
     }
     audioNodeWillBeDestroyed({ contextId, nodeId }) {
-        this.dispatchEventToListeners("AudioNodeWillBeDestroyed" /* AudioNodeWillBeDestroyed */, { contextId, nodeId });
+        this.dispatchEventToListeners("AudioNodeWillBeDestroyed" /* Events.AudioNodeWillBeDestroyed */, { contextId, nodeId });
     }
     audioParamCreated({ param }) {
-        this.dispatchEventToListeners("AudioParamCreated" /* AudioParamCreated */, param);
+        this.dispatchEventToListeners("AudioParamCreated" /* Events.AudioParamCreated */, param);
     }
     audioParamWillBeDestroyed({ contextId, nodeId, paramId }) {
-        this.dispatchEventToListeners("AudioParamWillBeDestroyed" /* AudioParamWillBeDestroyed */, { contextId, nodeId, paramId });
+        this.dispatchEventToListeners("AudioParamWillBeDestroyed" /* Events.AudioParamWillBeDestroyed */, { contextId, nodeId, paramId });
     }
     nodesConnected({ contextId, sourceId, destinationId, sourceOutputIndex, destinationInputIndex }) {
-        this.dispatchEventToListeners("NodesConnected" /* NodesConnected */, { contextId, sourceId, destinationId, sourceOutputIndex, destinationInputIndex });
+        this.dispatchEventToListeners("NodesConnected" /* Events.NodesConnected */, { contextId, sourceId, destinationId, sourceOutputIndex, destinationInputIndex });
     }
     nodesDisconnected({ contextId, sourceId, destinationId, sourceOutputIndex, destinationInputIndex }) {
-        this.dispatchEventToListeners("NodesDisconnected" /* NodesDisconnected */, { contextId, sourceId, destinationId, sourceOutputIndex, destinationInputIndex });
+        this.dispatchEventToListeners("NodesDisconnected" /* Events.NodesDisconnected */, { contextId, sourceId, destinationId, sourceOutputIndex, destinationInputIndex });
     }
     nodeParamConnected({ contextId, sourceId, destinationId, sourceOutputIndex }) {
-        this.dispatchEventToListeners("NodeParamConnected" /* NodeParamConnected */, { contextId, sourceId, destinationId, sourceOutputIndex });
+        this.dispatchEventToListeners("NodeParamConnected" /* Events.NodeParamConnected */, { contextId, sourceId, destinationId, sourceOutputIndex });
     }
     nodeParamDisconnected({ contextId, sourceId, destinationId, sourceOutputIndex }) {
-        this.dispatchEventToListeners("NodeParamDisconnected" /* NodeParamDisconnected */, { contextId, sourceId, destinationId, sourceOutputIndex });
+        this.dispatchEventToListeners("NodeParamDisconnected" /* Events.NodeParamDisconnected */, { contextId, sourceId, destinationId, sourceOutputIndex });
     }
     async requestRealtimeData(contextId) {
         const realtimeResponse = await this.agent.invoke_getRealtimeData({ contextId });

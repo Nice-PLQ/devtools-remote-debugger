@@ -2,7 +2,7 @@ import * as Common from '../../core/common/common.js';
 import * as SDK from '../../core/sdk/sdk.js';
 import * as Workspace from '../../models/workspace/workspace.js';
 import * as UI from '../../ui/legacy/legacy.js';
-import type { NavigatorView } from './NavigatorView.js';
+import { type NavigatorView } from './NavigatorView.js';
 import { SourcesView } from './SourcesView.js';
 export declare class SourcesPanel extends UI.Panel.Panel implements UI.ContextMenu.Provider, SDK.TargetManager.Observer, UI.View.ViewLocationResolver {
     private readonly workspace;
@@ -52,7 +52,10 @@ export declare class SourcesPanel extends UI.Panel.Panel implements UI.ContextMe
     ensureSourcesViewVisible(): boolean;
     onResize(): void;
     searchableView(): UI.SearchableView.SearchableView;
+    toggleNavigatorSidebar(): void;
+    toggleDebuggerSidebar(): void;
     private debuggerPaused;
+    private debugInfoAttached;
     private showDebuggerPausedDetails;
     private debuggerResumed;
     private debuggerWasEnabled;
@@ -60,7 +63,8 @@ export declare class SourcesPanel extends UI.Panel.Panel implements UI.ContextMe
     showUISourceCode(uiSourceCode: Workspace.UISourceCode.UISourceCode, lineNumber?: number, columnNumber?: number, omitFocus?: boolean): void;
     private showEditor;
     showUILocation(uiLocation: Workspace.UISourceCode.UILocation, omitFocus?: boolean): void;
-    private revealInNavigator;
+    revealInNavigator(uiSourceCode: Workspace.UISourceCode.UISourceCode, skipReveal?: boolean): void;
+    private addExperimentMenuItem;
     private populateNavigatorMenu;
     setIgnoreExecutionLineEvents(ignoreExecutionLineEvents: boolean): void;
     updateLastModificationTime(): void;
@@ -68,12 +72,10 @@ export declare class SourcesPanel extends UI.Panel.Panel implements UI.ContextMe
     private lastModificationTimeoutPassedForTest;
     private updateLastModificationTimeForTest;
     private callFrameChanged;
-    private pauseOnExceptionEnabledChanged;
     private updateDebuggerButtonsAndStatus;
     private updateDebuggerButtonsAndStatusForTest;
     private clearInterface;
     private switchToPausedTarget;
-    private togglePauseOnExceptions;
     runSnippet(): void;
     private editorSelected;
     togglePause(): boolean;
@@ -139,10 +141,10 @@ export declare class RevealingActionDelegate implements UI.ActionRegistration.Ac
     }): RevealingActionDelegate;
     handleAction(context: UI.Context.Context, actionId: string): boolean;
 }
-export declare class DebuggingActionDelegate implements UI.ActionRegistration.ActionDelegate {
+export declare class ActionDelegate implements UI.ActionRegistration.ActionDelegate {
     static instance(opts?: {
         forceNew: boolean | null;
-    }): DebuggingActionDelegate;
+    }): ActionDelegate;
     handleAction(context: UI.Context.Context, actionId: string): boolean;
 }
 export declare class WrapperView extends UI.Widget.VBox {

@@ -38,7 +38,7 @@ export class CoverageModel extends SDK.SDKModel.SDKModel {
         // update doesn't change the coverage. Some visualizations want to convey to the user that
         // an update was received at a certain time, but did not result in a coverage change.
         this.coverageUpdateTimes = new Set();
-        this.suspensionState = "Active" /* Active */;
+        this.suspensionState = "Active" /* SuspensionState.Active */;
         this.pollTimer = null;
         this.currentPollPromise = null;
         this.shouldResumePollingOnResume = false;
@@ -47,7 +47,7 @@ export class CoverageModel extends SDK.SDKModel.SDKModel {
         this.performanceTraceRecording = false;
     }
     async start(jsCoveragePerBlock) {
-        if (this.suspensionState !== "Active" /* Active */) {
+        if (this.suspensionState !== "Active" /* SuspensionState.Active */) {
             throw Error('Cannot start CoverageModel while it is not active.');
         }
         const promises = [];
@@ -66,7 +66,7 @@ export class CoverageModel extends SDK.SDKModel.SDKModel {
     }
     preciseCoverageDeltaUpdate(timestamp, occasion, coverageData) {
         this.coverageUpdateTimes.add(timestamp);
-        this.backlogOrProcessJSCoverage(coverageData, timestamp);
+        void this.backlogOrProcessJSCoverage(coverageData, timestamp);
     }
     async stop() {
         await this.stopPolling();
@@ -87,7 +87,7 @@ export class CoverageModel extends SDK.SDKModel.SDKModel {
         this.dispatchEventToListeners(Events.CoverageReset);
     }
     async startPolling() {
-        if (this.currentPollPromise || this.suspensionState !== "Active" /* Active */) {
+        if (this.currentPollPromise || this.suspensionState !== "Active" /* SuspensionState.Active */) {
             return;
         }
         await this.pollLoop();
@@ -96,7 +96,7 @@ export class CoverageModel extends SDK.SDKModel.SDKModel {
         this.clearTimer();
         this.currentPollPromise = this.pollAndCallback();
         await this.currentPollPromise;
-        if (this.suspensionState === "Active" /* Active */ || this.performanceTraceRecording) {
+        if (this.suspensionState === "Active" /* SuspensionState.Active */ || this.performanceTraceRecording) {
             this.pollTimer = window.setTimeout(() => this.pollLoop(), COVERAGE_POLLING_PERIOD_MS);
         }
     }
@@ -108,13 +108,13 @@ export class CoverageModel extends SDK.SDKModel.SDKModel {
         await this.pollAndCallback();
     }
     async pollAndCallback() {
-        if (this.suspensionState === "Suspended" /* Suspended */ && !this.performanceTraceRecording) {
+        if (this.suspensionState === "Suspended" /* SuspensionState.Suspended */ && !this.performanceTraceRecording) {
             return;
         }
         const updates = await this.takeAllCoverage();
         // This conditional should never trigger, as all intended ways to stop
         // polling are awaiting the `_currentPollPromise` before suspending.
-        console.assert(this.suspensionState !== "Suspended" /* Suspended */ || Boolean(this.performanceTraceRecording), 'CoverageModel was suspended while polling.');
+        console.assert(this.suspensionState !== "Suspended" /* SuspensionState.Suspended */ || Boolean(this.performanceTraceRecording), 'CoverageModel was suspended while polling.');
         if (updates.length) {
             this.dispatchEventToListeners(Events.CoverageUpdated, updates);
         }
@@ -130,10 +130,10 @@ export class CoverageModel extends SDK.SDKModel.SDKModel {
      * due because it changes the state to suspending.
      */
     async preSuspendModel(reason) {
-        if (this.suspensionState !== "Active" /* Active */) {
+        if (this.suspensionState !== "Active" /* SuspensionState.Active */) {
             return;
         }
-        this.suspensionState = "Suspending" /* Suspending */;
+        this.suspensionState = "Suspending" /* SuspensionState.Suspending */;
         if (reason === 'performance-timeline') {
             this.performanceTraceRecording = true;
             // Keep polling to the backlog if a performance trace is recorded.
@@ -145,7 +145,7 @@ export class CoverageModel extends SDK.SDKModel.SDKModel {
         }
     }
     async suspendModel(_reason) {
-        this.suspensionState = "Suspended" /* Suspended */;
+        this.suspensionState = "Suspended" /* SuspensionState.Suspended */;
     }
     async resumeModel() {
     }
@@ -154,7 +154,7 @@ export class CoverageModel extends SDK.SDKModel.SDKModel {
      * because starting polling is idempotent.
      */
     async postResumeModel() {
-        this.suspensionState = "Active" /* Active */;
+        this.suspensionState = "Active" /* SuspensionState.Active */;
         this.performanceTraceRecording = false;
         if (this.shouldResumePollingOnResume) {
             this.shouldResumePollingOnResume = false;
@@ -173,7 +173,7 @@ export class CoverageModel extends SDK.SDKModel.SDKModel {
     }
     clearCSS() {
         for (const entry of this.coverageByContentProvider.values()) {
-            if (entry.type() !== 1 /* CSS */) {
+            if (entry.type() !== 1 /* CoverageType.CSS */) {
                 continue;
             }
             const contentProvider = entry.getContentProvider();
@@ -213,7 +213,7 @@ export class CoverageModel extends SDK.SDKModel.SDKModel {
         if (freshRawCoverageData.length > 0) {
             this.jsBacklog.push({ rawCoverageData: freshRawCoverageData, stamp: freshTimestamp });
         }
-        if (this.suspensionState !== "Active" /* Active */) {
+        if (this.suspensionState !== "Active" /* SuspensionState.Active */) {
             return [];
         }
         const ascendingByTimestamp = (x, y) => x.stamp - y.stamp;
@@ -225,7 +225,7 @@ export class CoverageModel extends SDK.SDKModel.SDKModel {
         return results.flat();
     }
     async processJSBacklog() {
-        this.backlogOrProcessJSCoverage([], 0);
+        void this.backlogOrProcessJSCoverage([], 0);
     }
     processJSCoverage(scriptsCoverage, stamp) {
         if (!this.debuggerModel) {
@@ -238,14 +238,14 @@ export class CoverageModel extends SDK.SDKModel.SDKModel {
                 continue;
             }
             const ranges = [];
-            let type = 2 /* JavaScript */;
+            let type = 2 /* CoverageType.JavaScript */;
             for (const func of entry.functions) {
                 // Do not coerce undefined to false, i.e. only consider blockLevel to be false
                 // if back-end explicitly provides blockLevel field, otherwise presume blockLevel
                 // coverage is not available. Also, ignore non-block level functions that weren't
                 // ever called.
                 if (func.isBlockCoverage === false && !(func.ranges.length === 1 && !func.ranges[0].count)) {
-                    type |= 4 /* JavaScriptPerFunction */;
+                    type |= 4 /* CoverageType.JavaScriptPerFunction */;
                 }
                 for (const range of func.ranges) {
                     ranges.push(range);
@@ -263,7 +263,7 @@ export class CoverageModel extends SDK.SDKModel.SDKModel {
     }
     async takeCSSCoverage() {
         // Don't poll if we have no model, or are suspended.
-        if (!this.cssModel || this.suspensionState !== "Active" /* Active */) {
+        if (!this.cssModel || this.suspensionState !== "Active" /* SuspensionState.Active */) {
             return [];
         }
         const { coverage, timestamp } = await this.cssModel.takeCoverageDelta();
@@ -274,7 +274,7 @@ export class CoverageModel extends SDK.SDKModel.SDKModel {
         if (freshRawCoverageData.length > 0) {
             this.cssBacklog.push({ rawCoverageData: freshRawCoverageData, stamp: freshTimestamp });
         }
-        if (this.suspensionState !== "Active" /* Active */) {
+        if (this.suspensionState !== "Active" /* SuspensionState.Active */) {
             return [];
         }
         const ascendingByTimestamp = (x, y) => x.stamp - y.stamp;
@@ -306,7 +306,7 @@ export class CoverageModel extends SDK.SDKModel.SDKModel {
         for (const entry of rulesByStyleSheet) {
             const styleSheetHeader = entry[0];
             const ranges = entry[1];
-            const subentry = this.addCoverage(styleSheetHeader, styleSheetHeader.contentLength, styleSheetHeader.startLine, styleSheetHeader.startColumn, ranges, 1 /* CSS */, stamp);
+            const subentry = this.addCoverage(styleSheetHeader, styleSheetHeader.contentLength, styleSheetHeader.startLine, styleSheetHeader.startColumn, ranges, 1 /* CoverageType.CSS */, stamp);
             if (subentry) {
                 updatedEntries.push(subentry);
             }
@@ -346,7 +346,7 @@ export class CoverageModel extends SDK.SDKModel.SDKModel {
         return result;
     }
     addStyleSheetToCSSCoverage(styleSheetHeader) {
-        this.addCoverage(styleSheetHeader, styleSheetHeader.contentLength, styleSheetHeader.startLine, styleSheetHeader.startColumn, [], 1 /* CSS */, Date.now());
+        this.addCoverage(styleSheetHeader, styleSheetHeader.contentLength, styleSheetHeader.startLine, styleSheetHeader.startColumn, [], 1 /* CoverageType.CSS */, Date.now());
     }
     addCoverage(contentProvider, contentLength, startLine, startColumn, ranges, type, stamp) {
         const url = contentProvider.contentURL();
@@ -389,7 +389,7 @@ export class CoverageModel extends SDK.SDKModel.SDKModel {
             result.push(...await urlInfo.entriesForExport());
         }
         await fos.write(JSON.stringify(result, undefined, 2));
-        fos.close();
+        void fos.close();
     }
 }
 SDK.SDKModel.SDKModel.register(CoverageModel, { capabilities: SDK.Target.Capability.None, autostart: false });
@@ -468,7 +468,7 @@ export class URLCoverageInfo extends Common.ObjectWrapper.ObjectWrapper {
     ensureEntry(contentProvider, contentLength, lineOffset, columnOffset, type) {
         const key = `${lineOffset}:${columnOffset}`;
         let entry = this.coverageInfoByLocation.get(key);
-        if ((type & 2 /* JavaScript */) && !this.coverageInfoByLocation.size) {
+        if ((type & 2 /* CoverageType.JavaScript */) && !this.coverageInfoByLocation.size) {
             this.isContentScriptInternal = contentProvider.isContentScript();
         }
         this.typeInternal |= type;
@@ -476,7 +476,7 @@ export class URLCoverageInfo extends Common.ObjectWrapper.ObjectWrapper {
             entry.addCoverageType(type);
             return entry;
         }
-        if ((type & 2 /* JavaScript */) && !this.coverageInfoByLocation.size) {
+        if ((type & 2 /* CoverageType.JavaScript */) && !this.coverageInfoByLocation.size) {
             this.isContentScriptInternal = contentProvider.isContentScript();
         }
         entry = new CoverageInfo(contentProvider, contentLength, lineOffset, columnOffset, type);

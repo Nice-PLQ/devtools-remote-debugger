@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 // @ts-nocheck
+import * as SourceMapScopesModule from '../../models/source_map_scopes/source_map_scopes.js';
 import * as SourcesModule from './sources.js';
 self.Sources = self.Sources || {};
 Sources = Sources || {};
@@ -9,13 +10,6 @@ Sources = Sources || {};
 Sources.AddSourceMapURLDialog = SourcesModule.AddSourceMapURLDialog.AddSourceMapURLDialog;
 /** @constructor */
 Sources.BreakpointEditDialog = SourcesModule.BreakpointEditDialog.BreakpointEditDialog;
-Sources.BreakpointEditDialog.LogpointPrefix = SourcesModule.BreakpointEditDialog.LogpointPrefix;
-Sources.BreakpointEditDialog._LogpointSuffix = SourcesModule.BreakpointEditDialog.LogpointSuffix;
-Sources.BreakpointEditDialog.BreakpointType = SourcesModule.BreakpointEditDialog.BreakpointType;
-/** @constructor */
-Sources.CSSPlugin = SourcesModule.CSSPlugin.CSSPlugin;
-Sources.CSSPlugin.maxSwatchProcessingLength = SourcesModule.CSSPlugin.maxSwatchProcessingLength;
-Sources.CSSPlugin.SwatchBookmark = SourcesModule.CSSPlugin.SwatchBookmark;
 /** @constructor */
 Sources.CallStackSidebarPane = SourcesModule.CallStackSidebarPane.CallStackSidebarPane;
 Sources.CallStackSidebarPane._elementSymbol = SourcesModule.CallStackSidebarPane.elementSymbol;
@@ -51,14 +45,6 @@ Sources.GoToLineQuickOpen = SourcesModule.GoToLineQuickOpen.GoToLineQuickOpen;
 /** @constructor */
 Sources.InplaceFormatterEditorAction = SourcesModule.InplaceFormatterEditorAction.InplaceFormatterEditorAction;
 /** @constructor */
-Sources.JavaScriptBreakpointsSidebarPane =
-    SourcesModule.JavaScriptBreakpointsSidebarPane.JavaScriptBreakpointsSidebarPane;
-Sources.JavaScriptBreakpointsSidebarPane.retrieveLocationForElement =
-    SourcesModule.JavaScriptBreakpointsSidebarPane.retrieveLocationForElement;
-/** @constructor */
-Sources.JavaScriptCompilerPlugin = SourcesModule.JavaScriptCompilerPlugin.JavaScriptCompilerPlugin;
-Sources.JavaScriptCompilerPlugin.CompileDelay = SourcesModule.JavaScriptCompilerPlugin.CompileDelay;
-/** @constructor */
 Sources.NavigatorView = SourcesModule.NavigatorView.NavigatorView;
 Sources.NavigatorView.Types = SourcesModule.NavigatorView.Types;
 /** @constructor */
@@ -84,33 +70,18 @@ Sources.ScopeChainSidebarPane = SourcesModule.ScopeChainSidebarPane.ScopeChainSi
 /** @constructor */
 Sources.ScopeChainSidebarPane.OpenLinearMemoryInspector = SourcesModule.ScopeChainSidebarPane.OpenLinearMemoryInspector;
 /** @constructor */
-Sources.ScriptFormatterEditorAction = SourcesModule.ScriptFormatterEditorAction.ScriptFormatterEditorAction;
-/** @constructor */
-Sources.ScriptOriginPlugin = SourcesModule.ScriptOriginPlugin.ScriptOriginPlugin;
-Sources.ScriptOriginPlugin._linkifier = SourcesModule.ScriptOriginPlugin.linkifier;
-/** @constructor */
 Sources.SearchSourcesView = SourcesModule.SearchSourcesView.SearchSourcesView;
 /** @constructor */
 Sources.SearchSourcesView.ActionDelegate = SourcesModule.SearchSourcesView.ActionDelegate;
 /** @constructor */
 Sources.SnippetsPlugin = SourcesModule.SnippetsPlugin.SnippetsPlugin;
 Sources.SourceMapNamesResolver = {};
-Sources.SourceMapNamesResolver.setScopeResolvedForTest = SourcesModule.SourceMapNamesResolver.setScopeResolvedForTest;
 // Tests can override this global symbol and therefore can't be exported
 Object.defineProperty(Sources.SourceMapNamesResolver, '_scopeResolvedForTest', {
-    get: SourcesModule.SourceMapNamesResolver.getScopeResolvedForTest,
-    set: SourcesModule.SourceMapNamesResolver.setScopeResolvedForTest,
+    get: SourceMapScopesModule.NamesResolver.getScopeResolvedForTest,
+    set: SourceMapScopesModule.NamesResolver.setScopeResolvedForTest,
 });
-Sources.SourceMapNamesResolver._scopeIdentifiers = SourcesModule.SourceMapNamesResolver.scopeIdentifiers;
-Sources.SourceMapNamesResolver._resolveScope = SourcesModule.SourceMapNamesResolver.resolveScope;
-Sources.SourceMapNamesResolver._allVariablesInCallFrame = SourcesModule.SourceMapNamesResolver.allVariablesInCallFrame;
-Sources.SourceMapNamesResolver.resolveExpression = SourcesModule.SourceMapNamesResolver.resolveExpression;
-Sources.SourceMapNamesResolver.resolveThisObject = SourcesModule.SourceMapNamesResolver.resolveThisObject;
-Sources.SourceMapNamesResolver.resolveScopeInObject = SourcesModule.SourceMapNamesResolver.resolveScopeInObject;
-/** @constructor */
-Sources.SourceMapNamesResolver.Identifier = SourcesModule.SourceMapNamesResolver.Identifier;
-/** @constructor */
-Sources.SourceMapNamesResolver.RemoteObject = SourcesModule.SourceMapNamesResolver.RemoteObject;
+Sources.SourceMapNamesResolver.resolveExpression = SourceMapScopesModule.NamesResolver.resolveExpression;
 /** @constructor */
 Sources.NetworkNavigatorView = SourcesModule.SourcesNavigator.NetworkNavigatorView;
 /** @constructor */
@@ -138,7 +109,7 @@ Sources.SourcesPanel.DebuggerPausedDetailsRevealer = SourcesModule.SourcesPanel.
 /** @constructor */
 Sources.SourcesPanel.RevealingActionDelegate = SourcesModule.SourcesPanel.RevealingActionDelegate;
 /** @constructor */
-Sources.SourcesPanel.DebuggingActionDelegate = SourcesModule.SourcesPanel.DebuggingActionDelegate;
+Sources.SourcesPanel.ActionDelegate = SourcesModule.SourcesPanel.ActionDelegate;
 /** @constructor */
 Sources.SourcesPanel.WrapperView = SourcesModule.SourcesPanel.WrapperView;
 /** @constructor */
@@ -160,9 +131,6 @@ Sources.SourcesView.ActionDelegate = SourcesModule.SourcesView.ActionDelegate;
 Sources.TabbedEditorContainer = SourcesModule.TabbedEditorContainer.TabbedEditorContainer;
 /** @enum {symbol} */
 Sources.TabbedEditorContainer.Events = SourcesModule.TabbedEditorContainer.Events;
-Sources.TabbedEditorContainer._tabId = SourcesModule.TabbedEditorContainer.tabId;
-Sources.TabbedEditorContainer.maximalPreviouslyViewedFilesCount =
-    SourcesModule.TabbedEditorContainer.maximalPreviouslyViewedFilesCount;
 /** @constructor */
 Sources.TabbedEditorContainer.HistoryItem = SourcesModule.TabbedEditorContainer.HistoryItem;
 /** @constructor */

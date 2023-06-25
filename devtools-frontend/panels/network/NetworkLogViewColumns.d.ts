@@ -1,8 +1,8 @@
 import * as Common from '../../core/common/common.js';
 import * as DataGrid from '../../ui/legacy/components/data_grid/data_grid.js';
-import type { NetworkNode } from './NetworkDataGridNode.js';
-import type { NetworkLogView } from './NetworkLogView.js';
-import type { NetworkTimeCalculator, NetworkTransferDurationCalculator, NetworkTransferTimeCalculator } from './NetworkTimeCalculator.js';
+import { type NetworkNode } from './NetworkDataGridNode.js';
+import { type NetworkLogView } from './NetworkLogView.js';
+import { type NetworkTimeCalculator, type NetworkTransferDurationCalculator, type NetworkTransferTimeCalculator } from './NetworkTimeCalculator.js';
 export declare class NetworkLogViewColumns {
     private networkLogView;
     private readonly persistantSettings;

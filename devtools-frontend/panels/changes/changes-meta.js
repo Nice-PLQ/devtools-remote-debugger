@@ -25,11 +25,11 @@ async function loadChangesModule() {
     return loadedChangesModule;
 }
 UI.ViewManager.registerViewExtension({
-    location: "drawer-view" /* DRAWER_VIEW */,
+    location: "drawer-view" /* UI.ViewManager.ViewLocationValues.DRAWER_VIEW */,
     id: 'changes.changes',
     title: i18nLazyString(UIStrings.changes),
     commandPrompt: i18nLazyString(UIStrings.showChanges),
-    persistence: "closeable" /* CLOSEABLE */,
+    persistence: "closeable" /* UI.ViewManager.ViewPersistence.CLOSEABLE */,
     async loadView() {
         const Changes = await loadChangesModule();
         return Changes.ChangesView.ChangesView.instance();

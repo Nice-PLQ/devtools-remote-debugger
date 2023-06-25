@@ -1,5 +1,4 @@
-import type { NodeCreationData, Port } from './GraphStyle.js';
-import { PortTypes } from './GraphStyle.js';
+import { PortTypes, type NodeCreationData, type Port } from './GraphStyle.js';
 export declare class NodeView {
     id: string;
     type: string;

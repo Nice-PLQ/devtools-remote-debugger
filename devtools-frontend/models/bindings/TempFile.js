@@ -69,7 +69,7 @@ export class TempFile {
     }
     async copyToOutputStream(outputStream, progress) {
         if (!this.#lastBlob) {
-            outputStream.close();
+            void outputStream.close();
             return null;
         }
         const reader = new ChunkedFileReader(this.#lastBlob, 10 * 1000 * 1000, progress);
@@ -77,57 +77,6 @@ export class TempFile {
     }
     remove() {
         this.#lastBlob = null;
-    }
-}
-export class TempFileBackingStorage {
-    #file;
-    #strings;
-    #stringsLength;
-    constructor() {
-        this.#file = null;
-        this.reset();
-    }
-    appendString(string) {
-        this.#strings.push(string);
-        this.#stringsLength += string.length;
-        const flushStringLength = 10 * 1024 * 1024;
-        if (this.#stringsLength > flushStringLength) {
-            this.flush();
-        }
-    }
-    appendAccessibleString(string) {
-        this.flush();
-        if (!this.#file) {
-            return async () => null;
-        }
-        const startOffset = this.#file.size();
-        this.#strings.push(string);
-        this.flush();
-        return this.#file.readRange.bind(this.#file, startOffset, this.#file.size());
-    }
-    flush() {
-        if (!this.#strings.length) {
-            return;
-        }
-        if (!this.#file) {
-            this.#file = new TempFile();
-        }
-        this.#stringsLength = 0;
-        this.#file.write(this.#strings.splice(0));
-    }
-    finishWriting() {
-        this.flush();
-    }
-    reset() {
-        if (this.#file) {
-            this.#file.remove();
-        }
-        this.#file = null;
-        this.#strings = [];
-        this.#stringsLength = 0;
-    }
-    writeToStream(outputStream) {
-        return this.#file ? this.#file.copyToOutputStream(outputStream) : Promise.resolve(null);
     }
 }
 //# sourceMappingURL=TempFile.js.map

@@ -32,7 +32,6 @@ export declare class CSSAngle extends HTMLElement {
     private popoverStyleTop;
     private popoverStyleLeft;
     private onMinifyingAction;
-    private onAngleUpdate;
     connectedCallback(): void;
     set data(data: CSSAngleData);
     disconnectedCallback(): void;

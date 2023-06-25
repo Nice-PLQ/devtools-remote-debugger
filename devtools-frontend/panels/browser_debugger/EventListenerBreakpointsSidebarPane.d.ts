@@ -3,5 +3,5 @@ import { CategorizedBreakpointsSidebarPane } from './CategorizedBreakpointsSideb
 export declare class EventListenerBreakpointsSidebarPane extends CategorizedBreakpointsSidebarPane {
     private constructor();
     static instance(): EventListenerBreakpointsSidebarPane;
-    getBreakpointFromPausedDetails(details: SDK.DebuggerModel.DebuggerPausedDetails): SDK.DOMDebuggerModel.CategorizedBreakpoint | null;
+    getBreakpointFromPausedDetails(details: SDK.DebuggerModel.DebuggerPausedDetails): SDK.CategorizedBreakpoint.CategorizedBreakpoint | null;
 }

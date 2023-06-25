@@ -7,14 +7,14 @@ await ComponentHelpers.ComponentServerSetup.setup();
 const iconTable = document.getElementById('icon-overview');
 const row1 = document.createElement('tr');
 const iconName1 = document.createElement('td');
-iconName1.textContent = 'node_search_icon';
+iconName1.textContent = 'select-element';
 row1.appendChild(iconName1);
 const icon = new IconButton.Icon.Icon();
-const name = 'node_search_icon';
+const name = 'select-element';
 icon.data = {
     iconName: name,
     color: 'rgb(110, 110, 110)',
-    width: '24px',
+    width: '20px',
 };
 const icon1 = document.createElement('td');
 icon1.appendChild(icon);
@@ -26,15 +26,15 @@ icon.onclick = () => {
 };
 const row2 = document.createElement('tr');
 const iconName2 = document.createElement('td');
-iconName2.textContent = 'issue-exclamation-icon';
+iconName2.textContent = 'issue-exclamation-filled';
 row2.appendChild(iconName2);
 const otherIcon = new IconButton.Icon.Icon();
-const otherPath = '/Images/issue-exclamation-icon.svg';
+const otherPath = '../../../../Images/src/issue-exclamation-filled.svg';
 otherIcon.data = {
     iconPath: otherPath,
-    width: '24px',
-    height: '27px',
-    color: 'blue',
+    width: '20px',
+    height: '20px',
+    color: 'var(--icon-link)',
 };
 const icon2 = document.createElement('td');
 icon2.appendChild(otherIcon);
@@ -42,15 +42,15 @@ row2.appendChild(icon2);
 iconTable?.appendChild(row2);
 const row3 = document.createElement('tr');
 const iconName3 = document.createElement('td');
-iconName3.textContent = 'node_search_icon';
+iconName3.textContent = 'select-element';
 row3.appendChild(iconName3);
 const otherIcon2 = new IconButton.Icon.Icon();
 otherIcon2.classList.add('custom-color');
 otherIcon2.data = {
-    iconName: 'node_search_icon',
-    width: '24px',
-    height: '24px',
-    color: 'black',
+    iconName: 'select-element',
+    width: '20px',
+    height: '20px',
+    color: 'var(--icon-default)',
 };
 const icon3 = document.createElement('td');
 icon3.appendChild(otherIcon2);
@@ -64,10 +64,10 @@ iconTable?.appendChild(row3);
     const otherIcon3 = new IconButton.Icon.Icon();
     otherIcon3.classList.add('custom-color');
     otherIcon3.data = {
-        iconName: 'node_search_icon',
-        width: '24px',
-        height: '24px',
-        color: 'black',
+        iconName: 'select-element',
+        width: '20px',
+        height: '20px',
+        color: 'var(--icon-default)',
     };
     div.appendChild(otherIcon3);
     const span2 = document.createElement('span');
@@ -83,10 +83,10 @@ iconTable?.appendChild(row3);
     const otherIcon3 = new IconButton.Icon.Icon();
     otherIcon3.classList.add('custom-color');
     otherIcon3.data = {
-        iconName: 'node_search_icon',
-        width: '10px',
-        height: '10px',
-        color: 'black',
+        iconName: 'select-element',
+        width: '14px',
+        height: '14px',
+        color: 'var(--icon-default)',
     };
     div.appendChild(otherIcon3);
     const span2 = document.createElement('span');
@@ -96,9 +96,9 @@ iconTable?.appendChild(row3);
 })();
 const iconInFlex = document.getElementById('icon-in-flex');
 iconInFlex.data = {
-    iconName: 'error_icon',
-    width: '16px',
-    height: '16px',
-    color: '',
+    iconName: 'cross-circle',
+    width: '20px',
+    height: '20px',
+    color: 'var(--icon-error)',
 };
 //# sourceMappingURL=basic.js.map

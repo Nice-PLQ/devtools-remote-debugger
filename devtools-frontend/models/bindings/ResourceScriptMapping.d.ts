@@ -1,21 +1,24 @@
 import * as Common from '../../core/common/common.js';
+import * as Platform from '../../core/platform/platform.js';
 import * as SDK from '../../core/sdk/sdk.js';
+import * as Protocol from '../../generated/protocol.js';
+import type * as TextUtils from '../text_utils/text_utils.js';
 import * as Workspace from '../workspace/workspace.js';
-import type * as Protocol from '../../generated/protocol.js';
-import type { Breakpoint } from './BreakpointManager.js';
-import type { DebuggerSourceMapping, DebuggerWorkspaceBinding } from './DebuggerWorkspaceBinding.js';
+import { DebuggerWorkspaceBinding, type DebuggerSourceMapping } from './DebuggerWorkspaceBinding.js';
 export declare class ResourceScriptMapping implements DebuggerSourceMapping {
     #private;
     readonly debuggerModel: SDK.DebuggerModel.DebuggerModel;
     readonly debuggerWorkspaceBinding: DebuggerWorkspaceBinding;
     constructor(debuggerModel: SDK.DebuggerModel.DebuggerModel, workspace: Workspace.Workspace.WorkspaceImpl, debuggerWorkspaceBinding: DebuggerWorkspaceBinding);
     private project;
+    uiSourceCodeForScript(script: SDK.Script.Script): Workspace.UISourceCode.UISourceCode | null;
     rawLocationToUILocation(rawLocation: SDK.DebuggerModel.Location): Workspace.UISourceCode.UILocation | null;
     uiLocationToRawLocations(uiSourceCode: Workspace.UISourceCode.UISourceCode, lineNumber: number, columnNumber: number): SDK.DebuggerModel.Location[];
-    private acceptsScript;
-    private parsedScriptSource;
+    uiLocationRangeToRawLocationRanges(uiSourceCode: Workspace.UISourceCode.UISourceCode, { startLine, startColumn, endLine, endColumn }: TextUtils.TextRange.TextRange): SDK.DebuggerModel.LocationRange[] | null;
+    private inspectedURLChanged;
+    private addScript;
     scriptFile(uiSourceCode: Workspace.UISourceCode.UISourceCode): ResourceScriptFile | null;
-    private removeScript;
+    private removeScripts;
     private executionContextDestroyed;
     private globalObjectCleared;
     resetForTest(): void;
@@ -23,13 +26,11 @@ export declare class ResourceScriptMapping implements DebuggerSourceMapping {
 }
 export declare class ResourceScriptFile extends Common.ObjectWrapper.ObjectWrapper<ResourceScriptFile.EventTypes> {
     #private;
-    scriptInternal: SDK.Script.Script | undefined;
-    constructor(resourceScriptMapping: ResourceScriptMapping, uiSourceCode: Workspace.UISourceCode.UISourceCode, scripts: SDK.Script.Script[]);
-    hasScripts(scripts: SDK.Script.Script[]): boolean;
+    constructor(resourceScriptMapping: ResourceScriptMapping, uiSourceCode: Workspace.UISourceCode.UISourceCode, script: SDK.Script.Script);
     private isDiverged;
     private workingCopyChanged;
     private workingCopyCommitted;
-    scriptSourceWasSet(source: string, breakpoints: Breakpoint[], error: string | null, exceptionDetails?: Protocol.Runtime.ExceptionDetails): Promise<void>;
+    scriptSourceWasSet(source: string, status: Protocol.Debugger.SetScriptSourceResponseStatus, exceptionDetails?: Protocol.Runtime.ExceptionDetails): Promise<void>;
     private update;
     private divergeFromVM;
     private mergeToVM;
@@ -39,8 +40,10 @@ export declare class ResourceScriptFile extends Common.ObjectWrapper.ObjectWrapp
     checkMapping(): void;
     private mappingCheckedForTest;
     dispose(): void;
-    addSourceMapURL(sourceMapURL: string): void;
+    addSourceMapURL(sourceMapURL: Platform.DevToolsPath.UrlString): void;
+    addDebugInfoURL(debugInfoURL: Platform.DevToolsPath.UrlString): void;
     hasSourceMapURL(): boolean;
+    missingSymbolFiles(): Promise<string[] | null>;
     get script(): SDK.Script.Script | null;
     get uiSourceCode(): Workspace.UISourceCode.UISourceCode;
 }

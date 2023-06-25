@@ -1,15 +1,18 @@
 import * as UI from '../../ui/legacy/legacy.js';
+import * as ApplicationComponents from './components/components.js';
 export declare class StorageItemsView extends UI.Widget.VBox {
     private filterRegex;
-    private readonly refreshButton;
+    readonly refreshButton: UI.Toolbar.ToolbarButton;
     private readonly mainToolbar;
-    private readonly filterItem;
-    private readonly deleteAllButton;
-    private readonly deleteSelectedButton;
+    readonly filterItem: UI.Toolbar.ToolbarInput;
+    readonly deleteAllButton: UI.Toolbar.ToolbarButton;
+    readonly deleteSelectedButton: UI.Toolbar.ToolbarButton;
+    readonly metadataView: ApplicationComponents.StorageMetadataView.StorageMetadataView;
     constructor(_title: string, _filterName: string);
     setDeleteAllTitle(title: string): void;
     setDeleteAllGlyph(glyph: string): void;
     appendToolbarItem(item: UI.Toolbar.ToolbarItem): void;
+    setStorageKey(storageKey: string): void;
     private addButton;
     private filterChanged;
     filter<T>(items: T[], keyFunction: (arg0: T) => string): T[];

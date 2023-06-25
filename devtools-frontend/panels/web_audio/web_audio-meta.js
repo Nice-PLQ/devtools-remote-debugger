@@ -5,8 +5,8 @@ import * as i18n from '../../core/i18n/i18n.js';
 import * as UI from '../../ui/legacy/legacy.js';
 const UIStrings = {
     /**
-    *@description Title of the WebAudio tool
-    */
+     *@description Title of the WebAudio tool
+     */
     webaudio: 'WebAudio',
     /**
      *@description A tags of WebAudio tool that can be searched in the command menu
@@ -27,11 +27,11 @@ async function loadWebAudioModule() {
     return loadedWebAudioModule;
 }
 UI.ViewManager.registerViewExtension({
-    location: "drawer-view" /* DRAWER_VIEW */,
+    location: "drawer-view" /* UI.ViewManager.ViewLocationValues.DRAWER_VIEW */,
     id: 'web-audio',
     title: i18nLazyString(UIStrings.webaudio),
     commandPrompt: i18nLazyString(UIStrings.showWebaudio),
-    persistence: "closeable" /* CLOSEABLE */,
+    persistence: "closeable" /* UI.ViewManager.ViewPersistence.CLOSEABLE */,
     order: 100,
     async loadView() {
         const WebAudio = await loadWebAudioModule();

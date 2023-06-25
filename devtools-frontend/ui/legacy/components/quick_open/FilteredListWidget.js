@@ -13,16 +13,16 @@ import * as UI from '../../legacy.js';
 import filteredListWidgetStyles from './filteredListWidget.css.js';
 const UIStrings = {
     /**
-    * @description Aria label for quick open dialog prompt
-    */
+     * @description Aria label for quick open dialog prompt
+     */
     quickOpenPrompt: 'Quick open prompt',
     /**
-    * @description Title of quick open dialog
-    */
+     * @description Title of quick open dialog
+     */
     quickOpen: 'Quick open',
     /**
-    * @description Text to show no results have been found
-    */
+     * @description Text to show no results have been found
+     */
     noResultsFound: 'No results found',
 };
 const str_ = i18n.i18n.registerUIStrings('ui/legacy/components/quick_open/FilteredListWidget.ts', UIStrings);
@@ -57,11 +57,12 @@ export class FilteredListWidget extends Common.ObjectWrapper.eventMixin(UI.Widge
         const listener = this.onKeyDown.bind(this);
         this.contentElement.addEventListener('keydown', listener, true);
         UI.ARIAUtils.markAsCombobox(this.contentElement);
+        const hbox = this.contentElement.createChild('div', 'hbox');
         this.inputBoxElement = new TextPrompt.TextPrompt.TextPrompt();
         this.inputBoxElement.data = { ariaLabel: i18nString(UIStrings.quickOpenPrompt), prefix: '', suggestion: '' };
         this.inputBoxElement.addEventListener(TextPrompt.TextPrompt.PromptInputEvent.eventName, this.onInput.bind(this), false);
-        this.contentElement.appendChild(this.inputBoxElement);
-        this.hintElement = this.contentElement.createChild('div', 'filtered-list-widget-hint');
+        hbox.appendChild(this.inputBoxElement);
+        this.hintElement = hbox.createChild('span', 'filtered-list-widget-hint');
         this.bottomElementsContainer = this.contentElement.createChild('div', 'vbox');
         this.progressElement = this.bottomElementsContainer.createChild('div', 'filtered-list-widget-progress');
         this.progressBarElement = this.progressElement.createChild('div', 'filtered-list-widget-progress-bar');
@@ -71,7 +72,7 @@ export class FilteredListWidget extends Common.ObjectWrapper.eventMixin(UI.Widge
         this.itemElementsContainer.classList.add('container');
         this.bottomElementsContainer.appendChild(this.itemElementsContainer);
         this.itemElementsContainer.addEventListener('click', this.onClick.bind(this), false);
-        this.itemElementsContainer.addEventListener('mouseover', this.onMouseOver.bind(this), false);
+        this.itemElementsContainer.addEventListener('mousemove', this.onMouseMove.bind(this), false);
         UI.ARIAUtils.markAsListBox(this.itemElementsContainer);
         UI.ARIAUtils.setControls(this.inputBoxElement, this.itemElementsContainer);
         UI.ARIAUtils.setAutocomplete(this.inputBoxElement, UI.ARIAUtils.AutocompleteInteractionModel.list);
@@ -128,22 +129,22 @@ export class FilteredListWidget extends Common.ObjectWrapper.eventMixin(UI.Widge
      * Sets the text prompt's accessible title. By default, it is "Quick open prompt".
      */
     setPromptTitle(title) {
-        UI.ARIAUtils.setAccessibleName(this.inputBoxElement, title);
+        UI.ARIAUtils.setLabel(this.inputBoxElement, title);
     }
     showAsDialog(dialogTitle) {
         if (!dialogTitle) {
             dialogTitle = i18nString(UIStrings.quickOpen);
         }
         this.dialog = new UI.Dialog.Dialog();
-        UI.ARIAUtils.setAccessibleName(this.dialog.contentElement, dialogTitle);
+        UI.ARIAUtils.setLabel(this.dialog.contentElement, dialogTitle);
         this.dialog.setMaxContentSize(new UI.Geometry.Size(504, 340));
-        this.dialog.setSizeBehavior("SetExactWidthMaxHeight" /* SetExactWidthMaxHeight */);
+        this.dialog.setSizeBehavior("SetExactWidthMaxHeight" /* UI.GlassPane.SizeBehavior.SetExactWidthMaxHeight */);
         this.dialog.setContentPosition(null, 22);
         this.dialog.contentElement.style.setProperty('border-radius', '4px');
         this.show(this.dialog.contentElement);
         UI.ARIAUtils.setExpanded(this.contentElement, true);
-        this.dialog.once("hidden" /* Hidden */).then(() => {
-            this.dispatchEventToListeners("hidden" /* Hidden */);
+        void this.dialog.once("hidden" /* UI.Dialog.Events.Hidden */).then(() => {
+            this.dispatchEventToListeners("hidden" /* Events.Hidden */);
         });
         // @ts-ignore
         this.dialog.show();
@@ -177,7 +178,7 @@ export class FilteredListWidget extends Common.ObjectWrapper.eventMixin(UI.Widge
         this.itemsLoaded(this.provider);
     }
     cleanValue() {
-        return this.query.substring(this.prefix.length);
+        return this.query.substring(this.prefix.length).trim();
     }
     wasShown() {
         this.registerCSSFiles([filteredListWidgetStyles]);
@@ -262,7 +263,7 @@ export class FilteredListWidget extends Common.ObjectWrapper.eventMixin(UI.Widge
             this.dialog.hide();
         }
     }
-    onMouseOver(event) {
+    onMouseMove(event) {
         const item = this.list.itemForNode(event.target);
         if (item === null) {
             return;
@@ -273,7 +274,7 @@ export class FilteredListWidget extends Common.ObjectWrapper.eventMixin(UI.Widge
         this.query = query;
         this.inputBoxElement.focus();
         this.inputBoxElement.setText(query);
-        this.queryChanged();
+        void this.queryChanged();
         this.scheduleFilter();
     }
     tabKeyPressed() {
@@ -285,14 +286,20 @@ export class FilteredListWidget extends Common.ObjectWrapper.eventMixin(UI.Widge
                 break;
             }
         }
-        if (!completion) {
-            return false;
+        // If there is an auto-completion, press 'tab' first time will show the auto-completion, second time will rewrite
+        // the query. Otherwise it will select the next item.
+        if (completion) {
+            const selection = this.inputBoxElement.getComponentSelection();
+            if (selection && selection.toString().trim() !== '') {
+                this.setQuery(completion);
+                return true;
+            }
+            this.inputBoxElement.focus();
+            this.inputBoxElement.setText(completion);
+            this.setQuerySelectedRange(userEnteredText.length, completion.length);
+            return true;
         }
-        this.inputBoxElement.focus();
-        this.inputBoxElement.setText(completion);
-        this.inputBoxElement.setSelectedRange(userEnteredText.length, completion.length);
-        this.scheduleFilter();
-        return true;
+        return this.list.selectNextItem(true, false);
     }
     itemsFilteredForTest() {
         // Sniffed in tests.
@@ -411,10 +418,11 @@ export class FilteredListWidget extends Common.ObjectWrapper.eventMixin(UI.Widge
     }
     onInput(event) {
         this.query = event.data;
-        this.queryChanged();
+        void this.queryChanged();
         this.scheduleFilter();
     }
     async queryChanged() {
+        this.hintElement.classList.toggle('hidden', Boolean(this.query));
         if (this.queryChangedCallback) {
             await this.queryChangedCallback(this.query);
         }
@@ -432,18 +440,22 @@ export class FilteredListWidget extends Common.ObjectWrapper.eventMixin(UI.Widge
                 this.onEnter(keyboardEvent);
                 return;
             case Platform.KeyboardUtilities.TAB_KEY:
+                if (keyboardEvent.shiftKey) {
+                    handled = this.list.selectPreviousItem(true, false);
+                    break;
+                }
                 handled = this.tabKeyPressed();
                 break;
-            case "ArrowUp" /* UP */:
+            case "ArrowUp" /* Platform.KeyboardUtilities.ArrowKey.UP */:
                 handled = this.list.selectPreviousItem(true, false);
                 break;
-            case "ArrowDown" /* DOWN */:
+            case "ArrowDown" /* Platform.KeyboardUtilities.ArrowKey.DOWN */:
                 handled = this.list.selectNextItem(true, false);
                 break;
-            case "PageUp" /* UP */:
+            case "PageUp" /* Platform.KeyboardUtilities.PageKey.UP */:
                 handled = this.list.selectItemPreviousPage(false);
                 break;
-            case "PageDown" /* DOWN */:
+            case "PageDown" /* Platform.KeyboardUtilities.PageKey.DOWN */:
                 handled = this.list.selectItemNextPage(false);
                 break;
         }

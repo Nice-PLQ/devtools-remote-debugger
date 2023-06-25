@@ -12,12 +12,12 @@ export class PerformanceMetricsModel extends SDKModel {
         super(target);
         this.#agent = target.performanceAgent();
         this.#metricModes = new Map([
-            ['TaskDuration', "CumulativeTime" /* CumulativeTime */],
-            ['ScriptDuration', "CumulativeTime" /* CumulativeTime */],
-            ['LayoutDuration', "CumulativeTime" /* CumulativeTime */],
-            ['RecalcStyleDuration', "CumulativeTime" /* CumulativeTime */],
-            ['LayoutCount', "CumulativeCount" /* CumulativeCount */],
-            ['RecalcStyleCount', "CumulativeCount" /* CumulativeCount */],
+            ['TaskDuration', "CumulativeTime" /* MetricMode.CumulativeTime */],
+            ['ScriptDuration', "CumulativeTime" /* MetricMode.CumulativeTime */],
+            ['LayoutDuration', "CumulativeTime" /* MetricMode.CumulativeTime */],
+            ['RecalcStyleDuration', "CumulativeTime" /* MetricMode.CumulativeTime */],
+            ['LayoutCount', "CumulativeCount" /* MetricMode.CumulativeCount */],
+            ['RecalcStyleCount', "CumulativeCount" /* MetricMode.CumulativeCount */],
         ]);
         this.#metricData = new Map();
     }
@@ -39,14 +39,14 @@ export class PerformanceMetricsModel extends SDKModel {
             }
             let value;
             switch (this.#metricModes.get(metric.name)) {
-                case "CumulativeTime" /* CumulativeTime */:
+                case "CumulativeTime" /* MetricMode.CumulativeTime */:
                     value = (data.lastTimestamp && data.lastValue) ?
                         Platform.NumberUtilities.clamp((metric.value - data.lastValue) * 1000 / (timestamp - data.lastTimestamp), 0, 1) :
                         0;
                     data.lastValue = metric.value;
                     data.lastTimestamp = timestamp;
                     break;
-                case "CumulativeCount" /* CumulativeCount */:
+                case "CumulativeCount" /* MetricMode.CumulativeCount */:
                     value = (data.lastTimestamp && data.lastValue) ?
                         Math.max(0, (metric.value - data.lastValue) * 1000 / (timestamp - data.lastTimestamp)) :
                         0;

@@ -5,12 +5,12 @@ import * as i18n from '../../../core/i18n/i18n.js';
 import * as UI from '../../../ui/legacy/legacy.js';
 const UIStrings = {
     /**
-    *@description Title of the Devices tab/tool. Devices refers to e.g. phones/tablets.
-    */
+     *@description Title of the Devices tab/tool. Devices refers to e.g. phones/tablets.
+     */
     devices: 'Devices',
     /**
-    *@description Command that opens the device emulation view.
-    */
+     *@description Command that opens the device emulation view.
+     */
     showDevices: 'Show Devices',
 };
 const str_ = i18n.i18n.registerUIStrings('panels/settings/emulation/emulation-meta.ts', UIStrings);
@@ -23,7 +23,7 @@ async function loadEmulationModule() {
     return loadedEmulationModule;
 }
 UI.ViewManager.registerViewExtension({
-    location: "settings-view" /* SETTINGS_VIEW */,
+    location: "settings-view" /* UI.ViewManager.ViewLocationValues.SETTINGS_VIEW */,
     commandPrompt: i18nLazyString(UIStrings.showDevices),
     title: i18nLazyString(UIStrings.devices),
     order: 30,

@@ -1,7 +1,7 @@
 // Copyright 2019 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
-import { AudioParamRadius, InputPortRadius, LeftSideTopPadding, TotalInputPortHeight, TotalOutputPortHeight, TotalParamPortHeight } from './GraphStyle.js';
+import { AudioParamRadius, InputPortRadius, LeftSideTopPadding, TotalInputPortHeight, TotalOutputPortHeight, TotalParamPortHeight, } from './GraphStyle.js';
 /**
  * Calculate the x, y value of input port.
  * Input ports are placed near the top of the left-side border.

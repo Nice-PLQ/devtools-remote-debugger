@@ -21,33 +21,13 @@ export interface UserAgentClientHintsFormData {
  * and network conditions panel. It is customizable through showMobileCheckbox and showSubmitButton.
  */
 export declare class UserAgentClientHintsForm extends HTMLElement {
+    #private;
     static readonly litTagName: import("../../../../ui/lit-html/static.js").Static;
-    private readonly shadow;
-    private isFormOpened;
-    private isFormDisabled;
-    private metaData;
-    private showMobileCheckbox;
-    private showSubmitButton;
-    private brandsModifiedAriaMessage;
     connectedCallback(): void;
     set value(data: UserAgentClientHintsFormData);
     get value(): UserAgentClientHintsFormData;
     set disabled(disableForm: boolean);
     get disabled(): boolean;
-    private handleTreeExpand;
-    private handleTreeClick;
-    private handleBrandInputChange;
-    private handleBrandDelete;
-    private handleAddBrandClick;
-    private handleAddBrandKeyPress;
-    private handleInputChange;
-    private handleLinkPress;
-    private handleSubmit;
-    private renderInputWithLabel;
-    private renderPlatformSection;
-    private renderDeviceModelSection;
-    private renderBrands;
-    private render;
     validate: () => UI.ListWidget.ValidatorResult;
 }
 declare global {

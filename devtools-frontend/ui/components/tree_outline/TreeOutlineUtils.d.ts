@@ -1,11 +1,12 @@
 import * as Platform from '../../../core/platform/platform.js';
 import * as LitHtml from '../../lit-html/lit-html.js';
+export type TreeNodeId = string;
 interface BaseTreeNode<TreeNodeDataType> {
     treeNodeData: TreeNodeDataType;
     renderer?: (node: TreeNode<TreeNodeDataType>, state: {
         isExpanded: boolean;
     }) => LitHtml.TemplateResult;
-    id: string;
+    id: TreeNodeId;
 }
 export interface TreeNodeWithChildren<TreeNodeDataType> extends BaseTreeNode<TreeNodeDataType> {
     children: () => Promise<TreeNode<TreeNodeDataType>[]>;
@@ -13,7 +14,7 @@ export interface TreeNodeWithChildren<TreeNodeDataType> extends BaseTreeNode<Tre
 interface LeafNode<TreeNodeDataType> extends BaseTreeNode<TreeNodeDataType> {
     children?: never;
 }
-export declare type TreeNode<TreeNodeDataType> = TreeNodeWithChildren<TreeNodeDataType> | LeafNode<TreeNodeDataType>;
+export type TreeNode<TreeNodeDataType> = TreeNodeWithChildren<TreeNodeDataType> | LeafNode<TreeNodeDataType>;
 export declare function isExpandableNode<TreeNodeDataType>(node: TreeNode<TreeNodeDataType>): node is TreeNodeWithChildren<TreeNodeDataType>;
 /**
  * This is a custom lit-html directive that lets us track the DOM nodes that Lit
@@ -39,7 +40,7 @@ export declare const getNodeChildren: <TreeNodeDataType>(node: TreeNode<TreeNode
  *
  * And you look for F, you'll get back [A, D, F]
  */
-export declare const getPathToTreeNode: <TreeNodeDataType>(tree: readonly TreeNode<TreeNodeDataType>[], nodeToFind: TreeNode<TreeNodeDataType>) => Promise<TreeNode<TreeNodeDataType>[] | null>;
+export declare const getPathToTreeNode: <TreeNodeDataType>(tree: readonly TreeNode<TreeNodeDataType>[], nodeIdToFind: TreeNodeId) => Promise<TreeNode<TreeNodeDataType>[] | null>;
 interface KeyboardNavigationOptions<TreeNodeDataType> {
     currentDOMNode: HTMLLIElement;
     currentTreeNode: TreeNode<TreeNodeDataType>;

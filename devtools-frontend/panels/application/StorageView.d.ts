@@ -9,6 +9,7 @@ export declare class StorageView extends UI.ThrottledWidget.ThrottledWidget {
     private reportView;
     private target;
     private securityOrigin;
+    private storageKey;
     private settings;
     private includeThirdPartyCookiesSetting;
     private quotaRow;
@@ -25,12 +26,14 @@ export declare class StorageView extends UI.ThrottledWidget.ThrottledWidget {
     targetAdded(target: SDK.Target.Target): void;
     targetRemoved(target: SDK.Target.Target): void;
     private originChanged;
+    private storageKeyChanged;
     private updateOrigin;
+    private updateStorageKey;
     private applyQuotaOverrideFromInputField;
     private clearQuotaForOrigin;
     private onClickCheckbox;
     private clear;
-    static clear(target: SDK.Target.Target, securityOrigin: string, selectedStorageTypes: string[], includeThirdPartyCookies: boolean): void;
+    static clear(target: SDK.Target.Target, storageKey: string | null, originForCookies: string | null, selectedStorageTypes: string[], includeThirdPartyCookies: boolean): void;
     doUpdate(): Promise<void>;
     private populatePieChart;
     private getStorageTypeName;

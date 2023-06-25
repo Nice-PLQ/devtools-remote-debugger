@@ -63,8 +63,6 @@ Resources.ResourcesPanel = ResourcesModule.ResourcesPanel.ResourcesPanel;
 /** @constructor */
 Resources.ResourcesPanel.ResourceRevealer = ResourcesModule.ResourcesPanel.ResourceRevealer;
 /** @constructor */
-Resources.ResourcesPanel.CookieReferenceRevealer = ResourcesModule.ResourcesPanel.CookieReferenceRevealer;
-/** @constructor */
 Resources.ResourcesPanel.FrameDetailsRevealer = ResourcesModule.ResourcesPanel.FrameDetailsRevealer;
 /** @constructor */
 Resources.FrameTreeElement = ResourcesModule.ApplicationPanelSidebar.FrameTreeElement;

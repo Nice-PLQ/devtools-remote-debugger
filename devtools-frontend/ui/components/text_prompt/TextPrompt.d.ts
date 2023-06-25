@@ -9,16 +9,12 @@ export declare class PromptInputEvent extends Event {
     constructor(value: string);
 }
 export declare class TextPrompt extends HTMLElement {
+    #private;
     static readonly litTagName: import("../../lit-html/static.js").Static;
-    private readonly shadow;
-    private ariaLabelText;
-    private prefixText;
-    private suggestionText;
     connectedCallback(): void;
     set data(data: TextPromptData);
     get data(): TextPromptData;
     focus(): void;
-    private input;
     moveCaretToEndOfInput(): void;
     onInput(): void;
     onKeyDown(event: KeyboardEvent): void;
@@ -26,9 +22,6 @@ export declare class TextPrompt extends HTMLElement {
     setPrefix(prefix: string): void;
     setSuggestion(suggestion: string): void;
     setText(text: string): void;
-    private suggestion;
-    private text;
-    private render;
 }
 declare global {
     interface HTMLElementTagNameMap {

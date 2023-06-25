@@ -1,15 +1,15 @@
 import * as Platform from '../../core/platform/platform.js';
 import * as SDK from '../../core/sdk/sdk.js';
 import type * as Workspace from '../workspace/workspace.js';
-import type { LiveLocation as LiveLocationInterface, LiveLocationPool } from './LiveLocation.js';
-import { LiveLocationWithPool } from './LiveLocation.js';
+import { LiveLocationWithPool, type LiveLocation as LiveLocationInterface, type LiveLocationPool } from './LiveLocation.js';
+import { type ResourceMapping } from './ResourceMapping.js';
 export declare class CSSWorkspaceBinding implements SDK.TargetManager.SDKModelObserver<SDK.CSSModel.CSSModel> {
     #private;
     private constructor();
     static instance(opts?: {
         forceNew: boolean | null;
+        resourceMapping: ResourceMapping | null;
         targetManager: SDK.TargetManager.TargetManager | null;
-        workspace: Workspace.Workspace.WorkspaceImpl | null;
     }): CSSWorkspaceBinding;
     static removeInstance(): void;
     get modelToInfo(): Map<SDK.CSSModel.CSSModel, ModelInfo>;
@@ -24,21 +24,18 @@ export declare class CSSWorkspaceBinding implements SDK.TargetManager.SDKModelOb
     private recordLiveLocationChange;
     updateLocations(header: SDK.CSSStyleSheetHeader.CSSStyleSheetHeader): Promise<void>;
     createLiveLocation(rawLocation: SDK.CSSModel.CSSLocation, updateDelegate: (arg0: LiveLocationInterface) => Promise<void>, locationPool: LiveLocationPool): Promise<LiveLocation>;
+    propertyRawLocation(cssProperty: SDK.CSSProperty.CSSProperty, forName: boolean): SDK.CSSModel.CSSLocation | null;
     propertyUILocation(cssProperty: SDK.CSSProperty.CSSProperty, forName: boolean): Workspace.UISourceCode.UILocation | null;
     rawLocationToUILocation(rawLocation: SDK.CSSModel.CSSLocation): Workspace.UISourceCode.UILocation | null;
     uiLocationToRawLocations(uiLocation: Workspace.UISourceCode.UILocation): SDK.CSSModel.CSSLocation[];
-    addSourceMapping(sourceMapping: SourceMapping): void;
 }
-/**
- * @interface
- */
 export interface SourceMapping {
     rawLocationToUILocation(rawLocation: SDK.CSSModel.CSSLocation): Workspace.UISourceCode.UILocation | null;
     uiLocationToRawLocations(uiLocation: Workspace.UISourceCode.UILocation): SDK.CSSModel.CSSLocation[];
 }
 export declare class ModelInfo {
     #private;
-    constructor(cssModel: SDK.CSSModel.CSSModel, workspace: Workspace.Workspace.WorkspaceImpl);
+    constructor(cssModel: SDK.CSSModel.CSSModel, resourceMapping: ResourceMapping);
     get locations(): Platform.MapUtilities.Multimap<SDK.CSSStyleSheetHeader.CSSStyleSheetHeader, LiveLocation>;
     createLiveLocation(rawLocation: SDK.CSSModel.CSSLocation, updateDelegate: (arg0: LiveLocationInterface) => Promise<void>, locationPool: LiveLocationPool): Promise<LiveLocation>;
     disposeLocation(location: LiveLocation): void;
@@ -51,7 +48,7 @@ export declare class ModelInfo {
 }
 export declare class LiveLocation extends LiveLocationWithPool {
     #private;
-    readonly url: string;
+    readonly url: Platform.DevToolsPath.UrlString;
     headerInternal: SDK.CSSStyleSheetHeader.CSSStyleSheetHeader | null;
     constructor(rawLocation: SDK.CSSModel.CSSLocation, info: ModelInfo, updateDelegate: (arg0: LiveLocationInterface) => Promise<void>, locationPool: LiveLocationPool);
     header(): SDK.CSSStyleSheetHeader.CSSStyleSheetHeader | null;

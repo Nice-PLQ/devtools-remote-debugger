@@ -28,7 +28,7 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 import * as Common from '../../core/common/common.js';
-import * as Host from '../../core/host/host.js';
+import * as Platform from '../../core/platform/platform.js';
 import * as PerfUI from '../../ui/legacy/components/perf_ui/perf_ui.js';
 import * as UI from '../../ui/legacy/legacy.js';
 import * as i18n from '../../core/i18n/i18n.js';
@@ -39,13 +39,14 @@ export class ProfileFlameChartDataProvider {
     // eslint-disable-next-line @typescript-eslint/naming-convention
     timelineData_;
     entryNodes;
-    font;
+    #font;
     boldFont;
     constructor() {
         this.colorGeneratorInternal = ProfileFlameChartDataProvider.colorGenerator();
         this.maxStackDepthInternal = 0;
         this.timelineData_ = null;
         this.entryNodes = [];
+        this.#font = `${PerfUI.Font.DEFAULT_FONT_SIZE} ${PerfUI.Font.getFontFamilyForCanvas()}`;
     }
     static colorGenerator() {
         if (!colorGeneratorInstance) {
@@ -85,11 +86,8 @@ export class ProfileFlameChartDataProvider {
         return UI.UIUtils.beautifyFunctionName(node.functionName);
     }
     entryFont(entryIndex) {
-        if (!this.font) {
-            this.font = '11px ' + Host.Platform.fontFamily();
-            this.boldFont = 'bold ' + this.font;
-        }
-        return this.entryHasDeoptReason(entryIndex) ? this.boldFont : this.font;
+        const boldFont = 'bold ' + this.#font;
+        return this.entryHasDeoptReason(entryIndex) ? boldFont : this.#font;
     }
     entryHasDeoptReason(_entryIndex) {
         throw 'Not implemented.';
@@ -139,7 +137,7 @@ export class CPUProfileFlameChart extends Common.ObjectWrapper.eventMixin(UI.Wid
         this.mainPane.addEventListener(PerfUI.FlameChart.Events.EntryInvoked, this.onEntryInvoked, this);
         this.entrySelected = false;
         this.mainPane.addEventListener(PerfUI.FlameChart.Events.CanvasFocused, this.onEntrySelected, this);
-        this.overviewPane.addEventListener("WindowChanged" /* WindowChanged */, this.onWindowChanged, this);
+        this.overviewPane.addEventListener("WindowChanged" /* OverviewPaneEvents.WindowChanged */, this.onWindowChanged, this);
         this.dataProvider = dataProvider;
         this.searchResults = [];
     }
@@ -178,7 +176,7 @@ export class CPUProfileFlameChart extends Common.ObjectWrapper.eventMixin(UI.Wid
         this.mainPane.update();
     }
     performSearch(searchConfig, _shouldJump, jumpBackwards) {
-        const matcher = createPlainTextSearchRegex(searchConfig.query, searchConfig.caseSensitive ? '' : 'i');
+        const matcher = Platform.StringUtilities.createPlainTextSearchRegex(searchConfig.query, searchConfig.caseSensitive ? '' : 'i');
         const selectedEntryIndex = this.searchResultIndex !== -1 ? this.searchResults[this.searchResultIndex] : -1;
         this.searchResults = [];
         const entriesCount = this.dataProvider.entryNodesLength();
@@ -195,12 +193,12 @@ export class CPUProfileFlameChart extends Common.ObjectWrapper.eventMixin(UI.Wid
             this.mainPane.setSelectedEntry(this.searchResults[this.searchResultIndex]);
         }
         else {
-            this.searchCanceled();
+            this.onSearchCanceled();
         }
         this.searchableView.updateSearchMatchesCount(this.searchResults.length);
         this.searchableView.updateCurrentMatchIndex(this.searchResultIndex);
     }
-    searchCanceled() {
+    onSearchCanceled() {
         this.mainPane.setSelectedEntry(-1);
         this.searchResults = [];
         this.searchResultIndex = -1;
@@ -293,7 +291,7 @@ export class OverviewPane extends Common.ObjectWrapper.eventMixin(UI.Widget.VBox
         const windowPosition = { windowTimeLeft: event.data.rawStartValue, windowTimeRight: event.data.rawEndValue };
         this.windowTimeLeft = windowPosition.windowTimeLeft;
         this.windowTimeRight = windowPosition.windowTimeRight;
-        this.dispatchEventToListeners("WindowChanged" /* WindowChanged */, windowPosition);
+        this.dispatchEventToListeners("WindowChanged" /* OverviewPaneEvents.WindowChanged */, windowPosition);
     }
     timelineData() {
         return this.dataProvider.timelineData();

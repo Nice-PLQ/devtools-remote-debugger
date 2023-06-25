@@ -5,62 +5,68 @@ import * as Common from '../common/common.js';
 import * as i18n from '../i18n/i18n.js';
 import { Capability } from './Target.js';
 import { SDKModel } from './SDKModel.js';
-import { Events as SecurityOriginManagerEvents, SecurityOriginManager } from './SecurityOriginManager.js';
+import { StorageBucketsModel } from './StorageBucketsModel.js';
 const UIStrings = {
     /**
-    *@description Text in Service Worker Cache Model
-    *@example {https://cache} PH1
-    *@example {error message} PH2
-    */
+     *@description Text in Service Worker Cache Model
+     *@example {https://cache} PH1
+     *@example {error message} PH2
+     */
     serviceworkercacheagentError: '`ServiceWorkerCacheAgent` error deleting cache entry {PH1} in cache: {PH2}',
 };
 const str_ = i18n.i18n.registerUIStrings('core/sdk/ServiceWorkerCacheModel.ts', UIStrings);
 const i18nString = i18n.i18n.getLocalizedString.bind(undefined, str_);
 export class ServiceWorkerCacheModel extends SDKModel {
-    #cachesInternal;
     cacheAgent;
     #storageAgent;
-    #securityOriginManager;
-    #originsUpdated;
-    #throttler;
-    #enabled;
+    #storageBucketModel;
+    #cachesInternal = new Map();
+    #storageKeysTracked = new Set();
+    #storageBucketsUpdated = new Set();
+    #throttler = new Common.Throttler.Throttler(2000);
+    #enabled = false;
+    // Used by tests to remove the Throttler timeout.
+    #scheduleAsSoonAsPossible = false;
     /**
      * Invariant: This #model can only be constructed on a ServiceWorker target.
      */
     constructor(target) {
         super(target);
         target.registerStorageDispatcher(this);
-        this.#cachesInternal = new Map();
         this.cacheAgent = target.cacheStorageAgent();
         this.#storageAgent = target.storageAgent();
-        this.#securityOriginManager = target.model(SecurityOriginManager);
-        this.#originsUpdated = new Set();
-        this.#throttler = new Common.Throttler.Throttler(2000);
-        this.#enabled = false;
+        this.#storageBucketModel = target.model(StorageBucketsModel);
     }
     enable() {
         if (this.#enabled) {
             return;
         }
-        this.#securityOriginManager.addEventListener(SecurityOriginManagerEvents.SecurityOriginAdded, this.securityOriginAdded, this);
-        this.#securityOriginManager.addEventListener(SecurityOriginManagerEvents.SecurityOriginRemoved, this.securityOriginRemoved, this);
-        for (const securityOrigin of this.#securityOriginManager.securityOrigins()) {
-            this.addOrigin(securityOrigin);
+        this.#storageBucketModel.addEventListener("BucketAdded" /* StorageBucketsModelEvents.BucketAdded */, this.storageBucketAdded, this);
+        this.#storageBucketModel.addEventListener("BucketRemoved" /* StorageBucketsModelEvents.BucketRemoved */, this.storageBucketRemoved, this);
+        for (const storageBucket of this.#storageBucketModel.getBuckets()) {
+            this.addStorageBucket(storageBucket.bucket);
         }
         this.#enabled = true;
     }
-    clearForOrigin(origin) {
-        this.removeOrigin(origin);
-        this.addOrigin(origin);
+    clearForStorageKey(storageKey) {
+        for (const [opaqueId, cache] of this.#cachesInternal.entries()) {
+            if (cache.storageKey === storageKey) {
+                this.#cachesInternal.delete(opaqueId);
+                this.cacheRemoved(cache);
+            }
+        }
+        for (const storageBucket of this.#storageBucketModel.getBucketsForStorageKey(storageKey)) {
+            void this.loadCacheNames(storageBucket.bucket);
+        }
     }
     refreshCacheNames() {
         for (const cache of this.#cachesInternal.values()) {
             this.cacheRemoved(cache);
         }
         this.#cachesInternal.clear();
-        const securityOrigins = this.#securityOriginManager.securityOrigins();
-        for (const securityOrigin of securityOrigins) {
-            this.loadCacheNames(securityOrigin);
+        const storageBuckets = this.#storageBucketModel.getBuckets();
+        for (const storageBucket of storageBuckets) {
+            void this.loadCacheNames(storageBucket.bucket);
         }
     }
     async deleteCache(cache) {
@@ -80,10 +86,10 @@ export class ServiceWorkerCacheModel extends SDKModel {
         }
     }
     loadCacheData(cache, skipCount, pageSize, pathFilter, callback) {
-        this.requestEntries(cache, skipCount, pageSize, pathFilter, callback);
+        void this.requestEntries(cache, skipCount, pageSize, pathFilter, callback);
     }
     loadAllCacheData(cache, pathFilter, callback) {
-        this.requestAllEntries(cache, pathFilter, callback);
+        void this.requestAllEntries(cache, pathFilter, callback);
     }
     caches() {
         const caches = new Array();
@@ -98,41 +104,44 @@ export class ServiceWorkerCacheModel extends SDKModel {
         }
         this.#cachesInternal.clear();
         if (this.#enabled) {
-            this.#securityOriginManager.removeEventListener(SecurityOriginManagerEvents.SecurityOriginAdded, this.securityOriginAdded, this);
-            this.#securityOriginManager.removeEventListener(SecurityOriginManagerEvents.SecurityOriginRemoved, this.securityOriginRemoved, this);
+            this.#storageBucketModel.removeEventListener("BucketAdded" /* StorageBucketsModelEvents.BucketAdded */, this.storageBucketAdded, this);
+            this.#storageBucketModel.removeEventListener("BucketRemoved" /* StorageBucketsModelEvents.BucketRemoved */, this.storageBucketRemoved, this);
         }
     }
-    addOrigin(securityOrigin) {
-        this.loadCacheNames(securityOrigin);
-        if (this.isValidSecurityOrigin(securityOrigin)) {
-            this.#storageAgent.invoke_trackCacheStorageForOrigin({ origin: securityOrigin });
+    addStorageBucket(storageBucket) {
+        void this.loadCacheNames(storageBucket);
+        if (!this.#storageKeysTracked.has(storageBucket.storageKey)) {
+            this.#storageKeysTracked.add(storageBucket.storageKey);
+            void this.#storageAgent.invoke_trackCacheStorageForStorageKey({ storageKey: storageBucket.storageKey });
         }
     }
-    removeOrigin(securityOrigin) {
+    removeStorageBucket(storageBucket) {
+        let storageKeyCount = 0;
         for (const [opaqueId, cache] of this.#cachesInternal.entries()) {
-            if (cache.securityOrigin === securityOrigin) {
+            if (storageBucket.storageKey === cache.storageKey) {
+                storageKeyCount++;
+            }
+            if (cache.inBucket(storageBucket)) {
+                storageKeyCount--;
                 this.#cachesInternal.delete(opaqueId);
                 this.cacheRemoved(cache);
             }
         }
-        if (this.isValidSecurityOrigin(securityOrigin)) {
-            this.#storageAgent.invoke_untrackCacheStorageForOrigin({ origin: securityOrigin });
+        if (storageKeyCount === 0) {
+            this.#storageKeysTracked.delete(storageBucket.storageKey);
+            void this.#storageAgent.invoke_untrackCacheStorageForStorageKey({ storageKey: storageBucket.storageKey });
         }
     }
-    isValidSecurityOrigin(securityOrigin) {
-        const parsedURL = Common.ParsedURL.ParsedURL.fromString(securityOrigin);
-        return parsedURL !== null && parsedURL.scheme.startsWith('http');
-    }
-    async loadCacheNames(securityOrigin) {
-        const response = await this.cacheAgent.invoke_requestCacheNames({ securityOrigin: securityOrigin });
+    async loadCacheNames(storageBucket) {
+        const response = await this.cacheAgent.invoke_requestCacheNames({ storageBucket });
         if (response.getError()) {
             return;
         }
-        this.updateCacheNames(securityOrigin, response.caches);
+        this.updateCacheNames(storageBucket, response.caches);
     }
-    updateCacheNames(securityOrigin, cachesJson) {
+    updateCacheNames(storageBucket, cachesJson) {
         function deleteAndSaveOldCaches(cache) {
-            if (cache.securityOrigin === securityOrigin && !updatingCachesIds.has(cache.cacheId)) {
+            if (cache.inBucket(storageBucket) && !updatingCachesIds.has(cache.cacheId)) {
                 oldCaches.set(cache.cacheId, cache);
                 this.#cachesInternal.delete(cache.cacheId);
             }
@@ -141,7 +150,12 @@ export class ServiceWorkerCacheModel extends SDKModel {
         const newCaches = new Map();
         const oldCaches = new Map();
         for (const cacheJson of cachesJson) {
-            const cache = new Cache(this, cacheJson.securityOrigin, cacheJson.cacheName, cacheJson.cacheId);
+            const storageBucket = cacheJson.storageBucket ??
+                this.#storageBucketModel.getDefaultBucketForStorageKey(cacheJson.storageKey)?.bucket;
+            if (!storageBucket) {
+                continue;
+            }
+            const cache = new Cache(this, storageBucket, cacheJson.cacheName, cacheJson.cacheId);
             updatingCachesIds.add(cache.cacheId);
             if (this.#cachesInternal.has(cache.cacheId)) {
                 continue;
@@ -153,11 +167,11 @@ export class ServiceWorkerCacheModel extends SDKModel {
         newCaches.forEach(this.cacheAdded, this);
         oldCaches.forEach(this.cacheRemoved, this);
     }
-    securityOriginAdded(event) {
-        this.addOrigin(event.data);
+    storageBucketAdded({ data: { bucketInfo: { bucket } } }) {
+        this.addStorageBucket(bucket);
     }
-    securityOriginRemoved(event) {
-        this.removeOrigin(event.data);
+    storageBucketRemoved({ data: { bucketInfo: { bucket } } }) {
+        this.removeStorageBucket(bucket);
     }
     cacheAdded(cache) {
         this.dispatchEventToListeners(Events.CacheAdded, { model: this, cache: cache });
@@ -181,20 +195,37 @@ export class ServiceWorkerCacheModel extends SDKModel {
         }
         callback(response.cacheDataEntries, response.returnCount);
     }
-    cacheStorageListUpdated({ origin }) {
-        this.#originsUpdated.add(origin);
-        this.#throttler.schedule(() => {
-            const promises = Array.from(this.#originsUpdated, origin => this.loadCacheNames(origin));
-            this.#originsUpdated.clear();
-            return Promise.all(promises);
-        });
+    cacheStorageListUpdated({ bucketId }) {
+        const storageBucket = this.#storageBucketModel.getBucketById(bucketId)?.bucket;
+        if (storageBucket) {
+            this.#storageBucketsUpdated.add(storageBucket);
+            void this.#throttler.schedule(() => {
+                const promises = Array.from(this.#storageBucketsUpdated, storageBucket => this.loadCacheNames(storageBucket));
+                this.#storageBucketsUpdated.clear();
+                return Promise.all(promises);
+            }, this.#scheduleAsSoonAsPossible);
+        }
     }
-    cacheStorageContentUpdated({ origin, cacheName }) {
-        this.dispatchEventToListeners(Events.CacheStorageContentUpdated, { origin, cacheName });
+    cacheStorageContentUpdated({ bucketId, cacheName }) {
+        const storageBucket = this.#storageBucketModel.getBucketById(bucketId)?.bucket;
+        if (storageBucket) {
+            this.dispatchEventToListeners(Events.CacheStorageContentUpdated, { storageBucket, cacheName });
+        }
     }
     indexedDBListUpdated(_event) {
     }
     indexedDBContentUpdated(_event) {
+    }
+    interestGroupAccessed(_event) {
+    }
+    sharedStorageAccessed(_event) {
+    }
+    storageBucketCreatedOrUpdated(_event) {
+    }
+    storageBucketDeleted(_event) {
+    }
+    setThrottlerSchedulesAsSoonAsPossibleForTest() {
+        this.#scheduleAsSoonAsPossible = true;
     }
 }
 // TODO(crbug.com/1167717): Make this a const enum again
@@ -207,20 +238,25 @@ export var Events;
 })(Events || (Events = {}));
 export class Cache {
     #model;
-    securityOrigin;
+    storageKey;
+    storageBucket;
     cacheName;
     cacheId;
-    constructor(model, securityOrigin, cacheName, cacheId) {
+    constructor(model, storageBucket, cacheName, cacheId) {
         this.#model = model;
-        this.securityOrigin = securityOrigin;
+        this.storageBucket = storageBucket;
+        this.storageKey = storageBucket.storageKey;
         this.cacheName = cacheName;
         this.cacheId = cacheId;
+    }
+    inBucket(storageBucket) {
+        return this.storageKey === storageBucket.storageKey && this.storageBucket.name === storageBucket.name;
     }
     equals(cache) {
         return this.cacheId === cache.cacheId;
     }
     toString() {
-        return this.securityOrigin + this.cacheName;
+        return this.storageKey + this.cacheName;
     }
     async requestCachedResponse(url, requestHeaders) {
         const response = await this.#model.cacheAgent.invoke_requestCachedResponse({ cacheId: this.cacheId, requestURL: url, requestHeaders });

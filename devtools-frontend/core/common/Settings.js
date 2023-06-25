@@ -28,10 +28,9 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 import * as Root from '../root/root.js';
-import { Format } from './Color.js';
 import { Console } from './Console.js';
 import { ObjectWrapper } from './Object.js';
-import { getLocalizedSettingsCategory, getRegisteredSettings, maybeRemoveSettingExtension, registerSettingExtension, registerSettingsForTest, resetSettings, SettingCategory, SettingType } from './SettingRegistration.js';
+import { getLocalizedSettingsCategory, getRegisteredSettings, maybeRemoveSettingExtension, registerSettingExtension, registerSettingsForTest, resetSettings, SettingCategory, SettingType, } from './SettingRegistration.js';
 let settingsInstance;
 export class Settings {
     syncedStorage;
@@ -142,9 +141,9 @@ export class Settings {
     }
     clearAll() {
         this.globalStorage.removeAll();
+        this.syncedStorage.removeAll();
         this.localStorage.removeAll();
-        const versionSetting = Settings.instance().createSetting(VersionController.currentVersionName, 0);
-        versionSetting.set(VersionController.currentVersion);
+        new VersionController().resetToCurrent();
     }
     storageFromType(storageType) {
         switch (storageType) {
@@ -166,6 +165,7 @@ export class Settings {
 export const NOOP_STORAGE = {
     register: () => { },
     set: () => { },
+    get: () => Promise.resolve(''),
     remove: () => { },
     clear: () => { },
 };
@@ -194,6 +194,17 @@ export class SettingsStorage {
     get(name) {
         name = this.storagePrefix + name;
         return this.object[name];
+    }
+    async forceGet(originalName) {
+        const name = this.storagePrefix + originalName;
+        const value = await this.backingStore.get(name);
+        if (value && value !== this.object[name]) {
+            this.set(originalName, value);
+        }
+        else if (!value) {
+            this.remove(originalName);
+        }
+        return value;
     }
     remove(name) {
         name = this.storagePrefix + name;
@@ -227,6 +238,21 @@ function removeSetting(setting) {
     settings.moduleSettings.delete(name);
     setting.storage.remove(name);
 }
+export class Deprecation {
+    disabled;
+    warning;
+    experiment;
+    constructor({ deprecationNotice }) {
+        if (!deprecationNotice) {
+            throw new Error('Cannot create deprecation info for a non-deprecated setting');
+        }
+        this.disabled = deprecationNotice.disabled;
+        this.warning = deprecationNotice.warning();
+        this.experiment = deprecationNotice.experiment ?
+            Root.Runtime.experiments.allConfigurableExperiments().find(e => e.name === deprecationNotice.experiment) :
+            undefined;
+    }
+}
 export class Setting {
     name;
     defaultValue;
@@ -240,6 +266,8 @@ export class Setting {
     // TODO(crbug.com/1172300) Type cannot be inferred without changes to consumers. See above.
     #serializer = JSON;
     #hadUserAction;
+    #disabled;
+    #deprecation = null;
     constructor(name, defaultValue, eventSupport, storage) {
         this.name = name;
         this.defaultValue = defaultValue;
@@ -276,6 +304,13 @@ export class Setting {
     setRequiresUserAction(requiresUserAction) {
         this.#requiresUserAction = requiresUserAction;
     }
+    disabled() {
+        return this.#disabled || false;
+    }
+    setDisabled(disabled) {
+        this.#disabled = disabled;
+        this.eventSupport.dispatchEventToListeners(this.name);
+    }
     get() {
         if (this.#requiresUserAction && !this.#hadUserAction) {
             return this.defaultValue;
@@ -291,6 +326,24 @@ export class Setting {
             catch (e) {
                 this.storage.remove(this.name);
             }
+        }
+        return this.#value;
+    }
+    async forceGet() {
+        const name = this.name;
+        const oldValue = this.storage.get(name);
+        const value = await this.storage.forceGet(name);
+        this.#value = this.defaultValue;
+        if (value) {
+            try {
+                this.#value = this.#serializer.parse(value);
+            }
+            catch (e) {
+                this.storage.remove(this.name);
+            }
+        }
+        if (oldValue !== value) {
+            this.eventSupport.dispatchEventToListeners(this.name, this.#value);
         }
         return this.#value;
     }
@@ -313,6 +366,16 @@ export class Setting {
     }
     setRegistration(registration) {
         this.#registration = registration;
+        const { deprecationNotice } = registration;
+        if (deprecationNotice?.disabled) {
+            const experiment = deprecationNotice.experiment ?
+                Root.Runtime.experiments.allConfigurableExperiments().find(e => e.name === deprecationNotice.experiment) :
+                undefined;
+            if ((!experiment || experiment.isEnabled())) {
+                this.set(this.defaultValue);
+                this.setDisabled(true);
+            }
+        }
     }
     type() {
         if (this.#registration) {
@@ -358,6 +421,15 @@ export class Setting {
             return this.#registration.order || null;
         }
         return null;
+    }
+    get deprecation() {
+        if (!this.#registration || !this.#registration.deprecationNotice) {
+            return null;
+        }
+        if (!this.#deprecation) {
+            this.#deprecation = new Deprecation(this.#registration);
+        }
+        return this.#deprecation;
     }
     printSettingsSavingError(message, name, value) {
         const errorMessage = 'Error saving setting with name: ' + this.name + ', value length: ' + value.length + '. Error: ' + message;
@@ -413,28 +485,47 @@ export class RegExpSetting extends Setting {
     }
 }
 export class VersionController {
-    static get currentVersionName() {
-        return 'inspectorVersion';
+    static GLOBAL_VERSION_SETTING_NAME = 'inspectorVersion';
+    static SYNCED_VERSION_SETTING_NAME = 'syncedInspectorVersion';
+    static LOCAL_VERSION_SETTING_NAME = 'localInspectorVersion';
+    static CURRENT_VERSION = 35;
+    #globalVersionSetting;
+    #syncedVersionSetting;
+    #localVersionSetting;
+    constructor() {
+        // If no version setting is found, we initialize with the current version and don't do anything.
+        this.#globalVersionSetting = Settings.instance().createSetting(VersionController.GLOBAL_VERSION_SETTING_NAME, VersionController.CURRENT_VERSION, SettingStorageType.Global);
+        this.#syncedVersionSetting = Settings.instance().createSetting(VersionController.SYNCED_VERSION_SETTING_NAME, VersionController.CURRENT_VERSION, SettingStorageType.Synced);
+        this.#localVersionSetting = Settings.instance().createSetting(VersionController.LOCAL_VERSION_SETTING_NAME, VersionController.CURRENT_VERSION, SettingStorageType.Local);
     }
-    static get currentVersion() {
-        return 31;
+    /**
+     * Force re-sets all version number settings to the current version without
+     * running any migrations.
+     */
+    resetToCurrent() {
+        this.#globalVersionSetting.set(VersionController.CURRENT_VERSION);
+        this.#syncedVersionSetting.set(VersionController.CURRENT_VERSION);
+        this.#localVersionSetting.set(VersionController.CURRENT_VERSION);
     }
+    /**
+     * Runs the appropriate migrations and updates the version settings accordingly.
+     *
+     * To determine what migrations to run we take the minimum of all version number settings.
+     *
+     * IMPORTANT: All migrations must be idempotent since they might be applied multiple times.
+     */
     updateVersion() {
-        const localStorageVersion = window.localStorage ? window.localStorage[VersionController.currentVersionName] : 0;
-        const versionSetting = Settings.instance().createSetting(VersionController.currentVersionName, 0);
-        const currentVersion = VersionController.currentVersion;
-        const oldVersion = versionSetting.get() || parseInt(localStorageVersion || '0', 10);
-        if (oldVersion === 0) {
-            // First run, no need to do anything.
-            versionSetting.set(currentVersion);
-            return;
-        }
-        const methodsToRun = this.methodsToRunToUpdateVersion(oldVersion, currentVersion);
+        const currentVersion = VersionController.CURRENT_VERSION;
+        const minimumVersion = Math.min(this.#globalVersionSetting.get(), this.#syncedVersionSetting.get(), this.#localVersionSetting.get());
+        const methodsToRun = this.methodsToRunToUpdateVersion(minimumVersion, currentVersion);
+        console.assert(
+        // @ts-ignore
+        this[`updateVersionFrom${currentVersion}To${currentVersion + 1}`] === undefined, 'Unexpected migration method found. Increment CURRENT_VERSION or remove the method.');
         for (const method of methodsToRun) {
             // @ts-ignore Special version method matching
             this[method].call(this);
         }
-        versionSetting.set(currentVersion);
+        this.resetToCurrent();
     }
     methodsToRunToUpdateVersion(oldVersion, currentVersion) {
         const result = [];
@@ -855,6 +946,81 @@ export class VersionController {
         const recordingsSetting = Settings.instance().createSetting('recorder_recordings', []);
         removeSetting(recordingsSetting);
     }
+    updateVersionFrom31To32() {
+        // Introduce the new 'resourceTypeName' property on stored breakpoints. Prior to
+        // this change we synchronized the breakpoint only by URL, but since we don't
+        // know on which resource type the given breakpoint was set, we just assume
+        // 'script' here to keep things simple.
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const breakpointsSetting = Settings.instance().createLocalSetting('breakpoints', []);
+        const breakpoints = breakpointsSetting.get();
+        for (const breakpoint of breakpoints) {
+            breakpoint['resourceTypeName'] = 'script';
+        }
+        breakpointsSetting.set(breakpoints);
+    }
+    updateVersionFrom32To33() {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const previouslyViewedFilesSetting = Settings.instance().createLocalSetting('previouslyViewedFiles', []);
+        let previouslyViewedFiles = previouslyViewedFilesSetting.get();
+        // Discard old 'previouslyViewedFiles' items that don't have a 'url' property.
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        previouslyViewedFiles = previouslyViewedFiles.filter((previouslyViewedFile) => 'url' in previouslyViewedFile);
+        // Introduce the new 'resourceTypeName' property on previously viewed files.
+        // Prior to this change we only keyed them based on the URL, but since we
+        // don't know which resource type the given file had, we just assume 'script'
+        // here to keep things simple.
+        for (const previouslyViewedFile of previouslyViewedFiles) {
+            previouslyViewedFile['resourceTypeName'] = 'script';
+        }
+        previouslyViewedFilesSetting.set(previouslyViewedFiles);
+    }
+    updateVersionFrom33To34() {
+        // Introduces the 'isLogpoint' property on stored breakpoints. This information was
+        // previously encoded in the 'condition' itself. This migration leaves the condition
+        // alone but ensures that 'isLogpoint' is accurate for already stored breakpoints.
+        // This enables us to use the 'isLogpoint' property in code.
+        // A separate migration will remove the special encoding from the condition itself
+        // once all refactorings are done.
+        // The prefix/suffix are hardcoded here, since these constants will be removed in
+        // the future.
+        const logpointPrefix = '/** DEVTOOLS_LOGPOINT */ console.log(';
+        const logpointSuffix = ')';
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const breakpointsSetting = Settings.instance().createLocalSetting('breakpoints', []);
+        const breakpoints = breakpointsSetting.get();
+        for (const breakpoint of breakpoints) {
+            const isLogpoint = breakpoint.condition.startsWith(logpointPrefix) && breakpoint.condition.endsWith(logpointSuffix);
+            breakpoint['isLogpoint'] = isLogpoint;
+        }
+        breakpointsSetting.set(breakpoints);
+    }
+    updateVersionFrom34To35() {
+        // Uses the 'isLogpoint' property on stored breakpoints to remove the prefix/suffix
+        // from logpoints. This way, we store the entered log point condition as the user
+        // entered it.
+        // The prefix/suffix are hardcoded here, since these constants will be removed in
+        // the future.
+        const logpointPrefix = '/** DEVTOOLS_LOGPOINT */ console.log(';
+        const logpointSuffix = ')';
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const breakpointsSetting = Settings.instance().createLocalSetting('breakpoints', []);
+        const breakpoints = breakpointsSetting.get();
+        for (const breakpoint of breakpoints) {
+            const { condition, isLogpoint } = breakpoint;
+            if (isLogpoint) {
+                breakpoint.condition = condition.slice(logpointPrefix.length, condition.length - logpointSuffix.length);
+            }
+        }
+        breakpointsSetting.set(breakpoints);
+    }
+    /*
+     * Any new migration should be added before this comment.
+     *
+     * IMPORTANT: Migrations must be idempotent, since they may be applied
+     * multiple times! E.g. when renaming a setting one has to check that the
+     * a setting with the new name does not yet exist.
+     * ----------------------------------------------------------------------- */
     migrateSettingsFromLocalStorage() {
         // This step migrates all the settings except for the ones below into the browser profile.
         const localSettings = new Set([
@@ -914,23 +1080,22 @@ export function settingForTest(settingName) {
     return Settings.instance().settingForTest(settingName);
 }
 export function detectColorFormat(color) {
-    const cf = Format;
     let format;
     const formatSetting = Settings.instance().moduleSetting('colorFormat').get();
-    if (formatSetting === cf.Original) {
-        format = cf.Original;
+    if (formatSetting === "rgb" /* Format.RGB */) {
+        format = "rgb" /* Format.RGB */;
     }
-    else if (formatSetting === cf.RGB) {
-        format = cf.RGB;
+    else if (formatSetting === "hsl" /* Format.HSL */) {
+        format = "hsl" /* Format.HSL */;
     }
-    else if (formatSetting === cf.HSL) {
-        format = cf.HSL;
+    else if (formatSetting === "hwb" /* Format.HWB */) {
+        format = "hwb" /* Format.HWB */;
     }
-    else if (formatSetting === cf.HEX) {
-        format = color.detectHEXFormat();
+    else if (formatSetting === "hex" /* Format.HEX */) {
+        format = color.asLegacyColor().detectHEXFormat();
     }
     else {
-        format = cf.RGB;
+        format = color.format();
     }
     return format;
 }

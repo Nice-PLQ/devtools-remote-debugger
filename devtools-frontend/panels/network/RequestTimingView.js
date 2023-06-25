@@ -38,178 +38,178 @@ import { Events } from './NetworkTimeCalculator.js';
 import networkingTimingTableStyles from './networkTimingTable.css.js';
 const UIStrings = {
     /**
-    *@description Text used to label the time taken to receive an HTTP/2 Push message.
-    */
+     *@description Text used to label the time taken to receive an HTTP/2 Push message.
+     */
     receivingPush: 'Receiving `Push`',
     /**
-    *@description Text in Request Timing View of the Network panel
-    */
+     *@description Text in Request Timing View of the Network panel
+     */
     queueing: 'Queueing',
     /**
-    *@description Text in Request Timing View of the Network panel
-    */
+     *@description Text in Request Timing View of the Network panel
+     */
     stalled: 'Stalled',
     /**
-    *@description Text in Request Timing View of the Network panel
-    */
+     *@description Text in Request Timing View of the Network panel
+     */
     initialConnection: 'Initial connection',
     /**
-    *@description Text in Request Timing View of the Network panel
-    */
+     *@description Text in Request Timing View of the Network panel
+     */
     dnsLookup: 'DNS Lookup',
     /**
-    *@description Text in Request Timing View of the Network panel
-    */
+     *@description Text in Request Timing View of the Network panel
+     */
     proxyNegotiation: 'Proxy negotiation',
     /**
-    *@description Text used to label the time taken to read an HTTP/2 Push message.
-    */
+     *@description Text used to label the time taken to read an HTTP/2 Push message.
+     */
     readingPush: 'Reading `Push`',
     /**
-    *@description Text in Request Timing View of the Network panel
-    */
+     *@description Text in Request Timing View of the Network panel
+     */
     contentDownload: 'Content Download',
     /**
-    *@description Text in Request Timing View of the Network panel
-    */
+     *@description Text in Request Timing View of the Network panel
+     */
     requestSent: 'Request sent',
     /**
-    *@description Text in Request Timing View of the Network panel
-    */
+     *@description Text in Request Timing View of the Network panel
+     */
     requestToServiceworker: 'Request to `ServiceWorker`',
     /**
-    *@description Text in Request Timing View of the Network panel
-    */
+     *@description Text in Request Timing View of the Network panel
+     */
     startup: 'Startup',
     /**
-    *@description Text in Request Timing View of the Network panel
-    */
+     *@description Text in Request Timing View of the Network panel
+     */
     respondwith: 'respondWith',
     /**
-    *@description Text in Request Timing View of the Network panel
-    */
+     *@description Text in Request Timing View of the Network panel
+     */
     ssl: 'SSL',
     /**
-    *@description Text for sum
-    */
+     *@description Text for sum
+     */
     total: 'Total',
     /**
-    *@description Text in Request Timing View of the Network panel
-    */
-    waitingTtfb: 'Waiting (TTFB)',
+     *@description Text in Request Timing View of the Network panel
+     */
+    waitingTtfb: 'Waiting for server response',
     /**
-    *@description Text in Signed Exchange Info View of the Network panel
-    */
+     *@description Text in Signed Exchange Info View of the Network panel
+     */
     label: 'Label',
     /**
-    *@description Inner element text content in Network Log View Columns of the Network panel
-    */
+     *@description Inner element text content in Network Log View Columns of the Network panel
+     */
     waterfall: 'Waterfall',
     /**
-    *@description Text for the duration of something
-    */
+     *@description Text for the duration of something
+     */
     duration: 'Duration',
     /**
-    *@description Text of a DOM element in Request Timing View of the Network panel
-    *@example {120.39ms} PH1
-    */
+     *@description Text of a DOM element in Request Timing View of the Network panel
+     *@example {120.39ms} PH1
+     */
     queuedAtS: 'Queued at {PH1}',
     /**
-    *@description Text of a DOM element in Request Timing View of the Network panel
-    *@example {120.39ms} PH1
-    */
+     *@description Text of a DOM element in Request Timing View of the Network panel
+     *@example {120.39ms} PH1
+     */
     startedAtS: 'Started at {PH1}',
     /**
-    *@description Text in Request Timing View of the Network panel
-    */
+     *@description Text in Request Timing View of the Network panel
+     */
     serverPush: 'Server Push',
     /**
-    *@description Text of a DOM element in Request Timing View of the Network panel
-    */
+     *@description Text of a DOM element in Request Timing View of the Network panel
+     */
     resourceScheduling: 'Resource Scheduling',
     /**
-    *@description Text in Request Timing View of the Network panel
-    */
+     *@description Text in Request Timing View of the Network panel
+     */
     connectionStart: 'Connection Start',
     /**
-    *@description Text in Request Timing View of the Network panel
-    */
+     *@description Text in Request Timing View of the Network panel
+     */
     requestresponse: 'Request/Response',
     /**
-    *@description Text of a DOM element in Request Timing View of the Network panel
-    */
+     *@description Text of a DOM element in Request Timing View of the Network panel
+     */
     cautionRequestIsNotFinishedYet: 'CAUTION: request is not finished yet!',
     /**
-    *@description Text in Request Timing View of the Network panel
-    */
+     *@description Text in Request Timing View of the Network panel
+     */
     explanation: 'Explanation',
     /**
-    *@description Text of a DOM element in Request Timing View of the Network panel
-    */
+     *@description Text of a DOM element in Request Timing View of the Network panel
+     */
     serverTiming: 'Server Timing',
     /**
-    *@description Text of a DOM element in Request Timing View of the Network panel
-    */
+     *@description Text of a DOM element in Request Timing View of the Network panel
+     */
     time: 'TIME',
     /**
-    *@description Label for the Server Timing API
-    */
+     *@description Label for the Server Timing API
+     */
     theServerTimingApi: 'the Server Timing API',
     /**
-    *@description Text to inform about the ServerTiming API, which can be used to report timing information to DevTools about the substeps that the server performed to answer the requests. Timing information is, e.g., the duration of the substep.
-    *@example {https://web.dev/custom-metrics/#server-timing-api} PH1
-    */
+     *@description Text to inform about the ServerTiming API, which can be used to report timing information to DevTools about the substeps that the server performed to answer the requests. Timing information is, e.g., the duration of the substep.
+     *@example {https://web.dev/custom-metrics/#server-timing-api} PH1
+     */
     duringDevelopmentYouCanUseSToAdd: 'During development, you can use {PH1} to add insights into the server-side timing of this request.',
     /**
-    *@description Header for last column of network timing tab.
-    */
+     *@description Header for last column of network timing tab.
+     */
     durationC: 'DURATION',
     /**
-    *@description Description for treeitem in ServiceWorker Fetch Details
-    */
+     *@description Description for treeitem in ServiceWorker Fetch Details
+     */
     originalRequest: 'Original Request',
     /**
-    *@description Description for treeitem in ServiceWorker Fetch Details
-    */
+     *@description Description for treeitem in ServiceWorker Fetch Details
+     */
     responseReceived: 'Response Received',
     /**
-    *@description Text for an unspecified service worker response source
-    */
+     *@description Text for an unspecified service worker response source
+     */
     unknown: 'Unknown',
     /**
-    *@description Displays how a particular response was fetched
-    *@example {Network fetch} PH1
-    */
+     *@description Displays how a particular response was fetched
+     *@example {Network fetch} PH1
+     */
     sourceOfResponseS: 'Source of response: {PH1}',
     /**
-    *@description Name of storage cache from which a response was fetched
-    *@example {v1} PH1
-    */
+     *@description Name of storage cache from which a response was fetched
+     *@example {v1} PH1
+     */
     cacheStorageCacheNameS: 'Cache storage cache name: {PH1}',
     /**
-    *@description Text for unknown cache storage name
-    */
+     *@description Text for unknown cache storage name
+     */
     cacheStorageCacheNameUnknown: 'Cache storage cache name: Unknown',
     /**
-    *@description Time at which a response was retrieved
-    *@example {Fri Apr 10 2020 17:20:27 GMT-0700 (Pacific Daylight Time)} PH1
-    */
+     *@description Time at which a response was retrieved
+     *@example {Fri Apr 10 2020 17:20:27 GMT-0700 (Pacific Daylight Time)} PH1
+     */
     retrievalTimeS: 'Retrieval Time: {PH1}',
     /**
-    *@description Text used to show that serviceworker fetch response source is ServiceWorker Cache Storage
-    */
+     *@description Text used to show that serviceworker fetch response source is ServiceWorker Cache Storage
+     */
     serviceworkerCacheStorage: '`ServiceWorker` cache storage',
     /**
-    *@description Text used to show that serviceworker fetch response source is HTTP cache
-    */
+     *@description Text used to show that serviceworker fetch response source is HTTP cache
+     */
     fromHttpCache: 'From HTTP cache',
     /**
-    *@description Text used to show that data was retrieved via a Network fetch
-    */
+     *@description Text used to show that data was retrieved via a Network fetch
+     */
     networkFetch: 'Network fetch',
     /**
-    *@description Text used to show that data was retrieved using ServiceWorker fallback code
-    */
+     *@description Text used to show that data was retrieved using ServiceWorker fallback code
+     */
     fallbackCode: 'Fallback code',
 };
 const str_ = i18n.i18n.registerUIStrings('panels/network/RequestTimingView.ts', UIStrings);
@@ -217,12 +217,14 @@ const i18nString = i18n.i18n.getLocalizedString.bind(undefined, str_);
 export class RequestTimingView extends UI.Widget.VBox {
     request;
     calculator;
+    lastMinimumBoundary;
     tableElement;
     constructor(request, calculator) {
         super();
         this.element.classList.add('resource-timing-view');
         this.request = request;
         this.calculator = calculator;
+        this.lastMinimumBoundary = -1;
     }
     static timeRangeTitle(name) {
         switch (name) {
@@ -407,7 +409,7 @@ export class RequestTimingView extends UI.Widget.VBox {
             bar.style.left = left + '%';
             bar.style.right = right + '%';
             bar.textContent = '\u200B'; // Important for 0-time items to have 0 width.
-            UI.ARIAUtils.setAccessibleName(row, i18nString(UIStrings.startedAtS, { PH1: calculator.formatValue(range.start, 2) }));
+            UI.ARIAUtils.setLabel(row, i18nString(UIStrings.startedAtS, { PH1: calculator.formatValue(range.start, 2) }));
             const label = tr.createChild('td').createChild('div', 'network-timing-bar-title');
             label.textContent = i18n.TimeUtilities.secondsToString(duration, true);
             if (range.name === 'serviceworker-respondwith') {
@@ -426,7 +428,7 @@ export class RequestTimingView extends UI.Widget.VBox {
         const footer = tableElement.createChild('tr', 'network-timing-footer');
         const note = footer.createChild('td');
         note.colSpan = 1;
-        note.appendChild(UI.XLink.XLink.create('https://developer.chrome.com/docs/devtools/network/reference#timing-explanation', i18nString(UIStrings.explanation)));
+        note.appendChild(UI.XLink.XLink.create('https://developer.chrome.com/docs/devtools/network/reference/#timing-explanation', i18nString(UIStrings.explanation)));
         footer.createChild('td');
         UI.UIUtils.createTextChild(footer.createChild('td'), i18n.TimeUtilities.secondsToString(totalDuration, true));
         const serverTimings = request.serverTimings;
@@ -545,11 +547,11 @@ export class RequestTimingView extends UI.Widget.VBox {
     }
     getLocalizedResponseSourceForCode(swResponseSource) {
         switch (swResponseSource) {
-            case "cache-storage" /* CacheStorage */:
+            case "cache-storage" /* Protocol.Network.ServiceWorkerResponseSource.CacheStorage */:
                 return i18nString(UIStrings.serviceworkerCacheStorage);
-            case "http-cache" /* HttpCache */:
+            case "http-cache" /* Protocol.Network.ServiceWorkerResponseSource.HttpCache */:
                 return i18nString(UIStrings.fromHttpCache);
-            case "network" /* Network */:
+            case "network" /* Protocol.Network.ServiceWorkerResponseSource.Network */:
                 return i18nString(UIStrings.networkFetch);
             default:
                 return i18nString(UIStrings.fallbackCode);
@@ -573,14 +575,14 @@ export class RequestTimingView extends UI.Widget.VBox {
     wasShown() {
         this.request.addEventListener(SDK.NetworkRequest.Events.TimingChanged, this.refresh, this);
         this.request.addEventListener(SDK.NetworkRequest.Events.FinishedLoading, this.refresh, this);
-        this.calculator.addEventListener(Events.BoundariesChanged, this.refresh, this);
+        this.calculator.addEventListener(Events.BoundariesChanged, this.boundaryChanged, this);
         this.registerCSSFiles([networkingTimingTableStyles]);
         this.refresh();
     }
     willHide() {
         this.request.removeEventListener(SDK.NetworkRequest.Events.TimingChanged, this.refresh, this);
         this.request.removeEventListener(SDK.NetworkRequest.Events.FinishedLoading, this.refresh, this);
-        this.calculator.removeEventListener(Events.BoundariesChanged, this.refresh, this);
+        this.calculator.removeEventListener(Events.BoundariesChanged, this.boundaryChanged, this);
     }
     refresh() {
         if (this.tableElement) {
@@ -591,6 +593,13 @@ export class RequestTimingView extends UI.Widget.VBox {
         this.element.appendChild(this.tableElement);
         if (this.request.fetchedViaServiceWorker) {
             this.constructFetchDetailsView();
+        }
+    }
+    boundaryChanged() {
+        const minimumBoundary = this.calculator.minimumBoundary();
+        if (minimumBoundary !== this.lastMinimumBoundary) {
+            this.lastMinimumBoundary = minimumBoundary;
+            this.refresh();
         }
     }
 }

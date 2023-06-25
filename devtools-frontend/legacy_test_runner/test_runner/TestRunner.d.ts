@@ -37,20 +37,17 @@ export function addSniffer(receiver: Object, methodName: string, override: Funct
  */
 export function addSnifferPromise(receiver: Object, methodName: string): Promise<any>;
 /**
- * @param {string} module
- * @return {!Promise<undefined>}
+ * @param {Text} textNode
+ * @param {number=} start
+ * @param {number=} end
+ * @return {Text}
  */
-export function loadModule(module: string): Promise<undefined>;
+export function selectTextInTextNode(textNode: Text, start?: number | undefined, end?: number | undefined): Text;
 /**
  * @param {string} module
  * @return {!Promise<void>}
  */
 export function loadLegacyModule(module: string): Promise<void>;
-/**
- * @param {string} module
- * @return {!Promise<void>}
- */
-export function loadTestModule(module: string): Promise<void>;
 /**
  * @param {string} panel
  * @return {!Promise.<?UI.Panel.Panel>}
@@ -82,6 +79,11 @@ export function textContentWithLineBreaks(node: Node): string;
  * @param {!Node} node
  * @return {string}
  */
+export function textContentWithLineBreaksTrimmed(node: Node): string;
+/**
+ * @param {!Node} node
+ * @return {string}
+ */
 export function textContentWithoutStyles(node: Node): string;
 /**
  * @param {string} code
@@ -92,15 +94,15 @@ export function evaluateInPageRemoteObject(code: string): Promise<any>;
  * @param {string} code
  * @param {function(*, !Protocol.Runtime.ExceptionDetails=):void} callback
  */
-export function evaluateInPage(code: string, callback: (arg0: any, arg1: any | undefined) => void): Promise<void>;
+export function evaluateInPage(code: string, callback: (arg0: any, arg1: Protocol.Runtime.ExceptionDetails | undefined) => void): Promise<void>;
 /**
  * @param {string} code
  * @return {!Promise<undefined|{response: (!SDK.RemoteObject|undefined),
  *   exceptionDetails: (!Protocol.Runtime.ExceptionDetails|undefined)}>}
  */
 export function _evaluateInPage(code: string): Promise<{
-    response: (any | undefined);
-    exceptionDetails: (any | undefined);
+    response: (SDK.RemoteObject | undefined);
+    exceptionDetails: (Protocol.Runtime.ExceptionDetails | undefined);
 } | undefined>;
 /**
  * Doesn't append sourceURL to snippets evaluated in inspected page
@@ -197,21 +199,21 @@ export function startDumpingProtocolMessages(): void;
  * @param {string} content
  * @param {!SDK.ResourceTreeFrame} frame
  */
-export function addScriptForFrame(url: string, content: string, frame: any): void;
+export function addScriptForFrame(url: string, content: string, frame: SDK.ResourceTreeFrame): void;
 /**
  * @param {!Object} object
  * @param {!TestRunner.CustomFormatters=} customFormatters
  * @param {string=} prefix
  * @param {string=} firstLinePrefix
  */
-export function addObject(object: Object, customFormatters?: any | undefined, prefix?: string | undefined, firstLinePrefix?: string | undefined): void;
+export function addObject(object: Object, customFormatters?: TestRunner.CustomFormatters | undefined, prefix?: string | undefined, firstLinePrefix?: string | undefined): void;
 /**
  * @param {!Array} array
  * @param {!TestRunner.CustomFormatters=} customFormatters
  * @param {string=} prefix
  * @param {string=} firstLinePrefix
  */
-export function addArray(array: any[], customFormatters?: any | undefined, prefix?: string | undefined, firstLinePrefix?: string | undefined): void;
+export function addArray(array: any[], customFormatters?: TestRunner.CustomFormatters | undefined, prefix?: string | undefined, firstLinePrefix?: string | undefined): void;
 /**
  * @param {!Node} node
  */
@@ -227,7 +229,7 @@ export function deepTextContent(node: Node): string;
  * @param {string=} prefix
  * @param {string=} prefixWithName
  */
-export function dump(value: any, customFormatters?: any | undefined, prefix?: string | undefined, prefixWithName?: string | undefined): void;
+export function dump(value: any, customFormatters?: TestRunner.CustomFormatters | undefined, prefix?: string | undefined, prefixWithName?: string | undefined): void;
 /**
  * @param {symbol} eventName
  * @param {!Common.ObjectWrapper.ObjectWrapper} obj
@@ -239,22 +241,22 @@ export function waitForEvent(eventName: symbol, obj: Common.ObjectWrapper.Object
  * @param {function(!SDK.Target):boolean} filter
  * @return {!Promise<!SDK.Target>}
  */
-export function waitForTarget(filter: (arg0: any) => boolean): Promise<any>;
+export function waitForTarget(filter: (arg0: SDK.Target) => boolean): Promise<SDK.Target>;
 /**
  * @param {!SDK.Target} targetToRemove
  * @return {!Promise<!SDK.Target>}
  */
-export function waitForTargetRemoved(targetToRemove: any): Promise<any>;
+export function waitForTargetRemoved(targetToRemove: SDK.Target): Promise<SDK.Target>;
 /**
  * @param {!SDK.RuntimeModel} runtimeModel
  * @return {!Promise}
  */
-export function waitForExecutionContext(runtimeModel: any): Promise<any>;
+export function waitForExecutionContext(runtimeModel: SDK.RuntimeModel): Promise<any>;
 /**
  * @param {!SDK.ExecutionContext} context
  * @return {!Promise}
  */
-export function waitForExecutionContextDestroyed(context: any): Promise<any>;
+export function waitForExecutionContextDestroyed(context: SDK.ExecutionContext): Promise<any>;
 /**
  * @param {number} a
  * @param {number} b
@@ -340,16 +342,7 @@ export function hideInspectorView(): void;
 /**
  * @return {?SDK.ResourceTreeFrame}
  */
-export function mainFrame(): any | null;
-/**
- * @return {!Array<!Root.Runtime.Module>}
- */
-export function loadedModules(): Array<Root.Runtime.Module>;
-/**
- * @param {!Array<!Root.Runtime.Module>} relativeTo
- * @return {!Array<!Root.Runtime.Module>}
- */
-export function dumpLoadedModules(relativeTo: Array<Root.Runtime.Module>): Array<Root.Runtime.Module>;
+export function mainFrame(): SDK.ResourceTreeFrame | null;
 /**
  * @param {string} urlSuffix
  * @param {!Workspace.Workspace.projectTypes=} projectType
@@ -387,54 +380,29 @@ export function dumpInspectedPageElementText(querySelector: string): Promise<voi
 export function waitForPendingLiveLocationUpdates(): Promise<void>;
 export namespace formatters {
     /**
-   * @param {*} value
-   * @return {string}
-   */
+     * @param {*} value
+     * @return {string}
+     */
     function formatAsTypeName(value: any): string;
     /**
-   * @param {*} value
-   * @return {string}
-   */
-    function formatAsTypeName(value: any): string;
-    /**
-   * @param {*} value
-   * @return {string}
-   */
+     * @param {*} value
+     * @return {string}
+     */
     function formatAsTypeNameOrNull(value: any): string;
     /**
-   * @param {*} value
-   * @return {string}
-   */
-    function formatAsTypeNameOrNull(value: any): string;
-    /**
-   * @param {*} value
-   * @return {string|!Date}
-   */
+     * @param {*} value
+     * @return {string|!Date}
+     */
     function formatAsRecentTime(value: any): string | Date;
     /**
-   * @param {*} value
-   * @return {string|!Date}
-   */
-    function formatAsRecentTime(value: any): string | Date;
-    /**
-   * @param {string} value
-   * @return {string}
-   */
+     * @param {string} value
+     * @return {string}
+     */
     function formatAsURL(value: string): string;
     /**
-   * @param {string} value
-   * @return {string}
-   */
-    function formatAsURL(value: string): string;
-    /**
-   * @param {string} value
-   * @return {string}
-   */
-    function formatAsDescription(value: string): string;
-    /**
-   * @param {string} value
-   * @return {string}
-   */
+     * @param {string} value
+     * @return {string}
+     */
     function formatAsDescription(value: string): string;
 }
 export class StringOutputStream {
@@ -474,7 +442,6 @@ export class MockSetting<V> {
     set(value: V): void;
 }
 export function findLineEndingIndexes(inputString: string): Array<number>;
-import * as UI from "../../ui/legacy/legacy.js";
-import * as Common from "../../core/common/common.js";
-import * as Root from "../../core/root/root.js";
-import * as Workspace from "../../models/workspace/workspace.js";
+import * as UI from '../../ui/legacy/legacy.js';
+import * as Common from '../../core/common/common.js';
+import * as Workspace from '../../models/workspace/workspace.js';

@@ -2,23 +2,23 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 /**
-  * A class that facilitates resolving a id to an object of type T. If the id does not yet resolve, a promise
-  * is created that gets resolved once `onResolve` is called with the corresponding id.
-  *
-  * This class enables clients to control the duration of the wait and the lifetime of the associated
-  * promises by using the `clear` method on this class.
-  */
+ * A class that facilitates resolving a id to an object of type T. If the id does not yet resolve, a promise
+ * is created that gets resolved once `onResolve` is called with the corresponding id.
+ *
+ * This class enables clients to control the duration of the wait and the lifetime of the associated
+ * promises by using the `clear` method on this class.
+ */
 export class ResolverBase {
     #unresolvedIds = new Map();
     /**
      * Returns a promise that resolves once the `id` can be resolved to an object.
      */
-    waitFor(id) {
+    async waitFor(id) {
         const obj = this.getForId(id);
         if (!obj) {
             return this.getOrCreatePromise(id);
         }
-        return Promise.resolve(obj);
+        return obj;
     }
     /**
      * Resolve the `id`. Returns the object immediatelly if it can be resolved,
@@ -29,7 +29,7 @@ export class ResolverBase {
         const obj = this.getForId(id);
         if (!obj) {
             const swallowTheError = () => { };
-            this.getOrCreatePromise(id).catch(swallowTheError).then(obj => {
+            void this.getOrCreatePromise(id).catch(swallowTheError).then(obj => {
                 if (obj) {
                     callback(obj);
                 }

@@ -30,7 +30,8 @@
 /* eslint-disable @typescript-eslint/naming-convention */
 import * as Platform from '../../core/platform/platform.js';
 import * as SDK from '../../core/sdk/sdk.js';
-import { RecordType, TimelineData } from './TimelineModel.js';
+import * as TraceEngine from '../trace/trace.js';
+import { RecordType, EventOnTimelineData } from './TimelineModel.js';
 import { TracingLayerTree } from './TracingLayerTree.js';
 export class TimelineFrameModel {
     categoryMapper;
@@ -113,17 +114,18 @@ export class TimelineFrameModel {
             this.startFrame(startTime);
         }
         this.lastBeginFrame = startTime;
-        this.beginFrameQueue.addFrameIfNotExists(seqId, startTime, false);
+        this.beginFrameQueue.addFrameIfNotExists(seqId, startTime, false, false);
     }
-    handleDroppedFrame(startTime, seqId) {
+    handleDroppedFrame(startTime, seqId, isPartial) {
         if (!this.lastFrame) {
             this.startFrame(startTime);
         }
         // This line handles the case where no BeginFrame event is issued for
         // the dropped frame. In this situation, add a BeginFrame to the queue
         // as if it actually occurred.
-        this.beginFrameQueue.addFrameIfNotExists(seqId, startTime, true);
+        this.beginFrameQueue.addFrameIfNotExists(seqId, startTime, true, isPartial);
         this.beginFrameQueue.setDropped(seqId, true);
+        this.beginFrameQueue.setPartial(seqId, isPartial);
     }
     handleDrawFrame(startTime, seqId) {
         if (!this.lastFrame) {
@@ -155,6 +157,9 @@ export class TimelineFrameModel {
                 if (frame.isDropped) {
                     this.lastFrame.dropped = true;
                 }
+                if (frame.isPartial) {
+                    this.lastFrame.isPartial = true;
+                }
             }
         }
         this.mainFrameCommitted = false;
@@ -173,7 +178,7 @@ export class TimelineFrameModel {
         }
         this.mainFrameRequested = true;
     }
-    handleCompositeLayers() {
+    handleCommit() {
         if (!this.framePendingCommit) {
             return;
         }
@@ -239,7 +244,7 @@ export class TimelineFrameModel {
         if (event.name === RecordType.SetLayerTreeId) {
             this.layerTreeId = event.args['layerTreeId'] || event.args['data']['layerTreeId'];
         }
-        else if (event.id && event.phase === SDK.TracingModel.Phase.SnapshotObject &&
+        else if (event.id && event.phase === "O" /* TraceEngine.Types.TraceEvents.Phase.OBJECT_SNAPSHOT */ &&
             event.name === RecordType.LayerTreeHostImplSnapshot && Number(event.id) === this.layerTreeId && this.target) {
             const snapshot = event;
             this.handleLayerTreeSnapshot(new TracingFrameLayerTree(this.target, snapshot));
@@ -275,7 +280,7 @@ export class TimelineFrameModel {
             this.handleNeedFrameChanged(timestamp, event.args['data'] && event.args['data']['needsBeginFrame']);
         }
         else if (event.name === RecordType.DroppedFrame) {
-            this.handleDroppedFrame(timestamp, event.args['frameSeqId']);
+            this.handleDroppedFrame(timestamp, event.args['frameSeqId'], event.args['hasPartialUpdate']);
         }
     }
     addMainThreadTraceEvent(event) {
@@ -295,12 +300,15 @@ export class TimelineFrameModel {
         if (event.name === RecordType.BeginMainThreadFrame && event.args['data'] && event.args['data']['frameId']) {
             this.framePendingCommit.mainFrameId = event.args['data']['frameId'];
         }
-        if (event.name === RecordType.Paint && event.args['data']['layerId'] && TimelineData.forEvent(event).picture &&
-            this.target) {
+        if (event.name === RecordType.Paint && event.args['data']['layerId'] &&
+            EventOnTimelineData.forEvent(event).picture && this.target) {
             this.framePendingCommit.paints.push(new LayerPaintEvent(event, this.target));
         }
-        if (event.name === RecordType.CompositeLayers && event.args['layerTreeId'] === this.layerTreeId) {
-            this.handleCompositeLayers();
+        // Commit will be replacing CompositeLayers but CompositeLayers is kept
+        // around for backwards compatibility.
+        if ((event.name === RecordType.CompositeLayers || event.name === RecordType.Commit) &&
+            event.args['layerTreeId'] === this.layerTreeId) {
+            this.handleCommit();
         }
     }
     addTimeForCategory(timeByCategory, event) {
@@ -326,7 +334,7 @@ export class TracingFrameLayerTree {
         this.snapshot = snapshot;
     }
     async layerTreePromise() {
-        const result = await this.snapshot.objectPromise();
+        const result = this.snapshot.getSnapshot();
         if (!result) {
             return null;
         }
@@ -356,6 +364,7 @@ export class TimelineFrame {
     cpuTime;
     idle;
     dropped;
+    isPartial;
     layerTree;
     paints;
     mainFrameId;
@@ -368,6 +377,7 @@ export class TimelineFrame {
         this.cpuTime = 0;
         this.idle = false;
         this.dropped = false;
+        this.isPartial = false;
         this.layerTree = null;
         this.paints = [];
         this.mainFrameId = undefined;
@@ -406,20 +416,15 @@ export class LayerPaintEvent {
         return this.eventInternal;
     }
     picturePromise() {
-        const picture = TimelineData.forEvent(this.eventInternal).picture;
+        // TODO(crbug.com/1453234): this function does not need to be async now
+        const picture = EventOnTimelineData.forEvent(this.eventInternal).picture;
         if (!picture) {
             return Promise.resolve(null);
         }
-        // TODO(crbug.com/1172300) Ignored during the jsdoc to ts migration)
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        return picture.objectPromise().then((result) => {
-            if (!result) {
-                return null;
-            }
-            const rect = result['params'] && result['params']['layer_rect'];
-            const picture = result['skp64'];
-            return rect && picture ? { rect: rect, serializedPicture: picture } : null;
-        });
+        const snapshot = picture.getSnapshot();
+        const rect = snapshot['params'] && snapshot['params']['layer_rect'];
+        const pictureData = snapshot['skp64'];
+        return Promise.resolve(rect && pictureData ? { rect: rect, serializedPicture: pictureData } : null);
     }
     async snapshotPromise() {
         const paintProfilerModel = this.target && this.target.model(SDK.PaintProfiler.PaintProfilerModel);
@@ -448,10 +453,12 @@ class BeginFrameInfo {
     seqId;
     startTime;
     isDropped;
-    constructor(seqId, startTime, isDropped) {
+    isPartial;
+    constructor(seqId, startTime, isDropped, isPartial) {
         this.seqId = seqId;
         this.startTime = startTime;
         this.isDropped = isDropped;
+        this.isPartial = isPartial;
     }
 }
 // A queue of BeginFrames pending visualization.
@@ -467,9 +474,9 @@ export class TimelineFrameBeginFrameQueue {
         this.mapFrames = {};
     }
     // Add a BeginFrame to the queue, if it does not already exit.
-    addFrameIfNotExists(seqId, startTime, isDropped) {
+    addFrameIfNotExists(seqId, startTime, isDropped, isPartial) {
         if (!(seqId in this.mapFrames)) {
-            this.mapFrames[seqId] = new BeginFrameInfo(seqId, startTime, isDropped);
+            this.mapFrames[seqId] = new BeginFrameInfo(seqId, startTime, isDropped, isPartial);
             this.queueFrames.push(seqId);
         }
     }
@@ -477,6 +484,11 @@ export class TimelineFrameBeginFrameQueue {
     setDropped(seqId, isDropped) {
         if (seqId in this.mapFrames) {
             this.mapFrames[seqId].isDropped = isDropped;
+        }
+    }
+    setPartial(seqId, isPartial) {
+        if (seqId in this.mapFrames) {
+            this.mapFrames[seqId].isPartial = isPartial;
         }
     }
     processPendingBeginFramesOnDrawFrame(seqId) {

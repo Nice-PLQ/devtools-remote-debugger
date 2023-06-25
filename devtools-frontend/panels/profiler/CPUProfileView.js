@@ -37,66 +37,66 @@ import { ProfileEvents, ProfileType } from './ProfileHeader.js';
 import { ProfileView, WritableProfileHeader } from './ProfileView.js';
 const UIStrings = {
     /**
-    *@description Time of a single activity, as opposed to the total time
-    */
+     *@description Time of a single activity, as opposed to the total time
+     */
     selfTime: 'Self Time',
     /**
-    *@description Text for the total time of something
-    */
+     *@description Text for the total time of something
+     */
     totalTime: 'Total Time',
     /**
-    *@description Text in CPUProfile View of a profiler tool
-    */
+     *@description Text in CPUProfile View of a profiler tool
+     */
     recordJavascriptCpuProfile: 'Record JavaScript CPU Profile',
     /**
-    *@description Text in CPUProfile View of a profiler tool
-    */
+     *@description Text in CPUProfile View of a profiler tool
+     */
     stopCpuProfiling: 'Stop CPU profiling',
     /**
-    *@description Text in CPUProfile View of a profiler tool
-    */
+     *@description Text in CPUProfile View of a profiler tool
+     */
     startCpuProfiling: 'Start CPU profiling',
     /**
-    *@description Text in CPUProfile View of a profiler tool
-    */
+     *@description Text in CPUProfile View of a profiler tool
+     */
     cpuProfiles: 'CPU PROFILES',
     /**
-    *@description Text in CPUProfile View of a profiler tool, that show how much time a script spend executing a function.
-    */
+     *@description Text in CPUProfile View of a profiler tool, that show how much time a script spend executing a function.
+     */
     cpuProfilesShow: 'CPU profiles show where the execution time is spent in your page\'s JavaScript functions.',
     /**
-    *@description Text in CPUProfile View of a profiler tool
-    */
+     *@description Text in CPUProfile View of a profiler tool
+     */
     recording: 'Recording…',
     /**
-    *@description Time in miliseconds
-    *@example {30.1} PH1
-    */
+     *@description Time in miliseconds
+     *@example {30.1} PH1
+     */
     fms: '{PH1} ms',
     /**
-    *@description Text in CPUProfile View of a profiler tool
-    *@example {21.33} PH1
-    */
+     *@description Text in CPUProfile View of a profiler tool
+     *@example {21.33} PH1
+     */
     formatPercent: '{PH1} %',
     /**
-    *@description Text for the name of something
-    */
+     *@description Text for the name of something
+     */
     name: 'Name',
     /**
-    *@description Text for web URLs
-    */
+     *@description Text for web URLs
+     */
     url: 'URL',
     /**
-    *@description Text in CPUProfile View of a profiler tool
-    */
+     *@description Text in CPUProfile View of a profiler tool
+     */
     aggregatedSelfTime: 'Aggregated self time',
     /**
-    *@description Text in CPUProfile View of a profiler tool
-    */
+     *@description Text in CPUProfile View of a profiler tool
+     */
     aggregatedTotalTime: 'Aggregated total time',
     /**
-    *@description Text that indicates a JavaScript function in a CPU profile is not optimized.
-    */
+     *@description Text that indicates a JavaScript function in a CPU profile is not optimized.
+     */
     notOptimized: 'Not optimized',
 };
 const str_ = i18n.i18n.registerUIStrings('panels/profiler/CPUProfileView.ts', UIStrings);
@@ -136,7 +136,14 @@ export class CPUProfileType extends ProfileType {
     constructor() {
         super(CPUProfileType.TypeId, i18nString(UIStrings.recordJavascriptCpuProfile));
         this.recording = false;
-        SDK.TargetManager.TargetManager.instance().addModelListener(SDK.CPUProfilerModel.CPUProfilerModel, SDK.CPUProfilerModel.Events.ConsoleProfileFinished, this.consoleProfileFinished, this);
+        const targetManager = SDK.TargetManager.TargetManager.instance();
+        const profilerModels = targetManager.models(SDK.CPUProfilerModel.CPUProfilerModel);
+        for (const model of profilerModels) {
+            for (const message of model.registeredConsoleProfileMessages) {
+                this.consoleProfileFinished(message);
+            }
+        }
+        SDK.TargetManager.TargetManager.instance().addModelListener(SDK.CPUProfilerModel.CPUProfilerModel, SDK.CPUProfilerModel.Events.ConsoleProfileFinished, event => this.consoleProfileFinished(event.data), this);
     }
     profileBeingRecorded() {
         return super.profileBeingRecorded();
@@ -152,7 +159,7 @@ export class CPUProfileType extends ProfileType {
     }
     buttonClicked() {
         if (this.recording) {
-            this.stopRecordingProfile();
+            void this.stopRecordingProfile();
             return false;
         }
         this.startRecordingProfile();
@@ -164,8 +171,7 @@ export class CPUProfileType extends ProfileType {
     get description() {
         return i18nString(UIStrings.cpuProfilesShow);
     }
-    consoleProfileFinished(event) {
-        const data = event.data;
+    consoleProfileFinished(data) {
         const profile = new CPUProfileHeader(data.cpuProfilerModel, this, data.title);
         profile.setProtocolProfile(data.cpuProfile);
         this.addProfile(profile);
@@ -177,11 +183,11 @@ export class CPUProfileType extends ProfileType {
         }
         const profile = new CPUProfileHeader(cpuProfilerModel, this);
         this.setProfileBeingRecorded(profile);
-        SDK.TargetManager.TargetManager.instance().suspendAllTargets();
+        void SDK.TargetManager.TargetManager.instance().suspendAllTargets();
         this.addProfile(profile);
         profile.updateStatus(i18nString(UIStrings.recording));
         this.recording = true;
-        cpuProfilerModel.startRecording();
+        void cpuProfilerModel.startRecording();
         Host.userMetrics.actionTaken(Host.UserMetrics.Action.ProfilesCPUProfileTaken);
     }
     async stopRecordingProfile() {
@@ -207,7 +213,7 @@ export class CPUProfileType extends ProfileType {
         return new CPUProfileHeader(null, this, title);
     }
     profileBeingRecordedRemoved() {
-        this.stopRecordingProfile();
+        void this.stopRecordingProfile();
     }
     // eslint-disable-next-line @typescript-eslint/naming-convention
     static TypeId = 'CPU';
@@ -262,7 +268,7 @@ export class NodeFormatter {
     linkifyNode(node) {
         const cpuProfilerModel = this.profileView.profileHeader.cpuProfilerModel;
         const target = cpuProfilerModel ? cpuProfilerModel.target() : null;
-        const options = { className: 'profile-node-file', columnNumber: undefined, inlineFrameIndex: 0, tabStop: undefined };
+        const options = { className: 'profile-node-file', inlineFrameIndex: 0 };
         return this.profileView.linkifier().maybeLinkifyConsoleCallFrame(target, node.profileNode.callFrame, options);
     }
 }
@@ -319,7 +325,8 @@ export class CPUFlameChartDataProvider extends ProfileFlameChartDataProvider {
         }
         this.maxStackDepthInternal = maxDepth + 1;
         this.entryNodes = entryNodes;
-        this.timelineData_ = new PerfUI.FlameChart.TimelineData(entryLevels, entryTotalTimes, entryStartTimes, null);
+        this.timelineData_ =
+            PerfUI.FlameChart.FlameChartTimelineData.create({ entryLevels, entryTotalTimes, entryStartTimes, groups: null });
         this.entrySelfTimes = entrySelfTimes;
         return this.timelineData_;
     }

@@ -34,97 +34,13 @@
  */
 // @ts-nocheck This file is not checked by TypeScript Compiler as it has a lot of legacy code.
 import * as Platform from '../platform/platform.js';
-export function rangeOfWord(rootNode, offset, stopCharacters, stayWithinNode, direction) {
-    let startNode;
-    let startOffset = 0;
-    let endNode;
-    let endOffset = 0;
-    if (!stayWithinNode) {
-        stayWithinNode = rootNode;
-    }
-    if (!direction || direction === 'backward' || direction === 'both') {
-        let node = rootNode;
-        while (node) {
-            if (node === stayWithinNode) {
-                if (!startNode) {
-                    startNode = stayWithinNode;
-                }
-                break;
-            }
-            if (node.nodeType === Node.TEXT_NODE) {
-                const start = (node === rootNode ? (offset - 1) : (node.nodeValue.length - 1));
-                for (let i = start; i >= 0; --i) {
-                    if (stopCharacters.indexOf(node.nodeValue[i]) !== -1) {
-                        startNode = node;
-                        startOffset = i + 1;
-                        break;
-                    }
-                }
-            }
-            if (startNode) {
-                break;
-            }
-            node = node.traversePreviousNode(stayWithinNode);
-        }
-        if (!startNode) {
-            startNode = stayWithinNode;
-            startOffset = 0;
-        }
-    }
-    else {
-        startNode = rootNode;
-        startOffset = offset;
-    }
-    if (!direction || direction === 'forward' || direction === 'both') {
-        let node = rootNode;
-        while (node) {
-            if (node === stayWithinNode) {
-                if (!endNode) {
-                    endNode = stayWithinNode;
-                }
-                break;
-            }
-            if (node.nodeType === Node.TEXT_NODE) {
-                const start = (node === rootNode ? offset : 0);
-                for (let i = start; i < node.nodeValue.length; ++i) {
-                    if (stopCharacters.indexOf(node.nodeValue[i]) !== -1) {
-                        endNode = node;
-                        endOffset = i;
-                        break;
-                    }
-                }
-            }
-            if (endNode) {
-                break;
-            }
-            node = node.traverseNextNode(stayWithinNode);
-        }
-        if (!endNode) {
-            endNode = stayWithinNode;
-            endOffset = stayWithinNode.nodeType === Node.TEXT_NODE ? stayWithinNode.nodeValue.length :
-                stayWithinNode.childNodes.length;
-        }
-    }
-    else {
-        endNode = rootNode;
-        endOffset = offset;
-    }
-    const result = rootNode.ownerDocument.createRange();
-    result.setStart(startNode, startOffset);
-    result.setEnd(endNode, endOffset);
-    return result;
-}
-Node.prototype.rangeOfWord = function (offset, stopCharacters, stayWithinNode, direction) {
-    return rangeOfWord(this, offset, stopCharacters, stayWithinNode, direction);
-};
 Node.prototype.traverseNextTextNode = function (stayWithin) {
     let node = this.traverseNextNode(stayWithin);
     if (!node) {
         return null;
     }
-    const nonTextTags = { 'STYLE': 1, 'SCRIPT': 1 };
-    while (node &&
-        (node.nodeType !== Node.TEXT_NODE || nonTextTags[node.parentElement ? node.parentElement.nodeName : ''])) {
+    const nonTextTags = { 'STYLE': 1, 'SCRIPT': 1, '#document-fragment': 1 };
+    while (node && (node.nodeType !== Node.TEXT_NODE || nonTextTags[node.parentNode ? node.parentNode.nodeName : ''])) {
         node = node.traverseNextNode(stayWithin);
     }
     return node;
@@ -171,19 +87,6 @@ Node.prototype.enclosingNodeOrSelfWithClassList = function (classNames, stayWith
         }
     }
     return null;
-};
-Node.prototype.enclosingShadowRoot = function () {
-    let parentNode = this.parentNodeOrShadowHost();
-    while (parentNode) {
-        if (parentNode instanceof ShadowRoot) {
-            return parentNode;
-        }
-        parentNode = parentNode.parentNodeOrShadowHost();
-    }
-    return null;
-};
-Node.prototype.hasSameShadowRoot = function (node) {
-    return this.enclosingShadowRoot() === node.enclosingShadowRoot();
 };
 Node.prototype.parentElementOrShadowHost = function () {
     if (this.nodeType === Node.DOCUMENT_FRAGMENT_NODE && this.host) {
@@ -260,16 +163,6 @@ Element.prototype.createChild = function (elementName, className, customElementT
     return element;
 };
 DocumentFragment.prototype.createChild = Element.prototype.createChild;
-Element.prototype.totalOffsetLeft = function () {
-    return this.totalOffset().left;
-};
-Element.prototype.totalOffsetTop = function () {
-    return this.totalOffset().top;
-};
-Element.prototype.totalOffset = function () {
-    const rect = this.getBoundingClientRect();
-    return { left: rect.left, top: rect.top };
-};
 self.AnchorBox = class {
     constructor(x, y, width, height) {
         this.x = x || 0;
@@ -297,8 +190,8 @@ Element.prototype.boxInWindow = function (targetWindow) {
     let curElement = this;
     let curWindow = this.ownerDocument.defaultView;
     while (curWindow && curElement) {
-        anchorBox.x += curElement.totalOffsetLeft();
-        anchorBox.y += curElement.totalOffsetTop();
+        anchorBox.x += curElement.getBoundingClientRect().left;
+        anchorBox.y += curElement.getBoundingClientRect().top;
         if (curWindow === targetWindow) {
             break;
         }
@@ -316,37 +209,6 @@ Event.prototype.consume = function (preventDefault) {
     }
     this.handled = true;
 };
-Text.prototype.select = function (start, end) {
-    start = start || 0;
-    end = end || this.textContent.length;
-    if (start < 0) {
-        start = end + start;
-    }
-    const selection = this.getComponentSelection();
-    selection.removeAllRanges();
-    const range = this.ownerDocument.createRange();
-    range.setStart(this, start);
-    range.setEnd(this, end);
-    selection.addRange(range);
-    return this;
-};
-Element.prototype.selectionLeftOffset = function () {
-    // Calculate selection offset relative to the current element.
-    const selection = this.getComponentSelection();
-    if (!selection.containsNode(this, true)) {
-        return null;
-    }
-    let leftOffset = selection.anchorOffset;
-    let node = selection.anchorNode;
-    while (node !== this) {
-        while (node.previousSibling) {
-            node = node.previousSibling;
-            leftOffset += node.textContent.length;
-        }
-        node = node.parentNodeOrShadowHost();
-    }
-    return leftOffset;
-};
 Node.prototype.deepTextContent = function () {
     return this.childTextNodes()
         .map(function (node) {
@@ -357,9 +219,9 @@ Node.prototype.deepTextContent = function () {
 Node.prototype.childTextNodes = function () {
     let node = this.traverseNextTextNode(this);
     const result = [];
-    const nonTextTags = { 'STYLE': 1, 'SCRIPT': 1 };
+    const nonTextTags = { 'STYLE': 1, 'SCRIPT': 1, '#document-fragment': 1 };
     while (node) {
-        if (!nonTextTags[node.parentElement ? node.parentElement.nodeName : '']) {
+        if (!nonTextTags[node.parentNode ? node.parentNode.nodeName : '']) {
             result.push(node);
         }
         node = node.traverseNextTextNode(this);
@@ -449,14 +311,6 @@ Node.prototype.setTextContentTruncatedIfNeeded = function (text, placeholder) {
     this.textContent = text;
     return false;
 };
-Document.prototype.deepActiveElement = function () {
-    let activeElement = this.activeElement;
-    while (activeElement && activeElement.shadowRoot && activeElement.shadowRoot.activeElement) {
-        activeElement = activeElement.shadowRoot.activeElement;
-    }
-    return activeElement;
-};
-DocumentFragment.prototype.deepActiveElement = Document.prototype.deepActiveElement;
 Element.prototype.hasFocus = function () {
     const root = this.getComponentRoot();
     return Boolean(root) && this.isSelfOrAncestor(root.activeElement);
@@ -470,17 +324,11 @@ Node.prototype.getComponentRoot = function () {
 };
 self.onInvokeElement = function (element, callback) {
     element.addEventListener('keydown', event => {
-        if (self.isEnterOrSpaceKey(event)) {
+        if (Platform.KeyboardUtilities.isEnterOrSpaceKey(event)) {
             callback(event);
         }
     });
     element.addEventListener('click', event => callback(event));
-};
-self.isEnterOrSpaceKey = function (event) {
-    return event.key === 'Enter' || event.key === ' ';
-};
-self.isEscKey = function (event) {
-    return event.keyCode === 27;
 };
 // DevTools front-end still assumes that
 //   classList.toggle('a', undefined) works as

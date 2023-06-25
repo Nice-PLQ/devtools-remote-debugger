@@ -2,24 +2,39 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 import * as Common from '../../core/common/common.js';
+import * as Host from '../../core/host/host.js';
 import * as i18n from '../../core/i18n/i18n.js';
+import * as Root from '../../core/root/root.js';
 import * as SDK from '../../core/sdk/sdk.js';
+import * as Feedback from '../../ui/components/panel_feedback/panel_feedback.js';
 import * as UI from '../../ui/legacy/legacy.js';
 import axBreadcrumbsStyles from './axBreadcrumbs.css.js';
 import { AccessibilitySubPane } from './AccessibilitySubPane.js';
 const UIStrings = {
     /**
-    *@description Text in AXBreadcrumbs Pane of the Accessibility panel
-    */
+     *@description Text in AXBreadcrumbs Pane of the Accessibility panel
+     */
     accessibilityTree: 'Accessibility Tree',
     /**
-    *@description Text to scroll the displayed content into view
-    */
+     *@description Text to scroll the displayed content into view
+     */
     scrollIntoView: 'Scroll into view',
     /**
-    *@description Ignored node element text content in AXBreadcrumbs Pane of the Accessibility panel
-    */
+     *@description Ignored node element text content in AXBreadcrumbs Pane of the Accessibility panel
+     */
     ignored: 'Ignored',
+    /**
+     *@description Name for experimental tree toggle.
+     */
+    fullTreeExperimentName: 'Enable full-page accessibility tree',
+    /**
+     *@description Description text for experimental tree toggle.
+     */
+    fullTreeExperimentDescription: 'The accessibility tree moved to the top right corner of the DOM tree.',
+    /**
+     *@description Message saying that DevTools must be restarted before the experiment is enabled.
+     */
+    reloadRequired: 'Reload required before the change takes effect.',
 };
 const str_ = i18n.i18n.registerUIStrings('panels/accessibility/AXBreadcrumbsPane.ts', UIStrings);
 const i18nString = i18n.i18n.getLocalizedString.bind(undefined, str_);
@@ -30,17 +45,40 @@ export class AXBreadcrumbsPane extends AccessibilitySubPane {
     collapsingBreadcrumbId;
     hoveredBreadcrumb;
     rootElement;
+    #legacyTreeDisabled = false;
     constructor(axSidebarView) {
         super(i18nString(UIStrings.accessibilityTree));
         this.element.classList.add('ax-subpane');
-        UI.ARIAUtils.markAsTree(this.element);
         this.element.tabIndex = -1;
         this.axSidebarView = axSidebarView;
         this.preselectedBreadcrumb = null;
         this.inspectedNodeBreadcrumb = null;
         this.collapsingBreadcrumbId = -1;
-        this.hoveredBreadcrumb = null;
         this.rootElement = this.element.createChild('div', 'ax-breadcrumbs');
+        this.hoveredBreadcrumb = null;
+        const previewToggle = new Feedback.PreviewToggle.PreviewToggle();
+        const name = i18nString(UIStrings.fullTreeExperimentName);
+        const experiment = Root.Runtime.ExperimentName.FULL_ACCESSIBILITY_TREE;
+        const onChangeCallback = checked => {
+            Host.userMetrics.experimentChanged(experiment, checked);
+            UI.InspectorView.InspectorView.instance().displayReloadRequiredWarning(i18nString(UIStrings.reloadRequired));
+        };
+        if (Root.Runtime.experiments.isEnabled(experiment)) {
+            this.#legacyTreeDisabled = true;
+            const feedbackURL = 'https://g.co/devtools/a11y-tree-feedback';
+            previewToggle.data = {
+                name,
+                helperText: i18nString(UIStrings.fullTreeExperimentDescription),
+                feedbackURL,
+                experiment,
+                onChangeCallback,
+            };
+            this.element.appendChild(previewToggle);
+            return;
+        }
+        previewToggle.data = { name, helperText: null, feedbackURL: null, experiment, onChangeCallback };
+        this.element.prepend(previewToggle);
+        UI.ARIAUtils.markAsTree(this.rootElement);
         this.rootElement.addEventListener('keydown', this.onKeyDown.bind(this), true);
         this.rootElement.addEventListener('mousemove', this.onMouseMove.bind(this), false);
         this.rootElement.addEventListener('mouseleave', this.onMouseLeave.bind(this), false);
@@ -57,6 +95,9 @@ export class AXBreadcrumbsPane extends AccessibilitySubPane {
         }
     }
     setAXNode(axNode) {
+        if (this.#legacyTreeDisabled) {
+            return;
+        }
         const hadFocus = this.element.hasFocus();
         super.setAXNode(axNode);
         this.rootElement.removeChildren();
@@ -74,6 +115,9 @@ export class AXBreadcrumbsPane extends AccessibilitySubPane {
         let parent = null;
         this.inspectedNodeBreadcrumb = null;
         for (ancestor of ancestorChain) {
+            if (ancestor !== axNode && ancestor.ignored() && ancestor.parentNode()) {
+                continue;
+            }
             const breadcrumb = new AXBreadcrumb(ancestor, depth, (ancestor === axNode));
             if (parent) {
                 parent.appendChild(breadcrumb);
@@ -90,6 +134,10 @@ export class AXBreadcrumbsPane extends AccessibilitySubPane {
         }
         this.setPreselectedBreadcrumb(this.inspectedNodeBreadcrumb);
         function append(parentBreadcrumb, axNode, localDepth) {
+            if (axNode.ignored()) {
+                axNode.children().map(child => append(parentBreadcrumb, child, localDepth));
+                return;
+            }
             const childBreadcrumb = new AXBreadcrumb(axNode, localDepth, false);
             parentBreadcrumb.appendChild(childBreadcrumb);
             // In most cases there will be no children here, but there are some special cases.
@@ -97,7 +145,7 @@ export class AXBreadcrumbsPane extends AccessibilitySubPane {
                 append(childBreadcrumb, child, localDepth + 1);
             }
         }
-        if (this.inspectedNodeBreadcrumb) {
+        if (this.inspectedNodeBreadcrumb && !axNode.ignored()) {
             for (const child of axNode.children()) {
                 append(this.inspectedNodeBreadcrumb, child, depth);
                 if (child.backendDOMNodeId() === this.collapsingBreadcrumbId) {
@@ -288,7 +336,7 @@ export class AXBreadcrumbsPane extends AccessibilitySubPane {
         if (deferredNode) {
             deferredNode.resolve(domNode => {
                 this.axSidebarView.setNode(domNode, true /* fromAXTree */);
-                Common.Revealer.reveal(domNode, true /* omitFocus */);
+                void Common.Revealer.reveal(domNode, true /* omitFocus */);
             });
         }
         return true;
@@ -316,18 +364,18 @@ export class AXBreadcrumbsPane extends AccessibilitySubPane {
             if (!deferredNode) {
                 return;
             }
-            deferredNode.resolvePromise().then(domNode => {
+            void deferredNode.resolvePromise().then(domNode => {
                 if (!domNode) {
                     return;
                 }
-                domNode.scrollIntoView();
+                void domNode.scrollIntoView();
             });
         });
         const deferredNode = axNode.deferredDOMNode();
         if (deferredNode) {
             contextMenu.appendApplicableItems(deferredNode);
         }
-        contextMenu.show();
+        void contextMenu.show();
     }
     wasShown() {
         super.wasShown();
@@ -386,7 +434,7 @@ export class AXBreadcrumb {
                 this.appendNameElement(axNodeName.value);
             }
         }
-        if (this.axNodeInternal.hasOnlyUnloadedChildren()) {
+        if (!this.axNodeInternal.ignored() && this.axNodeInternal.hasOnlyUnloadedChildren()) {
             this.nodeElementInternal.classList.add('children-unloaded');
             UI.ARIAUtils.setExpanded(this.nodeElementInternal, false);
         }
@@ -395,10 +443,10 @@ export class AXBreadcrumb {
         }
     }
     element() {
-        return /** @type {!HTMLElement} */ this.elementInternal;
+        return this.elementInternal;
     }
     nodeElement() {
-        return /** @type {!HTMLElement} */ this.nodeElementInternal;
+        return this.nodeElementInternal;
     }
     appendChild(breadcrumb) {
         this.children.push(breadcrumb);

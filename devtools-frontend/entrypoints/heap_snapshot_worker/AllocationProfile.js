@@ -31,35 +31,30 @@ import * as HeapSnapshotModel from '../../models/heap_snapshot_model/heap_snapsh
 export class AllocationProfile {
     // TODO(crbug.com/1172300) Ignored during the jsdoc to ts migration)
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    strings;
-    // TODO(crbug.com/1172300) Ignored during the jsdoc to ts migration)
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    liveObjectStats;
-    nextNodeId;
-    functionInfos;
-    idToNode;
-    idToTopDownNode;
-    collapsedTopNodeIdToFunctionInfo;
-    traceTops;
-    traceTree;
+    #strings;
+    #nextNodeId;
+    #functionInfos;
+    #idToNode;
+    #idToTopDownNode;
+    #collapsedTopNodeIdToFunctionInfo;
+    #traceTops;
     // TODO(crbug.com/1172300) Ignored during the jsdoc to ts migration)
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     constructor(profile, liveObjectStats) {
-        this.strings = profile.strings;
-        this.liveObjectStats = liveObjectStats;
-        this.nextNodeId = 1;
-        this.functionInfos = [];
-        this.idToNode = {};
-        this.idToTopDownNode = {};
-        this.collapsedTopNodeIdToFunctionInfo = {};
-        this.traceTops = null;
-        this.buildFunctionAllocationInfos(profile);
-        this.traceTree = this.buildAllocationTree(profile, liveObjectStats);
+        this.#strings = profile.strings;
+        this.#nextNodeId = 1;
+        this.#functionInfos = [];
+        this.#idToNode = {};
+        this.#idToTopDownNode = {};
+        this.#collapsedTopNodeIdToFunctionInfo = {};
+        this.#traceTops = null;
+        this.#buildFunctionAllocationInfos(profile);
+        this.#buildAllocationTree(profile, liveObjectStats);
     }
     // TODO(crbug.com/1172300) Ignored during the jsdoc to ts migration)
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    buildFunctionAllocationInfos(profile) {
-        const strings = this.strings;
+    #buildFunctionAllocationInfos(profile) {
+        const strings = this.#strings;
         const functionInfoFields = profile.snapshot.meta.trace_function_info_fields;
         const functionNameOffset = functionInfoFields.indexOf('name');
         const scriptNameOffset = functionInfoFields.indexOf('script_name');
@@ -69,7 +64,7 @@ export class AllocationProfile {
         const functionInfoFieldCount = functionInfoFields.length;
         const rawInfos = profile.trace_function_infos;
         const infoLength = rawInfos.length;
-        const functionInfos = this.functionInfos = new Array(infoLength / functionInfoFieldCount);
+        const functionInfos = this.#functionInfos = new Array(infoLength / functionInfoFieldCount);
         let index = 0;
         for (let i = 0; i < infoLength; i += functionInfoFieldCount) {
             functionInfos[index++] = new FunctionAllocationInfo(strings[rawInfos[i + functionNameOffset]], strings[rawInfos[i + scriptNameOffset]], rawInfos[i + scriptIdOffset], rawInfos[i + lineOffset], rawInfos[i + columnOffset]);
@@ -77,10 +72,10 @@ export class AllocationProfile {
     }
     // TODO(crbug.com/1172300) Ignored during the jsdoc to ts migration)
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    buildAllocationTree(profile, liveObjectStats) {
+    #buildAllocationTree(profile, liveObjectStats) {
         const traceTreeRaw = profile.trace_tree;
-        const functionInfos = this.functionInfos;
-        const idToTopDownNode = this.idToTopDownNode;
+        const functionInfos = this.#functionInfos;
+        const idToTopDownNode = this.#idToTopDownNode;
         const traceNodeFields = profile.snapshot.meta.trace_node_fields;
         const nodeIdOffset = traceNodeFields.indexOf('id');
         const functionInfoIndexOffset = traceNodeFields.indexOf('function_info_index');
@@ -109,20 +104,20 @@ export class AllocationProfile {
         return traverseNode(traceTreeRaw, 0, null);
     }
     serializeTraceTops() {
-        if (this.traceTops) {
-            return this.traceTops;
+        if (this.#traceTops) {
+            return this.#traceTops;
         }
-        const result = this.traceTops = [];
-        const functionInfos = this.functionInfos;
+        const result = this.#traceTops = [];
+        const functionInfos = this.#functionInfos;
         for (let i = 0; i < functionInfos.length; i++) {
             const info = functionInfos[i];
             if (info.totalCount === 0) {
                 continue;
             }
-            const nodeId = this.nextNodeId++;
+            const nodeId = this.#nextNodeId++;
             const isRoot = i === 0;
-            result.push(this.serializeNode(nodeId, info, info.totalCount, info.totalSize, info.totalLiveCount, info.totalLiveSize, !isRoot));
-            this.collapsedTopNodeIdToFunctionInfo[nodeId] = info;
+            result.push(this.#serializeNode(nodeId, info, info.totalCount, info.totalSize, info.totalLiveCount, info.totalLiveSize, !isRoot));
+            this.#collapsedTopNodeIdToFunctionInfo[nodeId] = info;
         }
         result.sort(function (a, b) {
             return b.size - a.size;
@@ -130,21 +125,21 @@ export class AllocationProfile {
         return result;
     }
     serializeCallers(nodeId) {
-        let node = this.ensureBottomUpNode(nodeId);
+        let node = this.#ensureBottomUpNode(nodeId);
         const nodesWithSingleCaller = [];
         while (node.callers().length === 1) {
             node = node.callers()[0];
-            nodesWithSingleCaller.push(this.serializeCaller(node));
+            nodesWithSingleCaller.push(this.#serializeCaller(node));
         }
         const branchingCallers = [];
         const callers = node.callers();
         for (let i = 0; i < callers.length; i++) {
-            branchingCallers.push(this.serializeCaller(callers[i]));
+            branchingCallers.push(this.#serializeCaller(callers[i]));
         }
         return new HeapSnapshotModel.HeapSnapshotModel.AllocationNodeCallers(nodesWithSingleCaller, branchingCallers);
     }
     serializeAllocationStack(traceNodeId) {
-        let node = this.idToTopDownNode[traceNodeId];
+        let node = this.#idToTopDownNode[traceNodeId];
         const result = [];
         while (node) {
             const functionInfo = node.functionInfo;
@@ -154,24 +149,24 @@ export class AllocationProfile {
         return result;
     }
     traceIds(allocationNodeId) {
-        return this.ensureBottomUpNode(allocationNodeId).traceTopIds;
+        return this.#ensureBottomUpNode(allocationNodeId).traceTopIds;
     }
-    ensureBottomUpNode(nodeId) {
-        let node = this.idToNode[nodeId];
+    #ensureBottomUpNode(nodeId) {
+        let node = this.#idToNode[nodeId];
         if (!node) {
-            const functionInfo = this.collapsedTopNodeIdToFunctionInfo[nodeId];
+            const functionInfo = this.#collapsedTopNodeIdToFunctionInfo[nodeId];
             node = functionInfo.bottomUpRoot();
-            delete this.collapsedTopNodeIdToFunctionInfo[nodeId];
-            this.idToNode[nodeId] = node;
+            delete this.#collapsedTopNodeIdToFunctionInfo[nodeId];
+            this.#idToNode[nodeId] = node;
         }
-        return /** @type {!BottomUpAllocationNode} */ node;
+        return node;
     }
-    serializeCaller(node) {
-        const callerId = this.nextNodeId++;
-        this.idToNode[callerId] = node;
-        return this.serializeNode(callerId, node.functionInfo, node.allocationCount, node.allocationSize, node.liveCount, node.liveSize, node.hasCallers());
+    #serializeCaller(node) {
+        const callerId = this.#nextNodeId++;
+        this.#idToNode[callerId] = node;
+        return this.#serializeNode(callerId, node.functionInfo, node.allocationCount, node.allocationSize, node.liveCount, node.liveSize, node.hasCallers());
     }
-    serializeNode(nodeId, functionInfo, count, size, liveCount, liveSize, hasChildren) {
+    #serializeNode(nodeId, functionInfo, count, size, liveCount, liveSize, hasChildren) {
         return new HeapSnapshotModel.HeapSnapshotModel.SerializedAllocationNode(nodeId, functionInfo.functionName, functionInfo.scriptName, functionInfo.scriptId, functionInfo.line, functionInfo.column, count, size, liveCount, liveSize, hasChildren);
     }
 }
@@ -202,7 +197,7 @@ export class BottomUpAllocationNode {
     liveCount;
     liveSize;
     traceTopIds;
-    callersInternal;
+    #callersInternal;
     constructor(functionInfo) {
         this.functionInfo = functionInfo;
         this.allocationCount = 0;
@@ -210,13 +205,13 @@ export class BottomUpAllocationNode {
         this.liveCount = 0;
         this.liveSize = 0;
         this.traceTopIds = [];
-        this.callersInternal = [];
+        this.#callersInternal = [];
     }
     addCaller(traceNode) {
         const functionInfo = traceNode.functionInfo;
         let result;
-        for (let i = 0; i < this.callersInternal.length; i++) {
-            const caller = this.callersInternal[i];
+        for (let i = 0; i < this.#callersInternal.length; i++) {
+            const caller = this.#callersInternal[i];
             if (caller.functionInfo === functionInfo) {
                 result = caller;
                 break;
@@ -224,15 +219,15 @@ export class BottomUpAllocationNode {
         }
         if (!result) {
             result = new BottomUpAllocationNode(functionInfo);
-            this.callersInternal.push(result);
+            this.#callersInternal.push(result);
         }
         return result;
     }
     callers() {
-        return this.callersInternal;
+        return this.#callersInternal;
     }
     hasCallers() {
-        return this.callersInternal.length > 0;
+        return this.#callersInternal.length > 0;
     }
 }
 export class FunctionAllocationInfo {
@@ -245,8 +240,8 @@ export class FunctionAllocationInfo {
     totalSize;
     totalLiveCount;
     totalLiveSize;
-    traceTops;
-    bottomUpTree;
+    #traceTops;
+    #bottomUpTree;
     constructor(functionName, scriptName, scriptId, line, column) {
         this.functionName = functionName;
         this.scriptName = scriptName;
@@ -257,32 +252,32 @@ export class FunctionAllocationInfo {
         this.totalSize = 0;
         this.totalLiveCount = 0;
         this.totalLiveSize = 0;
-        this.traceTops = [];
+        this.#traceTops = [];
     }
     addTraceTopNode(node) {
         if (node.allocationCount === 0) {
             return;
         }
-        this.traceTops.push(node);
+        this.#traceTops.push(node);
         this.totalCount += node.allocationCount;
         this.totalSize += node.allocationSize;
         this.totalLiveCount += node.liveCount;
         this.totalLiveSize += node.liveSize;
     }
     bottomUpRoot() {
-        if (!this.traceTops.length) {
+        if (!this.#traceTops.length) {
             return null;
         }
-        if (!this.bottomUpTree) {
-            this.buildAllocationTraceTree();
+        if (!this.#bottomUpTree) {
+            this.#buildAllocationTraceTree();
         }
-        return /** @type {!BottomUpAllocationNode} */ this.bottomUpTree;
+        return this.#bottomUpTree;
     }
-    buildAllocationTraceTree() {
-        this.bottomUpTree = new BottomUpAllocationNode(this);
-        for (let i = 0; i < this.traceTops.length; i++) {
-            let node = this.traceTops[i];
-            let bottomUpNode = this.bottomUpTree;
+    #buildAllocationTraceTree() {
+        this.#bottomUpTree = new BottomUpAllocationNode(this);
+        for (let i = 0; i < this.#traceTops.length; i++) {
+            let node = this.#traceTops[i];
+            let bottomUpNode = this.#bottomUpTree;
             const count = node.allocationCount;
             const size = node.allocationSize;
             const liveCount = node.liveCount;

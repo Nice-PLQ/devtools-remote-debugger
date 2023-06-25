@@ -3,10 +3,10 @@
 // found in the LICENSE file.
 import * as Common from '../../core/common/common.js';
 import * as SDK from '../../core/sdk/sdk.js';
-export function frameworkEventListeners(object) {
+export async function frameworkEventListeners(object) {
     const domDebuggerModel = object.runtimeModel().target().model(SDK.DOMDebuggerModel.DOMDebuggerModel);
     if (!domDebuggerModel) {
-        return Promise.resolve({ eventListeners: [], internalHandlers: null });
+        return { eventListeners: [], internalHandlers: null };
     }
     const listenersResult = { internalHandlers: null, eventListeners: [] };
     return object.callFunction(frameworkEventListenersImpl, undefined)
@@ -299,6 +299,7 @@ export function frameworkEventListeners(object) {
                 return null;
             }
         }
+        // TODO(crbug.com/1172300) Ignored during the jsdoc to ts migration
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         function checkInternalHandler(handler) {
             if (handler && (typeof handler === 'function')) {

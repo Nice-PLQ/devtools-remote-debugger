@@ -34,157 +34,160 @@ import * as Common from '../../core/common/common.js';
 import * as Host from '../../core/host/host.js';
 import * as i18n from '../../core/i18n/i18n.js';
 import * as Platform from '../../core/platform/platform.js';
+import * as Root from '../../core/root/root.js';
 import * as SDK from '../../core/sdk/sdk.js';
 import * as IssuesManager from '../../models/issues_manager/issues_manager.js';
+import * as Persistence from '../../models/persistence/persistence.js';
+import * as Workspace from '../../models/workspace/workspace.js';
 import * as NetworkForward from '../../panels/network/forward/forward.js';
 import * as ClientVariations from '../../third_party/chromium/client-variations/client-variations.js';
+import * as IconButton from '../../ui/components/icon_button/icon_button.js';
 // eslint-disable-next-line rulesdir/es_modules_import
 import objectPropertiesSectionStyles from '../../ui/legacy/components/object_ui/objectPropertiesSection.css.js';
 // eslint-disable-next-line rulesdir/es_modules_import
 import objectValueStyles from '../../ui/legacy/components/object_ui/objectValue.css.js';
 import * as UI from '../../ui/legacy/legacy.js';
+import * as Sources from '../sources/sources.js';
 import requestHeadersTreeStyles from './requestHeadersTree.css.js';
 import requestHeadersViewStyles from './requestHeadersView.css.js';
 const UIStrings = {
     /**
-    *@description Text in Request Headers View of the Network panel
-    */
+     *@description Text in Request Headers View of the Network panel
+     */
     general: 'General',
     /**
-    *@description A context menu item in the Watch Expressions Sidebar Pane of the Sources panel and Network pane request.
-    */
+     *@description A context menu item in the Watch Expressions Sidebar Pane of the Sources panel and Network pane request.
+     */
     copyValue: 'Copy value',
     /**
-    *@description Text for a link to the issues panel
-    */
+     *@description Text for a link to the issues panel
+     */
     learnMoreInTheIssuesTab: 'Learn more in the issues tab',
     /**
-    *@description Text that is usually a hyperlink to more documentation
-    */
+     *@description Text that is usually a hyperlink to more documentation
+     */
     learnMore: 'Learn more',
     /**
-    *@description Text in Request Headers View of the Network panel
-    */
+     *@description Text in Request Headers View of the Network panel
+     */
     requestUrl: 'Request URL',
     /**
-    *@description Text to show more content
-    */
+     *@description Text to show more content
+     */
     showMore: 'Show more',
     /**
-    *@description Text for toggling the view of header data (e.g. query string parameters) from source to parsed in the headers tab
-    */
+     *@description Text for toggling the view of header data (e.g. query string parameters) from source to parsed in the headers tab
+     */
     viewParsed: 'View parsed',
     /**
-    *@description Text for toggling the view of header data (e.g. query string parameters) from parsed to source in the headers tab
-    */
+     *@description Text for toggling the view of header data (e.g. query string parameters) from parsed to source in the headers tab
+     */
     viewSource: 'View source',
     /**
-    *@description Text in Request Headers View of the Network panel
-    */
+     *@description Text in Request Headers View of the Network panel
+     */
     requestHeaders: 'Request Headers',
     /**
-    *@description A context menu item in the Network Log View Columns of the Network panel
-    */
+     *@description A context menu item in the Network Log View Columns of the Network panel
+     */
     responseHeaders: 'Response Headers',
     /**
-    *@description Status code of an event
-    */
+     *@description Status code of an event
+     */
     statusCode: 'Status Code',
     /**
-    *@description Text that refers to the network request method
-    */
+     *@description Text that refers to the network request method
+     */
     requestMethod: 'Request Method',
     /**
-    *@description Text in Request Headers View of the Network panel
-    */
+     *@description Text in Request Headers View of the Network panel
+     */
     fromMemoryCache: '(from memory cache)',
     /**
-    *@description Text in Request Headers View of the Network panel
-    */
+     *@description Text in Request Headers View of the Network panel
+     */
     fromServiceWorker: '(from `service worker`)',
     /**
-    *@description Text in Request Headers View of the Network panel
-    */
+     *@description Text in Request Headers View of the Network panel
+     */
     fromSignedexchange: '(from signed-exchange)',
     /**
-    *@description Text in Request Headers View of the Network panel
-    */
+     *@description Text in Request Headers View of the Network panel
+     */
     fromPrefetchCache: '(from prefetch cache)',
     /**
-    *@description Text in Request Headers View of the Network panel
-    */
+     *@description Text in Request Headers View of the Network panel
+     */
     fromDiskCache: '(from disk cache)',
     /**
-    *@description Text in Request Headers View of the Network panel
-    */
+     *@description Text in Request Headers View of the Network panel
+     */
     fromWebBundle: '(from Web Bundle)',
     /**
-    *@description Message to explain lack of raw headers for a particular network request
-    */
+     *@description Message to explain lack of raw headers for a particular network request
+     */
     provisionalHeadersAreShownS: 'Provisional headers are shown. Disable cache to see full headers.',
     /**
-    *@description Tooltip to explain lack of raw headers for a particular network request
-    */
+     *@description Tooltip to explain lack of raw headers for a particular network request
+     */
     onlyProvisionalHeadersAre: 'Only provisional headers are available because this request was not sent over the network and instead was served from a local cache, which doesn’t store the original request headers. Disable cache to see full request headers.',
     /**
-    *@description Message to explain lack of raw headers for a particular network request
-    */
+     *@description Message to explain lack of raw headers for a particular network request
+     */
     provisionalHeadersAreShown: 'Provisional headers are shown',
     /**
-    *@description Comment used in decoded X-Client-Data HTTP header output in Headers View of the Network panel
-    */
+     *@description Comment used in decoded X-Client-Data HTTP header output in Headers View of the Network panel
+     */
     activeClientExperimentVariation: 'Active `client experiment variation IDs`.',
     /**
-    *@description Comment used in decoded X-Client-Data HTTP header output in Headers View of the Network panel
-    */
+     *@description Comment used in decoded X-Client-Data HTTP header output in Headers View of the Network panel
+     */
     activeClientExperimentVariationIds: 'Active `client experiment variation IDs` that trigger server-side behavior.',
     /**
-    *@description Text in Headers View of the Network panel for X-Client-Data HTTP headers
-    */
+     *@description Text in Headers View of the Network panel for X-Client-Data HTTP headers
+     */
     decoded: 'Decoded:',
     /**
-    *@description Text in Network Log View Columns of the Network panel
-    */
+     *@description Text in Network Log View Columns of the Network panel
+     */
     remoteAddress: 'Remote Address',
     /**
-    *@description Text in Request Headers View of the Network panel
-    */
+     *@description Text in Request Headers View of the Network panel
+     */
     referrerPolicy: 'Referrer Policy',
     /**
-    *@description Text in Headers View of the Network panel
-    */
+     *@description Text in Headers View of the Network panel
+     */
     toEmbedThisFrameInYourDocument: 'To embed this frame in your document, the response needs to enable the cross-origin embedder policy by specifying the following response header:',
     /**
-    *@description Text in Headers View of the Network panel
-    */
+     *@description Text in Headers View of the Network panel
+     */
     toUseThisResourceFromADifferent: 'To use this resource from a different origin, the server needs to specify a cross-origin resource policy in the response headers:',
     /**
-    *@description Text in Headers View of the Network panel
-    */
+     *@description Text in Headers View of the Network panel
+     */
     chooseThisOptionIfTheResourceAnd: 'Choose this option if the resource and the document are served from the same site.',
     /**
-    *@description Text in Headers View of the Network panel
-    */
+     *@description Text in Headers View of the Network panel
+     */
     onlyChooseThisOptionIfAn: 'Only choose this option if an arbitrary website including this resource does not impose a security risk.',
     /**
-    *@description Text in Headers View of the Network panel
-    */
+     *@description Text in Headers View of the Network panel
+     */
     thisDocumentWasBlockedFrom: 'This document was blocked from loading in an `iframe` with a `sandbox` attribute because this document specified a cross-origin opener policy.',
     /**
-    *@description Text in Headers View of the Network panel
-    */
+     *@description Text in Headers View of the Network panel
+     */
     toUseThisResourceFromADifferentSite: 'To use this resource from a different site, the server may relax the cross-origin resource policy response header:',
     /**
-    *@description Text in Headers View of the Network panel
-    */
+     *@description Text in Headers View of the Network panel
+     */
     toUseThisResourceFromADifferentOrigin: 'To use this resource from a different origin, the server may relax the cross-origin resource policy response header:',
     /**
-     * @description Shown in the network panel for network requests that meet special criteria.
-     * 'Attribution' is a term used by the "Attribution Reporting API" and refers to an event, e.g.
-     * buying an item in an online store after an ad was clicked.
-     * @example {foo} PH1
+     *@description Label for a link from the network panel's headers view to the file in which
+     * header overrides are defined in the sources panel.
      */
-    recordedAttribution: 'Recorded attribution with `trigger-data`: {PH1}',
+    headerOverrides: 'Header overrides',
 };
 const str_ = i18n.i18n.registerUIStrings('panels/network/RequestHeadersView.ts', UIStrings);
 const i18nString = i18n.i18n.getLocalizedString.bind(undefined, str_);
@@ -202,6 +205,7 @@ export class RequestHeadersView extends UI.Widget.VBox {
     referrerPolicyItem;
     responseHeadersCategory;
     requestHeadersCategory;
+    #workspace = Workspace.Workspace.WorkspaceImpl.instance();
     constructor(request) {
         super();
         this.element.classList.add('request-headers-view');
@@ -238,6 +242,8 @@ export class RequestHeadersView extends UI.Widget.VBox {
         this.request.addEventListener(SDK.NetworkRequest.Events.RequestHeadersChanged, this.refreshRequestHeaders, this);
         this.request.addEventListener(SDK.NetworkRequest.Events.ResponseHeadersChanged, this.refreshResponseHeaders, this);
         this.request.addEventListener(SDK.NetworkRequest.Events.FinishedLoading, this.refreshHTTPInformation, this);
+        this.#workspace.addEventListener(Workspace.Workspace.Events.UISourceCodeAdded, this.#uiSourceCodeAddedOrRemoved, this);
+        this.#workspace.addEventListener(Workspace.Workspace.Events.UISourceCodeRemoved, this.#uiSourceCodeAddedOrRemoved, this);
         this.refreshURL();
         this.refreshRequestHeaders();
         this.refreshResponseHeaders();
@@ -251,6 +257,8 @@ export class RequestHeadersView extends UI.Widget.VBox {
         this.request.removeEventListener(SDK.NetworkRequest.Events.RequestHeadersChanged, this.refreshRequestHeaders, this);
         this.request.removeEventListener(SDK.NetworkRequest.Events.ResponseHeadersChanged, this.refreshResponseHeaders, this);
         this.request.removeEventListener(SDK.NetworkRequest.Events.FinishedLoading, this.refreshHTTPInformation, this);
+        this.#workspace.removeEventListener(Workspace.Workspace.Events.UISourceCodeAdded, this.#uiSourceCodeAddedOrRemoved, this);
+        this.#workspace.removeEventListener(Workspace.Workspace.Events.UISourceCodeRemoved, this.#uiSourceCodeAddedOrRemoved, this);
     }
     addEntryContextMenuHandler(treeElement, value) {
         treeElement.listItemElement.addEventListener('contextmenu', event => {
@@ -262,7 +270,7 @@ export class RequestHeadersView extends UI.Widget.VBox {
                 Host.InspectorFrontendHost.InspectorFrontendHostInstance.copyText(decodedValue);
             };
             contextMenu.clipboardSection().appendItem(i18nString(UIStrings.copyValue), copyDecodedValueHandler);
-            contextMenu.show();
+            void contextMenu.show();
         });
     }
     formatHeader(name, value) {
@@ -275,22 +283,7 @@ export class RequestHeadersView extends UI.Widget.VBox {
     formatHeaderObject(header) {
         const fragment = document.createDocumentFragment();
         if (header.headerNotSet) {
-            fragment.createChild('div', 'header-badge header-badge-error header-badge-text').textContent = 'not-set';
-        }
-        // Highlight successful Attribution Reporting API redirects. If the request was
-        // not canceled, then something went wrong.
-        if (header.name.toLowerCase() === 'location' && this.request.canceled) {
-            const url = new URL(header.value?.toString() || '', this.request.parsedURL.securityOrigin());
-            const triggerData = getTriggerDataFromAttributionRedirect(url);
-            if (triggerData) {
-                fragment.createChild('div', 'header-badge header-badge-success header-badge-text').textContent =
-                    'Attribution Reporting API';
-                header.details = {
-                    explanation: () => i18nString(UIStrings.recordedAttribution, { PH1: triggerData }),
-                    examples: [],
-                    link: null,
-                };
-            }
+            fragment.createChild('div', 'header-badge header-badge-text').textContent = 'not-set';
         }
         const colon = header.value ? ': ' : '';
         fragment.createChild('div', 'header-name').textContent = header.name + colon;
@@ -320,18 +313,32 @@ export class RequestHeadersView extends UI.Widget.VBox {
                 link.classList.add('devtools-link');
                 link.onclick = () => {
                     Host.userMetrics.issuesPanelOpenedFrom(Host.UserMetrics.IssueOpener.LearnMoreLinkCOEP);
-                    IssuesManager.RelatedIssue.reveal(this.request, IssuesManager.Issue.IssueCategory.CrossOriginEmbedderPolicy);
+                    void IssuesManager.RelatedIssue.reveal(this.request, IssuesManager.Issue.IssueCategory.CrossOriginEmbedderPolicy);
                 };
                 const text = document.createElement('span');
                 text.classList.add('devtools-link');
                 text.textContent = i18nString(UIStrings.learnMoreInTheIssuesTab);
                 link.appendChild(text);
-                link.prepend(UI.Icon.Icon.create('largeicon-breaking-change', 'icon'));
+                const issueIcon = new IconButton.Icon.Icon();
+                issueIcon.data = {
+                    iconName: 'issue-exclamation-filled',
+                    color: 'var(--icon-warning)',
+                    width: '20px',
+                    height: '20px',
+                };
+                link.prepend(issueIcon);
                 callToActionBody.appendChild(link);
             }
             else if (header.details.link) {
                 const link = UI.XLink.XLink.create(header.details.link.url, i18nString(UIStrings.learnMore), 'link');
-                link.prepend(UI.Icon.Icon.create('largeicon-link'));
+                const icon = new IconButton.Icon.Icon();
+                icon.data = {
+                    iconName: 'open-externally',
+                    color: 'var(--icon-default)',
+                    width: '20px',
+                    height: '20px',
+                };
+                link.prepend(icon);
                 callToActionBody.appendChild(link);
             }
         }
@@ -371,7 +378,7 @@ export class RequestHeadersView extends UI.Widget.VBox {
             const contextMenu = new UI.ContextMenu.ContextMenu(event);
             const section = contextMenu.newSection();
             section.appendItem(i18nString(UIStrings.showMore), showMore);
-            contextMenu.show();
+            void contextMenu.show();
         }
         sourceTreeElement.listItemElement.addEventListener('contextmenu', onContextMenuShowMore);
         sourceTextElement.appendChild(showMoreButton);
@@ -387,12 +394,12 @@ export class RequestHeadersView extends UI.Widget.VBox {
             this.refreshHeadersText(i18nString(UIStrings.requestHeaders), headers.length, headersText, treeElement);
         }
         else {
-            this.refreshHeaders(i18nString(UIStrings.requestHeaders), headers, treeElement, headersText === undefined);
+            this.refreshHeaders(i18nString(UIStrings.requestHeaders), headers, treeElement, /* overrideable */ false, headersText === undefined);
         }
         if (headersText) {
             const toggleButton = this.createHeadersToggleButton(this.showRequestHeadersText);
             toggleButton.addEventListener('click', this.toggleRequestHeadersText.bind(this), false);
-            treeElement.listItemElement.appendChild(toggleButton);
+            treeElement.listItemElement.querySelector('.headers-title-left')?.appendChild(toggleButton);
         }
     }
     refreshResponseHeaders() {
@@ -410,13 +417,14 @@ export class RequestHeadersView extends UI.Widget.VBox {
                     headersWithIssues.push(headerWithIssues);
                 }
             }
-            this.refreshHeaders(i18nString(UIStrings.responseHeaders), mergeHeadersWithIssues(headers, headersWithIssues), treeElement, 
+            const overrideable = Root.Runtime.experiments.isEnabled(Root.Runtime.ExperimentName.HEADER_OVERRIDES);
+            this.refreshHeaders(i18nString(UIStrings.responseHeaders), mergeHeadersWithIssues(headers, headersWithIssues), treeElement, overrideable, 
             /* provisional */ false, this.request.blockedResponseCookies());
         }
         if (headersText) {
             const toggleButton = this.createHeadersToggleButton(this.showResponseHeadersText);
             toggleButton.addEventListener('click', this.toggleResponseHeadersText.bind(this), false);
-            treeElement.listItemElement.appendChild(toggleButton);
+            treeElement.listItemElement.querySelector('.headers-title-left')?.appendChild(toggleButton);
         }
         // TODO(crbug.com/1172300) Ignored during the jsdoc to ts migration)
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -449,13 +457,16 @@ export class RequestHeadersView extends UI.Widget.VBox {
             const statusCodeImage = statusCodeFragment.createChild('span', 'resource-status-image', 'dt-icon-label');
             UI.Tooltip.Tooltip.install(statusCodeImage, this.request.statusCode + ' ' + this.request.statusText);
             if (this.request.statusCode < 300 || this.request.statusCode === 304) {
-                statusCodeImage.type = 'smallicon-green-ball';
+                statusCodeImage
+                    .data = { iconName: 'checkmark', color: 'var(--icon-checkmark-green)', width: '14px', height: '14px' };
             }
             else if (this.request.statusCode < 400) {
-                statusCodeImage.type = 'smallicon-orange-ball';
+                statusCodeImage
+                    .data = { iconName: 'warning-filled', color: 'var(--icon-warning)', width: '14px', height: '14px' };
             }
             else {
-                statusCodeImage.type = 'smallicon-red-ball';
+                statusCodeImage
+                    .data = { iconName: 'cross-circle-filled', color: 'var(--icon-error)', width: '14px', height: '14px' };
             }
             requestMethodElement.title = this.formatHeader(i18nString(UIStrings.requestMethod), this.request.requestMethod);
             const statusTextElement = statusCodeFragment.createChild('div', 'header-value source-code');
@@ -488,17 +499,51 @@ export class RequestHeadersView extends UI.Widget.VBox {
             statusCodeElement.title = statusCodeFragment;
         }
     }
-    refreshHeadersTitle(title, headersTreeElement, headersLength) {
+    refreshHeadersTitle(title, headersTreeElement, headersLength, overrideable) {
         headersTreeElement.listItemElement.removeChildren();
         headersTreeElement.listItemElement.createChild('div', 'selection fill');
-        UI.UIUtils.createTextChild(headersTreeElement.listItemElement, title);
+        const container = headersTreeElement.listItemElement.createChild('div', 'headers-title');
+        const leftElement = container.createChild('div', 'headers-title-left');
+        UI.UIUtils.createTextChild(leftElement, title);
         const headerCount = `\xA0(${headersLength})`;
-        headersTreeElement.listItemElement.createChild('span', 'header-count').textContent = headerCount;
+        leftElement.createChild('span', 'header-count').textContent = headerCount;
+        if (overrideable && this.#workspace.uiSourceCodeForURL(this.#getHeaderOverridesFileUrl())) {
+            const overridesSetting = Common.Settings.Settings.instance().moduleSetting('persistenceNetworkOverridesEnabled');
+            const icon = new IconButton.Icon.Icon();
+            icon.data = { iconName: 'document', color: 'var(--icon-default)', width: '16px', height: '16px' };
+            if (overridesSetting.get()) {
+                icon.classList.add('dot', 'purple');
+            }
+            const button = container.createChild('button', 'link devtools-link headers-link');
+            button.appendChild(icon);
+            button.addEventListener('click', this.#revealHeadersFile.bind(this));
+            const span = document.createElement('span');
+            span.textContent = i18nString(UIStrings.headerOverrides);
+            button.appendChild(span);
+        }
     }
-    refreshHeaders(title, headers, headersTreeElement, provisionalHeaders, blockedResponseCookies) {
+    #getHeaderOverridesFileUrl() {
+        const fileUrl = Persistence.NetworkPersistenceManager.NetworkPersistenceManager.instance().fileUrlFromNetworkUrl(this.request.url(), /* ignoreInactive */ true);
+        return fileUrl.substring(0, fileUrl.lastIndexOf('/')) + '/' +
+            Persistence.NetworkPersistenceManager.HEADERS_FILENAME;
+    }
+    #revealHeadersFile(event) {
+        event.stopPropagation();
+        const uiSourceCode = this.#workspace.uiSourceCodeForURL(this.#getHeaderOverridesFileUrl());
+        if (!uiSourceCode) {
+            return;
+        }
+        Sources.SourcesPanel.SourcesPanel.instance().showUISourceCode(uiSourceCode);
+    }
+    #uiSourceCodeAddedOrRemoved(event) {
+        if (this.#getHeaderOverridesFileUrl() === event.data.url()) {
+            this.refreshResponseHeaders();
+        }
+    }
+    refreshHeaders(title, headers, headersTreeElement, overrideable, provisionalHeaders, blockedResponseCookies) {
         headersTreeElement.removeChildren();
         const length = headers.length;
-        this.refreshHeadersTitle(title, headersTreeElement, length);
+        this.refreshHeadersTitle(title, headersTreeElement, length, overrideable);
         if (provisionalHeaders) {
             let cautionText;
             let cautionTitle = '';
@@ -512,8 +557,8 @@ export class RequestHeadersView extends UI.Widget.VBox {
             const cautionElement = document.createElement('div');
             cautionElement.classList.add('request-headers-caution');
             UI.Tooltip.Tooltip.install(cautionElement, cautionTitle);
-            cautionElement.createChild('span', '', 'dt-icon-label').type =
-                'smallicon-warning';
+            cautionElement.createChild('span', '', 'dt-icon-label')
+                .data = { iconName: 'warning-filled', color: 'var(--icon-warning)', width: '14px', height: '14px' };
             cautionElement.createChild('div', 'caution').textContent = cautionText;
             const cautionTreeElement = new UI.TreeOutline.TreeElement(cautionElement);
             cautionElement.createChild('div', 'learn-more')
@@ -536,7 +581,8 @@ export class RequestHeadersView extends UI.Widget.VBox {
             if (headerId === 'set-cookie') {
                 const matchingBlockedReasons = blockedCookieLineToReasons.get(header.value);
                 if (matchingBlockedReasons) {
-                    const icon = UI.Icon.Icon.create('smallicon-warning', '');
+                    const icon = new IconButton.Icon.Icon();
+                    icon.data = { iconName: 'warning-filled', color: 'var(--icon-warning)', width: '14px', height: '14px' };
                     headerTreeElement.listItemElement.appendChild(icon);
                     let titleText = '';
                     for (const blockedReason of matchingBlockedReasons) {
@@ -565,7 +611,7 @@ export class RequestHeadersView extends UI.Widget.VBox {
     }
     refreshHeadersText(title, count, headersText, headersTreeElement) {
         this.populateTreeElementWithSourceText(headersTreeElement, headersText);
-        this.refreshHeadersTitle(title, headersTreeElement, count);
+        this.refreshHeadersTitle(title, headersTreeElement, count, /* overrideable */ false);
     }
     refreshRemoteAddress() {
         const remoteAddress = this.request.remoteAddress();
@@ -671,21 +717,9 @@ export class Category extends UI.TreeOutline.TreeElement {
         this.expandedSetting.set(false);
     }
 }
-/**
- * Returns the value for the `trigger-data` search parameter iff the provided
- * url is a valid attribution redirect as specified by the Attribution
- * Reporting API.
- */
-function getTriggerDataFromAttributionRedirect(url) {
-    if (url.pathname === '/.well-known/attribution-reporting/trigger-attribution' &&
-        url.searchParams.has('trigger-data')) {
-        return url.searchParams.get('trigger-data');
-    }
-    return null;
-}
 const BlockedReasonDetails = new Map([
     [
-        "coep-frame-resource-needs-coep-header" /* CoepFrameResourceNeedsCoepHeader */,
+        "coep-frame-resource-needs-coep-header" /* Protocol.Network.BlockedReason.CoepFrameResourceNeedsCoepHeader */,
         {
             name: 'cross-origin-embedder-policy',
             value: null,
@@ -699,7 +733,7 @@ const BlockedReasonDetails = new Map([
         },
     ],
     [
-        "corp-not-same-origin-after-defaulted-to-same-origin-by-coep" /* CorpNotSameOriginAfterDefaultedToSameOriginByCoep */,
+        "corp-not-same-origin-after-defaulted-to-same-origin-by-coep" /* Protocol.Network.BlockedReason.CorpNotSameOriginAfterDefaultedToSameOriginByCoep */,
         {
             name: 'cross-origin-resource-policy',
             value: null,
@@ -722,7 +756,7 @@ const BlockedReasonDetails = new Map([
         },
     ],
     [
-        "coop-sandboxed-iframe-cannot-navigate-to-coop-page" /* CoopSandboxedIframeCannotNavigateToCoopPage */,
+        "coop-sandboxed-iframe-cannot-navigate-to-coop-page" /* Protocol.Network.BlockedReason.CoopSandboxedIframeCannotNavigateToCoopPage */,
         {
             name: 'cross-origin-opener-policy',
             value: null,
@@ -736,7 +770,7 @@ const BlockedReasonDetails = new Map([
         },
     ],
     [
-        "corp-not-same-site" /* CorpNotSameSite */,
+        "corp-not-same-site" /* Protocol.Network.BlockedReason.CorpNotSameSite */,
         {
             name: 'cross-origin-resource-policy',
             value: null,
@@ -755,7 +789,7 @@ const BlockedReasonDetails = new Map([
         },
     ],
     [
-        "corp-not-same-origin" /* CorpNotSameOrigin */,
+        "corp-not-same-origin" /* Protocol.Network.BlockedReason.CorpNotSameOrigin */,
         {
             name: 'cross-origin-resource-policy',
             value: null,

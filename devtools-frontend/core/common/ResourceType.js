@@ -33,132 +33,132 @@ import * as i18n from '../i18n/i18n.js';
 import { ParsedURL } from './ParsedURL.js';
 const UIStrings = {
     /**
-    *@description Text that appears in a tooltip the xhr and fetch resource types filter.
-    */
+     *@description Text that appears in a tooltip the xhr and fetch resource types filter.
+     */
     xhrAndFetch: '`XHR` and `Fetch`',
     /**
-    *@description Text that appears in a tooltip for the JavaScript types filter.
-    */
+     *@description Text that appears in a tooltip for the JavaScript types filter.
+     */
     scripts: 'Scripts',
     /**
-    *@description Text that appears on a button for the JavaScript resource type filter.
-    */
+     *@description Text that appears on a button for the JavaScript resource type filter.
+     */
     js: 'JS',
     /**
-    *@description Text that appears in a tooltip for the css types filter.
-    */
+     *@description Text that appears in a tooltip for the css types filter.
+     */
     stylesheets: 'Stylesheets',
     /**
-    *@description Text that appears on a button for the css resource type filter.
-    */
+     *@description Text that appears on a button for the css resource type filter.
+     */
     css: 'CSS',
     /**
-    *@description Text that appears in a tooltip for the image types filter.
-    */
+     *@description Text that appears in a tooltip for the image types filter.
+     */
     images: 'Images',
     /**
-    *@description Text that appears on a button for the image resource type filter.
-    */
+     *@description Text that appears on a button for the image resource type filter.
+     */
     img: 'Img',
     /**
-    *@description Text that appears on a button for the media resource type filter.
-    */
+     *@description Text that appears on a button for the media resource type filter.
+     */
     media: 'Media',
     /**
-    *@description Text that appears in a tooltip for the resource types filter.
-    */
+     *@description Text that appears in a tooltip for the resource types filter.
+     */
     fonts: 'Fonts',
     /**
-    *@description Text that appears on a button for the font resource type filter.
-    */
+     *@description Text that appears on a button for the font resource type filter.
+     */
     font: 'Font',
     /**
-    *@description Text for documents, a type of resources
-    */
+     *@description Text for documents, a type of resources
+     */
     documents: 'Documents',
     /**
-    *@description Text that appears on a button for the document resource type filter.
-    */
+     *@description Text that appears on a button for the document resource type filter.
+     */
     doc: 'Doc',
     /**
-    *@description Text that appears in a tooltip for the websocket types filter.
-    */
+     *@description Text that appears in a tooltip for the websocket types filter.
+     */
     websockets: 'WebSockets',
     /**
-    *@description Text that appears on a button for the websocket resource type filter.
-    */
+     *@description Text that appears on a button for the websocket resource type filter.
+     */
     ws: 'WS',
     /**
-    *@description Text that appears in a tooltip for the WebAssembly types filter.
-    */
+     *@description Text that appears in a tooltip for the WebAssembly types filter.
+     */
     webassembly: 'WebAssembly',
     /**
-    *@description Text that appears on a button for the WebAssembly resource type filter.
-    */
+     *@description Text that appears on a button for the WebAssembly resource type filter.
+     */
     wasm: 'Wasm',
     /**
-    *@description Text that appears on a button for the manifest resource type filter.
-    */
+     *@description Text that appears on a button for the manifest resource type filter.
+     */
     manifest: 'Manifest',
     /**
-    *@description Text for other types of items
-    */
+     *@description Text for other types of items
+     */
     other: 'Other',
     /**
-    *@description Name of a network resource type
-    */
+     *@description Name of a network resource type
+     */
     document: 'Document',
     /**
-    *@description Name of a network resource type
-    */
+     *@description Name of a network resource type
+     */
     stylesheet: 'Stylesheet',
     /**
-    *@description Text in Image View of the Sources panel
-    */
+     *@description Text in Image View of the Sources panel
+     */
     image: 'Image',
     /**
-    *@description Label for a group of JavaScript files
-    */
+     *@description Label for a group of JavaScript files
+     */
     script: 'Script',
     /**
-    *@description Name of a network resource type
-    */
+     *@description Name of a network resource type
+     */
     texttrack: 'TextTrack',
     /**
-    *@description Name of a network resource type
-    */
+     *@description Name of a network resource type
+     */
     fetch: 'Fetch',
     /**
-    *@description Name of a network resource type
-    */
+     *@description Name of a network resource type
+     */
     eventsource: 'EventSource',
     /**
-    *@description Name of a network resource type
-    */
+     *@description Name of a network resource type
+     */
     websocket: 'WebSocket',
     /**
-    *@description Name of a network resource type
-    */
+     *@description Name of a network resource type
+     */
     webtransport: 'WebTransport',
     /**
-    *@description Name of a network resource type
-    */
+     *@description Name of a network resource type
+     */
     signedexchange: 'SignedExchange',
     /**
-    *@description Name of a network resource type
-    */
+     *@description Name of a network resource type
+     */
     ping: 'Ping',
     /**
-    *@description Name of a network resource type
-    */
+     *@description Name of a network resource type
+     */
     cspviolationreport: 'CSPViolationReport',
     /**
-    *@description Name of a network initiator type
-    */
+     *@description Name of a network initiator type
+     */
     preflight: 'Preflight',
     /**
-    *@description Name of a network initiator type
-    */
+     *@description Name of a network initiator type
+     */
     webbundle: 'WebBundle',
 };
 const str_ = i18n.i18n.registerUIStrings('core/common/ResourceType.ts', UIStrings);
@@ -205,6 +205,9 @@ export class ResourceType {
         return resourceTypes.Other;
     }
     static fromMimeTypeOverride(mimeType) {
+        if (mimeType === 'application/manifest+json') {
+            return resourceTypes.Manifest;
+        }
         if (mimeType === 'application/wasm') {
             return resourceTypes.Wasm;
         }
@@ -230,11 +233,32 @@ export class ResourceType {
         if (mimeTypeByName.has(name)) {
             return mimeTypeByName.get(name);
         }
-        const ext = ParsedURL.extractExtension(url).toLowerCase();
+        let ext = ParsedURL.extractExtension(url).toLowerCase();
+        if (ext === 'html' && name.endsWith('.component.html')) {
+            ext = 'component.html';
+        }
         return mimeTypeByExtension.get(ext);
     }
     static mimeFromExtension(ext) {
         return mimeTypeByExtension.get(ext);
+    }
+    /**
+     * Adds suffixes iff the mimeType is 'text/javascript' to denote whether the JS is minified or from
+     * a source map.
+     */
+    static mediaTypeForMetrics(mimeType, isFromSourceMap, isMinified) {
+        if (mimeType !== 'text/javascript') {
+            return mimeType;
+        }
+        if (isFromSourceMap) {
+            // SourceMap has precedence as that is a known fact, whereas minification is a heuristic we
+            // apply to the JS content.
+            return 'text/javascript+sourcemapped';
+        }
+        if (isMinified) {
+            return 'text/javascript+minified';
+        }
+        return 'text/javascript+plain';
     }
     name() {
         return this.#nameInternal;
@@ -256,6 +280,9 @@ export class ResourceType {
     }
     isStyleSheet() {
         return this.#nameInternal === 'stylesheet' || this.#nameInternal === 'sm-stylesheet';
+    }
+    hasStyleSheets() {
+        return this.isStyleSheet() || this.isDocument();
     }
     isDocument() {
         return this.#nameInternal === 'document';
@@ -328,6 +355,7 @@ export const resourceTypes = {
     TextTrack: new ResourceType('texttrack', i18nLazyString(UIStrings.texttrack), resourceCategories.Other, true),
     XHR: new ResourceType('xhr', i18n.i18n.lockedLazyString('XHR'), resourceCategories.XHR, true),
     Fetch: new ResourceType('fetch', i18nLazyString(UIStrings.fetch), resourceCategories.XHR, true),
+    Prefetch: new ResourceType('prefetch', i18n.i18n.lockedLazyString('Prefetch'), resourceCategories.Document, true),
     EventSource: new ResourceType('eventsource', i18nLazyString(UIStrings.eventsource), resourceCategories.XHR, true),
     WebSocket: new ResourceType('websocket', i18nLazyString(UIStrings.websocket), resourceCategories.WebSocket, false),
     // TODO(yoichio): Consider creating new category WT or WS/WT with WebSocket.
@@ -354,7 +382,6 @@ export const resourceTypeByExtension = new Map([
     ['css', resourceTypes.Stylesheet],
     ['xsl', resourceTypes.Stylesheet],
     ['avif', resourceTypes.Image],
-    ['avifs', resourceTypes.Image],
     ['bmp', resourceTypes.Image],
     ['gif', resourceTypes.Image],
     ['ico', resourceTypes.Image],
@@ -365,6 +392,8 @@ export const resourceTypeByExtension = new Map([
     ['svg', resourceTypes.Image],
     ['tif', resourceTypes.Image],
     ['tiff', resourceTypes.Image],
+    ['vue', resourceTypes.Document],
+    ['webmanifest', resourceTypes.Manifest],
     ['webp', resourceTypes.Media],
     ['otf', resourceTypes.Font],
     ['ttc', resourceTypes.Font],
@@ -384,6 +413,7 @@ export const mimeTypeByExtension = new Map([
     ['xml', 'application/xml'],
     ['xsl', 'application/xml'],
     ['wasm', 'application/wasm'],
+    ['webmanifest', 'application/manifest+json'],
     // HTML Embedded Scripts, ASP], JSP
     ['asp', 'application/x-aspx'],
     ['aspx', 'application/x-aspx'],
@@ -398,7 +428,7 @@ export const mimeTypeByExtension = new Map([
     // CoffeeScript
     ['coffee', 'text/x-coffeescript'],
     // Dart
-    ['dart', 'text/javascript'],
+    ['dart', 'application/vnd.dart'],
     // TypeScript
     ['ts', 'text/typescript'],
     ['tsx', 'text/typescript-jsx'],
@@ -406,20 +436,30 @@ export const mimeTypeByExtension = new Map([
     ['json', 'application/json'],
     ['gyp', 'application/json'],
     ['gypi', 'application/json'],
+    ['map', 'application/json'],
     // C#
     ['cs', 'text/x-csharp'],
+    // Go
+    ['go', 'text/x-go'],
     // Java
     ['java', 'text/x-java'],
+    // Kotlin
+    ['kt', 'text/x-kotlin'],
+    // Scala
+    ['scala', 'text/x-scala'],
     // Less
     ['less', 'text/x-less'],
     // PHP
-    ['php', 'text/x-php'],
+    ['php', 'application/x-httpd-php'],
     ['phtml', 'application/x-httpd-php'],
     // Python
     ['py', 'text/x-python'],
     // Shell
     ['sh', 'text/x-sh'],
-    // SCSS
+    // Google Stylesheets (GSS)
+    ['gss', 'text/x-gss'],
+    // SASS (.sass & .scss)
+    ['sass', 'text/x-sass'],
     ['scss', 'text/x-scss'],
     // Video Text Tracks.
     ['vtt', 'text/vtt'],
@@ -437,7 +477,6 @@ export const mimeTypeByExtension = new Map([
     ['jsx', 'text/jsx'],
     // Image
     ['avif', 'image/avif'],
-    ['avifs', 'image/avif-sequence'],
     ['bmp', 'image/bmp'],
     ['gif', 'image/gif'],
     ['ico', 'image/ico'],
@@ -455,5 +494,11 @@ export const mimeTypeByExtension = new Map([
     ['ttf', 'font/ttf'],
     ['woff', 'font/woff'],
     ['woff2', 'font/woff2'],
+    // Angular
+    ['component.html', 'text/x.angular'],
+    // Svelte
+    ['svelte', 'text/x.svelte'],
+    // Vue
+    ['vue', 'text/x.vue'],
 ]);
 //# sourceMappingURL=ResourceType.js.map

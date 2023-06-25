@@ -16,12 +16,6 @@ TimelineModel.LayerPaintEvent = TimelineModelModule.TimelineFrameModel.LayerPain
 /** @constructor */
 TimelineModel.PendingFrame = TimelineModelModule.TimelineFrameModel.PendingFrame;
 /** @constructor */
-TimelineModel.TimelineIRModel = TimelineModelModule.TimelineIRModel.TimelineIRModel;
-/** @enum {string} */
-TimelineModel.TimelineIRModel.Phases = TimelineModelModule.TimelineIRModel.Phases;
-/** @enum {string} */
-TimelineModel.TimelineIRModel.InputEvents = TimelineModelModule.TimelineIRModel.InputEvents;
-/** @constructor */
 TimelineModel.TimelineJSProfileProcessor = TimelineModelModule.TimelineJSProfile.TimelineJSProfileProcessor;
 /** @constructor */
 TimelineModel.TimelineModel = TimelineModelModule.TimelineModel.TimelineModelImpl;
@@ -42,7 +36,7 @@ TimelineModel.InvalidationTracker = TimelineModelModule.TimelineModel.Invalidati
 /** @constructor */
 TimelineModel.TimelineAsyncEventTracker = TimelineModelModule.TimelineModel.TimelineAsyncEventTracker;
 /** @constructor */
-TimelineModel.TimelineData = TimelineModelModule.TimelineModel.TimelineData;
+TimelineModel.TimelineData = TimelineModelModule.TimelineModel.EventOnTimelineData;
 /** @constructor */
 TimelineModel.TimelineModelFilter = TimelineModelModule.TimelineModelFilter.TimelineModelFilter;
 /** @constructor */

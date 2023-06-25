@@ -53,8 +53,6 @@ export declare class SearchableView extends VBox {
     private jumpToNextSearchResult;
     private onNextButtonSearch;
     private onPrevButtonSearch;
-    private onFindClick;
-    private onPreviousClick;
     private clearSearch;
     private performSearch;
     private currentSearchConfig;
@@ -66,7 +64,8 @@ export declare class SearchableView extends VBox {
 }
 export declare const _symbol: unique symbol;
 export interface Searchable {
-    searchCanceled(): void;
+    onSearchCanceled(): void;
+    onSearchClosed?: () => void;
     performSearch(searchConfig: SearchConfig, shouldJump: boolean, jumpBackwards?: boolean): void;
     jumpToNextSearchResult(): void;
     jumpToPreviousSearchResult(): void;
@@ -77,10 +76,14 @@ export interface Replaceable {
     replaceSelectionWith(searchConfig: SearchConfig, replacement: string): void;
     replaceAllWith(searchConfig: SearchConfig, replacement: string): void;
 }
+export interface SearchRegexResult {
+    regex: RegExp;
+    fromQuery: boolean;
+}
 export declare class SearchConfig {
     query: string;
     caseSensitive: boolean;
     isRegex: boolean;
     constructor(query: string, caseSensitive: boolean, isRegex: boolean);
-    toSearchRegex(global?: boolean): RegExp;
+    toSearchRegex(global?: boolean): SearchRegexResult;
 }

@@ -52,7 +52,7 @@ export class ObjectWrapper {
         //   - `Events[T]` otherwise.
         // We cast it to `Events[T]` which is the correct type in all instances, as
         // `void` will be cast and used as `undefined`.
-        const event = { data: eventData };
+        const event = { data: eventData, source: this };
         // Work on a snapshot of the current listeners, callbacks might remove/add
         // new listeners.
         for (const listener of [...listeners]) {

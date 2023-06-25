@@ -36,12 +36,12 @@ import { LayerPaintProfilerView } from './LayerPaintProfilerView.js';
 import { Events, LayerTreeModel } from './LayerTreeModel.js';
 const UIStrings = {
     /**
-    *@description Text for the details of something
-    */
+     *@description Text for the details of something
+     */
     details: 'Details',
     /**
-    *@description Title of the Profiler tool
-    */
+     *@description Title of the Profiler tool
+     */
     profiler: 'Profiler',
 };
 const str_ = i18n.i18n.registerUIStrings('panels/layers/LayersPanel.ts', UIStrings);
@@ -64,7 +64,7 @@ export class LayersPanel extends UI.Panel.PanelWithSidebar {
         SDK.TargetManager.TargetManager.instance().observeTargets(this);
         this.layerViewHost = new LayerViewer.LayerViewHost.LayerViewHost();
         this.layerTreeOutline = new LayerViewer.LayerTreeOutline.LayerTreeOutline(this.layerViewHost);
-        this.layerTreeOutline.addEventListener("PaintProfilerRequested" /* PaintProfilerRequested */, this.onPaintProfileRequested, this);
+        this.layerTreeOutline.addEventListener("PaintProfilerRequested" /* LayerViewer.LayerTreeOutline.Events.PaintProfilerRequested */, this.onPaintProfileRequested, this);
         this.panelSidebarElement().appendChild(this.layerTreeOutline.element);
         this.setDefaultFocusedElement(this.layerTreeOutline.element);
         this.rightSplitWidget = new UI.SplitWidget.SplitWidget(false, true, 'layerDetailsSplitViewState');
@@ -82,9 +82,8 @@ export class LayersPanel extends UI.Panel.PanelWithSidebar {
         this.tabbedPane.addEventListener(UI.TabbedPane.Events.TabClosed, this.onTabClosed, this);
         this.updateThrottler = new Common.Throttler.Throttler(100);
     }
-    static instance(opts = { forceNew: null }) {
-        const { forceNew } = opts;
-        if (!layersPanelInstance || forceNew) {
+    static instance(opts) {
+        if (!layersPanelInstance || opts?.forceNew) {
             layersPanelInstance = new LayersPanel();
         }
         return layersPanelInstance;
@@ -100,12 +99,12 @@ export class LayersPanel extends UI.Panel.PanelWithSidebar {
     }
     willHide() {
         if (this.model) {
-            this.model.disable();
+            void this.model.disable();
         }
         super.willHide();
     }
     targetAdded(target) {
-        if (this.model) {
+        if (target !== SDK.TargetManager.TargetManager.instance().primaryPageTarget()) {
             return;
         }
         this.model = target.model(LayerTreeModel);
@@ -124,11 +123,11 @@ export class LayersPanel extends UI.Panel.PanelWithSidebar {
         }
         this.model.removeEventListener(Events.LayerTreeChanged, this.onLayerTreeUpdated, this);
         this.model.removeEventListener(Events.LayerPainted, this.onLayerPainted, this);
-        this.model.disable();
+        void this.model.disable();
         this.model = null;
     }
     onLayerTreeUpdated() {
-        this.updateThrottler.schedule(this.update.bind(this));
+        void this.updateThrottler.schedule(this.update.bind(this));
     }
     update() {
         if (this.model) {
@@ -156,7 +155,7 @@ export class LayersPanel extends UI.Panel.PanelWithSidebar {
         this.layers3DView.updateLayerSnapshot(layer);
     }
     onPaintProfileRequested({ data: selection }) {
-        this.layers3DView.snapshotForSelection(selection).then(snapshotWithRect => {
+        void this.layers3DView.snapshotForSelection(selection).then(snapshotWithRect => {
             if (!snapshotWithRect) {
                 return;
             }

@@ -3,16 +3,17 @@
 // found in the LICENSE file.
 import * as i18n from '../../core/i18n/i18n.js';
 import * as UI from '../../ui/legacy/legacy.js';
+import * as Platform from '../../core/platform/platform.js';
 import { AccessibilitySubPane } from './AccessibilitySubPane.js';
 import { ariaMetadata } from './ARIAMetadata.js';
 const UIStrings = {
     /**
-    *@description Text in ARIAAttributes View of the Accessibility panel
-    */
+     *@description Text in ARIAAttributes View of the Accessibility panel
+     */
     ariaAttributes: 'ARIA Attributes',
     /**
-    *@description Text in ARIAAttributes View of the Accessibility panel
-    */
+     *@description Text in ARIAAttributes View of the Accessibility panel
+     */
     noAriaAttributes: 'No ARIA attributes',
 };
 const str_ = i18n.i18n.registerUIStrings('panels/accessibility/ARIAAttributesView.ts', UIStrings);
@@ -145,7 +146,7 @@ export class ARIAAttributesTreeElement extends UI.TreeOutline.TreeElement {
             event.consume();
             return;
         }
-        if (isEscKey(event)) {
+        if (Platform.KeyboardUtilities.isEscKey(event)) {
             this.editingCancelled();
             event.consume();
             return;
@@ -171,7 +172,6 @@ export class ARIAAttributePrompt extends UI.TextPrompt.TextPrompt {
                 text: c,
                 title: undefined,
                 subtitle: undefined,
-                iconType: undefined,
                 priority: undefined,
                 isSecondary: undefined,
                 subtitleRenderer: undefined,
@@ -188,6 +188,7 @@ const ATTRIBUTES = new Set([
     'aria-activedescendant',
     'aria-atomic',
     'aria-autocomplete',
+    'aria-braillelabel',
     'aria-brailleroledescription',
     'aria-busy',
     'aria-checked',
@@ -198,6 +199,7 @@ const ATTRIBUTES = new Set([
     'aria-controls',
     'aria-current',
     'aria-describedby',
+    'aria-description',
     'aria-details',
     'aria-disabled',
     'aria-dropeffect',

@@ -8,13 +8,6 @@ Bindings = Bindings || {};
 /** @constructor */
 Bindings.IgnoreListManager = BindingsModule.IgnoreListManager.IgnoreListManager;
 /** @constructor */
-Bindings.BreakpointManager = BindingsModule.BreakpointManager.BreakpointManager;
-/** @enum {symbol} */
-Bindings.BreakpointManager.Events = BindingsModule.BreakpointManager.Events;
-/** @constructor */
-Bindings.BreakpointManager.Breakpoint = BindingsModule.BreakpointManager.Breakpoint;
-Bindings.BreakpointManager.ModelBreakpoint = BindingsModule.BreakpointManager.ModelBreakpoint;
-/** @constructor */
 Bindings.CSSWorkspaceBinding = BindingsModule.CSSWorkspaceBinding.CSSWorkspaceBinding;
 /** @interface */
 Bindings.CSSWorkspaceBinding.SourceMapping = BindingsModule.CSSWorkspaceBinding.SourceMapping;
@@ -64,6 +57,4 @@ Bindings.StylesSourceMapping = BindingsModule.StylesSourceMapping.StylesSourceMa
 Bindings.StyleFile = BindingsModule.StylesSourceMapping.StyleFile;
 /** @constructor */
 Bindings.TempFile = BindingsModule.TempFile.TempFile;
-/** @constructor */
-Bindings.TempFileBackingStorage = BindingsModule.TempFile.TempFileBackingStorage;
 //# sourceMappingURL=bindings-legacy.js.map

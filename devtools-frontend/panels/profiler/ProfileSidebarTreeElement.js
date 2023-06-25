@@ -3,23 +3,23 @@
 // found in the LICENSE file.
 import * as i18n from '../../core/i18n/i18n.js';
 import * as UI from '../../ui/legacy/legacy.js';
-import { Events as ProfileHeaderEvents } from './ProfileHeader.js';
+import { Events as ProfileHeaderEvents, } from './ProfileHeader.js';
 const UIStrings = {
     /**
-    *@description Text to save something
-    */
+     *@description Text to save something
+     */
     save: 'Save',
     /**
-    *@description Text to save something (with ellipsis)
-    */
+     *@description Text to save something (with ellipsis)
+     */
     saveWithEllipsis: 'Save…',
     /**
-    *@description A context menu item in the Profiles Panel of a profiler tool
-    */
+     *@description A context menu item in the Profiles Panel of a profiler tool
+     */
     load: 'Load…',
     /**
-    *@description Text to delete something
-    */
+     *@description Text to delete something
+     */
     delete: 'Delete',
 };
 const str_ = i18n.i18n.registerUIStrings('panels/profiler/ProfileSidebarTreeElement.ts', UIStrings);
@@ -142,7 +142,7 @@ export class ProfileSidebarTreeElement extends UI.TreeOutline.TreeElement {
             contextMenu.saveSection().appendItem(i18nString(UIStrings.saveWithEllipsis), profile.saveToFile.bind(profile));
         }
         contextMenu.footerSection().appendItem(i18nString(UIStrings.delete), this.ondelete.bind(this));
-        contextMenu.show();
+        void contextMenu.show();
     }
     saveProfile(_event) {
         this.profile.saveToFile();

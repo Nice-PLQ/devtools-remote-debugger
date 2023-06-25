@@ -4,13 +4,9 @@ export interface AdornerData {
     content: HTMLElement;
 }
 export declare class Adorner extends HTMLElement {
+    #private;
     static readonly litTagName: import("../../lit-html/static.js").Static;
     name: string;
-    private readonly shadow;
-    private isToggle;
-    private ariaLabelDefault?;
-    private ariaLabelActive?;
-    private content?;
     set data(data: AdornerData);
     connectedCallback(): void;
     isActive(): boolean;
@@ -31,7 +27,6 @@ export declare class Adorner extends HTMLElement {
         isToggle?: boolean;
         shouldPropagateOnKeydown?: boolean;
     }): void;
-    private render;
 }
 declare global {
     interface HTMLElementTagNameMap {

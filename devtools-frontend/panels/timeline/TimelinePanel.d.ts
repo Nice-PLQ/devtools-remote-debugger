@@ -1,9 +1,24 @@
 import * as Common from '../../core/common/common.js';
+import * as Platform from '../../core/platform/platform.js';
 import * as SDK from '../../core/sdk/sdk.js';
 import * as TimelineModel from '../../models/timeline_model/timeline_model.js';
 import * as UI from '../../ui/legacy/legacy.js';
-import type { Client } from './TimelineController.js';
+import { type Client } from './TimelineController.js';
+import { TimelineSelection } from './TimelineSelection.js';
+declare global {
+    interface FileSystemWritableFileStream extends WritableStream {
+        write(data: unknown): Promise<void>;
+        close(): Promise<void>;
+    }
+    interface FileSystemHandle {
+        createWritable(): Promise<FileSystemWritableFileStream>;
+    }
+    interface Window {
+        showSaveFilePicker(opts: unknown): Promise<FileSystemHandle>;
+    }
+}
 export declare class TimelinePanel extends UI.Panel.Panel implements Client, TimelineModeViewDelegate {
+    #private;
     private readonly dropTarget;
     private readonly recordingOptionUIControls;
     private state;
@@ -13,13 +28,11 @@ export declare class TimelinePanel extends UI.Panel.Panel implements Client, Tim
     private readonly recordReloadAction;
     private readonly historyManager;
     private performanceModel;
-    private readonly viewModeSetting;
+    private filmStripModel;
     private disableCaptureJSProfileSetting;
     private readonly captureLayersAndPicturesSetting;
     private showScreenshotsSetting;
-    private startCoverage;
     private showMemorySetting;
-    private showWebVitalsSetting;
     private readonly panelToolbar;
     private readonly panelRightToolbar;
     private readonly timelinePane;
@@ -32,6 +45,7 @@ export declare class TimelinePanel extends UI.Panel.Panel implements Client, Tim
     private showSettingsPaneSetting;
     private settingsPane;
     private controller;
+    private cpuProfiler;
     private clearButton;
     private loadButton;
     private saveButton;
@@ -40,28 +54,28 @@ export declare class TimelinePanel extends UI.Panel.Panel implements Client, Tim
     private loader?;
     private showScreenshotsToolbarCheckbox?;
     private showMemoryToolbarCheckbox?;
-    private showWebVitalsToolbarCheckbox?;
-    private startCoverageCheckbox?;
     private networkThrottlingSelect?;
     private cpuThrottlingSelect?;
     private fileSelectorElement?;
     private selection?;
+    private primaryPageTargetPromiseCallback;
+    private primaryPageTargetPromise;
     constructor();
     static instance(opts?: {
         forceNew: boolean | null;
+        isNode: boolean;
     } | undefined): TimelinePanel;
     searchableView(): UI.SearchableView.SearchableView | null;
     wasShown(): void;
     willHide(): void;
     loadFromEvents(events: SDK.TracingManager.EventPayload[]): void;
+    private loadFromCpuProfile;
     private onOverviewWindowChanged;
     private onModelWindowChanged;
     private setState;
     private createSettingCheckbox;
     private populateToolbar;
     private createSettingsPane;
-    private appendExtensionsToToolbar;
-    private static settingForTraceProvider;
     private createNetworkConditionsSelect;
     private prepareToLoadTimeline;
     private createFileSelector;
@@ -70,21 +84,20 @@ export declare class TimelinePanel extends UI.Panel.Panel implements Client, Tim
     showHistory(): Promise<void>;
     navigateHistory(direction: number): boolean;
     selectFileToLoad(): void;
-    private loadFromFile;
-    loadFromURL(url: string): void;
+    loadFromFile(file: File): Promise<void>;
+    loadFromURL(url: Platform.DevToolsPath.UrlString): Promise<void>;
     private updateOverviewControls;
     private onModeChanged;
-    private onWebVitalsChanged;
     private updateSettingsPaneVisibility;
     private updateShowSettingsToolbarButton;
     private setUIControlsEnabled;
-    private getCoverageViewWidget;
     private startRecording;
     private stopRecording;
     private recordingFailed;
     private onSuspendStateChanged;
+    private consoleProfileFinished;
     private updateTimelineControls;
-    toggleRecording(): void;
+    toggleRecording(): Promise<void>;
     recordReload(): void;
     private onClearButton;
     private clear;
@@ -95,10 +108,12 @@ export declare class TimelinePanel extends UI.Panel.Panel implements Client, Tim
     recordingProgress(usage: number): void;
     private showLandingPage;
     private hideLandingPage;
-    loadingStarted(): void;
-    loadingProgress(progress?: number): void;
-    processingStarted(): void;
-    loadingComplete(tracingModel: SDK.TracingModel.TracingModel | null): void;
+    loadingStarted(): Promise<void>;
+    loadingProgress(progress?: number): Promise<void>;
+    processingStarted(): Promise<void>;
+    updateModelAndFlameChart(): void;
+    loadingComplete(tracingModel: SDK.TracingModel.TracingModel | null, exclusiveFilter?: TimelineModel.TimelineModelFilter.TimelineModelFilter | null): Promise<void>;
+    loadingCompleteForTest(): void;
     private showRecordingStarted;
     private cancelLoading;
     private setMarkers;
@@ -119,41 +134,12 @@ export declare enum State {
     Loading = "Loading",
     RecordingFailed = "RecordingFailed"
 }
-export declare enum ViewMode {
-    FlameChart = "FlameChart",
-    BottomUp = "BottomUp",
-    CallTree = "CallTree",
-    EventLog = "EventLog"
-}
 export declare const rowHeight = 18;
 export declare const headerHeight = 20;
-export declare class TimelineSelection {
-    private readonly typeInternal;
-    private readonly startTimeInternal;
-    readonly endTimeInternal: number;
-    private readonly objectInternal;
-    constructor(type: string, startTime: number, endTime: number, object?: Object);
-    static fromFrame(frame: TimelineModel.TimelineFrameModel.TimelineFrame): TimelineSelection;
-    static fromNetworkRequest(request: TimelineModel.TimelineModel.NetworkRequest): TimelineSelection;
-    static fromTraceEvent(event: SDK.TracingModel.Event): TimelineSelection;
-    static fromRange(startTime: number, endTime: number): TimelineSelection;
-    type(): string;
-    object(): Object | null;
-    startTime(): number;
-    endTime(): number;
-}
-export declare namespace TimelineSelection {
-    enum Type {
-        Frame = "Frame",
-        NetworkRequest = "NetworkRequest",
-        TraceEvent = "TraceEvent",
-        Range = "Range"
-    }
-}
 export interface TimelineModeViewDelegate {
     select(selection: TimelineSelection | null): void;
-    selectEntryAtTime(events: SDK.TracingModel.Event[] | null, time: number): void;
-    highlightEvent(event: SDK.TracingModel.Event | null): void;
+    selectEntryAtTime(events: SDK.TracingModel.CompatibleTraceEvent[] | null, time: number): void;
+    highlightEvent(event: SDK.TracingModel.CompatibleTraceEvent | null): void;
 }
 export declare class StatusPane extends UI.Widget.VBox {
     private status;
@@ -172,7 +158,7 @@ export declare class StatusPane extends UI.Widget.VBox {
         buttonDisabled?: boolean;
     }, buttonCallback: () => (Promise<void> | void));
     finish(): void;
-    hide(): void;
+    remove(): void;
     showPane(parent: Element): void;
     enableAndFocusButton(): void;
     updateStatus(text: string): void;
@@ -193,5 +179,5 @@ export declare class ActionDelegate implements UI.ActionRegistration.ActionDeleg
     static instance(opts?: {
         forceNew: boolean | null;
     } | undefined): ActionDelegate;
-    handleAction(context: UI.Context.Context, actionId: string): boolean;
+    handleAction(_context: UI.Context.Context, actionId: string): boolean;
 }

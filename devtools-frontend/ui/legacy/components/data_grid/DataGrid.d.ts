@@ -2,13 +2,13 @@ import * as Common from '../../../../core/common/common.js';
 import * as UI from '../../legacy.js';
 export declare class DataGridImpl<T> extends Common.ObjectWrapper.ObjectWrapper<EventTypes<T>> {
     element: HTMLDivElement;
-    private displayName;
+    displayName: string;
     private editCallback;
     private readonly deleteCallback;
     private readonly refreshCallback;
-    private readonly headerTable;
-    private headerTableHeaders;
+    private dataTableHeaders;
     scrollContainerInternal: Element;
+    private dataContainerInternal;
     private readonly dataTable;
     protected inline: boolean;
     private columnsArray;
@@ -17,8 +17,7 @@ export declare class DataGridImpl<T> extends Common.ObjectWrapper.ObjectWrapper<
     };
     visibleColumnsArray: ColumnDescriptor[];
     cellClass: string | null;
-    private readonly headerTableColumnGroup;
-    private headerTableBodyInternal;
+    private dataTableHeadInternal;
     private readonly headerRow;
     private readonly dataTableColumnGroup;
     dataTableBody: Element;
@@ -46,15 +45,15 @@ export declare class DataGridImpl<T> extends Common.ObjectWrapper.ObjectWrapper<
     constructor(dataGridParameters: Parameters);
     private firstSelectableNode;
     private lastSelectableNode;
-    setElementContent(element: Element, value: any): void;
-    static setElementText(element: Element, newText: string, longText: boolean): void;
-    static setElementBoolean(element: Element, value: boolean): void;
+    setElementContent(element: Element, value: string): void;
+    static setElementText(element: Element, newText: string, longText: boolean, gridNode?: DataGridNode<string>): void;
+    static setElementBoolean(element: Element, value: boolean, gridNode?: DataGridNode<string>): void;
+    static updateNodeAccessibleText(gridNode: DataGridNode<string>): void;
     setStriped(isStriped: boolean): void;
     setFocusable(focusable: boolean): void;
     setHasSelection(hasSelected: boolean): void;
     updateGridAccessibleName(text?: string): void;
     updateGridAccessibleNameOnFocus(): void;
-    headerTableBody(): Element;
     private innerAddColumn;
     addColumn(column: ColumnDescriptor, position?: number): void;
     private innerRemoveColumn;
@@ -66,7 +65,7 @@ export declare class DataGridImpl<T> extends Common.ObjectWrapper.ObjectWrapper<
     rootNode(): DataGridNode<T>;
     private ondblclick;
     private startEditingColumnOfDataGridNode;
-    startEditingNextEditableColumnOfDataGridNode(node: DataGridNode<T>, columnIdentifier: string): void;
+    startEditingNextEditableColumnOfDataGridNode(node: DataGridNode<T>, columnIdentifier: string, inclusive?: boolean): void;
     private startEditing;
     renderInline(): void;
     private startEditingConfig;
@@ -91,6 +90,7 @@ export declare class DataGridImpl<T> extends Common.ObjectWrapper.ObjectWrapper<
     private saveColumnWeights;
     wasShown(): void;
     willHide(): void;
+    private getPreferredWidth;
     private applyColumnWeights;
     setColumnsVisiblity(columnsVisibility: Set<string>): void;
     get scrollContainer(): HTMLElement;
@@ -117,6 +117,9 @@ export declare class DataGridImpl<T> extends Common.ObjectWrapper.ObjectWrapper<
     columnOffset(columnId: string): number;
     asWidget(): DataGridWidget<T>;
     topFillerRowElement(): HTMLElement;
+    protected headerHeightInScroller(): number;
+    headerHeight(): number;
+    revealNode(element: HTMLElement): void;
 }
 export declare const CornerWidth = 14;
 export declare enum Events {
@@ -126,7 +129,7 @@ export declare enum Events {
     SortingChanged = "SortingChanged",
     PaddingChanged = "PaddingChanged"
 }
-export declare type EventTypes<T> = {
+export type EventTypes<T> = {
     [Events.SelectedNode]: DataGridNode<T>;
     [Events.DeselectedNode]: void;
     [Events.OpenedNode]: DataGridNode<T>;
@@ -152,10 +155,11 @@ export declare enum ResizeMethod {
     First = "first",
     Last = "last"
 }
-export declare type DataGridData = {
+export type DataGridData = {
     [key: string]: any;
 };
 export declare class DataGridNode<T> {
+    #private;
     elementInternal: Element | null;
     expandedInternal: boolean;
     private selectedInternal;
@@ -174,7 +178,6 @@ export declare class DataGridNode<T> {
     parent: DataGridNode<T> | null;
     previousSibling: DataGridNode<T> | null;
     nextSibling: DataGridNode<T> | null;
-    disclosureToggleWidth: number;
     selectable: boolean;
     isRoot: boolean;
     nodeAccessibleText: string;
@@ -254,9 +257,9 @@ export declare class DataGridWidget<T> extends UI.Widget.VBox {
 export interface Parameters {
     displayName: string;
     columns: ColumnDescriptor[];
-    editCallback?: ((arg0: any, arg1: string, arg2: any, arg3: any) => any);
-    deleteCallback?: ((arg0: any) => any);
-    refreshCallback?: (() => any);
+    editCallback?: ((arg0: any, arg1: string, arg2: any, arg3: any) => void);
+    deleteCallback?: ((arg0: any) => void);
+    refreshCallback?: (() => void);
 }
 export interface ColumnDescriptor {
     id: string;

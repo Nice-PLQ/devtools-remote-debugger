@@ -12,6 +12,7 @@ export declare class ReportView extends VBox {
     private subtitleElement?;
     private urlElement?;
     constructor(title?: string);
+    getHeaderElement(): Element;
     setTitle(title: string): void;
     setSubtitle(subtitle: string): void;
     setURL(link: Element | null): void;
@@ -28,6 +29,9 @@ export declare class Section extends VBox {
     private readonly fieldMap;
     constructor(title: string, className?: string);
     title(): string;
+    getTitleElement(): Element;
+    getFieldElement(): HTMLElement;
+    appendFieldWithCustomView(customElement: HTMLElement): void;
     setTitle(title: string, tooltip?: string): void;
     /**
      * Declares the overall container to be a group and assigns a title.

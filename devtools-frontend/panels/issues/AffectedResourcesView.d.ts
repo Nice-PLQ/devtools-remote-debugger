@@ -1,11 +1,12 @@
+import type * as Platform from '../../core/platform/platform.js';
 import * as SDK from '../../core/sdk/sdk.js';
 import type * as IssuesManager from '../../models/issues_manager/issues_manager.js';
 import * as Logs from '../../models/logs/logs.js';
 import * as UI from '../../ui/legacy/legacy.js';
 import type * as NetworkForward from '../../panels/network/forward/forward.js';
 import type * as Protocol from '../../generated/protocol.js';
-import type { IssueView } from './IssueView.js';
-import type { AggregatedIssue } from './IssueAggregator.js';
+import { type IssueView } from './IssueView.js';
+import { type AggregatedIssue } from './IssueAggregator.js';
 export declare const enum AffectedItem {
     Cookie = "Cookie",
     Directive = "Directive",
@@ -14,7 +15,7 @@ export declare const enum AffectedItem {
     Request = "Request",
     Source = "Source"
 }
-export declare const extractShortPath: (path: string) => string;
+export declare const extractShortPath: (path: Platform.DevToolsPath.UrlString) => string;
 export interface CreateRequestCellOptions {
     linkToPreflight?: boolean;
     highlightHeader?: {
@@ -29,13 +30,10 @@ export interface CreateRequestCellOptions {
  * as well as machinery for resolving request and frame ids to SDK objects.
  */
 export declare abstract class AffectedResourcesView extends UI.TreeOutline.TreeElement {
-    private readonly parentView;
+    #private;
     protected issue: AggregatedIssue;
     protected affectedResourcesCountElement: HTMLElement;
     protected affectedResources: HTMLElement;
-    private affectedResourcesCount;
-    private frameListeners;
-    private unresolvedFrameIds;
     protected requestResolver: Logs.RequestResolver.RequestResolver;
     constructor(parent: IssueView, issue: AggregatedIssue);
     /**
@@ -50,13 +48,6 @@ export declare abstract class AffectedResourcesView extends UI.TreeOutline.TreeE
     isEmpty(): boolean;
     clear(): void;
     expandIfOneResource(): void;
-    /**
-     * This function resolves a frameId to a ResourceTreeFrame. If the frameId does not resolve, or hasn't navigated yet,
-     * a listener is installed that takes care of updating the view if the frame is added. This is useful if the issue is
-     * added before the frame gets reported.
-     */
-    private resolveFrameId;
-    private onFrameChanged;
     protected createFrameCell(frameId: Protocol.Page.FrameId, issueCategory: IssuesManager.Issue.IssueCategory): HTMLElement;
     protected createRequestCell(affectedRequest: Protocol.Audits.AffectedRequest, options?: CreateRequestCellOptions): HTMLElement;
     protected createElementCell({ backendNodeId, nodeName, target }: IssuesManager.Issue.AffectedElement, issueCategory: IssuesManager.Issue.IssueCategory): Promise<Element>;

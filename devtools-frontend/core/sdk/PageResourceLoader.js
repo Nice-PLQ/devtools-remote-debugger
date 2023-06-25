@@ -8,17 +8,13 @@ import { FrameManager } from './FrameManager.js';
 import { IOModel } from './IOModel.js';
 import { MultitargetNetworkManager } from './NetworkManager.js';
 import { NetworkManager } from './NetworkManager.js';
-import { Events as ResourceTreeModelEvents, ResourceTreeModel } from './ResourceTreeModel.js';
+import { Events as ResourceTreeModelEvents, ResourceTreeModel, } from './ResourceTreeModel.js';
 import { TargetManager } from './TargetManager.js';
 const UIStrings = {
     /**
-    *@description Error message for canceled source map loads
-    */
+     *@description Error message for canceled source map loads
+     */
     loadCanceledDueToReloadOf: 'Load canceled due to reload of inspected page',
-    /**
-    *@description Error message for canceled source map loads
-    */
-    loadCanceledDueToLoadTimeout: 'Load canceled due to load timeout',
 };
 const str_ = i18n.i18n.registerUIStrings('core/sdk/PageResourceLoader.ts', UIStrings);
 const i18nString = i18n.i18n.getLocalizedString.bind(undefined, str_);
@@ -34,31 +30,31 @@ export class PageResourceLoader extends Common.ObjectWrapper.ObjectWrapper {
     #pageResources;
     #queuedLoads;
     #loadOverride;
-    #loadTimeout;
-    constructor(loadOverride, maxConcurrentLoads, loadTimeout) {
+    constructor(loadOverride, maxConcurrentLoads) {
         super();
         this.#currentlyLoading = 0;
         this.#maxConcurrentLoads = maxConcurrentLoads;
         this.#pageResources = new Map();
         this.#queuedLoads = [];
-        TargetManager.instance().addModelListener(ResourceTreeModel, ResourceTreeModelEvents.MainFrameNavigated, this.onMainFrameNavigated, this);
+        TargetManager.instance().addModelListener(ResourceTreeModel, ResourceTreeModelEvents.PrimaryPageChanged, this.onPrimaryPageChanged, this);
         this.#loadOverride = loadOverride;
-        this.#loadTimeout = loadTimeout;
     }
-    static instance({ forceNew, loadOverride, maxConcurrentLoads, loadTimeout } = {
+    static instance({ forceNew, loadOverride, maxConcurrentLoads } = {
         forceNew: false,
         loadOverride: null,
         maxConcurrentLoads: 500,
-        loadTimeout: 30000,
     }) {
         if (!pageResourceLoader || forceNew) {
-            pageResourceLoader = new PageResourceLoader(loadOverride, maxConcurrentLoads, loadTimeout);
+            pageResourceLoader = new PageResourceLoader(loadOverride, maxConcurrentLoads);
         }
         return pageResourceLoader;
     }
-    onMainFrameNavigated(event) {
-        const mainFrame = event.data;
-        if (!mainFrame.isTopFrame()) {
+    static removeInstance() {
+        pageResourceLoader = null;
+    }
+    onPrimaryPageChanged(event) {
+        const mainFrame = event.data.frame;
+        if (!mainFrame.isOutermostFrame()) {
             return;
         }
         for (const { reject } of this.#queuedLoads) {
@@ -98,10 +94,6 @@ export class PageResourceLoader extends Common.ObjectWrapper.ObjectWrapper {
             entry.resolve();
         }
     }
-    static async withTimeout(promise, timeout) {
-        const timeoutPromise = new Promise((_, reject) => setTimeout(reject, timeout, new Error(i18nString(UIStrings.loadCanceledDueToLoadTimeout))));
-        return Promise.race([promise, timeoutPromise]);
-    }
     static makeKey(url, initiator) {
         if (initiator.frameId) {
             return `${url}-${initiator.frameId}`;
@@ -119,7 +111,7 @@ export class PageResourceLoader extends Common.ObjectWrapper.ObjectWrapper {
         try {
             await this.acquireLoadSlot();
             const resultPromise = this.dispatchLoad(url, initiator);
-            const result = await PageResourceLoader.withTimeout(resultPromise, this.#loadTimeout);
+            const result = await resultPromise;
             pageResource.errorMessage = result.errorDescription.message;
             pageResource.success = result.success;
             if (result.success) {
@@ -148,7 +140,8 @@ export class PageResourceLoader extends Common.ObjectWrapper.ObjectWrapper {
             return this.#loadOverride(url);
         }
         const parsedURL = new Common.ParsedURL.ParsedURL(url);
-        const eligibleForLoadFromTarget = getLoadThroughTargetSetting().get() && parsedURL && parsedURL.isHttpOrHttps();
+        const eligibleForLoadFromTarget = getLoadThroughTargetSetting().get() && parsedURL && parsedURL.scheme !== 'file' &&
+            parsedURL.scheme !== 'data' && parsedURL.scheme !== 'devtools';
         Host.userMetrics.developerResourceScheme(this.getDeveloperResourceScheme(parsedURL));
         if (eligibleForLoadFromTarget) {
             try {
@@ -213,7 +206,8 @@ export class PageResourceLoader extends Common.ObjectWrapper.ObjectWrapper {
     async loadFromTarget(target, frameId, url) {
         const networkManager = target.model(NetworkManager);
         const ioModel = target.model(IOModel);
-        const resource = await networkManager.loadNetworkResource(frameId, url, { disableCache: true, includeCredentials: true });
+        const disableCache = Common.Settings.Settings.instance().moduleSetting('cacheDisabled').get();
+        const resource = await networkManager.loadNetworkResource(frameId, url, { disableCache, includeCredentials: true });
         try {
             const content = resource.stream ? await ioModel.readToString(resource.stream) : '';
             return {
@@ -231,7 +225,7 @@ export class PageResourceLoader extends Common.ObjectWrapper.ObjectWrapper {
         }
         finally {
             if (resource.stream) {
-                ioModel.close(resource.stream);
+                void ioModel.close(resource.stream);
             }
         }
     }

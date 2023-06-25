@@ -3,48 +3,48 @@
 // found in the LICENSE file.
 import * as i18n from '../../core/i18n/i18n.js';
 import { Issue, IssueCategory, IssueKind } from './Issue.js';
-import { resolveLazyDescription } from './MarkdownIssueDescription.js';
+import { resolveLazyDescription, } from './MarkdownIssueDescription.js';
 const UIStrings = {
     /**
-    *@description Link text for a link to external documentation
-    */
+     *@description Link text for a link to external documentation
+     */
     coopAndCoep: 'COOP and COEP',
     /**
-    *@description Title for an external link to more information in the issues view
-    */
+     *@description Title for an external link to more information in the issues view
+     */
     samesiteAndSameorigin: 'Same-Site and Same-Origin',
 };
 const str_ = i18n.i18n.registerUIStrings('models/issues_manager/CrossOriginEmbedderPolicyIssue.ts', UIStrings);
 const i18nLazyString = i18n.i18n.getLazilyComputedLocalizedString.bind(undefined, str_);
 export function isCrossOriginEmbedderPolicyIssue(reason) {
     switch (reason) {
-        case "CoepFrameResourceNeedsCoepHeader" /* CoepFrameResourceNeedsCoepHeader */:
+        case "CoepFrameResourceNeedsCoepHeader" /* Protocol.Audits.BlockedByResponseReason.CoepFrameResourceNeedsCoepHeader */:
             return true;
-        case "CoopSandboxedIFrameCannotNavigateToCoopPage" /* CoopSandboxedIFrameCannotNavigateToCoopPage */:
+        case "CoopSandboxedIFrameCannotNavigateToCoopPage" /* Protocol.Audits.BlockedByResponseReason.CoopSandboxedIFrameCannotNavigateToCoopPage */:
             return true;
-        case "CorpNotSameOrigin" /* CorpNotSameOrigin */:
+        case "CorpNotSameOrigin" /* Protocol.Audits.BlockedByResponseReason.CorpNotSameOrigin */:
             return true;
-        case "CorpNotSameOriginAfterDefaultedToSameOriginByCoep" /* CorpNotSameOriginAfterDefaultedToSameOriginByCoep */:
+        case "CorpNotSameOriginAfterDefaultedToSameOriginByCoep" /* Protocol.Audits.BlockedByResponseReason.CorpNotSameOriginAfterDefaultedToSameOriginByCoep */:
             return true;
-        case "CorpNotSameSite" /* CorpNotSameSite */:
+        case "CorpNotSameSite" /* Protocol.Audits.BlockedByResponseReason.CorpNotSameSite */:
             return true;
     }
     return false;
 }
 export class CrossOriginEmbedderPolicyIssue extends Issue {
-    issueDetails;
+    #issueDetails;
     constructor(issueDetails, issuesModel) {
         super(`CrossOriginEmbedderPolicyIssue::${issueDetails.reason}`, issuesModel);
-        this.issueDetails = issueDetails;
+        this.#issueDetails = issueDetails;
     }
     primaryKey() {
-        return `${this.code()}-(${this.issueDetails.request.requestId})`;
+        return `${this.code()}-(${this.#issueDetails.request.requestId})`;
     }
     getBlockedByResponseDetails() {
-        return [this.issueDetails];
+        return [this.#issueDetails];
     }
     requests() {
-        return [this.issueDetails.request];
+        return [this.#issueDetails.request];
     }
     getCategory() {
         return IssueCategory.CrossOriginEmbedderPolicy;

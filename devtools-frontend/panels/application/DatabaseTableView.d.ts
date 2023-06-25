@@ -1,5 +1,5 @@
 import * as UI from '../../ui/legacy/legacy.js';
-import type { Database } from './DatabaseModel.js';
+import { type Database } from './DatabaseModel.js';
 export interface VisibleColumnsSetting {
     [tableName: string]: string;
 }

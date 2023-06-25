@@ -4,7 +4,7 @@ import * as SDK from '../../core/sdk/sdk.js';
 import type * as TextUtils from '../text_utils/text_utils.js';
 import * as Workspace from '../workspace/workspace.js';
 import { ContentProviderBasedProject } from './ContentProviderBasedProject.js';
-import type { SourceMapping } from './CSSWorkspaceBinding.js';
+import { type SourceMapping } from './CSSWorkspaceBinding.js';
 export declare class StylesSourceMapping implements SourceMapping {
     #private;
     constructor(cssModel: SDK.CSSModel.CSSModel, workspace: Workspace.Workspace.WorkspaceImpl);
@@ -29,9 +29,8 @@ export declare class StyleFile implements TextUtils.ContentProvider.ContentProvi
     private mirrorContent;
     private styleFileSyncedForTest;
     dispose(): void;
-    contentURL(): Platform.DevToolsPath.RawPathString;
+    contentURL(): Platform.DevToolsPath.UrlString;
     contentType(): Common.ResourceType.ResourceType;
-    contentEncoded(): Promise<boolean>;
     requestContent(): Promise<TextUtils.ContentProvider.DeferredContent>;
     searchInContent(query: string, caseSensitive: boolean, isRegex: boolean): Promise<TextUtils.ContentProvider.SearchMatch[]>;
     static readonly updateTimeout = 200;

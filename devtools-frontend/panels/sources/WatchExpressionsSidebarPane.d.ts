@@ -30,6 +30,7 @@ export declare class WatchExpressionsSidebarPane extends UI.ThrottledWidget.Thro
     wasShown(): void;
 }
 export declare class WatchExpression extends Common.ObjectWrapper.ObjectWrapper<EventTypes> {
+    #private;
     private treeElementInternal;
     private nameElement;
     private valueElement;
@@ -64,7 +65,7 @@ export declare class WatchExpression extends Common.ObjectWrapper.ObjectWrapper<
 declare const enum Events {
     ExpressionUpdated = "ExpressionUpdated"
 }
-declare type EventTypes = {
+type EventTypes = {
     [Events.ExpressionUpdated]: WatchExpression;
 };
 export {};

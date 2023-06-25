@@ -11,12 +11,14 @@ export declare class ObjectPropertiesSection extends UI.TreeOutline.TreeOutlineI
     constructor(object: SDK.RemoteObject.RemoteObject, title?: string | Element | null, linkifier?: Components.Linkifier.Linkifier, showOverflow?: boolean);
     static defaultObjectPresentation(object: SDK.RemoteObject.RemoteObject, linkifier?: Components.Linkifier.Linkifier, skipProto?: boolean, readOnly?: boolean): Element;
     static defaultObjectPropertiesSection(object: SDK.RemoteObject.RemoteObject, linkifier?: Components.Linkifier.Linkifier, skipProto?: boolean, readOnly?: boolean): ObjectPropertiesSection;
+    static assignWebIDLMetadata(value: SDK.RemoteObject.RemoteObject | null, properties: SDK.RemoteObject.RemoteObjectProperty[]): void;
+    static getPropertyValuesByNames(properties: SDK.RemoteObject.RemoteObjectProperty[]): Map<string, SDK.RemoteObject.RemoteObject | undefined>;
     static compareProperties(propertyA: SDK.RemoteObject.RemoteObjectProperty, propertyB: SDK.RemoteObject.RemoteObjectProperty): number;
     static createNameElement(name: string | null, isPrivate?: boolean): Element;
-    static valueElementForFunctionDescription(description?: string | null, includePreview?: boolean, defaultName?: string): Element;
-    static createPropertyValueWithCustomSupport(value: SDK.RemoteObject.RemoteObject, wasThrown: boolean, showPreview: boolean, parentElement?: Element, linkifier?: Components.Linkifier.Linkifier): ObjectPropertyValue;
-    static appendMemoryIcon(element: Element, obj: SDK.RemoteObject.RemoteObject): void;
-    static createPropertyValue(value: SDK.RemoteObject.RemoteObject, wasThrown: boolean, showPreview: boolean, parentElement?: Element, linkifier?: Components.Linkifier.Linkifier): ObjectPropertyValue;
+    static valueElementForFunctionDescription(description?: string, includePreview?: boolean, defaultName?: string): Element;
+    static createPropertyValueWithCustomSupport(value: SDK.RemoteObject.RemoteObject, wasThrown: boolean, showPreview: boolean, parentElement?: Element, linkifier?: Components.Linkifier.Linkifier, isSyntheticProperty?: boolean, variableName?: string): ObjectPropertyValue;
+    static appendMemoryIcon(element: Element, obj: SDK.RemoteObject.RemoteObject, expression?: string): void;
+    static createPropertyValue(value: SDK.RemoteObject.RemoteObject, wasThrown: boolean, showPreview: boolean, parentElement?: Element, linkifier?: Components.Linkifier.Linkifier, isSyntheticProperty?: boolean, variableName?: string): ObjectPropertyValue;
     static formatObjectAsFunction(func: SDK.RemoteObject.RemoteObject, element: Element, linkify: boolean, includePreview?: boolean): Promise<void>;
     static isDisplayableProperty(property: SDK.RemoteObject.RemoteObjectProperty, parentProperty?: SDK.RemoteObject.RemoteObjectProperty): boolean;
     skipProto(): void;

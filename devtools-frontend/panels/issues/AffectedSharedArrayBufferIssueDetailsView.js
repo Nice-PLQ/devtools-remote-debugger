@@ -6,44 +6,44 @@ import * as IssuesManager from '../../models/issues_manager/issues_manager.js';
 import { AffectedResourcesView } from './AffectedResourcesView.js';
 const UIStrings = {
     /**
-    *@description Label for number of affected resources indication in issue view
-    */
+     *@description Label for number of affected resources indication in issue view
+     */
     nViolations: '{n, plural, =1 {# violation} other {# violations}}',
     /**
-    *@description Value for the status column in SharedArrayBuffer issues
-    */
+     *@description Value for the status column in SharedArrayBuffer issues
+     */
     warning: 'warning',
     /**
-    *@description The kind of resolution for a mixed content issue
-    */
+     *@description The kind of resolution for a mixed content issue
+     */
     blocked: 'blocked',
     /**
-    *@description Value for the 'Trigger' column in the SAB affected resources list
-    */
+     *@description Value for the 'Trigger' column in the SAB affected resources list
+     */
     instantiation: 'Instantiation',
     /**
-    *@description Tooltip for the 'Trigger' column in the SAB affected resources list
-    */
+     *@description Tooltip for the 'Trigger' column in the SAB affected resources list
+     */
     aSharedarraybufferWas: 'A `SharedArrayBuffer` was instantiated in a context that is not cross-origin isolated',
     /**
-    *@description Value for the 'Trigger' column in the SAB affected resources list
-    */
+     *@description Value for the 'Trigger' column in the SAB affected resources list
+     */
     transfer: 'Transfer',
     /**
-    *@description Tooltip for the 'Trigger' column in the SAB affected resources list
-    */
+     *@description Tooltip for the 'Trigger' column in the SAB affected resources list
+     */
     sharedarraybufferWasTransferedTo: '`SharedArrayBuffer` was transfered to a context that is not cross-origin isolated',
     /**
-    *@description Header for the source location column
-    */
+     *@description Header for the source location column
+     */
     sourceLocation: 'Source Location',
     /**
-    *@description Title for the 'Trigger' column in the SAB affected resources list
-    */
+     *@description Title for the 'Trigger' column in the SAB affected resources list
+     */
     trigger: 'Trigger',
     /**
-    *@description Title for the status column in the SAB affected resources list
-    */
+     *@description Title for the status column in the SAB affected resources list
+     */
     status: 'Status',
 };
 const str_ = i18n.i18n.registerUIStrings('panels/issues/AffectedSharedArrayBufferIssueDetailsView.ts', UIStrings);
@@ -52,7 +52,7 @@ export class AffectedSharedArrayBufferIssueDetailsView extends AffectedResources
     getResourceNameWithCount(count) {
         return i18nString(UIStrings.nViolations, { n: count });
     }
-    appendStatus(element, isWarning) {
+    #appendStatus(element, isWarning) {
         const status = document.createElement('td');
         if (isWarning) {
             status.classList.add('affected-resource-report-only-status');
@@ -64,21 +64,21 @@ export class AffectedSharedArrayBufferIssueDetailsView extends AffectedResources
         }
         element.appendChild(status);
     }
-    appendType(element, type) {
+    #appendType(element, type) {
         const status = document.createElement('td');
         switch (type) {
-            case "CreationIssue" /* CreationIssue */:
+            case "CreationIssue" /* Protocol.Audits.SharedArrayBufferIssueType.CreationIssue */:
                 status.textContent = i18nString(UIStrings.instantiation);
                 status.title = i18nString(UIStrings.aSharedarraybufferWas);
                 break;
-            case "TransferIssue" /* TransferIssue */:
+            case "TransferIssue" /* Protocol.Audits.SharedArrayBufferIssueType.TransferIssue */:
                 status.textContent = i18nString(UIStrings.transfer);
                 status.title = i18nString(UIStrings.sharedarraybufferWasTransferedTo);
                 break;
         }
         element.appendChild(status);
     }
-    appendDetails(sabIssues) {
+    #appendDetails(sabIssues) {
         const header = document.createElement('tr');
         this.appendColumnTitle(header, i18nString(UIStrings.sourceLocation));
         this.appendColumnTitle(header, i18nString(UIStrings.trigger));
@@ -87,23 +87,23 @@ export class AffectedSharedArrayBufferIssueDetailsView extends AffectedResources
         let count = 0;
         for (const sabIssue of sabIssues) {
             count++;
-            this.appendDetail(sabIssue);
+            this.#appendDetail(sabIssue);
         }
         this.updateAffectedResourceCount(count);
     }
-    appendDetail(sabIssue) {
+    #appendDetail(sabIssue) {
         const element = document.createElement('tr');
         element.classList.add('affected-resource-directive');
         const sabIssueDetails = sabIssue.details();
         const location = IssuesManager.Issue.toZeroBasedLocation(sabIssueDetails.sourceCodeLocation);
         this.appendSourceLocation(element, location, sabIssue.model()?.getTargetIfNotDisposed());
-        this.appendType(element, sabIssueDetails.type);
-        this.appendStatus(element, sabIssueDetails.isWarning);
+        this.#appendType(element, sabIssueDetails.type);
+        this.#appendStatus(element, sabIssueDetails.isWarning);
         this.affectedResources.appendChild(element);
     }
     update() {
         this.clear();
-        this.appendDetails(this.issue.getSharedArrayBufferIssues());
+        this.#appendDetails(this.issue.getSharedArrayBufferIssues());
     }
 }
 //# sourceMappingURL=AffectedSharedArrayBufferIssueDetailsView.js.map

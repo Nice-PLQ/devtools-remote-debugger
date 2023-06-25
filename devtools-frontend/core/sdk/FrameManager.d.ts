@@ -1,10 +1,9 @@
 import * as Common from '../common/common.js';
 import type * as Protocol from '../../generated/protocol.js';
-import type { Resource } from './Resource.js';
-import type { ResourceTreeFrame } from './ResourceTreeModel.js';
-import { ResourceTreeModel } from './ResourceTreeModel.js';
-import type { Target } from './Target.js';
-import type { SDKModelObserver } from './TargetManager.js';
+import { type Resource } from './Resource.js';
+import { ResourceTreeModel, type ResourceTreeFrame } from './ResourceTreeModel.js';
+import { type Target } from './Target.js';
+import { type SDKModelObserver } from './TargetManager.js';
 /**
  * The FrameManager is a central storage for all #frames. It collects #frames from all
  * ResourceTreeModel-instances (one per target), so that #frames can be found by id
@@ -24,11 +23,11 @@ export declare class FrameManager extends Common.ObjectWrapper.ObjectWrapper<Eve
     private resourceAdded;
     private decreaseOrRemoveFrame;
     /**
-     * Looks for the top frame in `#frames` and sets `#topFrame` accordingly.
+     * Looks for the outermost frame in `#frames` and sets `#outermostFrame` accordingly.
      *
      * Important: This method needs to be called everytime `#frames` is updated.
      */
-    private resetTopFrame;
+    private resetOutermostFrame;
     /**
      * Returns the ResourceTreeFrame with a given frameId.
      * When a frame is being detached a new ResourceTreeFrame but with the same
@@ -38,7 +37,7 @@ export declare class FrameManager extends Common.ObjectWrapper.ObjectWrapper<Eve
      */
     getFrame(frameId: Protocol.Page.FrameId): ResourceTreeFrame | null;
     getAllFrames(): ResourceTreeFrame[];
-    getTopFrame(): ResourceTreeFrame | null;
+    getOutermostFrame(): ResourceTreeFrame | null;
     getOrWaitForFrame(frameId: Protocol.Page.FrameId, notInTarget?: Target): Promise<ResourceTreeFrame>;
     private resolveAwaitedFrame;
 }
@@ -47,9 +46,9 @@ export declare enum Events {
     FrameNavigated = "FrameNavigated",
     FrameRemoved = "FrameRemoved",
     ResourceAdded = "ResourceAdded",
-    TopFrameNavigated = "TopFrameNavigated"
+    OutermostFrameNavigated = "OutermostFrameNavigated"
 }
-export declare type EventTypes = {
+export type EventTypes = {
     [Events.FrameAddedToTarget]: {
         frame: ResourceTreeFrame;
     };
@@ -62,7 +61,7 @@ export declare type EventTypes = {
     [Events.ResourceAdded]: {
         resource: Resource;
     };
-    [Events.TopFrameNavigated]: {
+    [Events.OutermostFrameNavigated]: {
         frame: ResourceTreeFrame;
     };
 };

@@ -1,4 +1,9 @@
 import type * as Common from '../../core/common/common.js';
+interface RadioOption {
+    value: string;
+    label: () => Common.UIString.LocalizedString;
+    tooltip?: () => Common.UIString.LocalizedString;
+}
 export declare class RadioSetting {
     private readonly setting;
     private options;
@@ -6,11 +11,9 @@ export declare class RadioSetting {
     private radioElements;
     private ignoreChangeEvents;
     private selectedIndex;
-    constructor(options: {
-        value: string;
-        label: () => Common.UIString.LocalizedString;
-    }[], setting: Common.Settings.Setting<string>, description: string);
+    constructor(options: RadioOption[], setting: Common.Settings.Setting<string>, description: string);
     private updateUI;
     private settingChanged;
     private valueChanged;
 }
+export {};

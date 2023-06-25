@@ -30,7 +30,9 @@
 import * as Common from '../../core/common/common.js';
 import * as Host from '../../core/host/host.js';
 import * as i18n from '../../core/i18n/i18n.js';
+import * as Platform from '../../core/platform/platform.js';
 import * as Root from '../../core/root/root.js';
+import * as IconButton from '../components/icon_button/icon_button.js';
 import * as Utils from './utils/utils.js';
 import { ActionRegistry } from './ActionRegistry.js';
 import * as ARIAUtils from './ARIAUtils.js';
@@ -39,17 +41,22 @@ import { GlassPane } from './GlassPane.js';
 import { Icon } from './Icon.js';
 import { bindCheckbox } from './SettingsUI.js';
 import { Events as TextPromptEvents, TextPrompt } from './TextPrompt.js';
+import toolbarStyles from './toolbar.css.legacy.js';
 import { Tooltip } from './Tooltip.js';
 import { CheckboxLabel, LongClickController } from './UIUtils.js';
 const UIStrings = {
     /**
-    *@description Announced screen reader message for ToolbarSettingToggle when the setting is toggled on.
-    */
+     *@description Announced screen reader message for ToolbarSettingToggle when the setting is toggled on.
+     */
     pressed: 'pressed',
     /**
-    *@description Announced screen reader message for ToolbarSettingToggle when the setting is toggled off.
-    */
+     *@description Announced screen reader message for ToolbarSettingToggle when the setting is toggled off.
+     */
     notPressed: 'not pressed',
+    /**
+     *@description Tooltip shown when the user hovers over the clear icon to empty the text input.
+     */
+    clearInput: 'Clear input',
 };
 const str_ = i18n.i18n.registerUIStrings('ui/legacy/Toolbar.ts', UIStrings);
 const i18nString = i18n.i18n.getLocalizedString.bind(undefined, str_);
@@ -59,7 +66,6 @@ export class Toolbar {
     enabled;
     shadowRoot;
     contentElement;
-    insertionPoint;
     compactLayout = false;
     constructor(className, parentElement) {
         this.items = [];
@@ -67,9 +73,9 @@ export class Toolbar {
         this.element.className = className;
         this.element.classList.add('toolbar');
         this.enabled = true;
-        this.shadowRoot = Utils.createShadowRootWithCoreStyles(this.element, { cssFile: 'ui/legacy/toolbar.css', delegatesFocus: undefined });
+        this.shadowRoot =
+            Utils.createShadowRootWithCoreStyles(this.element, { cssFile: toolbarStyles, delegatesFocus: undefined });
         this.contentElement = this.shadowRoot.createChild('div', 'toolbar-shadow');
-        this.insertionPoint = this.contentElement.createChild('slot');
     }
     hasCompactLayout() {
         return this.compactLayout;
@@ -92,7 +98,7 @@ export class Toolbar {
         let longClickController = null;
         let longClickButtons = null;
         let longClickGlyph = null;
-        action.addEventListener("Toggled" /* Toggled */, updateOptions);
+        action.addEventListener("Toggled" /* ActionEvents.Toggled */, updateOptions);
         updateOptions();
         return button;
         function updateOptions() {
@@ -100,7 +106,7 @@ export class Toolbar {
             if (buttons && buttons.length) {
                 if (!longClickController) {
                     longClickController = new LongClickController(button.element, showOptions);
-                    longClickGlyph = Icon.create('largeicon-longclick-triangle', 'long-click-glyph');
+                    longClickGlyph = Icon.create('triangle-bottom-right', 'long-click-glyph');
                     button.element.appendChild(longClickGlyph);
                     longClickButtons = buttons;
                 }
@@ -123,7 +129,7 @@ export class Toolbar {
             const document = button.element.ownerDocument;
             document.documentElement.addEventListener('mouseup', mouseUp, false);
             const optionsGlassPane = new GlassPane();
-            optionsGlassPane.setPointerEventsBehavior("BlockedByGlassPane" /* BlockedByGlassPane */);
+            optionsGlassPane.setPointerEventsBehavior("BlockedByGlassPane" /* PointerEventsBehavior.BlockedByGlassPane */);
             optionsGlassPane.show(document);
             const optionsBar = new Toolbar('fill', optionsGlassPane.contentElement);
             optionsBar.contentElement.classList.add('floating');
@@ -188,17 +194,17 @@ export class Toolbar {
             button.setText(action.title());
         }
         let handler = (_event) => {
-            action.execute();
+            void action.execute();
         };
         if (options.userActionCode) {
             const actionCode = options.userActionCode;
             handler = () => {
                 Host.userMetrics.actionTaken(actionCode);
-                action.execute();
+                void action.execute();
             };
         }
         button.addEventListener(ToolbarButton.Events.Click, handler, action);
-        action.addEventListener("Enabled" /* Enabled */, enabledChanged);
+        action.addEventListener("Enabled" /* ActionEvents.Enabled */, enabledChanged);
         button.setEnabled(action.enabled());
         return button;
         function makeButton() {
@@ -211,7 +217,7 @@ export class Toolbar {
         function makeToggle() {
             const toggleButton = new ToolbarToggle(action.title(), action.icon(), action.toggledIcon());
             toggleButton.setToggleWithRedColor(action.toggleWithRedColor());
-            action.addEventListener("Toggled" /* Toggled */, toggled);
+            action.addEventListener("Toggled" /* ActionEvents.Toggled */, toggled);
             toggled();
             return toggleButton;
             function toggled() {
@@ -267,7 +273,7 @@ export class Toolbar {
         if (!this.enabled) {
             item.applyEnabledState(false);
         }
-        this.contentElement.insertBefore(item.element, this.insertionPoint);
+        this.contentElement.appendChild(item.element);
         this.hideSeparatorDupes();
     }
     appendSeparator() {
@@ -279,13 +285,24 @@ export class Toolbar {
     appendText(text) {
         this.appendToolbarItem(new ToolbarText(text));
     }
+    removeToolbarItem(itemToRemove) {
+        const updatedItems = [];
+        for (const item of this.items) {
+            if (item === itemToRemove) {
+                item.element.remove();
+            }
+            else {
+                updatedItems.push(item);
+            }
+        }
+        this.items = updatedItems;
+    }
     removeToolbarItems() {
         for (const item of this.items) {
             item.toolbar = null;
         }
         this.items = [];
         this.contentElement.removeChildren();
-        this.insertionPoint = this.contentElement.createChild('slot');
     }
     setColor(color) {
         const style = document.createElement('style');
@@ -381,7 +398,7 @@ export class ToolbarItem extends Common.ObjectWrapper.ObjectWrapper {
             return;
         }
         this.title = title;
-        ARIAUtils.setAccessibleName(this.element, title);
+        ARIAUtils.setLabel(this.element, title);
         if (actionId === undefined) {
             Tooltip.install(this.element, title);
         }
@@ -425,7 +442,7 @@ export class ToolbarItemWithCompactLayout extends ToolbarItem {
         super(element);
     }
     setCompactLayout(enable) {
-        this.dispatchEventToListeners("CompactLayoutUpdated" /* CompactLayoutUpdated */, enable);
+        this.dispatchEventToListeners("CompactLayoutUpdated" /* ToolbarItemWithCompactLayoutEvents.CompactLayoutUpdated */, enable);
     }
 }
 export class ToolbarText extends ToolbarItem {
@@ -448,6 +465,7 @@ export class ToolbarButton extends ToolbarItem {
     textElement;
     text;
     glyph;
+    icon;
     /**
      * TODO(crbug.com/1126026): remove glyph parameter in favor of icon.
      */
@@ -461,12 +479,8 @@ export class ToolbarButton extends ToolbarItem {
         this.element.appendChild(this.glyphElement);
         this.textElement = this.element.createChild('div', 'toolbar-text hidden');
         this.setTitle(title);
-        if (glyphOrIcon instanceof HTMLElement) {
-            glyphOrIcon.classList.add('toolbar-icon');
-            this.element.append(glyphOrIcon);
-        }
-        else if (glyphOrIcon) {
-            this.setGlyph(glyphOrIcon);
+        if (glyphOrIcon) {
+            this.setGlyphOrIcon(glyphOrIcon);
         }
         this.setText(text || '');
         this.title = '';
@@ -481,6 +495,21 @@ export class ToolbarButton extends ToolbarItem {
         this.textElement.textContent = text;
         this.textElement.classList.toggle('hidden', !text);
         this.text = text;
+    }
+    setGlyphOrIcon(glyphOrIcon) {
+        if (glyphOrIcon instanceof HTMLElement) {
+            glyphOrIcon.classList.add('toolbar-icon');
+            if (this.icon) {
+                this.icon.replaceWith(glyphOrIcon);
+            }
+            else {
+                this.element.appendChild(glyphOrIcon);
+            }
+            this.icon = glyphOrIcon;
+        }
+        else if (glyphOrIcon) {
+            this.setGlyph(glyphOrIcon);
+        }
     }
     setGlyph(glyph) {
         if (this.glyph === glyph) {
@@ -505,7 +534,7 @@ export class ToolbarButton extends ToolbarItem {
         if (shrinkable) {
             this.element.classList.add('toolbar-has-dropdown-shrinkable');
         }
-        const dropdownArrowIcon = Icon.create('smallicon-triangle-down', 'toolbar-dropdown-arrow');
+        const dropdownArrowIcon = Icon.create('triangle-down', 'toolbar-dropdown-arrow');
         this.element.appendChild(dropdownArrowIcon);
     }
     clicked(event) {
@@ -539,7 +568,7 @@ export class ToolbarInput extends ToolbarItem {
         element.classList.add('toolbar-input');
         super(element);
         const internalPromptElement = this.element.createChild('div', 'toolbar-input-prompt');
-        ARIAUtils.setAccessibleName(internalPromptElement, placeholder);
+        ARIAUtils.setLabel(internalPromptElement, placeholder);
         internalPromptElement.addEventListener('focus', () => this.element.classList.add('focused'));
         internalPromptElement.addEventListener('blur', () => this.element.classList.remove('focused'));
         this.prompt = new TextPrompt();
@@ -559,7 +588,11 @@ export class ToolbarInput extends ToolbarItem {
             this.element.style.flexShrink = String(shrinkFactor);
         }
         const clearButton = this.element.createChild('div', 'toolbar-input-clear-button');
-        clearButton.appendChild(Icon.create('mediumicon-gray-cross-active', 'search-cancel-button'));
+        clearButton.title = UIStrings.clearInput;
+        const clearIcon = new IconButton.Icon.Icon();
+        clearIcon.data = { color: 'var(--icon-default)', width: '16px', height: '16px', iconName: 'cross-circle-filled' };
+        clearIcon.classList.add('search-cancel-button');
+        clearButton.appendChild(clearIcon);
         clearButton.addEventListener('click', () => {
             this.setValue('', true);
             this.prompt.focus();
@@ -579,11 +612,14 @@ export class ToolbarInput extends ToolbarItem {
     value() {
         return this.prompt.textWithCurrentSuggestion();
     }
+    valueWithoutSuggestion() {
+        return this.prompt.text();
+    }
     onKeydownCallback(event) {
         if (event.key === 'Enter' && this.prompt.text()) {
             this.dispatchEventToListeners(ToolbarInput.Event.EnterPressed, this.prompt.text());
         }
-        if (!isEscKey(event) || !this.prompt.text()) {
+        if (!Platform.KeyboardUtilities.isEscKey(event) || !this.prompt.text()) {
             return;
         }
         this.setValue('', true);
@@ -608,13 +644,13 @@ export class ToolbarInput extends ToolbarItem {
 })(ToolbarInput || (ToolbarInput = {}));
 export class ToolbarToggle extends ToolbarButton {
     toggledInternal;
-    untoggledGlyph;
-    toggledGlyph;
-    constructor(title, glyph, toggledGlyph) {
-        super(title, glyph, '');
+    untoggledGlyphOrIcon;
+    toggledGlyphOrIcon;
+    constructor(title, glyphOrIcon, toggledGlyphOrIcon) {
+        super(title, glyphOrIcon, '');
         this.toggledInternal = false;
-        this.untoggledGlyph = glyph;
-        this.toggledGlyph = toggledGlyph;
+        this.untoggledGlyphOrIcon = glyphOrIcon;
+        this.toggledGlyphOrIcon = toggledGlyphOrIcon;
         this.element.classList.add('toolbar-state-off');
         ARIAUtils.setPressed(this.element, false);
     }
@@ -629,8 +665,8 @@ export class ToolbarToggle extends ToolbarButton {
         this.element.classList.toggle('toolbar-state-on', toggled);
         this.element.classList.toggle('toolbar-state-off', !toggled);
         ARIAUtils.setPressed(this.element, toggled);
-        if (this.toggledGlyph && this.untoggledGlyph) {
-            this.setGlyph(toggled ? this.toggledGlyph : this.untoggledGlyph);
+        if (this.toggledGlyphOrIcon && this.untoggledGlyphOrIcon) {
+            this.setGlyphOrIcon(toggled ? this.toggledGlyphOrIcon : this.untoggledGlyphOrIcon);
         }
     }
     setDefaultWithRedColor(withRedColor) {
@@ -639,6 +675,9 @@ export class ToolbarToggle extends ToolbarButton {
     setToggleWithRedColor(toggleWithRedColor) {
         this.element.classList.toggle('toolbar-toggle-with-red-color', toggleWithRedColor);
     }
+    setToggleWithDot(toggleWithDot) {
+        this.element.classList.toggle('toolbar-toggle-with-dot', toggleWithDot);
+    }
 }
 export class ToolbarMenuButton extends ToolbarButton {
     contextMenuHandler;
@@ -646,7 +685,7 @@ export class ToolbarMenuButton extends ToolbarButton {
     triggerTimeout;
     lastTriggerTime;
     constructor(contextMenuHandler, useSoftMenu) {
-        super('', 'largeicon-menu');
+        super('', 'dots-vertical');
         this.contextMenuHandler = contextMenuHandler;
         this.useSoftMenu = Boolean(useSoftMenu);
         ARIAUtils.markAsMenuButton(this.element);
@@ -669,11 +708,11 @@ export class ToolbarMenuButton extends ToolbarButton {
         }
         const contextMenu = new ContextMenu(event, {
             useSoftMenu: this.useSoftMenu,
-            x: this.element.totalOffsetLeft(),
-            y: this.element.totalOffsetTop() + this.element.offsetHeight,
+            x: this.element.getBoundingClientRect().left,
+            y: this.element.getBoundingClientRect().top + this.element.offsetHeight,
         });
         this.contextMenuHandler(contextMenu);
-        contextMenu.show();
+        void contextMenu.show();
         this.lastTriggerTime = Date.now();
     }
     clicked(event) {
@@ -687,8 +726,8 @@ export class ToolbarSettingToggle extends ToolbarToggle {
     defaultTitle;
     setting;
     willAnnounceState;
-    constructor(setting, glyph, title) {
-        super(title, glyph);
+    constructor(setting, glyph, title, toggledGlyph) {
+        super(title, glyph, toggledGlyph);
         this.defaultTitle = title;
         this.setting = setting;
         this.settingChanged();
@@ -726,12 +765,12 @@ export class ToolbarComboBox extends ToolbarItem {
         element.classList.add('toolbar-select-container');
         super(element);
         this.selectElementInternal = this.element.createChild('select', 'toolbar-item');
-        const dropdownArrowIcon = Icon.create('smallicon-triangle-down', 'toolbar-dropdown-arrow');
+        const dropdownArrowIcon = Icon.create('triangle-down', 'toolbar-dropdown-arrow');
         this.element.appendChild(dropdownArrowIcon);
         if (changeHandler) {
             this.selectElementInternal.addEventListener('change', changeHandler, false);
         }
-        ARIAUtils.setAccessibleName(this.selectElementInternal, title);
+        ARIAUtils.setLabel(this.selectElementInternal, title);
         super.setTitle(title);
         if (className) {
             this.selectElementInternal.classList.add(className);
@@ -863,6 +902,9 @@ export class ToolbarCheckbox extends ToolbarItem {
         super.applyEnabledState(enabled);
         this.inputElement.disabled = !enabled;
     }
+    setIndeterminate(indeterminate) {
+        this.inputElement.indeterminate = indeterminate;
+    }
 }
 export class ToolbarSettingCheckbox extends ToolbarCheckbox {
     constructor(setting, tooltip, alternateTitle) {
@@ -875,7 +917,7 @@ export function registerToolbarItem(registration) {
     registeredToolbarItems.push(registration);
 }
 function getRegisteredToolbarItems() {
-    return registeredToolbarItems.filter(item => Root.Runtime.Runtime.isDescriptorEnabled({ experiment: undefined, condition: item.condition }));
+    return registeredToolbarItems.filter(item => Root.Runtime.Runtime.isDescriptorEnabled({ experiment: item.experiment, condition: item.condition }));
 }
 // TODO(crbug.com/1167717): Make this a const enum again
 // eslint-disable-next-line rulesdir/const_enum

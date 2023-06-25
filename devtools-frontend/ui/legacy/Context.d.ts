@@ -1,5 +1,5 @@
 import * as Common from '../../core/common/common.js';
-import type { ContextFlavorListener } from './ContextFlavorListener.js';
+import { type ContextFlavorListener } from './ContextFlavorListener.js';
 interface ConstructorFn<T> {
     new (...args: any[]): T;
 }
@@ -10,7 +10,8 @@ export declare class Context {
     static instance(opts?: {
         forceNew: boolean | null;
     }): Context;
-    setFlavor<T>(flavorType: ConstructorFn<T>, flavorValue: T | null): void;
+    static removeInstance(): void;
+    setFlavor<T extends Object>(flavorType: ConstructorFn<T>, flavorValue: T | null): void;
     private dispatchFlavorChange;
     addFlavorChangeListener<T>(flavorType: ConstructorFn<T>, listener: (arg0: Common.EventTarget.EventTargetEvent<T>) => void, thisObject?: Object): void;
     removeFlavorChangeListener<T>(flavorType: ConstructorFn<T>, listener: (arg0: Common.EventTarget.EventTargetEvent<T>) => void, thisObject?: Object): void;
@@ -20,7 +21,7 @@ export declare class Context {
 declare enum Events {
     FlavorChanged = "FlavorChanged"
 }
-export declare type EventTypes = {
+export type EventTypes = {
     [Events.FlavorChanged]: any;
 };
 export declare function registerListener(registration: ContextFlavorListenerRegistration): void;

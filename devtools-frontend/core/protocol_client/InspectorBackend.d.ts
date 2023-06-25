@@ -1,17 +1,18 @@
+import type * as Platform from '../platform/platform.js';
 import type * as ProtocolProxyApi from '../../generated/protocol-proxy-api.js';
 export declare const DevToolsStubErrorCode = -32015;
-declare type MessageParams = {
+type MessageParams = {
     [x: string]: any;
 };
-declare type ProtocolDomainName = ProtocolProxyApi.ProtocolDomainName;
+type ProtocolDomainName = ProtocolProxyApi.ProtocolDomainName;
 export interface MessageError {
     code: number;
     message: string;
     data?: string | null;
 }
-export declare type Message = {
+export type Message = {
     sessionId?: string;
-    url?: string;
+    url?: Platform.DevToolsPath.UrlString;
     id?: number;
     error?: MessageError | null;
     result?: Object | null;
@@ -23,23 +24,23 @@ interface EventMessage extends Message {
     params?: MessageParams | null;
 }
 /** A qualified name, e.g. Domain.method */
-export declare type QualifiedName = string & {
+export type QualifiedName = string & {
     qualifiedEventNameTag: string | undefined;
 };
 /** A qualified name, e.g. method */
-export declare type UnqualifiedName = string & {
+export type UnqualifiedName = string & {
     unqualifiedEventNameTag: string | undefined;
 };
 export declare const splitQualifiedName: (string: QualifiedName) => [string, UnqualifiedName];
 export declare const qualifyName: (domain: string, name: UnqualifiedName) => QualifiedName;
-declare type EventParameterNames = Map<QualifiedName, string[]>;
-declare type ReadonlyEventParameterNames = ReadonlyMap<QualifiedName, string[]>;
+type EventParameterNames = Map<QualifiedName, string[]>;
+type ReadonlyEventParameterNames = ReadonlyMap<QualifiedName, string[]>;
 interface CommandParameter {
     name: string;
     type: string;
     optional: boolean;
 }
-declare type Callback = (error: MessageError | null, arg1: Object | null) => void;
+type Callback = (error: MessageError | null, arg1: Object | null) => void;
 interface CallbackWithDebugInfo {
     callback: Callback;
     method: string;
@@ -49,7 +50,7 @@ export declare class InspectorBackend {
     readonly agentPrototypes: Map<ProtocolDomainName, _AgentPrototype>;
     private getOrCreateEventParameterNamesForDomain;
     getOrCreateEventParameterNamesForDomainForTesting(domain: ProtocolDomainName): EventParameterNames;
-    getEventParamterNames(): ReadonlyMap<ProtocolDomainName, ReadonlyEventParameterNames>;
+    getEventParameterNames(): ReadonlyMap<ProtocolDomainName, ReadonlyEventParameterNames>;
     static reportProtocolError(error: string, messageObject: Object): void;
     static reportProtocolWarning(error: string, messageObject: Object): void;
     isInitialized(): boolean;
@@ -68,7 +69,7 @@ export declare class Connection {
     static setFactory(factory: () => Connection): void;
     static getFactory(): () => Connection;
 }
-declare type SendRawMessageCallback = (...args: unknown[]) => void;
+type SendRawMessageCallback = (...args: unknown[]) => void;
 export declare const test: {
     /**
      * This will get called for every protocol message.
@@ -152,6 +153,8 @@ export declare class TargetBase {
     domsnapshotAgent(): ProtocolProxyApi.DOMSnapshotApi;
     domstorageAgent(): ProtocolProxyApi.DOMStorageApi;
     emulationAgent(): ProtocolProxyApi.EmulationApi;
+    eventBreakpointsAgent(): ProtocolProxyApi.EventBreakpointsApi;
+    fetchAgent(): ProtocolProxyApi.FetchApi;
     heapProfilerAgent(): ProtocolProxyApi.HeapProfilerApi;
     indexedDBAgent(): ProtocolProxyApi.IndexedDBApi;
     inputAgent(): ProtocolProxyApi.InputApi;
@@ -164,12 +167,14 @@ export declare class TargetBase {
     networkAgent(): ProtocolProxyApi.NetworkApi;
     overlayAgent(): ProtocolProxyApi.OverlayApi;
     pageAgent(): ProtocolProxyApi.PageApi;
+    preloadAgent(): ProtocolProxyApi.PreloadApi;
     profilerAgent(): ProtocolProxyApi.ProfilerApi;
     performanceAgent(): ProtocolProxyApi.PerformanceApi;
     runtimeAgent(): ProtocolProxyApi.RuntimeApi;
     securityAgent(): ProtocolProxyApi.SecurityApi;
     serviceWorkerAgent(): ProtocolProxyApi.ServiceWorkerApi;
     storageAgent(): ProtocolProxyApi.StorageApi;
+    systemInfo(): ProtocolProxyApi.SystemInfoApi;
     targetAgent(): ProtocolProxyApi.TargetApi;
     tracingAgent(): ProtocolProxyApi.TracingApi;
     webAudioAgent(): ProtocolProxyApi.WebAudioApi;
@@ -184,6 +189,7 @@ export declare class TargetBase {
      * name, because if `Domain` allows multiple domains, the type is unsound.
      */
     private unregisterDispatcher;
+    registerAccessibilityDispatcher(dispatcher: ProtocolProxyApi.AccessibilityDispatcher): void;
     registerAnimationDispatcher(dispatcher: ProtocolProxyApi.AnimationDispatcher): void;
     registerAuditsDispatcher(dispatcher: ProtocolProxyApi.AuditsDispatcher): void;
     registerCSSDispatcher(dispatcher: ProtocolProxyApi.CSSDispatcher): void;
@@ -193,6 +199,7 @@ export declare class TargetBase {
     unregisterDebuggerDispatcher(dispatcher: ProtocolProxyApi.DebuggerDispatcher): void;
     registerDOMDispatcher(dispatcher: ProtocolProxyApi.DOMDispatcher): void;
     registerDOMStorageDispatcher(dispatcher: ProtocolProxyApi.DOMStorageDispatcher): void;
+    registerFetchDispatcher(dispatcher: ProtocolProxyApi.FetchDispatcher): void;
     registerHeapProfilerDispatcher(dispatcher: ProtocolProxyApi.HeapProfilerDispatcher): void;
     registerInspectorDispatcher(dispatcher: ProtocolProxyApi.InspectorDispatcher): void;
     registerLayerTreeDispatcher(dispatcher: ProtocolProxyApi.LayerTreeDispatcher): void;
@@ -201,6 +208,7 @@ export declare class TargetBase {
     registerNetworkDispatcher(dispatcher: ProtocolProxyApi.NetworkDispatcher): void;
     registerOverlayDispatcher(dispatcher: ProtocolProxyApi.OverlayDispatcher): void;
     registerPageDispatcher(dispatcher: ProtocolProxyApi.PageDispatcher): void;
+    registerPreloadDispatcher(dispatcher: ProtocolProxyApi.PreloadDispatcher): void;
     registerProfilerDispatcher(dispatcher: ProtocolProxyApi.ProfilerDispatcher): void;
     registerRuntimeDispatcher(dispatcher: ProtocolProxyApi.RuntimeDispatcher): void;
     registerSecurityDispatcher(dispatcher: ProtocolProxyApi.SecurityDispatcher): void;
@@ -209,6 +217,7 @@ export declare class TargetBase {
     registerTargetDispatcher(dispatcher: ProtocolProxyApi.TargetDispatcher): void;
     registerTracingDispatcher(dispatcher: ProtocolProxyApi.TracingDispatcher): void;
     registerWebAudioDispatcher(dispatcher: ProtocolProxyApi.WebAudioDispatcher): void;
+    registerWebAuthnDispatcher(dispatcher: ProtocolProxyApi.WebAuthnDispatcher): void;
     getNeedsNodeJSPatching(): boolean;
 }
 /**
@@ -223,6 +232,9 @@ export declare class TargetBase {
 declare class _AgentPrototype {
     replyArgs: {
         [x: string]: string[];
+    };
+    commandParameters: {
+        [x: string]: CommandParameter[];
     };
     readonly domain: string;
     target: TargetBase;

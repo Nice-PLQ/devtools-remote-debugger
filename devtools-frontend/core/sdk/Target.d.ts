@@ -1,6 +1,7 @@
+import * as Platform from '../platform/platform.js';
 import * as ProtocolClient from '../protocol_client/protocol_client.js';
 import type * as Protocol from '../../generated/protocol.js';
-import type { TargetManager } from './TargetManager.js';
+import { type TargetManager } from './TargetManager.js';
 import { SDKModel } from './SDKModel.js';
 export declare class Target extends ProtocolClient.InspectorBackend.TargetBase {
     #private;
@@ -8,17 +9,19 @@ export declare class Target extends ProtocolClient.InspectorBackend.TargetBase {
     createModels(required: Set<new (arg1: Target) => SDKModel>): void;
     id(): Protocol.Target.TargetID | 'main';
     name(): string;
+    setName(name: string): void;
     type(): Type;
     markAsNodeJSForTest(): void;
     targetManager(): TargetManager;
     hasAllCapabilities(capabilitiesMask: number): boolean;
     decorateLabel(label: string): string;
     parentTarget(): Target | null;
+    outermostTarget(): Target | null;
     dispose(reason: string): void;
     model<T extends SDKModel>(modelClass: new (arg1: Target) => T): T | null;
     models(): Map<new (arg1: Target) => SDKModel, SDKModel>;
-    inspectedURL(): string;
-    setInspectedURL(inspectedURL: string): void;
+    inspectedURL(): Platform.DevToolsPath.UrlString;
+    setInspectedURL(inspectedURL: Platform.DevToolsPath.UrlString): void;
     suspend(reason?: string): Promise<void>;
     resume(): Promise<void>;
     suspended(): boolean;
@@ -32,7 +35,8 @@ export declare enum Type {
     SharedWorker = "shared-worker",
     Node = "node",
     Browser = "browser",
-    AuctionWorklet = "auction-worklet"
+    AuctionWorklet = "auction-worklet",
+    Tab = "tab"
 }
 export declare enum Capability {
     Browser = 1,
@@ -54,5 +58,6 @@ export declare enum Capability {
     WebAuthn = 65536,
     IO = 131072,
     Media = 262144,
+    EventBreakpoints = 524288,
     None = 0
 }

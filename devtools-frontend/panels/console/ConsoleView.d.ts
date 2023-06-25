@@ -1,12 +1,12 @@
 import * as Common from '../../core/common/common.js';
+import * as Platform from '../../core/platform/platform.js';
 import * as SDK from '../../core/sdk/sdk.js';
 import * as UI from '../../ui/legacy/legacy.js';
-import type { LevelsMask } from './ConsoleFilter.js';
-import { ConsoleFilter } from './ConsoleFilter.js';
+import { ConsoleFilter, type LevelsMask } from './ConsoleFilter.js';
 import { ConsolePinPane } from './ConsolePinPane.js';
-import { ConsoleGroupViewMessage, ConsoleViewMessage } from './ConsoleViewMessage.js';
-import type { ConsoleViewportElement, ConsoleViewportProvider } from './ConsoleViewport.js';
-export declare class ConsoleView extends UI.Widget.VBox implements UI.SearchableView.Searchable, ConsoleViewportProvider {
+import { ConsoleViewMessage } from './ConsoleViewMessage.js';
+import { type ConsoleViewportElement, type ConsoleViewportProvider } from './ConsoleViewport.js';
+export declare class ConsoleView extends UI.Widget.VBox implements UI.SearchableView.Searchable, ConsoleViewportProvider, SDK.TargetManager.SDKModelObserver<SDK.ConsoleModel.ConsoleModel> {
     private readonly searchableViewInternal;
     private readonly sidebar;
     private isSidebarOpen;
@@ -31,8 +31,6 @@ export declare class ConsoleView extends UI.Widget.VBox implements UI.Searchable
     private readonly progressToolbarItem;
     private readonly groupSimilarSetting;
     private readonly showCorsErrorsSetting;
-    private readonly preserveLogCheckbox;
-    private readonly hideNetworkMessagesCheckbox;
     private readonly timestampsSetting;
     private readonly consoleHistoryAutocompleteSetting;
     readonly pinPane: ConsolePinPane;
@@ -42,13 +40,10 @@ export declare class ConsoleView extends UI.Widget.VBox implements UI.Searchable
     private viewportThrottler;
     private pendingBatchResize;
     private readonly onMessageResizedBound;
-    private topGroup;
-    private currentGroup;
     private readonly promptElement;
     private readonly linkifier;
     private consoleMessages;
-    private readonly viewMessageSymbol;
-    private readonly consoleHistorySetting;
+    private consoleGroupStarts;
     private prompt;
     private immediatelyFilterMessagesForTest?;
     private maybeDirtyWhileMuted?;
@@ -66,9 +61,15 @@ export declare class ConsoleView extends UI.Widget.VBox implements UI.Searchable
     private issueToolbarThrottle;
     private requestResolver;
     private issueResolver;
-    constructor();
-    static instance(): ConsoleView;
+    constructor(viewportThrottlerTimeout: number);
+    static appendSettingsCheckboxToToolbar(toolbar: UI.Toolbar.Toolbar, settingOrSetingName: Common.Settings.Setting<boolean> | string, title: string, alternateTitle?: string): UI.Toolbar.ToolbarSettingCheckbox;
+    static instance(opts?: {
+        forceNew: boolean;
+        viewportThrottlerTimeout?: number;
+    }): ConsoleView;
     static clearConsole(): void;
+    modelAdded(model: SDK.ConsoleModel.ConsoleModel): void;
+    modelRemoved(model: SDK.ConsoleModel.ConsoleModel): void;
     private onFilterChanged;
     private setImmediatelyFilterMessagesForTest;
     searchableView(): UI.SearchableView.SearchableView;
@@ -92,7 +93,7 @@ export declare class ConsoleView extends UI.Widget.VBox implements UI.Searchable
     private invalidateViewport;
     private updateIssuesToolbarItem;
     private scheduleViewportRefresh;
-    private scheduleViewportRefreshForTest;
+    getScheduledRefreshPromiseForTest(): Promise<void> | undefined;
     private immediatelyScrollToBottom;
     private updateFilterStatus;
     private onConsoleMessageAdded;
@@ -122,7 +123,7 @@ export declare class ConsoleView extends UI.Widget.VBox implements UI.Searchable
     private printResult;
     private commandEvaluated;
     elementsToRestoreScrollPositionsFor(): Element[];
-    searchCanceled(): void;
+    onSearchCanceled(): void;
     performSearch(searchConfig: UI.SearchableView.SearchConfig, shouldJump: boolean, jumpBackwards?: boolean): void;
     private cleanupAfterSearch;
     private searchFinishedForTests;
@@ -161,20 +162,10 @@ export declare class ConsoleViewFilter {
     private onFilterChanged;
     private updateLevelMenuButtonText;
     private showLevelContextMenu;
-    addMessageURLFilter(url: string): void;
+    addMessageURLFilter(url: Platform.DevToolsPath.UrlString): void;
     shouldBeVisible(viewMessage: ConsoleViewMessage): boolean;
     clear(): void;
     reset(): void;
-}
-export declare class ConsoleGroup {
-    private readonly parentGroupInternal;
-    private readonly nestingLevelInternal;
-    private readonly messagesHiddenInternal;
-    constructor(parentGroup: ConsoleGroup | null, groupMessage: ConsoleGroupViewMessage | null);
-    static createTopGroup(): ConsoleGroup;
-    messagesHidden(): boolean;
-    nestingLevel(): number;
-    parentGroup(): ConsoleGroup | null;
 }
 export declare class ActionDelegate implements UI.ActionRegistration.ActionDelegate {
     handleAction(_context: UI.Context.Context, actionId: string): boolean;

@@ -4,13 +4,14 @@
 import * as SDK from '../../core/sdk/sdk.js';
 import * as PerfUI from '../../ui/legacy/components/perf_ui/perf_ui.js';
 import * as ThemeSupport from '../../ui/legacy/theme_support/theme_support.js';
+import * as Coordinator from '../../ui/components/render_coordinator/render_coordinator.js';
 import { NetworkLogView } from './NetworkLogView.js';
 import { NetworkTimeBoundary } from './NetworkTimeCalculator.js';
 import { RequestTimeRangeNames, RequestTimingView } from './RequestTimingView.js';
+const coordinator = Coordinator.RenderCoordinator.RenderCoordinator.instance();
 export class NetworkOverview extends PerfUI.TimelineOverviewPane.TimelineOverviewBase {
     selectedFilmStripTime;
     numBands;
-    updateScheduled;
     highlightedRequest;
     loadEvents;
     domContentLoadedEvents;
@@ -19,25 +20,19 @@ export class NetworkOverview extends PerfUI.TimelineOverviewPane.TimelineOvervie
     requestsList;
     requestsSet;
     span;
-    filmStripModel;
     lastBoundary;
     constructor() {
         super();
         this.selectedFilmStripTime = -1;
         this.element.classList.add('network-overview');
         this.numBands = 1;
-        this.updateScheduled = false;
         this.highlightedRequest = null;
-        SDK.TargetManager.TargetManager.instance().addModelListener(SDK.ResourceTreeModel.ResourceTreeModel, SDK.ResourceTreeModel.Events.Load, this.loadEventFired, this);
-        SDK.TargetManager.TargetManager.instance().addModelListener(SDK.ResourceTreeModel.ResourceTreeModel, SDK.ResourceTreeModel.Events.DOMContentLoaded, this.domContentLoadedEventFired, this);
+        SDK.TargetManager.TargetManager.instance().addModelListener(SDK.ResourceTreeModel.ResourceTreeModel, SDK.ResourceTreeModel.Events.Load, this.loadEventFired, this, { scoped: true });
+        SDK.TargetManager.TargetManager.instance().addModelListener(SDK.ResourceTreeModel.ResourceTreeModel, SDK.ResourceTreeModel.Events.DOMContentLoaded, this.domContentLoadedEventFired, this, { scoped: true });
         this.reset();
     }
     setHighlightedRequest(request) {
         this.highlightedRequest = request;
-        this.scheduleUpdate();
-    }
-    setFilmStripModel(filmStripModel) {
-        this.filmStripModel = filmStripModel;
         this.scheduleUpdate();
     }
     selectFilmStripFrame(time) {
@@ -96,7 +91,6 @@ export class NetworkOverview extends PerfUI.TimelineOverviewPane.TimelineOvervie
         this.scheduleUpdate();
     }
     reset() {
-        this.filmStripModel = null;
         this.span = 1;
         this.lastBoundary = null;
         this.nextBand = 0;
@@ -109,14 +103,12 @@ export class NetworkOverview extends PerfUI.TimelineOverviewPane.TimelineOvervie
         this.resetCanvas();
     }
     scheduleUpdate() {
-        if (this.updateScheduled || !this.isShowing()) {
+        if (!this.isShowing()) {
             return;
         }
-        this.updateScheduled = true;
-        this.element.window().requestAnimationFrame(this.update.bind(this));
+        void coordinator.write(this.update.bind(this));
     }
     update() {
-        this.updateScheduled = false;
         const calculator = this.calculator();
         const newBoundary = new NetworkTimeBoundary(calculator.minimumBoundary(), calculator.maximumBoundary());
         if (!this.lastBoundary || !newBoundary.equals(this.lastBoundary)) {
@@ -221,7 +213,7 @@ export class NetworkOverview extends PerfUI.TimelineOverviewPane.TimelineOvervie
         const height = this.element.offsetHeight;
         context.lineWidth = 1;
         context.beginPath();
-        context.strokeStyle = NetworkLogView.getDCLEventColor();
+        context.strokeStyle = ThemeSupport.ThemeSupport.instance().getComputedValue(NetworkLogView.getDCLEventColor());
         for (let i = this.domContentLoadedEvents.length - 1; i >= 0; --i) {
             const x = Math.round(calculator.computePosition(this.domContentLoadedEvents[i])) + 0.5;
             context.moveTo(x, 0);
@@ -229,7 +221,7 @@ export class NetworkOverview extends PerfUI.TimelineOverviewPane.TimelineOvervie
         }
         context.stroke();
         context.beginPath();
-        context.strokeStyle = NetworkLogView.getLoadEventColor();
+        context.strokeStyle = ThemeSupport.ThemeSupport.instance().getComputedValue(NetworkLogView.getLoadEventColor());
         for (let i = this.loadEvents.length - 1; i >= 0; --i) {
             const x = Math.round(calculator.computePosition(this.loadEvents[i])) + 0.5;
             context.moveTo(x, 0);

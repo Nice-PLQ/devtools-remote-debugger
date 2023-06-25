@@ -9,22 +9,26 @@ export class ProfileNode {
     id;
     parent;
     children;
+    functionName;
     depth;
     deoptReason;
-    constructor(callFrame) {
+    /**
+     * The target a node's call frame belongs to.
+     */
+    #target;
+    constructor(callFrame, target) {
         this.callFrame = callFrame;
         this.callUID = `${callFrame.functionName}@${callFrame.scriptId}:${callFrame.lineNumber}:${callFrame.columnNumber}`;
         this.self = 0;
         this.total = 0;
         this.id = 0;
+        this.functionName = callFrame.functionName;
         this.parent = null;
         this.children = [];
-    }
-    get functionName() {
-        return this.callFrame.functionName;
+        this.#target = target;
     }
     get scriptId() {
-        return this.callFrame.scriptId;
+        return String(this.callFrame.scriptId);
     }
     get url() {
         return this.callFrame.url;
@@ -34,6 +38,15 @@ export class ProfileNode {
     }
     get columnNumber() {
         return this.callFrame.columnNumber;
+    }
+    setFunctionName(name) {
+        if (name === null) {
+            return;
+        }
+        this.functionName = name;
+    }
+    target() {
+        return this.#target;
     }
 }
 export class ProfileTreeModel {

@@ -21,152 +21,6 @@ export const escapeCharacters = (inputString, charsToEscape) => {
     }
     return result;
 };
-export const tokenizeFormatString = function (formatString, formatters) {
-    const tokens = [];
-    function addStringToken(str) {
-        if (!str) {
-            return;
-        }
-        if (tokens.length && tokens[tokens.length - 1].type === "string" /* STRING */) {
-            tokens[tokens.length - 1].value += str;
-        }
-        else {
-            tokens.push({
-                type: "string" /* STRING */,
-                value: str,
-            });
-        }
-    }
-    function addSpecifierToken(specifier, precision, substitutionIndex) {
-        tokens.push({ type: "specifier" /* SPECIFIER */, specifier, precision, substitutionIndex, value: undefined });
-    }
-    function addAnsiColor(code) {
-        const types = { 3: 'color', 9: 'colorLight', 4: 'bgColor', 10: 'bgColorLight' };
-        const colorCodes = ['black', 'red', 'green', 'yellow', 'blue', 'magenta', 'cyan', 'lightGray', '', 'default'];
-        const colorCodesLight = ['darkGray', 'lightRed', 'lightGreen', 'lightYellow', 'lightBlue', 'lightMagenta', 'lightCyan', 'white', ''];
-        const colors = { color: colorCodes, colorLight: colorCodesLight, bgColor: colorCodes, bgColorLight: colorCodesLight };
-        const type = types[Math.floor(code / 10)];
-        if (!type) {
-            return;
-        }
-        const color = colors[type][code % 10];
-        if (!color) {
-            return;
-        }
-        tokens.push({
-            type: "specifier" /* SPECIFIER */,
-            specifier: 'c',
-            value: { description: (type.startsWith('bg') ? 'background : ' : 'color: ') + color },
-            precision: undefined,
-            substitutionIndex: undefined,
-        });
-    }
-    let textStart = 0;
-    let substitutionIndex = 0;
-    const re = new RegExp(`%%|%(?:(\\d+)\\$)?(?:\\.(\\d*))?([${Object.keys(formatters).join('')}])|\\u001b\\[(\\d+)m`, 'g');
-    for (let match = re.exec(formatString); match !== null; match = re.exec(formatString)) {
-        const matchStart = match.index;
-        if (matchStart > textStart) {
-            addStringToken(formatString.substring(textStart, matchStart));
-        }
-        if (match[0] === '%%') {
-            addStringToken('%');
-        }
-        else if (match[0].startsWith('%')) {
-            const [, substitionString, precisionString, specifierString] = match;
-            if (substitionString && Number(substitionString) > 0) {
-                substitutionIndex = Number(substitionString) - 1;
-            }
-            const precision = precisionString ? Number(precisionString) : -1;
-            addSpecifierToken(specifierString, precision, substitutionIndex);
-            ++substitutionIndex;
-        }
-        else {
-            const code = Number(match[4]);
-            addAnsiColor(code);
-        }
-        textStart = matchStart + match[0].length;
-    }
-    addStringToken(formatString.substring(textStart));
-    return tokens;
-};
-export const format = function (formatString, substitutions, formatters, initialValue, append, tokenizedFormat) {
-    if (!formatString || ((!substitutions || !substitutions.length) && formatString.search(/\u001b\[(\d+)m/) === -1)) {
-        return { formattedResult: append(initialValue, formatString), unusedSubstitutions: substitutions };
-    }
-    function prettyFunctionName() {
-        return 'String.format("' + formatString + '", "' + Array.prototype.join.call(substitutions, '", "') + '")';
-    }
-    function warn(msg) {
-        console.warn(prettyFunctionName() + ': ' + msg);
-    }
-    function error(msg) {
-        console.error(prettyFunctionName() + ': ' + msg);
-    }
-    let result = initialValue;
-    const tokens = tokenizedFormat || tokenizeFormatString(formatString, formatters);
-    const usedSubstitutionIndexes = {};
-    const actualSubstitutions = substitutions || [];
-    for (const token of tokens) {
-        if (token.type === "string" /* STRING */) {
-            result = append(result, token.value);
-            continue;
-        }
-        if (token.type !== "specifier" /* SPECIFIER */) {
-            error('Unknown token type "' + token.type + '" found.');
-            continue;
-        }
-        if (!token.value && token.substitutionIndex !== undefined &&
-            token.substitutionIndex >= actualSubstitutions.length) {
-            // If there are not enough substitutions for the current substitutionIndex
-            // just output the format specifier literally and move on.
-            error('not enough substitution arguments. Had ' + actualSubstitutions.length + ' but needed ' +
-                (token.substitutionIndex + 1) + ', so substitution was skipped.');
-            result = append(result, '%' + ((token.precision !== undefined && token.precision > -1) ? token.precision : '') + token.specifier);
-            continue;
-        }
-        if (!token.value && token.substitutionIndex !== undefined) {
-            usedSubstitutionIndexes[token.substitutionIndex] = true;
-        }
-        if (token.specifier === undefined || !(token.specifier in formatters)) {
-            // Encountered an unsupported format character, treat as a string.
-            warn('unsupported format character \u201C' + token.specifier + '\u201D. Treating as a string.');
-            const stringToAppend = (token.value || token.substitutionIndex === undefined) ?
-                '' :
-                String(actualSubstitutions[token.substitutionIndex]);
-            result = append(result, stringToAppend);
-            continue;
-        }
-        const formatter = formatters[token.specifier];
-        const valueToFormat = token.value ||
-            (token.substitutionIndex !== undefined ? actualSubstitutions[token.substitutionIndex] : undefined);
-        const stringToAppend = formatter(valueToFormat, token);
-        result = append(result, stringToAppend);
-    }
-    const unusedSubstitutions = [];
-    for (let i = 0; i < actualSubstitutions.length; ++i) {
-        if (i in usedSubstitutionIndexes) {
-            continue;
-        }
-        unusedSubstitutions.push(actualSubstitutions[i]);
-    }
-    return { formattedResult: result, unusedSubstitutions: unusedSubstitutions };
-};
-export const standardFormatters = {
-    d: function (substitution) {
-        return (!isNaN(substitution) ? substitution : 0);
-    },
-    f: function (substitution, token) {
-        if (substitution && typeof substitution === 'number' && token.precision !== undefined && token.precision > -1) {
-            substitution = substitution.toFixed(token.precision);
-        }
-        const precision = (token.precision !== undefined && token.precision > -1) ? Number(0).toFixed(token.precision) : '0';
-        return !isNaN(substitution) ? substitution : precision;
-    },
-    s: function (substitution) {
-        return substitution;
-    },
-};
 const toHexadecimal = (charCode, padToLength) => {
     return charCode.toString(16).toUpperCase().padStart(padToLength, '0');
 };
@@ -226,11 +80,51 @@ export const formatAsJSLiteral = (content) => {
     }
     return `${quote}${escapedContent}${quote}`;
 };
-export const vsprintf = function (formatString, substitutions) {
-    return format(formatString, substitutions, standardFormatters, '', (a, b) => a + b).formattedResult;
-};
-export const sprintf = function (format, ...varArg) {
-    return vsprintf(format, varArg);
+/**
+ * This implements a subset of the sprintf() function described in the Single UNIX
+ * Specification. It supports the %s, %f, %d, and %% formatting specifiers, and
+ * understands the %m$d notation to select the m-th parameter for this substitution,
+ * as well as the optional precision for %s, %f, and %d.
+ *
+ * @param fmt format string.
+ * @param args parameters to the format string.
+ * @returns the formatted output string.
+ */
+export const sprintf = (fmt, ...args) => {
+    let argIndex = 0;
+    const RE = /%(?:(\d+)\$)?(?:\.(\d*))?([%dfs])/g;
+    return fmt.replaceAll(RE, (_, index, precision, specifier) => {
+        if (specifier === '%') {
+            return '%';
+        }
+        if (index !== undefined) {
+            argIndex = parseInt(index, 10) - 1;
+            if (argIndex < 0) {
+                throw new RangeError(`Invalid parameter index ${argIndex + 1}`);
+            }
+        }
+        if (argIndex >= args.length) {
+            throw new RangeError(`Expected at least ${argIndex + 1} format parameters, but only ${args.length} where given.`);
+        }
+        if (specifier === 's') {
+            const argValue = String(args[argIndex++]);
+            if (precision !== undefined) {
+                return argValue.substring(0, Number(precision));
+            }
+            return argValue;
+        }
+        let argValue = Number(args[argIndex++]);
+        if (isNaN(argValue)) {
+            argValue = 0;
+        }
+        if (specifier === 'd') {
+            return String(Math.floor(argValue)).padStart(Number(precision), '0');
+        }
+        if (precision !== undefined) {
+            return argValue.toFixed(Number(precision));
+        }
+        return String(argValue);
+    });
 };
 export const toBase64 = (inputString) => {
     /* note to the reader: we can't use btoa here because we need to
@@ -350,16 +244,13 @@ export const regexSpecialCharacters = function () {
     return SPECIAL_REGEX_CHARACTERS;
 };
 export const filterRegex = function (query) {
-    let regexString = '';
+    let regexString = '^(?:.*\\0)?'; // Start from beginning or after a \0
     for (let i = 0; i < query.length; ++i) {
         let c = query.charAt(i);
         if (SPECIAL_REGEX_CHARACTERS.indexOf(c) !== -1) {
             c = '\\' + c;
         }
-        if (i) {
-            regexString += '[^\\0' + c + ']*';
-        }
-        regexString += c;
+        regexString += '[^\\0' + c + ']*' + c;
     }
     return new RegExp(regexString, 'i');
 };
@@ -375,7 +266,7 @@ export const createSearchRegex = function (query, caseSensitive, isRegex) {
         }
     }
     if (!regexObject) {
-        regexObject = self.createPlainTextSearchRegex(query, regexFlags);
+        regexObject = createPlainTextSearchRegex(query, regexFlags);
     }
     return regexObject;
 };
@@ -496,5 +387,60 @@ export const base64ToSize = function (content) {
         size--;
     }
     return size;
+};
+export const SINGLE_QUOTE = '\'';
+export const DOUBLE_QUOTE = '"';
+const BACKSLASH = '\\';
+export const findUnclosedCssQuote = function (str) {
+    let unmatchedQuote = '';
+    for (let i = 0; i < str.length; ++i) {
+        const char = str[i];
+        if (char === BACKSLASH) {
+            i++;
+            continue;
+        }
+        if (char === SINGLE_QUOTE || char === DOUBLE_QUOTE) {
+            if (unmatchedQuote === char) {
+                unmatchedQuote = '';
+            }
+            else if (unmatchedQuote === '') {
+                unmatchedQuote = char;
+            }
+        }
+    }
+    return unmatchedQuote;
+};
+export const createPlainTextSearchRegex = function (query, flags) {
+    // This should be kept the same as the one in StringUtil.cpp.
+    let regex = '';
+    for (let i = 0; i < query.length; ++i) {
+        const c = query.charAt(i);
+        if (regexSpecialCharacters().indexOf(c) !== -1) {
+            regex += '\\';
+        }
+        regex += c;
+    }
+    return new RegExp(regex, flags || '');
+};
+class LowerCaseStringTag {
+    lowerCaseStringTag;
+}
+export const toLowerCaseString = function (input) {
+    return input.toLowerCase();
+};
+// Replaces the last ocurrence of parameter `search` with parameter `replacement` in `input`
+export const replaceLast = function (input, search, replacement) {
+    const replacementStartIndex = input.lastIndexOf(search);
+    if (replacementStartIndex === -1) {
+        return input;
+    }
+    return input.slice(0, replacementStartIndex) + input.slice(replacementStartIndex).replace(search, replacement);
+};
+export const stringifyWithPrecision = function stringifyWithPrecision(s, precision = 2) {
+    if (precision === 0) {
+        return s.toFixed(0);
+    }
+    const string = s.toFixed(precision).replace(/\.?0*$/, '');
+    return string === '-0' ? '0' : string;
 };
 //# sourceMappingURL=string-utilities.js.map

@@ -113,6 +113,9 @@ export class Entry {
             if (initiator.url !== undefined) {
                 exportedInitiator.url = initiator.url;
             }
+            if (initiator.requestId !== undefined) {
+                exportedInitiator.requestId = initiator.requestId;
+            }
             if (initiator.lineNumber !== undefined) {
                 exportedInitiator.lineNumber = initiator.lineNumber;
             }
@@ -312,7 +315,7 @@ export class Entry {
         return parameters.slice();
     }
     buildRequestURL(url) {
-        return url.split('#', 2)[0];
+        return Common.ParsedURL.ParsedURL.split(url, '#', 2)[0];
     }
     buildCookies(cookies) {
         return cookies.map(this.buildCookie.bind(this));
