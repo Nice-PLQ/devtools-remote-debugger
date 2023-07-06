@@ -45,6 +45,28 @@ export default class Debugger extends BaseDomain {
   }
 
   /**
+   * fetch the source content of the dynamic script file
+   * @public
+   * @param {string} url script file url address
+   */
+  getDynamicScript(url) {
+    const scriptId = this.getScriptId();
+    this.fetchScriptSource(scriptId, getAbsoultPath(url));
+    this.send({
+      method: Event.scriptParsed,
+      params: {
+        url,
+        scriptId,
+        startColumn: 0,
+        startLine: 0,
+        endColumn: 999999,
+        endLine: 999999,
+        scriptLanguage: 'JavaScript',
+      }
+    });
+  }
+
+  /**
    * Collect all scripts of the page
    * @private
    */

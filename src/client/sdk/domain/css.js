@@ -164,6 +164,25 @@ export default class CSS extends BaseDomain {
   }
 
   /**
+   * fetch the source content of the dynamic css file
+   * @public
+   * @param {string} url style file url address
+   */
+  getDynamicLink(url) {
+    const styleSheetId = this.getStyleSheetId();
+    this.fetchStyleSource(styleSheetId, getAbsoultPath(url));
+    this.send({
+      method: Event.styleSheetAdded,
+      params: {
+        header: {
+          styleSheetId,
+          sourceURL: url,
+        }
+      }
+    });
+  }
+
+  /**
    * fetch the source content of the css file
    * @private
    * @param {number} styleSheetId style file id

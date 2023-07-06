@@ -15,6 +15,7 @@ export default class ChromeDomain {
 
   constructor(options) {
     this.registerProtocol(options);
+    this.proxyAppendChild();
   }
 
   /**
@@ -54,5 +55,37 @@ export default class ChromeDomain {
         this.protocol[`${namespace}.${cmd}`] = domain[cmd].bind(domain);
       });
     });
+  }
+
+  proxyAppendChild() {
+    const originHeadAppendChild = HTMLHeadElement.prototype.appendChild;
+    const originBodyAppendChild = HTMLBodyElement.prototype.appendChild;
+
+    const fetchSource = (node) => {
+      const tag = node.tagName.toLowerCase();
+      if (tag === 'link') {
+        const url = node.getAttribute('href');
+        const rel = node.getAttribute('rel');
+        if (url && (!rel || rel === 'stylesheet')) {
+          this.protocol['CSS.getDynamicLink'](url);
+        }
+      }
+
+      if (tag === 'script') {
+        const url = node.getAttribute('src');
+        if (url) {
+          this.protocol['Debugger.getDynamicScript'](url);
+        }
+      }
+    }
+
+    HTMLHeadElement.prototype.appendChild = function (node) {
+      originHeadAppendChild.call(this, node);
+      fetchSource(node);
+    };
+    HTMLBodyElement.prototype.appendChild = function (node) {
+      originBodyAppendChild.call(this, node);
+      fetchSource(node)
+    };
   }
 };
