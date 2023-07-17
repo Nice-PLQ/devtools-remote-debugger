@@ -62,7 +62,7 @@ export default class ChromeDomain {
     const originBodyAppendChild = HTMLBodyElement.prototype.appendChild;
 
     const fetchSource = (node) => {
-      const tag = node.tagName.toLowerCase();
+      const tag = node?.tagName?.toLowerCase();
       if (tag === 'link') {
         const url = node.getAttribute('href');
         const rel = node.getAttribute('rel');
