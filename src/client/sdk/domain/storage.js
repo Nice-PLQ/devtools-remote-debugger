@@ -6,7 +6,6 @@ export default class Storage extends BaseDomain {
    * @public
    */
   getStorageKeyForFrame() {
-    debugger
     return {
       storageKey: location.origin
     };
