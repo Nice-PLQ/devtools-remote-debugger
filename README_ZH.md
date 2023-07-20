@@ -8,8 +8,6 @@
 
 ## 支持的特性：
 
----
-
 ### Elements
   - html 的实时查看，属性编辑、Styles、Computed 样式查看、hover 元素高亮、元素审查
 

@@ -10,8 +10,6 @@ The web page being debugged is connected to the middle node layer through websoc
 
 ## Features:
 
----
-
 ### Elements
   - Display Html Tags
   - Edit Html Attributes
