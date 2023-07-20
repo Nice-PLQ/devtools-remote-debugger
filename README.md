@@ -8,6 +8,10 @@ The web page being debugged is connected to the middle node layer through websoc
 
 ![](./images/cdp.png)
 
+## Debug DEMO
+
+https://github.com/Nice-PLQ/devtools-remote-debugger/assets/10710341/93c5cbb4-c13d-4f93-866c-9b97ffc327e9
+
 ## Features:
 
 ### Elements
@@ -84,10 +88,6 @@ The web page being debugged is connected to the middle node layer through websoc
 
 ![](./images/screenshot.png)
 </details>
-
-## Debug DEMO
-
-https://github.com/Nice-PLQ/devtools-remote-debugger/assets/10710341/93c5cbb4-c13d-4f93-866c-9b97ffc327e9
 
 
 ## How to start?

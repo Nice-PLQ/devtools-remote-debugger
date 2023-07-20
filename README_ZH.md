@@ -6,6 +6,10 @@
 
 ![](./images/cdp.png)
 
+## 调试 DEMO
+
+https://github.com/Nice-PLQ/devtools-remote-debugger/assets/10710341/93c5cbb4-c13d-4f93-866c-9b97ffc327e9
+
 ## 支持的特性：
 
 ### Elements
@@ -76,11 +80,8 @@
 ![](./images/screenshot.png)
 </details>
 
-## 一、调试 DEMO
 
-https://github.com/Nice-PLQ/devtools-remote-debugger/assets/10710341/93c5cbb4-c13d-4f93-866c-9b97ffc327e9
-
-## 二、本地开发
+## 本地开发
 
 打开命令终端，启动以下两个命令
 
@@ -103,7 +104,7 @@ npm run client
 
 ![](./images/backend.png)
 
-## 三、如何使用？
+## 如何使用？
 
 1、修改`.env`文件的变量
 
@@ -128,7 +129,7 @@ DEBUG_HOST='http://localhost:8080'
 npm run start
 ```
 
-## 四、其他说明
+## 其他说明
 由于同源策略的限制，你可能需要进行以下的变更：
 - 浏览器默认不允许JavaScript读取不同域的CSSRule，所以你需要在link引入外部样式的时候加上`crossorigin="anonymous"`属性，style标签的样式没有此问题。
 - 捕获Javascript的具体错误信息，同样需要在script标签添加`crossorigin="anonymous"`。
