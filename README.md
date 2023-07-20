@@ -1,6 +1,6 @@
 # Devtools Remote Debugger
 
-[中文文档](./README_ZH.md)
+[中文文档](./README_CN.md)
 
 Based on Google's open source [devtools-frontend](https://github.com/ChromeDevTools/devtools-frontend) developer tools, and implement the [Chrome DevTools Protocol](https://chromedevtools.github.io/devtools-protocol/) with JavaScript. You only need to load a js script in the web page to use the most familiar chrome devtools to remotely debug the page.
 
