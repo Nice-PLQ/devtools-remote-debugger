@@ -4,27 +4,79 @@
 
 被调试的 web 页面通过 websocket 连接到中间的 node 层，devtools 同样也通过 websocket 连接到 node。node 中间层的作用主要进行 socket 协议的相互转发，以此让 web 页面和 devtools 实现全双工的通信。
 
-![](./images/img.png)
+![](./images/cdp.png)
 
 ## 支持的特性：
 
-- Elements
+---
+
+### Elements
   - html 的实时查看，属性编辑、Styles、Computed 样式查看、hover 元素高亮、元素审查
 
-- Console
+<details>
+  <summary>
+    Preivew
+  </summary>
+
+![](./images/element.png)
+![](./images/screencast.png)
+</details>
+
+### Console
   - js 运行时的错误堆栈查看、 js 代码执行、查看 console.error/warn调用堆栈。
 
-- Sources
+<details>
+  <summary>
+    Preivew
+  </summary>
+
+![](./images/console.png)
+</details>
+
+### Sources
   - js 运行时的错误代码文件定位索引、查看 html、js、css 源文件内容、代码格式化。
+
+<details>
+  <summary>
+    Preivew
+  </summary>
+
+![](./images/source.png)
+![](./images/source_1.png)
+</details>
   
-- Network
+### Network
   - 异步请求抓包、html、js、css 静态资源请求抓包。
 
-- Application
+<details>
+  <summary>
+    Preivew
+  </summary>
+
+![](./images/network.png)
+</details>
+
+### Application
   - Local Storage、Session Storage、Cookies。
 
-- Screenshot（自定义）
+<details>
+  <summary>
+    Preivew
+  </summary>
+
+![](./images/application.png)
+</details>
+
+### Screenshot（自定义）
   - 页面实时预览。
+
+<details>
+  <summary>
+    Preivew
+  </summary>
+
+![](./images/screenshot.png)
+</details>
 
 ## 一、调试 DEMO
 
@@ -51,7 +103,7 @@ npm run client
 - 调试 DEMO 页面：[http://localhost:8080/remote/debug/example/index.html](http://localhost:8080/remote/debug/example/index.html)
 - 调试后台：[http://localhost:8899/page/index.html](http://localhost:8899/page/index.html)
 
-![](./images/img2.png)
+![](./images/backend.png)
 
 ## 三、如何使用？
 

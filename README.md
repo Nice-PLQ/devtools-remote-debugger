@@ -6,33 +6,86 @@ Based on Google's open source [devtools-frontend](https://github.com/ChromeDevTo
 
 The web page being debugged is connected to the middle node layer through websocket, and devtools is also connected to node through websocket. The role of the node middle layer is mainly to forward the socket protocol to each other, so that the web page and devtools can realize full-duplex communication.
 
-![](./images/img.png)
+![](./images/cdp.png)
 
 ## Features:
 
-- Elements
+---
+
+### Elements
   - Display Html Tags
   - Edit Html Attributes
   - Display Style Rules
   - Highlight Node
 
-- Console
+<details>
+  <summary>
+    Preivew
+  </summary>
+
+![](./images/element.png)
+![](./images/screencast.png)
+</details>
+
+### Console
   - Execute JavaScript Code
   - Show Error Stack
 
-- Sources
+<details>
+  <summary>
+    Preivew
+  </summary>
+
+![](./images/console.png)
+</details>
+
+
+### Sources
   - Show Source Code
 
-- Network
+<details>
+  <summary>
+    Preivew
+  </summary>
+
+![](./images/source.png)
+![](./images/source_1.png)
+</details>
+
+### Network
   - Show XHR request
 
-- Application
+<details>
+  <summary>
+    Preivew
+  </summary>
+
+![](./images/network.png)
+</details>
+
+### Application
   - Local storage
   - Session storage
   - Cookies
 
-- Screenshot
+<details>
+  <summary>
+    Preivew
+  </summary>
+
+![](./images/application.png)
+</details>
+
+### Screenshot
   - Live Preview
+
+<details>
+  <summary>
+    Preivew
+  </summary>
+
+![](./images/screenshot.png)
+</details>
 
 ## Debug DEMO
 
@@ -60,7 +113,7 @@ Open two pages in the browser
 - Debug DEMO page: [http://localhost:8080/remote/debug/example/index.html](http://localhost:8080/remote/debug/example/index.html)
 - debug background: [http://localhost:8899/page/index.html](http://localhost:8899/page/index.html)
 
-![](./images/img2.png)
+![](./images/backend.png)
 
 ## How to use?
 
