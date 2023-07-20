@@ -55,7 +55,7 @@ https://github.com/Nice-PLQ/devtools-remote-debugger/assets/10710341/93c5cbb4-c1
 </details>
 
 ### Network
-  - Show XHR request
+  - Show XHR/Fetch Request
 
 <details>
   <summary>
@@ -66,8 +66,8 @@ https://github.com/Nice-PLQ/devtools-remote-debugger/assets/10710341/93c5cbb4-c1
 </details>
 
 ### Application
-  - Local storage
-  - Session storage
+  - Local Storage
+  - Session Storage
   - Cookies
 
 <details>
@@ -96,11 +96,11 @@ Open the command terminal and start the following two commands
 
 ### 1. Start Serve
 
-```
-// 1. Start the node service
+```sh
+#1. Start the node service
 npm run serve
 
-// 2. Start a new terminal
+# 2. Start a new terminal
 npm run client
 ```
 

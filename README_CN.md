@@ -87,11 +87,11 @@ https://github.com/Nice-PLQ/devtools-remote-debugger/assets/10710341/93c5cbb4-c1
 
 ### 1、启动服务
 
-```
-// 1、启动node服务
+```sh
+# 1、启动node服务
 npm run serve
 
-// 2、新开终端启动
+# 2、新开终端启动
 npm run client
 ```
 
