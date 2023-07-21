@@ -78,7 +78,7 @@ https://github.com/Nice-PLQ/devtools-remote-debugger/assets/10710341/93c5cbb4-c1
 ![](./images/application.png)
 </details>
 
-### Screenshot
+### ScreenPreview
   - Live Preview
 
 <details>
