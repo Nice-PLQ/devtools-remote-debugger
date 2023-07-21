@@ -2,21 +2,21 @@ import * as ProtocolClient from '../../core/protocol_client/protocol_client.js';
 import * as UI from '../../ui/legacy/legacy.js';
 import * as LitHtml from '../../ui/lit-html/lit-html.js';
 
-let screenshotPanelInstance;
-export class ScreenshotPanel extends UI.Widget.VBox {
+let screenPreviewPanelInstance;
+export class ScreenPreviewPanel extends UI.Widget.VBox {
   started = false;
   startPreviewed = false;
   messages = [];
   constructor() {
     super(true);
-    this.contentElement.classList.add('screenshot-panel');
+    this.contentElement.classList.add('screen-preview-panel');
     this.rendeHtml();
   }
   static instance() {
-    if (!screenshotPanelInstance) {
-      screenshotPanelInstance = new ScreenshotPanel();
+    if (!screenPreviewPanelInstance) {
+      screenPreviewPanelInstance = new ScreenPreviewPanel();
     }
-    return screenshotPanelInstance;
+    return screenPreviewPanelInstance;
   }
   onSend(command, params = {}) {
     const test = ProtocolClient.InspectorBackend.test;
@@ -31,13 +31,13 @@ export class ScreenshotPanel extends UI.Widget.VBox {
     test.onMessageReceived = this.messageReceived.bind(this);
   }
   willHide() {
-    this.onSend('Screenshot.stopPreview');
+    this.onSend('ScreenPreview.stopPreview');
     this.previewBtn.innerText = 'Live Preview';
     this.startPreviewed = false;
   }
   messageReceived(message) {
     const { method, params } = message;
-    if (method !== 'Screenshot.captured') return;
+    if (method !== 'ScreenPreview.captured') return;
     this.renderPreview(params);
 
   }
@@ -61,19 +61,12 @@ export class ScreenshotPanel extends UI.Widget.VBox {
       if (this.startPreviewed) {
         this.startPreviewed = false;
         target.innerText = 'Live Preview';
-        this.onSend('Screenshot.stopPreview');
+        this.onSend('ScreenPreview.stopPreview');
       } else {
         this.startPreviewed = true;
         target.innerText = 'Stop';
-        this.onSend('Screenshot.startPreview');
+        this.onSend('ScreenPreview.startPreview');
       }
-    }
-
-    const capture = () => {
-      this.onSend('Screenshot.stopPreview');
-      this.startPreviewed = false;
-      this.previewBtn.innerText = 'Live Preview';
-      this.onSend('Screenshot.getScreenshot');
     }
 
     this.previewBtn = document.createElement('button');
@@ -93,23 +86,13 @@ export class ScreenshotPanel extends UI.Widget.VBox {
           align-items:center;
           flex:1;
         }
-        .preview-masker {
-          position: absolute;
-          top: 0;
-          right: 0;
-          bottom: 0;
-          left: 0;
-          z-index: 99999999;
-        }
       </style>
       <div class="preview-container">
         <div style="margin-bottom:16px;">
           ${this.previewBtn}
-          <!-- <button style="margin-left:8px;" @click=${capture}>截图</button> -->
         </div>
         <div style="position:relative">
           ${this.iframe}
-          <!-- <div class="preview-masker"></div> -->
         </div>
       </div>
     `;

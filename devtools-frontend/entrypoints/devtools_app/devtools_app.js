@@ -25,7 +25,7 @@ import '../../panels/web_audio/web_audio-meta.js';
 import '../../panels/webauthn/webauthn-meta.js';
 import '../../panels/layer_viewer/layer_viewer-meta.js';
 import '../../panels/recorder/recorder-meta.js';
-import '../../panels/screenshot/screenshot-meta.js';
+import '../../panels/screen_preview/screen_preview-meta.js';
 import * as Root from '../../core/root/root.js';
 import * as Main from '../main/main.js';
 // @ts-ignore Exposed for legacy layout tests

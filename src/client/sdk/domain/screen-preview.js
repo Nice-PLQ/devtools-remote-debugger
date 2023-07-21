@@ -1,10 +1,10 @@
 import html2canvas from 'html2canvas';
-import { isMatches, isMobile, isMobile } from '../common/utils';
+import { isMatches, isMobile } from '../common/utils';
 import BaseDomain from './domain';
 import { Event } from './protocol';
 
-export default class Screenshot extends BaseDomain {
-  namespace = 'Screenshot';
+export default class ScreenPreview extends BaseDomain {
+  namespace = 'ScreenPreview';
 
   intervalTimer = null;
 
@@ -31,7 +31,6 @@ export default class Screenshot extends BaseDomain {
    * @public
    */
   startPreview() {
-    const isMobile = isMobile();
     const selector = 'link[rel="stylesheet"],style';
     const styles = document.querySelectorAll(selector);
     let counts = styles.length;
@@ -55,7 +54,7 @@ export default class Screenshot extends BaseDomain {
     this.send({
       method: Event.captured,
       params: {
-        isMobile,
+        isMobile: isMobile(),
         head: joinStyleTags(styles),
         body: document.body.innerHTML,
         width: window.innerWidth,
@@ -75,11 +74,11 @@ export default class Screenshot extends BaseDomain {
       this.send({
         method: Event.captured,
         params: {
-          isMobile,
           head,
           body: document.body.innerHTML,
           width: window.innerWidth,
           height: window.innerHeight,
+          isMobile: isMobile(),
         }
       });
     });

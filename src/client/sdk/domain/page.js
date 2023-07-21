@@ -1,4 +1,4 @@
-import Screenshot from './screenshot';
+import ScreenPreview from './screen-preview';
 import BaseDomain from './domain';
 import { Event } from './protocol';
 
@@ -57,7 +57,7 @@ export default class Page extends BaseDomain {
   startScreencast() {
     this.intervalTimer = setInterval(() => {
       if (document.hidden) return;
-      Screenshot.captureScreen().then((base64) => {
+      ScreenPreview.captureScreen().then((base64) => {
         this.send({
           method: Event.screencastFrame,
           params: {

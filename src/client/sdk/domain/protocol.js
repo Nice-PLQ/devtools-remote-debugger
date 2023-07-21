@@ -12,7 +12,7 @@ export default {
   Overlay: ['enable', 'highlightNode', 'hideHighlight', 'setInspectMode'],
   Page: ['enable', 'startScreencast', 'stopScreencast', 'getResourceTree', 'getResourceContent'],
   Runtime: ['enable', 'evaluate', 'getProperties', 'releaseObject'],
-  Screenshot: ['startPreview', 'stopPreview'] // Screenshot is a custom protocol
+  ScreenPreview: ['startPreview', 'stopPreview'] // ScreenPreview is a custom protocol
 };
 
 export const Event = {
@@ -42,5 +42,5 @@ export const Event = {
   consoleAPICalled: 'Runtime.consoleAPICalled',
   exceptionThrown: 'Runtime.exceptionThrown',
 
-  captured: 'Screenshot.captured',
+  captured: 'ScreenPreview.captured',
 };
