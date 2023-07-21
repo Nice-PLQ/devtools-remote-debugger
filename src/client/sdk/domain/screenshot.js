@@ -1,13 +1,7 @@
 import html2canvas from 'html2canvas';
-import { isMatches, isMobile } from '../common/utils';
+import { isMatches, isMobile, isMobile } from '../common/utils';
 import BaseDomain from './domain';
 import { Event } from './protocol';
-
-import { DiffDOM, nodeToObj } from '../diffDOM/index';
-
-const dd = new DiffDOM({
-  valueDiffing: true,
-});
 
 export default class Screenshot extends BaseDomain {
   namespace = 'Screenshot';
@@ -36,40 +30,66 @@ export default class Screenshot extends BaseDomain {
    * Start live preview
    * @public
    */
-  startPreview({ duration }) {
+  startPreview() {
+    const isMobile = isMobile();
+    const selector = 'link[rel="stylesheet"],style';
+    const styles = document.querySelectorAll(selector);
+    let counts = styles.length;
+
+    const joinStyleTags = (styles) => {
+      let tags = '';
+      Array.from(styles).forEach(style => {
+        const tag = style.tagName.toLowerCase();
+
+        if (tag === 'link') {
+          tags += `<link href="${style.href}" rel="stylesheet">`;
+        }
+
+        if (tag === 'style') {
+          tags += `<style>${style.innerHTML}</style>`
+        }
+      });
+      return `<head>${tags}</head>`;
+    };
+
     this.send({
       method: Event.captured,
       params: {
-        head: document.head.innerHTML,
+        isMobile,
+        head: joinStyleTags(styles),
         body: document.body.innerHTML,
         width: window.innerWidth,
         height: window.innerHeight,
-        isMobile: isMobile(),
       }
     });
 
-    let head = nodeToObj(document.head);
-    let body = nodeToObj(document.body);
-    this.intervalTimer = setInterval(() => {
-      if (document.hidden) return;
-      const currentHead = nodeToObj(document.head);
-      const currentBody = nodeToObj(document.body);
-      const headDiff = dd.diff(head, currentHead);
-      const bodyDiff = dd.diff(body, currentBody);
-
-      if (headDiff.length > 0 || bodyDiff.length > 0) {
-        head = currentHead;
-        body = currentBody;
-        this.send({
-          method: Event.captured,
-          params: {
-            headDiff,
-            bodyDiff,
-            isMobile: isMobile(),
-          }
-        });
+    // Observe the changes of the document
+    const observer = new MutationObserver(() => {
+      const curStyles = document.querySelectorAll(selector);
+      let head;
+      if (curStyles.length !== counts) {
+        counts = curStyles.length;
+        head = joinStyleTags(curStyles);
       }
-    }, duration || 500);
+
+      this.send({
+        method: Event.captured,
+        params: {
+          isMobile,
+          head,
+          body: document.body.innerHTML,
+          width: window.innerWidth,
+          height: window.innerHeight,
+        }
+      });
+    });
+
+    observer.observe(document.documentElement, {
+      childList: true,
+      subtree: true,
+      attributes: true,
+      characterData: true,
+    });
   }
 
   /**

@@ -1,11 +1,6 @@
 import * as ProtocolClient from '../../core/protocol_client/protocol_client.js';
 import * as UI from '../../ui/legacy/legacy.js';
 import * as LitHtml from '../../ui/lit-html/lit-html.js';
-import { DiffDOM } from './diffDOM/index.js';
-
-const dd = new DiffDOM({
-  valueDiffing: true
-});
 
 let screenshotPanelInstance;
 export class ScreenshotPanel extends UI.Widget.VBox {
@@ -46,23 +41,18 @@ export class ScreenshotPanel extends UI.Widget.VBox {
     this.renderPreview(params);
 
   }
-  renderPreview({ isMobile, width, height, head, body, headDiff, bodyDiff }) {
+  renderPreview({ isMobile, width, height, head, body }) {
     const iframeContent = this.iframe.contentDocument || this.iframe.contentWindow.document;
 
-    if (headDiff && bodyDiff) {
-      dd.apply(iframeContent.head, headDiff);
-      dd.apply(iframeContent.body, bodyDiff);
+    head && (iframeContent.head.innerHTML = head);
+    iframeContent.body.innerHTML = body;
+    if (isMobile) {
+      this.iframe.style.cssText = `width:${width}px;height:${height}px;`;
     } else {
-      iframeContent.head.innerHTML = head;
-      iframeContent.body.innerHTML = body;
-      if (isMobile) {
-        this.iframe.style.cssText = `width:${width}px;height:${height}px;`;
-      } else {
-        this.iframe.style.cssText = `width:${width * 0.75}px;max-width:1200px;height:${height * 0.75}px;max-height:1000px`;
-      }
+      this.iframe.style.cssText = `width:${width * 0.75}px;max-width:1200px;height:${height * 0.75}px;max-height:1000px`;
     }
-    this.iframe.style.border = '20px solid var(--color-details-hairline)';
-    this.iframe.style.borderRadius = '20px';
+    this.iframe.style.border = '10px solid var(--color-details-hairline)';
+    this.iframe.style.borderRadius = '10px';
     this.iframe.style.boxSizing = 'content-box';
     this.iframe.style.pointerEvents = 'none';
   }
