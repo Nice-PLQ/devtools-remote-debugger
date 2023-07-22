@@ -65,7 +65,7 @@ export default class ScreenPreview extends BaseDomain {
     });
 
     // Observe the changes of the document
-    const observer = new MutationObserver(() => {
+    const observer = new MutationObserver(throttle(() => {
       if (!this.previewed) return;
       const curStyles = document.querySelectorAll(selector);
       let head;
@@ -84,7 +84,7 @@ export default class ScreenPreview extends BaseDomain {
           isMobile: isMobile(),
         }
       });
-    });
+    }, 300));
 
     observer.observe(document.documentElement, {
       childList: true,
@@ -106,7 +106,6 @@ export default class ScreenPreview extends BaseDomain {
   }
 
   syncScroll = throttle(() => {
-    console.log(11111);
     const scrollTop = document.body.scrollTop || document.documentElement.scrollTop;
     const scrollLeft = document.body.scrollLeft || document.documentElement.scrollLeft;
     this.send({
