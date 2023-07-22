@@ -110,9 +110,9 @@ npm run client
 
 ```sh
 # 启动node服务的端口号，如：80端口
-DEBUG_PORT=8080
-# 调试管理端部署之后的域名，如：https://www.remote-debug.com/
-DEBUG_HOST='http://localhost:8080'
+DEBUG_PORT=80
+# 调试管理端部署之后的域名，如：http://www.debug.com/
+DEBUG_HOST='http://www.debug.com/'
 ```
 
 2、执行`npm run build`构建项目代码，会打包出`dist`目录，结构如下：
@@ -128,6 +128,10 @@ DEBUG_HOST='http://localhost:8080'
 ```sh
 npm run start
 ```
+
+4、浏览器打开调试管理端[http://www.debug.com/remote/debug/index.html](http://www.debug.com/remote/debug/index.html)，如果调试目标页面加载了`sdk.js`代码，那么此时调试管理端会看到连接记录。
+
+> 💡请注意，www.debug.com只是作为示例，具体的域名请换成自己的
 
 ## 其他说明
 由于同源策略的限制，你可能需要进行以下的变更：
