@@ -9,7 +9,6 @@ export class ScreenPreviewPanel extends UI.Widget.VBox {
   messages = [];
   constructor() {
     super(true);
-    this.contentElement.classList.add('screen-preview-panel');
     this.rendeHtml();
   }
   static instance() {
@@ -37,9 +36,18 @@ export class ScreenPreviewPanel extends UI.Widget.VBox {
   }
   messageReceived(message) {
     const { method, params } = message;
-    if (method !== 'ScreenPreview.captured') return;
-    this.renderPreview(params);
 
+    if (method === 'ScreenPreview.captured') {
+      this.renderPreview(params);
+    }
+
+    if (method === 'ScreenPreview.syncScroll') {
+      this.syncScroll(params);
+    }
+
+  }
+  syncScroll({ scrollLeft, scrollTop }) {
+    this.iframe.contentWindow.scrollTo(scrollLeft, scrollTop);
   }
   renderPreview({ isMobile, width, height, head, body }) {
     const iframeContent = this.iframe.contentDocument || this.iframe.contentWindow.document;
@@ -74,6 +82,7 @@ export class ScreenPreviewPanel extends UI.Widget.VBox {
     this.previewBtn.onclick = preview;
 
     this.iframe = document.createElement('iframe');
+    this.iframe.style.borderRadius = '10px';
     this.iframe.srcdoc = '<html><head></head><body></body></html>'
     this.container = document.createElement('div');
 

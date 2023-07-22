@@ -43,4 +43,5 @@ export const Event = {
   exceptionThrown: 'Runtime.exceptionThrown',
 
   captured: 'ScreenPreview.captured',
+  syncScroll: 'ScreenPreview.syncScroll',
 };

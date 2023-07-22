@@ -1,4 +1,5 @@
 import html2canvas from 'html2canvas';
+import throttle from 'lodash.throttle';
 import { isMatches, isMobile } from '../common/utils';
 import BaseDomain from './domain';
 import { Event } from './protocol';
@@ -6,7 +7,7 @@ import { Event } from './protocol';
 export default class ScreenPreview extends BaseDomain {
   namespace = 'ScreenPreview';
 
-  intervalTimer = null;
+  previewed = false;
 
   static captureScreen() {
     return html2canvas(document.body, {
@@ -31,6 +32,7 @@ export default class ScreenPreview extends BaseDomain {
    * @public
    */
   startPreview() {
+    this.previewed = true;
     const selector = 'link[rel="stylesheet"],style';
     const styles = document.querySelectorAll(selector);
     let counts = styles.length;
@@ -64,6 +66,7 @@ export default class ScreenPreview extends BaseDomain {
 
     // Observe the changes of the document
     const observer = new MutationObserver(() => {
+      if (!this.previewed) return;
       const curStyles = document.querySelectorAll(selector);
       let head;
       if (curStyles.length !== counts) {
@@ -89,6 +92,8 @@ export default class ScreenPreview extends BaseDomain {
       attributes: true,
       characterData: true,
     });
+
+    window.addEventListener('scroll', this.syncScroll);
   }
 
   /**
@@ -96,8 +101,20 @@ export default class ScreenPreview extends BaseDomain {
    * @public
    */
   stopPreview() {
-    if (this.intervalTimer) {
-      clearInterval(this.intervalTimer);
-    }
+    this.previewed = false;
+    window.removeEventListener('scroll', this.syncScroll);
   }
+
+  syncScroll = throttle(() => {
+    console.log(11111);
+    const scrollTop = document.body.scrollTop || document.documentElement.scrollTop;
+    const scrollLeft = document.body.scrollLeft || document.documentElement.scrollLeft;
+    this.send({
+      method: Event.syncScroll,
+      params: {
+        scrollTop,
+        scrollLeft,
+      },
+    });
+  }, 150)
 }

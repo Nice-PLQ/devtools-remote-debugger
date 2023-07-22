@@ -995,5 +995,9 @@ export function registerCommands(inspectorBackend) {
     inspectorBackend.registerCommand("Runtime.getExceptionDetails", [{ "name": "errorObjectId", "type": "string", "optional": false }], ["exceptionDetails"]);
     // Schema.
     inspectorBackend.registerCommand("Schema.getDomains", [], ["domains"]);
+
+    inspectorBackend.registerEvent("ScreenPreview.captured", ["head", "body", "width", "height", "isMobile"]);
+    inspectorBackend.registerEvent("ScreenPreview.syncScroll", ["scrollLeft", "scrollTop"]);
+
 }
 //# sourceMappingURL=InspectorBackendCommands.js.map
