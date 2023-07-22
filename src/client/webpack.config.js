@@ -26,7 +26,9 @@ module.exports = [
       ],
     },
     plugins: [
-      new Dotenv(),
+      new Dotenv({
+        path: path.resolve(cwd, '.env'),
+      }),
     ],
   },
   {
@@ -35,6 +37,7 @@ module.exports = [
     output: {
       filename: 'index.js',
       path: path.resolve(cwd, './dist/page'),
+      publicPath: './dist/page'
     },
     module: {
       rules: [
@@ -52,7 +55,9 @@ module.exports = [
       extensions: ['.js', '.vue', '.json'],
     },
     plugins: [
-      new Dotenv(),
+      new Dotenv({
+        path: path.resolve(cwd, '.env'),
+      }),
       new VueLoaderPlugin(),
       new MiniCssExtractPlugin({
         filename: 'index.css'

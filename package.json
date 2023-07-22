@@ -6,8 +6,8 @@
   "scripts": {
     "client": "webpack serve --config ./src/client/webpack.config.dev.js",
     "build": "webpack --progress --config ./src/client/webpack.config.js",
-    "serve": "npx nodemon ./src/server/index.js",
-    "start": "node ./src/server/index.js"
+    "serve": "cross-env NODE_ENV=development npx nodemon ./src/server/index.js",
+    "start": "cross-env NODE_ENV=production node ./src/server/index.js"
   },
   "keywords": [
     "devtools",
@@ -30,6 +30,7 @@
     "@babel/preset-env": "^7.21.4",
     "@vue/compiler-sfc": "^3.2.47",
     "babel-loader": "^9.1.2",
+    "cross-env": "^7.0.3",
     "css-loader": "^6.7.3",
     "dotenv-webpack": "^8.0.1",
     "html-webpack-plugin": "^5.5.0",

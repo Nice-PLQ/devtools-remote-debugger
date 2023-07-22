@@ -23,7 +23,9 @@ module.exports = [
     },
     devtool: 'inline-source-map',
     plugins: [
-      new Dotenv(),
+      new Dotenv({
+        path: path.resolve(cwd, '.env.dev'),
+      }),
     ]
   },
   {
@@ -61,7 +63,9 @@ module.exports = [
       open: './index.html'
     },
     plugins: [
-      new Dotenv(),
+      new Dotenv({
+        path: path.resolve(cwd, '.env.dev')
+      }),
       new VueLoaderPlugin(),
       new HtmlWebpackPlugin({
         template: './src/client/page/index.html',

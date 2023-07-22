@@ -6,7 +6,9 @@ const koaCompress = require('koa-compress');
 const send = require('koa-send');
 const notFound = require('./middleware/404');
 const SocketServer = require('./socketServer');
-require('dotenv').config()
+require('dotenv').config({
+  path: path.resolve(process.cwd(), process.env.NODE_ENV === 'development' ? '.env.dev' : '.env'),
+});
 
 const prefix = '/remote/debug';
 
