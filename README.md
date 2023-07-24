@@ -12,7 +12,7 @@ The web page being debugged is connected to the middle node layer through websoc
 
 https://github.com/Nice-PLQ/devtools-remote-debugger/assets/10710341/93c5cbb4-c13d-4f93-866c-9b97ffc327e9
 
-## Features:
+## 🎉 Features:
 
 ### Elements
   - Display Html Tags

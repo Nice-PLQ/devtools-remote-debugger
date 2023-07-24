@@ -10,7 +10,7 @@
 
 https://github.com/Nice-PLQ/devtools-remote-debugger/assets/10710341/93c5cbb4-c13d-4f93-866c-9b97ffc327e9
 
-## 支持的特性：
+## 🎉 支持的特性：
 
 ### Elements
   - html 的实时查看，属性编辑、Styles、Computed 样式查看、hover 元素高亮、元素审查
