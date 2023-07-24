@@ -55,7 +55,7 @@ export default class Page extends BaseDomain {
   }
 
   startScreencast() {
-    this.intervalTimer = setInterval(() => {
+    const captureScreen = () => {
       if (document.hidden) return;
       ScreenPreview.captureScreen().then((base64) => {
         this.send({
@@ -75,7 +75,11 @@ export default class Page extends BaseDomain {
           }
         });
       });
-    }, 2000);
+    };
+
+    captureScreen();
+
+    this.intervalTimer = setInterval(captureScreen, 2000);
   }
 
   stopScreencast() {
