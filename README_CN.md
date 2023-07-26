@@ -13,38 +13,43 @@ https://github.com/Nice-PLQ/devtools-remote-debugger/assets/10710341/93c5cbb4-c1
 ## 🎉 支持的特性：
 
 ### Elements
-  - html 的实时查看，属性编辑、Styles、Computed 样式查看、hover 元素高亮、元素审查
+
+- html 的实时查看，属性编辑、Styles、Computed 样式查看、hover 元素高亮、元素审查
 
 <details>
   <summary>
     Preivew
   </summary>
 
-![](./images/element.png)
-![](./images/screencast.png)
+![](./images/element.gif)
+![](./images/screencast.gif)
+
 </details>
 
 ### Console
-  - js 运行时的错误堆栈查看、 js 代码执行、查看 console.error/warn调用堆栈。
+
+- js 运行时的错误堆栈查看、 js 代码执行、查看 console.error/warn 调用堆栈。
 
 <details>
   <summary>
     Preivew
   </summary>
 
-![](./images/console.png)
+![](./images/console.gif)
+
 </details>
 
 ### Sources
-  - js 运行时的错误代码文件定位索引、查看 html、js、css 源文件内容、代码格式化。
+
+- js 运行时的错误代码文件定位索引、查看 html、js、css 源文件内容、代码格式化。
 
 <details>
   <summary>
     Preivew
   </summary>
 
-![](./images/source.png)
-![](./images/source_1.png)
+![](./images/source.gif)
+
 </details>
   
 ### Network
@@ -55,31 +60,35 @@ https://github.com/Nice-PLQ/devtools-remote-debugger/assets/10710341/93c5cbb4-c1
     Preivew
   </summary>
 
-![](./images/network.png)
+![](./images/network.gif)
+
 </details>
 
 ### Application
-  - Local Storage、Session Storage、Cookies。
+
+- Local Storage、Session Storage、Cookies。
 
 <details>
   <summary>
     Preivew
   </summary>
 
-![](./images/application.png)
+![](./images/application.gif)
+
 </details>
 
 ### ScreenPreview（自定义）
-  - 页面实时预览。
+
+- 页面实时预览。
 
 <details>
   <summary>
     Preivew
   </summary>
 
-![](./images/screenshot.png)
-</details>
+![](./images/screen_preview.gif)
 
+</details>
 
 ## 本地开发
 
@@ -116,6 +125,7 @@ DEBUG_HOST='http://www.debug.com/'
 ```
 
 2、执行`npm run build`构建项目代码，会打包出`dist`目录，结构如下：
+
 ```
 ├── page    # 调试管理端
 │   ├── index.css
@@ -124,16 +134,25 @@ DEBUG_HOST='http://www.debug.com/'
 ├── sdk.js  # 调试用的sdk代码，需要在被调试页面中加载该脚本，可以将其部署到cdn
 ```
 
-3、启动Node服务
+3、启动 Node 服务
+
 ```sh
 npm run start
 ```
 
 4、浏览器打开调试管理端[http://www.debug.com/remote/debug/index.html](http://www.debug.com/remote/debug/index.html)，如果调试目标页面加载了`sdk.js`代码，那么此时调试管理端会看到连接记录。
 
-> 💡请注意，www.debug.com只是作为示例，具体的域名请换成自己的
+> 💡 请注意，www.debug.com只是作为示例，具体的域名请换成自己的
 
 ## 其他说明
+
 由于同源策略的限制，你可能需要进行以下的变更：
-- 浏览器默认不允许JavaScript读取不同域的CSSRule，所以你需要在link引入外部样式的时候加上`crossorigin="anonymous"`属性，style标签的样式没有此问题。
-- 捕获Javascript的具体错误信息，同样需要在script标签添加`crossorigin="anonymous"`。
+
+- 浏览器默认不允许 JavaScript 读取不同域的 CSSRule，所以你需要在 link 引入外部样式的时候加上`crossorigin="anonymous"`属性，style 标签的样式没有此问题。
+- 捕获 Javascript 的具体错误信息，同样需要在 script 标签添加`crossorigin="anonymous"`。
+
+## License
+
+[MIT](./LICENSE)
+
+Copyright (c) 2013-present, Nice-PLQ

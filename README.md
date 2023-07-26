@@ -15,80 +15,90 @@ https://github.com/Nice-PLQ/devtools-remote-debugger/assets/10710341/93c5cbb4-c1
 ## 🎉 Features:
 
 ### Elements
-  - Display Html Tags
-  - Edit Html Attributes
-  - Display Style Rules
-  - Highlight Node
+
+- Display Html Tags
+- Edit Html Attributes
+- Display Style Rules
+- Highlight Node
 
 <details>
   <summary>
     Preivew
   </summary>
 
-![](./images/element.png)
-![](./images/screencast.png)
+![](./images/element.gif)
+![](./images/screencast.gif)
+
 </details>
 
 ### Console
-  - Execute JavaScript Code
-  - Show Error Stack
+
+- Execute JavaScript Code
+- Show Error Stack
 
 <details>
   <summary>
     Preivew
   </summary>
 
-![](./images/console.png)
+![](./images/console.gif)
+
 </details>
 
-
 ### Sources
-  - Show Source Code
+
+- Show Source Code
 
 <details>
   <summary>
     Preivew
   </summary>
 
-![](./images/source.png)
-![](./images/source_1.png)
+![](./images/source.gif)
+
 </details>
 
 ### Network
-  - Show XHR/Fetch Request
+
+- Show XHR/Fetch Request
+- Show JavaScript/CSS/HTML Request
 
 <details>
   <summary>
     Preivew
   </summary>
 
-![](./images/network.png)
+![](./images/network.gif)
+
 </details>
 
 ### Application
-  - Local Storage
-  - Session Storage
-  - Cookies
+
+- Local Storage
+- Session Storage
+- Cookies
 
 <details>
   <summary>
     Preivew
   </summary>
 
-![](./images/application.png)
+![](./images/application.gif)
+
 </details>
 
 ### ScreenPreview
-  - Live Preview
+
+- Live Preview
 
 <details>
   <summary>
     Preivew
   </summary>
 
-![](./images/screenshot.png)
-</details>
+![](./images/screen_preview.gif)
 
+</details>
 
 ## How to start?
 
@@ -135,6 +145,7 @@ DEBUG_HOST='http://localhost:8080'
 ```
 
 3. Start the backend
+
 ```sh
 npm run start
 ```
@@ -144,6 +155,14 @@ npm run start
 > 💡Please note that www.debug.com is just an example, please replace the specific domain name with your own
 
 ## Other instructions
+
 Due to the restrictions of the same-origin policy, you may need to make the following changes:
+
 - Browsers do not allow JavaScript to read CSSRules of different domains by default, so you need to add the `crossorigin="anonymous"` attribute when the link introduces an external style, and the style of the style tag does not have this problem.
 - To capture Javascript specific error messages, you also need to add `crossorigin="anonymous"` to the script tag.
+
+## License
+
+[MIT](./LICENSE)
+
+Copyright (c) 2013-present, Nice-PLQ
