@@ -22,6 +22,7 @@ https://github.com/Nice-PLQ/devtools-remote-debugger/assets/10710341/93c5cbb4-c1
   </summary>
 
 ![](./images/element.gif)
+
 ![](./images/screencast.gif)
 
 </details>
@@ -155,4 +156,4 @@ npm run start
 
 [MIT](./LICENSE)
 
-Copyright (c) 2013-present, Nice-PLQ
+Copyright (c) 2023-present, Nice-PLQ
