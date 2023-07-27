@@ -6,7 +6,8 @@ export default {
   Storage: ['getStorageKeyForFrame'],
   DOM: [
     'enable', 'getDocument', 'removeNode', 'requestChildNodes', 'requestNode', 'getOuterHTML',
-    'setOuterHTML', 'setAttributesAsText', 'setInspectedNode', 'pushNodesByBackendIdsToFrontend'
+    'setOuterHTML', 'setAttributesAsText', 'setInspectedNode', 'pushNodesByBackendIdsToFrontend',
+    'performSearch', 'getSearchResults', 'discardSearchResults', 'getNodeForLocation'
   ],
   Network: ['enable', 'getCookies', 'setCookie', 'deleteCookies', 'getResponseBody'],
   Overlay: ['enable', 'highlightNode', 'hideHighlight', 'setInspectMode'],
@@ -41,6 +42,9 @@ export const Event = {
   executionContextCreated: 'Runtime.executionContextCreated',
   consoleAPICalled: 'Runtime.consoleAPICalled',
   exceptionThrown: 'Runtime.exceptionThrown',
+
+  nodeHighlightRequested: 'Overlay.nodeHighlightRequested',
+  inspectNodeRequested: 'Overlay.inspectNodeRequested',
 
   captured: 'ScreenPreview.captured',
   syncScroll: 'ScreenPreview.syncScroll',

@@ -1,3 +1,5 @@
+import { IGNORE_NODE } from './constant';
+
 class Nodes {
   // DOM node id collection
   nodeIds = new Map();
@@ -9,17 +11,17 @@ class Nodes {
 
   /**
    * Is it a node
-   * @static
+   * @public
    * @param {HTMLElement} node DOM
    */
-  static isNode(node) {
+  isNode(node) {
     if (!node) return false;
     // Ignore DOM nodes for debugging
-    if (node.getAttribute && node.getAttribute('class') === 'devtools-overlay') return false;
+    if (node.getAttribute && IGNORE_NODE.includes(node.getAttribute('class'))) return false;
     // non-text node
-    if (node.nodeType !== 3) return true;
+    if (node.nodeType !== Node.TEXT_NODE) return true;
     // non-empty text node
-    if (node.nodeType === 3 && (node.nodeValue || '').trim() !== '') return true;
+    if (node.nodeType === Node.TEXT_NODE && (node.nodeValue || '').trim() !== '') return true;
     return false;
   }
 
@@ -97,7 +99,7 @@ class Nodes {
    */
   getChildNodes(node, depth = 1) {
     return Array.from(node.childNodes)
-      .filter(Nodes.isNode)
+      .filter(this.isNode)
       .map(childNode => this.collectNodes(childNode, depth - 1));
   }
 
@@ -110,7 +112,7 @@ class Nodes {
     let previousNode = node.previousSibling;
     if (!previousNode) return;
 
-    while (!Nodes.isNode(previousNode) && previousNode.previousSibling) {
+    while (!this.isNode(previousNode) && previousNode.previousSibling) {
       previousNode = previousNode.previousSibling;
     }
 

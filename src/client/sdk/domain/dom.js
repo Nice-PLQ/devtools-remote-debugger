@@ -1,10 +1,19 @@
 import nodes from '../common/nodes';
 import { getObjectById } from '../common/remoteObject';
+import { DEVTOOL_OVERLAY, IGNORE_NODE } from '../common/constant';
 import BaseDomain from './domain';
 import { Event } from './protocol';
 
 export default class Dom extends BaseDomain {
   namespace = 'DOM';
+
+  hasRequestedChildNode = new Set();
+
+  searchId = 0;
+
+  searchRet = new Map();
+
+  currentSearchKey = '';
 
   /**
    * set $ and $$ methods
@@ -50,6 +59,10 @@ export default class Dom extends BaseDomain {
    * @param {Number} nodeId DOM Node Id
    */
   requestChildNodes({ nodeId }) {
+    if (this.hasRequestedChildNode.has(nodeId)) {
+      return;
+    }
+    this.hasRequestedChildNode.add(nodeId);
     this.send({
       method: Event.setChildNodes,
       params: {
@@ -132,12 +145,107 @@ export default class Dom extends BaseDomain {
   }
 
   /**
- * @public
- */
+   * @public
+   */
   pushNodesByBackendIdsToFrontend({ backendNodeIds }) {
     return {
       nodeIds: backendNodeIds
     };
+  }
+
+  /**
+   * @public
+   * @param {Object} param
+   * @param {String} query search keyword
+   */
+  performSearch({ query }) {
+    let ret = this.searchRet.get(this.searchId);
+
+    if (this.currentSearchKey !== query) {
+      this.currentSearchKey = query;
+      const allNodes = document.querySelectorAll('*');
+      ret = Array.from(allNodes).filter(node => {
+        if (!nodes.isNode(node)) return false;
+
+        // element node
+        if (node.nodeType === Node.ELEMENT_NODE && node.tagName.toLowerCase().includes(query)) {
+          return true;
+        }
+
+        // match attributes
+        for (let i = 0; i < node.attributes.length; i++) {
+          const curr = node.attributes[i];
+          if (curr.name.includes(query) || curr.value.includes(query)) {
+            return true;
+          }
+        }
+
+        return false;
+      });
+
+      this.searchRet.set(++this.searchId, ret);
+    }
+
+
+    return {
+      searchId: this.searchId,
+      resultCount: ret.length,
+    };
+  }
+
+  /**
+  * @public
+  */
+  getSearchResults({ fromIndex, toIndex, searchId }) {
+    const ret = this.searchRet.get(searchId).slice(fromIndex, toIndex);
+    const nodeIds = [];
+    ret.forEach(node => {
+      this.expandNode(node);
+      nodeIds.push(nodes.getIdByNode(node))
+    });
+
+    return { nodeIds };
+  }
+
+  /**
+   * @public
+   */
+  discardSearchResults({ searchId }) {
+    this.searchRet.delete(searchId);
+  }
+
+  /**
+   * @public
+   */
+  getNodeForLocation({ x, y }) {
+    const hoverNode = document.elementFromPoint(x, y);
+    if (hoverNode) {
+      this.expandNode(hoverNode);
+      const nodeId = nodes.getIdByNode(hoverNode);
+      return {
+        frameId: 1,
+        backendNodeId: nodeId,
+        nodeId,
+      };
+    }
+  }
+
+  /**
+   * @private
+   */
+  expandNode(node) {
+    const nodeIds = [];
+    while (!nodes.hasNode(node)) {
+      const nodeId = nodes.getIdByNode(node);
+      nodeIds.unshift(nodeId);
+      node = node.parentNode;
+    }
+
+    nodeIds.unshift(nodes.getIdByNode(node));
+
+    nodeIds.forEach((nodeId) => {
+      this.requestChildNodes({ nodeId });
+    });
   }
 
   /**
@@ -166,19 +274,19 @@ export default class Dom extends BaseDomain {
       });
 
       this.send({
-        method: 'Overlay.nodeHighlightRequested',
+        method: Event.nodeHighlightRequested,
         params: {
           nodeId: currentNodeId
         }
       });
       this.send({
-        method: 'Overlay.inspectNodeRequested',
+        method: Event.inspectNodeRequested,
         params: {
           backendNodeId: currentNodeId
         }
       });
 
-      document.getElementById('devtools-overlay').style.display = 'none';
+      document.getElementById(DEVTOOL_OVERLAY).style.display = 'none';
     }, true);
   }
 
@@ -187,10 +295,9 @@ export default class Dom extends BaseDomain {
    */
   nodeObserver() {
     const isDevtoolMutation = ({ target, addedNodes, removedNodes }) => {
-      const cls = 'devtools-overlay';
-      if (target.getAttribute?.('class') === cls) return true;
-      if (addedNodes[0]?.getAttribute?.('class') === cls) return true;
-      if (removedNodes[0]?.getAttribute?.('class') === cls) return true;
+      if (IGNORE_NODE.includes(target.getAttribute?.('class'))) return true;
+      if (IGNORE_NODE.includes(addedNodes[0]?.getAttribute?.('class'))) return true;
+      if (IGNORE_NODE.includes(removedNodes[0]?.getAttribute?.('class'))) return true;
       return false;
     };
 

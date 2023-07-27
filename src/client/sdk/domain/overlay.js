@@ -1,10 +1,11 @@
 import nodes from '../common/nodes';
+import { DEVTOOL_OVERLAY } from '../common/constant';
 
 const wrapper = document.createElement('div');
 const contentBox = document.createElement('div');
 const marginBox = document.createElement('div');
 const tooltipsBox = document.createElement('div');
-const className = 'devtools-overlay';
+const className = DEVTOOL_OVERLAY;
 
 [marginBox, contentBox, tooltipsBox].forEach((item) => {
   item.className = className;
@@ -86,7 +87,13 @@ export default class Overlay {
    */
   highlightNode({ nodeId, nodeElement, highlightConfig }) {
     const node = nodeElement || nodes.getNodeById(nodeId);
-    if (!node || [3, 8, 10].includes(node.nodeType) || ['LINK', 'SCRIPT', 'HEAD'].includes(node.nodeName)) return;
+    if (
+      !node ||
+      [Node.TEXT_NODE, Node.COMMENT_NODE, Node.DOCUMENT_TYPE_NODE].includes(node.nodeType) ||
+      ['LINK', 'SCRIPT', 'HEAD'].includes(node.nodeName)
+    ) {
+      return;
+    }
 
     const styles = window.getComputedStyle(node);
     const margin = Overlay.getStylePropertyValue(['margin-top', 'margin-right', 'margin-bottom', 'margin-left'], styles);
