@@ -183,6 +183,7 @@ export default class Dom extends BaseDomain {
         return false;
       });
 
+      this.searchRet.delete(this.searchId);
       this.searchRet.set(++this.searchId, ret);
     }
 
