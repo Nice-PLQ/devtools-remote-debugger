@@ -13,6 +13,7 @@ export default class Page extends BaseDomain {
    */
   enable() {
     const xhr = new XMLHttpRequest();
+    xhr.$$requestType = 'Document';
     xhr.onload = () => {
       this.frame.set(location.href, xhr.responseText);
     };

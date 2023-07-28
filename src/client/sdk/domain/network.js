@@ -159,7 +159,7 @@ export default class Network extends BaseDomain {
           documentURL: location.href,
           timestamp: getTimestamp(),
           wallTime: Date.now(),
-          type: 'XHR',
+          type: this.$$requestType || 'XHR',
         }
       });
 
@@ -174,7 +174,7 @@ export default class Network extends BaseDomain {
             headers: responseHeaders,
             blockedCookies: [],
             headersText: headers,
-            type: 'XHR',
+            type: this.$$requestType || 'XHR',
             status: this.status,
             statusText: this.statusText,
             encodedDataLength: Number(this.getResponseHeader('Content-Length')),

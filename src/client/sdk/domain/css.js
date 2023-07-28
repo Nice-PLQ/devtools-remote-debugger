@@ -190,6 +190,7 @@ export default class CSS extends BaseDomain {
    */
   fetchStyleSource(styleSheetId, url) {
     const xhr = new XMLHttpRequest();
+    xhr.$$requestType = 'Stylesheet';
     xhr.onload = () => {
       this.styles.set(styleSheetId, xhr.responseText);
     };

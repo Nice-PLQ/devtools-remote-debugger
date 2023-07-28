@@ -93,6 +93,7 @@ export default class Debugger extends BaseDomain {
    */
   fetchScriptSource(scriptId, url) {
     const xhr = new XMLHttpRequest();
+    xhr.$$requestType = 'Script';
     xhr.onload = () => {
       this.scripts.set(scriptId, xhr.responseText);
     };
