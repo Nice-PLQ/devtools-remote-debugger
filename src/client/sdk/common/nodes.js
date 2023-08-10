@@ -7,6 +7,8 @@ class Nodes {
   // DOM node collection
   nodes = new Map();
 
+  hasRequestedChildNode = new Set()
+
   currentId = 0;
 
   /**

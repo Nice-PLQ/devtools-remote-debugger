@@ -1,22 +1,25 @@
-import nodes from '../common/nodes';
-import { DEVTOOL_OVERLAY } from '../common/constant';
+import nodes from "../common/nodes";
+import BaseDomain from "./domain";
+import { DEVTOOL_OVERLAY } from "../common/constant";
+import { Event } from "./protocol";
 
-const wrapper = document.createElement('div');
-const contentBox = document.createElement('div');
-const marginBox = document.createElement('div');
-const tooltipsBox = document.createElement('div');
+const wrapper = document.createElement("div");
+const contentBox = document.createElement("div");
+const marginBox = document.createElement("div");
+const tooltipsBox = document.createElement("div");
 const className = DEVTOOL_OVERLAY;
 
 [marginBox, contentBox, tooltipsBox].forEach((item) => {
   item.className = className;
   wrapper.appendChild(item);
 });
-wrapper.style.cssText = 'display:none;position:fixed;z-index:999999999;pointer-events:none;';
+wrapper.style.cssText =
+  "display:none;position:fixed;z-index:999999999;pointer-events:none;";
 wrapper.className = className;
 wrapper.id = className;
 
-export default class Overlay {
-  namespace = 'Overlay';
+export default class Overlay extends BaseDomain {
+  namespace = "Overlay";
 
   highlightConfig = {};
 
@@ -26,9 +29,46 @@ export default class Overlay {
    * @param {Object} styles style object eg: {color: red, position: absolute}
    */
   static formatCssText(styles) {
-    return Object.entries(styles).map(item => `${item[0]}:${item[1]}`)
-      .join(';');
+    return Object.entries(styles)
+      .map((item) => `${item[0]}:${item[1]}`)
+      .join(";");
   }
+
+  /**
+   * @private
+   */
+  expandNode(node) {
+    const nodeIds = [];
+    while (!nodes.hasNode(node)) {
+      const nodeId = nodes.getIdByNode(node);
+      nodeIds.unshift(nodeId);
+      node = node.parentNode;
+    }
+
+    nodeIds.unshift(nodes.getIdByNode(node));
+
+    nodeIds.forEach((nodeId) => {
+      this.requestChildNodes({ nodeId });
+    });
+  }
+
+  /**
+   * @private
+   */
+  requestChildNodes({ nodeId }) {
+    if (nodes.hasRequestedChildNode.has(nodeId)) {
+      return;
+    }
+    nodes.hasRequestedChildNode.add(nodeId);
+    this.send({
+      method: Event.setChildNodes,
+      params: {
+        parentId: nodeId,
+        nodes: nodes.getChildNodes(nodes.getNodeById(nodeId))
+      }
+    });
+  }
+
 
   /**
    * Extract attribute value from style
@@ -36,10 +76,10 @@ export default class Overlay {
    */
   static getStylePropertyValue(properties, styles) {
     if (Array.isArray(properties)) {
-      return properties.map(key => Number(styles[key].replace('px', '')));
+      return properties.map((key) => Number(styles[key].replace("px", "")));
     }
 
-    return Number(styles[properties].replace('px', ''));
+    return Number(styles[properties].replace("px", ""));
   }
 
   /**
@@ -57,7 +97,7 @@ export default class Overlay {
     document.body.appendChild(wrapper);
 
     const highlight = (e) => {
-      if (window.$$inspectMode !== 'searchForNode') return;
+      if (window.$$inspectMode !== "searchForNode") return;
       e.stopPropagation();
       e.preventDefault();
 
@@ -70,12 +110,21 @@ export default class Overlay {
 
       this.highlightNode({
         nodeElement: target,
-        highlightConfig: this.highlightConfig
+        highlightConfig: this.highlightConfig,
+      });
+
+      this.expandNode(e.target.parentNode)
+
+      this.send({
+        method: Event.nodeHighlightRequested,
+        params: {
+          nodeId: nodes.getIdByNode(target),
+        },
       });
     };
 
-    document.addEventListener('mousemove', highlight, true);
-    document.addEventListener('touchmove', highlight, { passive: false });
+    document.addEventListener("mousemove", highlight, true);
+    document.addEventListener("touchmove", highlight, { passive: false });
   }
 
   /**

@@ -7,8 +7,6 @@ import { Event } from './protocol';
 export default class Dom extends BaseDomain {
   namespace = 'DOM';
 
-  hasRequestedChildNode = new Set();
-
   searchId = 0;
 
   searchRet = new Map();
@@ -48,6 +46,7 @@ export default class Dom extends BaseDomain {
    * @public
    */
   getDocument() {
+    console.log('getDocument', nodes.collectNodes(document))
     return {
       root: nodes.collectNodes(document),
     };
@@ -59,10 +58,10 @@ export default class Dom extends BaseDomain {
    * @param {Number} nodeId DOM Node Id
    */
   requestChildNodes({ nodeId }) {
-    if (this.hasRequestedChildNode.has(nodeId)) {
+    if (nodes.hasRequestedChildNode.has(nodeId)) {
       return;
     }
-    this.hasRequestedChildNode.add(nodeId);
+    nodes.hasRequestedChildNode.add(nodeId);
     this.send({
       method: Event.setChildNodes,
       params: {
@@ -261,18 +260,8 @@ export default class Dom extends BaseDomain {
 
       let previousNode = e.target.parentNode;
       const currentNodeId = nodes.getIdByNode(e.target);
-      const nodeIds = [];
-      while (!nodes.hasNode(previousNode)) {
-        const nodeId = nodes.getIdByNode(previousNode);
-        nodeIds.unshift(nodeId);
-        previousNode = previousNode.parentNode;
-      }
 
-      nodeIds.unshift(nodes.getIdByNode(previousNode));
-
-      nodeIds.forEach((nodeId) => {
-        this.requestChildNodes({ nodeId });
-      });
+      this.expandNode(previousNode)
 
       this.send({
         method: Event.nodeHighlightRequested,
@@ -280,6 +269,7 @@ export default class Dom extends BaseDomain {
           nodeId: currentNodeId
         }
       });
+
       this.send({
         method: Event.inspectNodeRequested,
         params: {
