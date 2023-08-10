@@ -47,7 +47,6 @@ export default class Dom extends BaseDomain {
    * @public
    */
   getDocument() {
-    console.log('getDocument', nodes.collectNodes(document))
     return {
       root: nodes.collectNodes(document),
     };
@@ -67,7 +66,7 @@ export default class Dom extends BaseDomain {
       method: Event.setChildNodes,
       params: {
         parentId: nodeId,
-        nodes: nodes.getChildNodes(nodes.getNodeById(nodeId))
+        nodes: nodes.getChildNodes(nodes.getNodeById(nodeId), 2)
       }
     });
   }

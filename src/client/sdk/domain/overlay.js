@@ -64,7 +64,7 @@ export default class Overlay extends BaseDomain {
       method: Event.setChildNodes,
       params: {
         parentId: nodeId,
-        nodes: nodes.getChildNodes(nodes.getNodeById(nodeId))
+        nodes: nodes.getChildNodes(nodes.getNodeById(nodeId), 2)
       }
     });
   }
