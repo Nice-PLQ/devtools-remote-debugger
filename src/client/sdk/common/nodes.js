@@ -32,6 +32,12 @@ class Nodes {
     this.nodes.set(nodeId, node);
   }
 
+  init() {
+    this.nodeIds.clear();
+    this.nodes.clear();
+    this.hasRequestedChildNode.clear();
+  }
+
   hasNode(node) {
     return this.nodeIds.has(node);
   }

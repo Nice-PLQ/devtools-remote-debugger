@@ -36,6 +36,7 @@ export default class Dom extends BaseDomain {
    * @public
    */
   enable() {
+    nodes.init();
     this.nodeObserver();
     this.setDomInspect();
     Dom.set$Function();
