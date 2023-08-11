@@ -7,6 +7,8 @@ class Nodes {
   // DOM node collection
   nodes = new Map();
 
+  hasRequestedChildNode = new Set()
+
   currentId = 0;
 
   /**
@@ -28,6 +30,12 @@ class Nodes {
   create(nodeId, node) {
     this.nodeIds.set(node, nodeId);
     this.nodes.set(nodeId, node);
+  }
+
+  init() {
+    this.nodeIds.clear();
+    this.nodes.clear();
+    this.hasRequestedChildNode.clear();
   }
 
   hasNode(node) {
