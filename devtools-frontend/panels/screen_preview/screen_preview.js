@@ -45,20 +45,47 @@ export class ScreenPreviewPanel extends UI.Widget.VBox {
       this.syncScroll(params);
     }
 
+    if (method === 'ScreenPreview.syncMouse') {
+      this.syncMouse(params);
+    }
   }
   syncScroll({ scrollLeft, scrollTop }) {
     this.iframe.contentWindow.scrollTo(scrollLeft, scrollTop);
+  }
+  syncMouse({ type, left, top }) {
+    this.mouse.style.top = `${top + 10}px`;
+    this.mouse.style.left = `${left + 10}px`;
+    this.mouse.style.display = 'block';
+
+    if (type === 'mousedown' || type === 'touchstart') {
+      this.mouse.style.transform = 'scale(0.8)';
+    }
+
+    if (type === 'mouseup' || type === 'touchend') {
+      this.mouse.style.transform = 'none';
+    }
+
+    if (this.mouseTimer) {
+      clearTimeout(this.mouseTimer);
+      this.mouseTimer = null;
+    }
+
+    this.mouseTimer = setTimeout(() => {
+      this.mouse.style.display = 'none'
+    }, 3000);
+
   }
   renderPreview({ isMobile, width, height, head, body }) {
     const iframeContent = this.iframe.contentDocument || this.iframe.contentWindow.document;
 
     head && (iframeContent.head.innerHTML = head);
     iframeContent.body.innerHTML = body;
-    if (isMobile) {
-      this.iframe.style.cssText = `width:${width}px;height:${height}px;`;
-    } else {
-      this.iframe.style.cssText = `width:${width * 0.75}px;max-width:1200px;height:${height * 0.75}px;max-height:1000px`;
-    }
+    // if (!isMobile) {
+    //   width = width >= window.innerWidth ? window.innerWidth * 0.85 : width;
+    //   height = height >= window.innerHeight ? window.innerHeight - 100 : height;
+    // }
+    this.iframe.style.width = `${width}px`;
+    this.iframe.style.height = `${height}px`;
     this.iframe.style.border = '10px solid var(--color-details-hairline)';
     this.iframe.style.borderRadius = '10px';
     this.iframe.style.boxSizing = 'content-box';
@@ -86,6 +113,9 @@ export class ScreenPreviewPanel extends UI.Widget.VBox {
     this.iframe.srcdoc = '<html><head></head><body></body></html>'
     this.container = document.createElement('div');
 
+    this.mouse = document.createElement('div');
+    this.mouse.style.cssText = 'display:none;position:absolute;top:10px;left:10px;width:20px;height:20px;border-radius:50%;border:2px solid #c2c2c2;background:rgba(0,0,0,0.4);';
+
     const dom = LitHtml.html`
       <style>
         .preview-container {
@@ -102,6 +132,7 @@ export class ScreenPreviewPanel extends UI.Widget.VBox {
         </div>
         <div style="position:relative">
           ${this.iframe}
+          ${this.mouse}
         </div>
       </div>
     `;

@@ -7,8 +7,6 @@ import { Event } from './protocol';
 export default class ScreenPreview extends BaseDomain {
   namespace = 'ScreenPreview';
 
-  previewed = false;
-
   static captureScreen() {
     return html2canvas(document.body, {
       allowTaint: true,
@@ -32,7 +30,6 @@ export default class ScreenPreview extends BaseDomain {
    * @public
    */
   startPreview() {
-    this.previewed = true;
     const selector = 'link[rel="stylesheet"],style';
     const styles = document.querySelectorAll(selector);
     let counts = styles.length;
@@ -65,8 +62,7 @@ export default class ScreenPreview extends BaseDomain {
     });
 
     // Observe the changes of the document
-    const observer = new MutationObserver(throttle(() => {
-      if (!this.previewed) return;
+    this.observerInst = new MutationObserver(throttle(() => {
       const curStyles = document.querySelectorAll(selector);
       let head;
       if (curStyles.length !== counts) {
@@ -84,9 +80,9 @@ export default class ScreenPreview extends BaseDomain {
           isMobile: isMobile(),
         }
       });
-    }, 300));
+    }, 1000));
 
-    observer.observe(document.documentElement, {
+    this.observerInst.observe(document.documentElement, {
       childList: true,
       subtree: true,
       attributes: true,
@@ -94,6 +90,12 @@ export default class ScreenPreview extends BaseDomain {
     });
 
     window.addEventListener('scroll', this.syncScroll);
+    window.addEventListener('mousemove', this.syncMouse);
+    window.addEventListener('mousedown', this.syncMouse);
+    window.addEventListener('mouseup', this.syncMouse);
+    window.addEventListener('touchmove', this.syncMouse);
+    window.addEventListener('touchstart', this.syncMouse);
+    window.addEventListener('touchend', this.syncMouse);
   }
 
   /**
@@ -101,8 +103,14 @@ export default class ScreenPreview extends BaseDomain {
    * @public
    */
   stopPreview() {
-    this.previewed = false;
+    this.observerInst.disconnect();
     window.removeEventListener('scroll', this.syncScroll);
+    window.removeEventListener('mousemove', this.syncMouse);
+    window.removeEventListener('mousedown', this.syncMouse);
+    window.removeEventListener('mouseup', this.syncMouse);
+    window.removeEventListener('touchmove', this.syncMouse);
+    window.removeEventListener('touchstart', this.syncMouse);
+    window.removeEventListener('touchend', this.syncMouse);
   }
 
   syncScroll = throttle(() => {
@@ -115,5 +123,21 @@ export default class ScreenPreview extends BaseDomain {
         scrollLeft,
       },
     });
-  }, 150)
+  }, 100)
+
+  syncMouse = throttle((e) => {
+    const type = e.type || 'mousemove'
+    let left = e.clientX;
+    let top = e.clientY;
+
+    if (type.includes('touch')) {
+      left = (e.touches[0] || e.changedTouches[0]).clientX;
+      top = (e.touches[0] || e.changedTouches[0]).clientY;
+    }
+
+    this.send({
+      method: Event.syncMouse,
+      params: { type, left, top },
+    });
+  }, 50)
 }

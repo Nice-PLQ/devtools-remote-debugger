@@ -48,4 +48,5 @@ export const Event = {
 
   captured: 'ScreenPreview.captured',
   syncScroll: 'ScreenPreview.syncScroll',
+  syncMouse: 'ScreenPreview.syncMouse',
 };
