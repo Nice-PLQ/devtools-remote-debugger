@@ -90,12 +90,10 @@ export default class ScreenPreview extends BaseDomain {
     });
 
     window.addEventListener('scroll', this.syncScroll);
-    window.addEventListener('mousemove', this.syncMouse);
-    window.addEventListener('mousedown', this.syncMouse);
-    window.addEventListener('mouseup', this.syncMouse);
-    window.addEventListener('touchmove', this.syncMouse);
-    window.addEventListener('touchstart', this.syncMouse);
-    window.addEventListener('touchend', this.syncMouse);
+
+    ['mousemove', 'mousedown', 'mouseup', 'touchmove', 'touchstart', 'touchend'].forEach(event => {
+      window.addEventListener(event, this.syncMouse);
+    });
   }
 
   /**
@@ -105,12 +103,9 @@ export default class ScreenPreview extends BaseDomain {
   stopPreview() {
     this.observerInst.disconnect();
     window.removeEventListener('scroll', this.syncScroll);
-    window.removeEventListener('mousemove', this.syncMouse);
-    window.removeEventListener('mousedown', this.syncMouse);
-    window.removeEventListener('mouseup', this.syncMouse);
-    window.removeEventListener('touchmove', this.syncMouse);
-    window.removeEventListener('touchstart', this.syncMouse);
-    window.removeEventListener('touchend', this.syncMouse);
+    ['mousemove', 'mousedown', 'mouseup', 'touchmove', 'touchstart', 'touchend'].forEach(event => {
+      window.removeEventListener(event, this.syncMouse);
+    });
   }
 
   syncScroll = throttle(() => {
