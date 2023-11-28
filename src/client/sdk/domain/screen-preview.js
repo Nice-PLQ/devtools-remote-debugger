@@ -44,7 +44,7 @@ export default class ScreenPreview extends BaseDomain {
         }
 
         if (tag === 'style') {
-          tags += `<style>${style.innerHTML}</style>`
+          tags += `<style>${style.innerHTML}</style>`;
         }
       });
       return `<head>${tags}</head>`;
@@ -118,10 +118,10 @@ export default class ScreenPreview extends BaseDomain {
         scrollLeft,
       },
     });
-  }, 100)
+  }, 100);
 
   syncMouse = throttle((e) => {
-    const type = e.type || 'mousemove'
+    const type = e.type || 'mousemove';
     let left = e.clientX;
     let top = e.clientY;
 
@@ -134,5 +134,5 @@ export default class ScreenPreview extends BaseDomain {
       method: Event.syncMouse,
       params: { type, left, top },
     });
-  }, 50)
+  }, 50);
 }

@@ -7,7 +7,8 @@
     "client": "webpack serve --config ./src/client/webpack.config.dev.js",
     "build": "webpack --progress --config ./src/client/webpack.config.js",
     "serve": "cross-env NODE_ENV=development npx nodemon ./src/server/index.js",
-    "start": "cross-env NODE_ENV=production node ./src/server/index.js"
+    "start": "cross-env NODE_ENV=production node ./src/server/index.js",
+    "lint": "eslint src/**/*.js --fix"
   },
   "keywords": [
     "devtools",
@@ -33,6 +34,11 @@
     "cross-env": "^7.0.3",
     "css-loader": "^6.7.3",
     "dotenv-webpack": "^8.0.1",
+    "eslint": "^8.0.1",
+    "eslint-config-standard": "^17.1.0",
+    "eslint-plugin-import": "^2.25.2",
+    "eslint-plugin-n": "^15.0.0 || ^16.0.0 ",
+    "eslint-plugin-promise": "^6.0.0",
     "html-webpack-plugin": "^5.5.0",
     "mini-css-extract-plugin": "^2.7.5",
     "nodemon": "^2.0.22",

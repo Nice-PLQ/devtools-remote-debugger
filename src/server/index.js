@@ -72,7 +72,7 @@ function getRouter(clients) {
     ctx.body = { targets };
   });
 
-  //Routing for the example page
+  // Routing for the example page
   router.get('/example/(.*)', async (ctx) => {
     await send(ctx, getFilePath(ctx.path));
   });

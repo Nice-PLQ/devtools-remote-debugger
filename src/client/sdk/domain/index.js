@@ -77,7 +77,7 @@ export default class ChromeDomain {
           this.protocol['Debugger.getDynamicScript'](url);
         }
       }
-    }
+    };
 
     HTMLHeadElement.prototype.appendChild = function (node) {
       originHeadAppendChild.call(this, node);
@@ -85,7 +85,7 @@ export default class ChromeDomain {
     };
     HTMLBodyElement.prototype.appendChild = function (node) {
       originBodyAppendChild.call(this, node);
-      fetchSource(node)
+      fetchSource(node);
     };
   }
 };

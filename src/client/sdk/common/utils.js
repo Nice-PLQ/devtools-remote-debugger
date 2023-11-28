@@ -1,4 +1,3 @@
-
 /**
  * get absolute path
  * @param {String} url

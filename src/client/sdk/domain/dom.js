@@ -186,7 +186,6 @@ export default class Dom extends BaseDomain {
       this.searchRet.set(++this.searchId, ret);
     }
 
-
     return {
       searchId: this.searchId,
       resultCount: ret.length,
@@ -201,7 +200,7 @@ export default class Dom extends BaseDomain {
     const nodeIds = [];
     ret.forEach(node => {
       this.expandNode(node);
-      nodeIds.push(nodes.getIdByNode(node))
+      nodeIds.push(nodes.getIdByNode(node));
     });
 
     return { nodeIds };
@@ -258,10 +257,10 @@ export default class Dom extends BaseDomain {
       e.stopPropagation();
       e.preventDefault();
 
-      let previousNode = e.target.parentNode;
+      const previousNode = e.target.parentNode;
       const currentNodeId = nodes.getIdByNode(e.target);
 
-      this.expandNode(previousNode)
+      this.expandNode(previousNode);
 
       this.send({
         method: Event.nodeHighlightRequested,
