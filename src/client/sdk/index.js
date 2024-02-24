@@ -1,7 +1,7 @@
 import qs from 'query-string';
 import uuid from 'string-random';
 import ReconnectingWebSocket from 'reconnecting-websocket';
-import { getAbsoultPath } from './common/utils';
+import { getAbsolutePath } from './common/utils';
 import ChromeDomain from './domain/index';
 
 function getDocumentFavicon() {
@@ -13,7 +13,7 @@ function getDocumentFavicon() {
 
   let iconUrl = '';
   if (icon) {
-    iconUrl = getAbsoultPath(icon.getAttribute('href'));
+    iconUrl = getAbsolutePath(icon.getAttribute('href'));
   }
 
   return iconUrl;

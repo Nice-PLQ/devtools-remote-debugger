@@ -141,15 +141,18 @@ export function objectFormat(val, others = {}) {
     });
     // HTML Element
   } else if (subtype === 'node') {
-    res.className = val.constructor.name;
-    res.description = val.constructor.name;
+    res.className = res.description = val.constructor.name;
+    // Others
   } else {
-    res.className = val.constructor.name;
-    res.description = val.constructor.name;
+    try {
+      res.className = res.description = val.constructor.name;
+    } catch {
+      res.className = res.description = '';
+    }
     preview && (res.preview = {
       type,
       subtype,
-      description: val.constructor.name,
+      description: res.description,
       ...getPreview(val, { origin }),
     });
   }

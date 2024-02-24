@@ -1,5 +1,5 @@
 import BaseDomain from './domain';
-import { getAbsoultPath } from '../common/utils';
+import { getAbsolutePath } from '../common/utils';
 import { Event } from './protocol';
 
 export default class Debugger extends BaseDomain {
@@ -51,7 +51,7 @@ export default class Debugger extends BaseDomain {
    */
   getDynamicScript(url) {
     const scriptId = this.getScriptId();
-    this.fetchScriptSource(scriptId, getAbsoultPath(url));
+    this.fetchScriptSource(scriptId, getAbsolutePath(url));
     this.send({
       method: Event.scriptParsed,
       params: {
@@ -77,7 +77,7 @@ export default class Debugger extends BaseDomain {
       const scriptId = this.getScriptId();
       const src = script.getAttribute('src');
       if (src) {
-        const url = getAbsoultPath(src);
+        const url = getAbsolutePath(src);
         ret.push({ scriptId, url });
         this.fetchScriptSource(scriptId, url);
       }

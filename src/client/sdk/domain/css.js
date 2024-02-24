@@ -1,5 +1,5 @@
 import nodes from '../common/nodes';
-import { getAbsoultPath, isMatches } from '../common/utils';
+import { getAbsolutePath, isMatches } from '../common/utils';
 import BaseDomain from './domain';
 import { Event } from './protocol';
 
@@ -77,7 +77,7 @@ export default class CSS extends BaseDomain {
         const styleSheetId = this.getStyleSheetId();
         style.styleSheetId = styleSheetId;
 
-        const sourceURL = getAbsoultPath(style.href);
+        const sourceURL = getAbsolutePath(style.href);
         if (sourceURL) {
           this.fetchStyleSource(styleSheetId, sourceURL);
         }
@@ -170,7 +170,7 @@ export default class CSS extends BaseDomain {
    */
   getDynamicLink(url) {
     const styleSheetId = this.getStyleSheetId();
-    this.fetchStyleSource(styleSheetId, getAbsoultPath(url));
+    this.fetchStyleSource(styleSheetId, getAbsolutePath(url));
     this.send({
       method: Event.styleSheetAdded,
       params: {

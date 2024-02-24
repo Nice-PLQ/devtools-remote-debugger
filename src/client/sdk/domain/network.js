@@ -1,5 +1,5 @@
 import jsCookie from 'js-cookie';
-import { getAbsoultPath, key2UpperCase } from '../common/utils';
+import { getAbsolutePath, key2UpperCase } from '../common/utils';
 import BaseDomain from './domain';
 import { Event } from './protocol';
 
@@ -133,7 +133,7 @@ export default class Network extends BaseDomain {
       const [method, url] = params;
       this.$$request = {
         method,
-        url: getAbsoultPath(url),
+        url: getAbsolutePath(url),
         requestId: instance.getRequestId(),
         headers: Network.getDefaultHeaders(),
       };
@@ -170,7 +170,7 @@ export default class Network extends BaseDomain {
           const responseHeaders = Network.formatResponseHeader(headers);
           instance.sendNetworkEvent({
             requestId,
-            url: getAbsoultPath(url),
+            url: getAbsolutePath(url),
             headers: responseHeaders,
             blockedCookies: [],
             headersText: headers,
@@ -220,7 +220,7 @@ export default class Network extends BaseDomain {
         ({ url, method } = request);
       }
 
-      url = getAbsoultPath(url);
+      url = getAbsolutePath(url);
       const requestId = instance.getRequestId();
       const sendRequest = {
         url,

@@ -2,7 +2,7 @@
  * get absolute path
  * @param {String} url
  */
-export function getAbsoultPath(url) {
+export function getAbsolutePath(url) {
   if (!url || typeof url !== 'string') return '';
   const a = document.createElement('a');
   a.href = url;
