@@ -998,6 +998,7 @@ export function registerCommands(inspectorBackend) {
 
     inspectorBackend.registerEvent("ScreenPreview.captured", ["head", "body", "width", "height", "isMobile"]);
     inspectorBackend.registerEvent("ScreenPreview.syncScroll", ["scrollLeft", "scrollTop"]);
+    inspectorBackend.registerEvent("ScreenPreview.syncMouse", ["type", "left", "top"]);
 
 }
 //# sourceMappingURL=InspectorBackendCommands.js.map
