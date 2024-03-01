@@ -7,8 +7,8 @@ module.exports = {
         modules: false,
         targets: {
           browsers: [
-            'Android >= 5.0',
-            'iOS >= 10.0'
+            'Android >= 8.0',
+            'iOS >= 10.3'
           ]
         }
       }
