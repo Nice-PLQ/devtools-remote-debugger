@@ -1,4 +1,3 @@
-import qs from 'query-string';
 import uuid from 'string-random';
 import ReconnectingWebSocket from 'reconnecting-websocket';
 import { getAbsolutePath } from './common/utils';
@@ -30,17 +29,19 @@ function getId() {
   return id;
 }
 
-const query = qs.stringify({
-  url: location.href,
-  title: document.title,
-  favicon: getDocumentFavicon(),
-  time: Date.now(),
-  ua: navigator.userAgent,
-});
+function getQuery() {
+  const search = new URLSearchParams();
+  search.append('url', location.href);
+  search.append('title', document.title);
+  search.append('favicon', getDocumentFavicon());
+  search.append('time', Date.now());
+  search.append('ua', navigator.userAgent);
+  return search.toString();
+}
 
 const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
 const host = process.env.DEBUG_HOST.replace(/^(http|https):\/\//ig, '');
-const socket = new ReconnectingWebSocket(`${protocol}//${host}/remote/debug/client/${getId()}?${query}`);
+const socket = new ReconnectingWebSocket(`${protocol}//${host}/remote/debug/client/${getId()}?${getQuery()}`);
 const domain = new ChromeDomain({ socket });
 
 socket.addEventListener('message', ({ data }) => {

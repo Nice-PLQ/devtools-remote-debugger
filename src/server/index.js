@@ -6,6 +6,8 @@ const koaCompress = require('koa-compress');
 const send = require('koa-send');
 const notFound = require('./middleware/404');
 const SocketServer = require('./socketServer');
+const imageToBase64 = require('image-to-base64');
+
 require('dotenv').config({
   path: path.resolve(process.cwd(), process.env.NODE_ENV === 'development' ? '.env.dev' : '.env'),
 });
@@ -70,6 +72,16 @@ function getRouter(clients) {
       .sort((a, b) => b.time - a.time);
 
     ctx.body = { targets };
+  });
+
+  router.get('/image_base64', async (ctx) => {
+    const { url } = ctx.query;
+    try {
+      const base64 = await imageToBase64(url);
+      ctx.body = { base64 };
+    } catch {
+      ctx.body = { base64: '' };
+    }
   });
 
   // Routing for the example page

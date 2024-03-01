@@ -1,9 +1,12 @@
 import jsCookie from 'js-cookie';
+import mime from 'mime/lite';
 import { getAbsolutePath, key2UpperCase } from '../common/utils';
 import BaseDomain from './domain';
 import { Event } from './protocol';
 
 const getTimestamp = () => Date.now() / 1000;
+
+const originFetch = window.fetch;
 
 export default class Network extends BaseDomain {
   namespace = 'Network';
@@ -11,7 +14,7 @@ export default class Network extends BaseDomain {
   // the unique id of the request
   requestId = 0;
 
-  responseText = new Map();
+  responseData = new Map();
 
   cacheRequest = [];
 
@@ -66,19 +69,28 @@ export default class Network extends BaseDomain {
   enable() {
     this.isEnable = true;
     this.cacheRequest.forEach(data => this.send(data));
+    this.reportImageNetwork();
   }
 
   /**
-   * Get request response content
+   * Get network response content
    * @public
    * @param {Object} param
    * @param {Number} param.requestId
    */
   getResponseBody({ requestId }) {
-    return {
-      body: this.responseText.get(requestId),
-      base64Encoded: false,
-    };
+    let body = '';
+    let base64Encoded = false;
+    const response = this.responseData.get(requestId);
+
+    if (typeof response === 'string') {
+      body = response;
+    } else {
+      body = response.data;
+      base64Encoded = true;
+    }
+
+    return { body, base64Encoded };
   }
 
   /**
@@ -185,14 +197,14 @@ export default class Network extends BaseDomain {
       this.addEventListener('load', () => {
         if (this.responseType === '' || this.responseType === 'text') {
           // Cache the response result after the request ends, which will be used when getResponseBody
-          instance.responseText.set(this.$$request.requestId, this.responseText);
+          instance.responseData.set(this.$$request.requestId, this.responseText);
         }
       });
     };
 
     XMLHttpRequest.prototype.setRequestHeader = function (key, value) {
       if (this.$$request) {
-        this.$$request.headers[key] = value;
+        this.$$request.headers[key] = String(value);
       }
       xhrSetRequestHeader.call(this, key, value);
     };
@@ -204,8 +216,6 @@ export default class Network extends BaseDomain {
    */
   hookFetch() {
     const instance = this;
-    const originFetch = window.fetch;
-
     window.fetch = function (request, initConfig = {}) {
       let url;
       let method;
@@ -279,7 +289,7 @@ export default class Network extends BaseDomain {
         return '';
       })
         .then((responseBody) => {
-          instance.responseText.set(requestId, responseBody);
+          instance.responseData.set(requestId, responseBody);
           // Returns the raw response to the request
           return oriResponse;
         })
@@ -293,6 +303,86 @@ export default class Network extends BaseDomain {
           throw error;
         });
     };
+  }
+
+  /**
+   * @private
+   * report image request for Network panel
+   */
+  reportImageNetwork() {
+    const imgUrls = new Set();
+
+    const reportNetwork = (urls) => {
+      urls.forEach(async (url) => {
+        const requestId = this.getRequestId();
+
+        try {
+          const { base64 } = await originFetch(
+            `${process.env.DEBUG_HOST}/remote/debug/image_base64?url=${encodeURIComponent(url)}`
+          )
+            .then(res => res.json());
+
+          this.responseData.set(requestId, {
+            data: base64,
+            base64Encoded: true,
+          });
+        } catch {
+          // nothing to do
+        }
+
+        this.send({
+          method: Event.requestWillBeSent,
+          params: {
+            requestId,
+            documentURL: location.href,
+            timestamp: getTimestamp(),
+            wallTime: Date.now(),
+            type: 'Image',
+            request: { method: 'GET', url },
+          }
+        });
+
+        this.sendNetworkEvent({
+          url,
+          requestId,
+          status: 200,
+          statusText: '',
+          headersText: '',
+          type: 'Image',
+          blockedCookies: [],
+          encodedDataLength: 0,
+        });
+      });
+    };
+
+    const getImageUrls = () => {
+      const urls = [];
+      Object.values(document.images).forEach(image => {
+        const url = image.getAttribute('src');
+        if (!imgUrls.has(url)) {
+          imgUrls.add(url);
+          urls.push(url);
+        }
+      });
+      return urls;
+    };
+
+    const observerBodyMutation = () => {
+      const observer = new MutationObserver(() => {
+        const urls = getImageUrls();
+        if (urls.length) {
+          reportNetwork(urls);
+        }
+      });
+
+      observer.observe(document.body, {
+        childList: true,
+        subtree: true,
+      });
+    };
+
+    reportNetwork(getImageUrls());
+    observerBodyMutation();
   }
 
   /**
@@ -315,17 +405,20 @@ export default class Network extends BaseDomain {
         type,
         requestId,
         timestamp: getTimestamp(),
-        response: { url, status, statusText, headers }
+        response: { url, status, statusText, headers, mimeType: mime.getType(url) }
       },
     });
 
-    this.socketSend({
-      method: Event.loadingFinished,
-      params: {
-        requestId,
-        encodedDataLength,
-        timestamp: getTimestamp(),
-      },
-    });
+    setTimeout(() => {
+      // loadingFinished event delay report
+      this.socketSend({
+        method: Event.loadingFinished,
+        params: {
+          requestId,
+          encodedDataLength,
+          timestamp: getTimestamp(),
+        },
+      });
+    }, 10);
   }
 };
