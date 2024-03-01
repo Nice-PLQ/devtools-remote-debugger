@@ -2,12 +2,13 @@
 export default {
   CSS: ['enable', 'getStyleSheetText', 'getMatchedStylesForNode', 'getComputedStyleForNode', 'getDynamicLink'],
   Debugger: ['enable', 'getScriptSource', 'getDynamicScript'],
-  DOMStorage: ['getDOMStorageItems', 'removeDOMStorageItem', 'clear', 'setDOMStorageItem'],
+  DOMStorage: ['enable', 'getDOMStorageItems', 'removeDOMStorageItem', 'clear', 'setDOMStorageItem'],
   Storage: ['getStorageKeyForFrame'],
   DOM: [
     'enable', 'getDocument', 'removeNode', 'requestChildNodes', 'requestNode', 'getOuterHTML',
     'setOuterHTML', 'setAttributesAsText', 'setInspectedNode', 'pushNodesByBackendIdsToFrontend',
-    'performSearch', 'getSearchResults', 'discardSearchResults', 'getNodeForLocation'
+    'performSearch', 'getSearchResults', 'discardSearchResults', 'getNodeForLocation', 'setNodeValue',
+    'getBoxModel',
   ],
   Network: ['enable', 'getCookies', 'setCookie', 'deleteCookies', 'getResponseBody'],
   Overlay: ['enable', 'highlightNode', 'hideHighlight', 'setInspectMode'],
@@ -21,8 +22,10 @@ export const Event = {
 
   scriptParsed: 'Debugger.scriptParsed',
 
+  domStorageItemAdded: 'DOMStorage.domStorageItemAdded',
   domStorageItemRemoved: 'DOMStorage.domStorageItemRemoved',
   domStorageItemsCleared: 'DOMStorage.domStorageItemsCleared',
+  domStorageItemUpdated: 'DOMStorage.domStorageItemUpdated',
 
   setChildNodes: 'DOM.setChildNodes',
   childNodeCountUpdated: 'DOM.childNodeCountUpdated',
