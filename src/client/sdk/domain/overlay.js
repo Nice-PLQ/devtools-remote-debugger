@@ -35,6 +35,18 @@ export default class Overlay extends BaseDomain {
   }
 
   /**
+   * @static
+   */
+  static formatNumber(num) {
+    if (num % 1 === 0) return num;
+
+    const fixed = num.toFixed(2);
+    const numArr = fixed.split('.');
+    if (numArr[1] === '00') return numArr[0];
+    return fixed;
+  }
+
+  /**
    * @private
    */
   expandNode(node) {
@@ -192,22 +204,24 @@ export default class Overlay extends BaseDomain {
       'border-left': `${margin[3]}px solid ${Overlay.rgba(marginColor)}`,
     });
 
+    const isTopPosition = top - margin[0] > 25;
+
     const currentClassName = node.getAttribute('class');
     tooltipsBox.innerHTML = `
-    <span class="${className}" style="color:#973090;font-weight:bold">${node.nodeName.toLowerCase()}</span>
-    <span class="${className}" style="color:#3434B0;font-weight:bold">${currentClassName ? `.${currentClassName}` : ''}</span>
-    ${contentWidth} x ${contentHeight}
+    <span class="${className}" style="color:#973090;font-weight:bold">${node.nodeName.toLowerCase()}</span><span class="${className}" style="color:#3434B0;font-weight:bold">${currentClassName ? `.${currentClassName}` : ''}</span>
+    <span class="${className}" style="position:absolute;top:${isTopPosition ? 'auto' : '-4px'};bottom:${isTopPosition ? '-4px' : 'auto'};left:10px;width:8px;height:8px;background:#fff;transform:rotate(45deg);"></span>
+    ${Overlay.formatNumber(contentWidth)} x ${Overlay.formatNumber(contentHeight)}
   `;
     tooltipsBox.style.cssText = Overlay.formatCssText({
       ...commonStyle,
       background: '#fff',
       left: `${left - margin[3]}px`,
-      top: top - margin[0] > 25 ? `${top - margin[0] - 25}px` : `${top + marginHeight + 25}px`,
-      'box-shadow': '0 0 4px 1px #c3bebe',
+      top: isTopPosition ? `${top - margin[0] - 30}px` : `${top + marginHeight + 10}px`,
+      filter: 'drop-shadow(0 0 3px rgba(0,0,0,0.3))',
       'border-radius': '2px',
       'font-size': '12px',
       padding: '2px 4px',
-      color: '#8d8d8d'
+      color: '#8d8d8d',
     });
   }
 

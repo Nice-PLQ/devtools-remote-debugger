@@ -3,6 +3,7 @@ import { getObjectById } from '../common/remoteObject';
 import { DEVTOOL_OVERLAY, IGNORE_NODE } from '../common/constant';
 import BaseDomain from './domain';
 import { Event } from './protocol';
+import Overlay from './overlay';
 
 export default class Dom extends BaseDomain {
   namespace = 'DOM';
@@ -227,6 +228,58 @@ export default class Dom extends BaseDomain {
         nodeId,
       };
     }
+  }
+
+  /**
+   * @public
+   */
+  setNodeValue({ nodeId, value }) {
+    const node = nodes.getNodeById(nodeId);
+    node.nodeValue = value;
+  }
+
+  /**
+   * @public
+   */
+  getBoxModel({ nodeId }) {
+    const node = nodes.getNodeById(nodeId);
+    const styles = window.getComputedStyle(node);
+    const margin = Overlay.getStylePropertyValue(['margin-top', 'margin-right', 'margin-bottom', 'margin-left'], styles);
+    const padding = Overlay.getStylePropertyValue(['padding-top', 'padding-right', 'padding-bottom', 'padding-left'], styles);
+    const border = Overlay.getStylePropertyValue(['border-top-width', 'border-right-width', 'border-bottom-width', 'border-left-width'], styles);
+
+    const { left, right, top, bottom, width, height } = node.getBoundingClientRect();
+
+    return {
+      model: {
+        width,
+        height,
+        content: [
+          left + border[3] + padding[3], top + border[0] + padding[0],
+          right - border[1] - padding[1], top + border[0] + padding[0],
+          right - border[1] - padding[1], bottom - border[2] - padding[2],
+          left + border[3] + padding[3], bottom - border[2] - padding[2],
+        ],
+        padding: [
+          left + border[3], top + border[0],
+          right - border[1], top + border[0],
+          right - border[1], bottom - border[2],
+          left + border[3], bottom - border[2],
+        ],
+        border: [
+          left, top,
+          right, top,
+          right, bottom,
+          left, bottom,
+        ],
+        margin: [
+          left - margin[3], top - margin[0],
+          right + margin[1], top - margin[0],
+          right + margin[1], bottom + margin[2],
+          left - margin[3], bottom + margin[2],
+        ],
+      }
+    };
   }
 
   /**
