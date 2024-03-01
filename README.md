@@ -63,6 +63,7 @@ https://github.com/Nice-PLQ/devtools-remote-debugger/assets/10710341/93c5cbb4-c1
 
 - Show XHR/Fetch Request
 - Show JavaScript/CSS/HTML Request
+- Show Image Request
 
 <details>
   <summary>

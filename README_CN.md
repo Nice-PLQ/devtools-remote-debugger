@@ -54,7 +54,7 @@ https://github.com/Nice-PLQ/devtools-remote-debugger/assets/10710341/93c5cbb4-c1
 </details>
   
 ### Network
-  - 异步请求抓包、html、js、css 静态资源请求抓包。
+  - 异步请求抓包、html、js、css、image 静态资源请求抓包。
 
 <details>
   <summary>
