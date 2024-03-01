@@ -156,4 +156,4 @@ npm run start
 
 [MIT](./LICENSE)
 
-Copyright (c) 2023-present, Nice-PLQ
+Copyright (c) Nice-PLQ

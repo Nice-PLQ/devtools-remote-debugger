@@ -167,4 +167,4 @@ Due to the restrictions of the same-origin policy, you may need to make the foll
 
 [MIT](./LICENSE)
 
-Copyright (c) 2023-present, Nice-PLQ
+Copyright (c) Nice-PLQ
