@@ -1,6 +1,5 @@
-import html2canvas from 'html2canvas';
 import throttle from 'lodash.throttle';
-import { isMatches, isMobile } from '../common/utils';
+import { isMatches, isMobile, loadScript } from '../common/utils';
 import BaseDomain from './domain';
 import { Event } from './protocol';
 
@@ -8,7 +7,7 @@ export default class ScreenPreview extends BaseDomain {
   namespace = 'ScreenPreview';
 
   static captureScreen() {
-    return html2canvas(document.body, {
+    const renderScreen = () => window.html2canvas(document.body, {
       allowTaint: true,
       backgroundColor: null,
       useCORS: true,
@@ -23,6 +22,12 @@ export default class ScreenPreview extends BaseDomain {
           visibility === 'hidden';
       }
     }).then(canvas => canvas.toDataURL('image/jpeg'));
+
+    if (window.html2canvas) {
+      return renderScreen();
+    }
+
+    return loadScript('https://unpkg.com/html2canvas@1.4.1/dist/html2canvas.min.js').then(renderScreen);
   }
 
   /**
@@ -101,7 +106,7 @@ export default class ScreenPreview extends BaseDomain {
    * @public
    */
   stopPreview() {
-    this.observerInst.disconnect();
+    this.observerInst && this.observerInst.disconnect();
     window.removeEventListener('scroll', this.syncScroll);
     ['mousemove', 'mousedown', 'mouseup', 'touchmove', 'touchstart', 'touchend'].forEach(event => {
       window.removeEventListener(event, this.syncMouse);

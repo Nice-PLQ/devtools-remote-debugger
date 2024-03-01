@@ -17,7 +17,7 @@ export function isMatches(element, selector) {
   // When some selectors in the safair kernel cannot be parsed, calling the matches method will throw an exception, which is captured here
   try {
     if (element.matches) {
-      return element.matches((selector));
+      return element.matches(selector);
     }
     // deprecated
     if (element.webkitMatchesSelector) {
@@ -33,4 +33,14 @@ export function isMatches(element, selector) {
 
 export function isMobile() {
   return /ios|iphone|ipod|android/.test(navigator.userAgent.toLowerCase());
+}
+
+export function loadScript(url) {
+  return new Promise((resolve, reject) => {
+    const script = document.createElement('script');
+    script.src = url;
+    script.onload = resolve;
+    script.onerror = reject;
+    document.body.appendChild(script);
+  });
 }
