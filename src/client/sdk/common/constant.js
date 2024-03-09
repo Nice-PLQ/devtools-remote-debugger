@@ -1,4 +1,4 @@
-export const DEVTOOL_OVERLAY = 'devtools-overlay';
+export const DEVTOOL_OVERLAY = '__devtools-overlay__';
 
 export const HTML_TO_CANVAS = 'html2canvas-container';
 

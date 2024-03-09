@@ -1,5 +1,6 @@
 import throttle from 'lodash.throttle';
 import { isMatches, isMobile, loadScript } from '../common/utils';
+import { DEVTOOL_OVERLAY } from '../common/constant';
 import BaseDomain from './domain';
 import { Event } from './protocol';
 
@@ -16,7 +17,7 @@ export default class ScreenPreview extends BaseDomain {
       ignoreElements: (element) => {
         if (!element?.style) return false;
         const { display, opacity, visibility } = element.style;
-        return isMatches(element, '.devtools-overlay') ||
+        return isMatches(element, `.${DEVTOOL_OVERLAY}`) ||
           display === 'none' ||
           opacity === 0 ||
           visibility === 'hidden';
