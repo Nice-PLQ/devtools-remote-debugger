@@ -39,32 +39,49 @@ function getQuery() {
   return search.toString();
 }
 
-const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
-const host = process.env.DEBUG_HOST.replace(/^(http|https):\/\//ig, '');
-const socket = new ReconnectingWebSocket(`${protocol}//${host}/remote/debug/client/${getId()}?${getQuery()}`);
-const domain = new ChromeDomain({ socket });
+function initSocket() {
+  const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+  const host = process.env.DEBUG_HOST.replace(/^(http|https):\/\//ig, '');
+  const socket = new ReconnectingWebSocket(`${protocol}//${host}/remote/debug/client/${getId()}?${getQuery()}`);
+  const domain = new ChromeDomain({ socket });
 
-socket.addEventListener('message', ({ data }) => {
-  try {
-    const message = JSON.parse(data);
-    const ret = domain.execute(message);
-    socket.send(JSON.stringify(ret));
-  } catch (e) {
-    console.log(e);
-  }
-});
+  socket.addEventListener('message', ({ data }) => {
+    try {
+      const message = JSON.parse(data);
+      const ret = domain.execute(message);
+      socket.send(JSON.stringify(ret));
+    } catch (e) {
+      console.log(e);
+    }
+  });
 
-let heartbeat;
-socket.addEventListener('open', () => {
-  // Heartbeat keep alive
-  heartbeat = setInterval(() => {
-    socket.send('{}');
-  }, 10000);
-});
+  let heartbeat;
+  socket.addEventListener('open', () => {
+    // Heartbeat keep alive
+    heartbeat = setInterval(() => {
+      socket.send('{}');
+    }, 10000);
+  });
 
-socket.addEventListener('close', () => {
-  clearInterval(heartbeat);
-});
-socket.addEventListener('error', () => {
-  clearInterval(heartbeat);
-});
+  socket.addEventListener('close', () => {
+    clearInterval(heartbeat);
+  });
+  socket.addEventListener('error', () => {
+    clearInterval(heartbeat);
+  });
+}
+
+function keepScreenDisplay() {
+  if (!navigator.wakeLock) return;
+
+  navigator.wakeLock.request('screen');
+
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') {
+      navigator.wakeLock.request('screen');
+    }
+  });
+}
+
+initSocket();
+keepScreenDisplay();
