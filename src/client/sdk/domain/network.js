@@ -221,7 +221,7 @@ export default class Network extends BaseDomain {
       let method;
       let data = '';
       // When request is a string, it is the requested url
-      if (typeof request === 'string') {
+      if (typeof request === 'string' || request instanceof URL) {
         url = request;
         method = initConfig.method || 'get';
         data = initConfig.body;
