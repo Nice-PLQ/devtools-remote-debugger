@@ -80,12 +80,14 @@ export default class ChromeDomain {
     };
 
     HTMLHeadElement.prototype.appendChild = function (node) {
-      originHeadAppendChild.call(this, node);
+      const result = originHeadAppendChild.call(this, node);
       fetchSource(node);
+      return result;
     };
     HTMLBodyElement.prototype.appendChild = function (node) {
-      originBodyAppendChild.call(this, node);
+      const result = originBodyAppendChild.call(this, node);
       fetchSource(node);
+      return result;
     };
   }
 };
