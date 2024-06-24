@@ -163,6 +163,10 @@ Due to the restrictions of the same-origin policy, you may need to make the foll
 - Browsers do not allow JavaScript to read CSSRules of different domains by default, so you need to add the `crossorigin="anonymous"` attribute when the link introduces an external style, and the style of the style tag does not have this problem.
 - To capture Javascript specific error messages, you also need to add `crossorigin="anonymous"` to the script tag.
 
+## Star History
+
+[![Star History Chart](https://api.star-history.com/svg?repos=Nice-PLQ/devtools-remote-debugger&type=Date)](https://star-history.com/#Nice-PLQ/devtools-remote-debugger&Date)
+
 ## License
 
 [MIT](./LICENSE)
