@@ -86,7 +86,7 @@ export default class Network extends BaseDomain {
     if (typeof response === 'string') {
       body = response;
     } else {
-      body = response.data;
+      body = response?.data;
       base64Encoded = true;
     }
 
