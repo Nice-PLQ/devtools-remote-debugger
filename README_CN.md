@@ -4,6 +4,8 @@
 
 被调试的 web 页面通过 websocket 连接到中间的 node 层，devtools 同样也通过 websocket 连接到 node。node 中间层的作用主要进行 socket 协议的相互转发，以此让 web 页面和 devtools 实现全双工的通信。
 
+同时该项目也收录在[awesome-chrome-devtools](https://github.com/ChromeDevTools/awesome-chrome-devtools#browser-adapters)
+
 ![](./images/cdp.png)
 
 ## 🎬 调试 DEMO
