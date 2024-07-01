@@ -148,7 +148,7 @@ export default class Overlay extends BaseDomain {
         highlightConfig: this.highlightConfig,
       });
 
-      this.expandNode(e.target.parentNode);
+      this.expandNode(target.parentNode);
 
       this.send({
         method: Event.nodeHighlightRequested,
@@ -187,6 +187,7 @@ export default class Overlay extends BaseDomain {
       position: 'fixed',
       zIndex: 99999,
       pointerEvents: 'none',
+      textShadow: 'none',
     });
 
     containerBox.className = DEVTOOL_OVERLAY;
@@ -232,11 +233,13 @@ export default class Overlay extends BaseDomain {
     const { contentColor, paddingColor, marginColor } = highlightConfig;
     const { containerBox, contentBox, marginBox, tooltipsBox } = this.highlightBox;
 
+    const zoom = this.getDocumentZoom();
+
     containerBox.style.display = 'block';
 
     Object.assign(contentBox.style, {
-      left: `${left}px`,
-      top: `${top}px`,
+      left: `${left / zoom.x}px`,
+      top: `${top / zoom.y}px`,
       width: `${contentWidth}px`,
       height: `${contentHeight}px`,
       background: Overlay.rgba(contentColor),
@@ -246,8 +249,8 @@ export default class Overlay extends BaseDomain {
     });
 
     Object.assign(marginBox.style, {
-      left: `${left - margin[3]}px`,
-      top: `${top - margin[0]}px`,
+      left: `${(left / zoom.x) - margin[3]}px`,
+      top: `${(top / zoom.y) - margin[0]}px`,
       width: `${marginWidth}px`,
       height: `${marginHeight}px`,
       borderColor: Overlay.rgba(marginColor),
@@ -267,13 +270,31 @@ export default class Overlay extends BaseDomain {
 
     Object.assign(tooltipsBox.style, {
       background: '#fff',
-      left: `${left - margin[3]}px`,
-      top: isTopPosition ? `${top - margin[0] - 30}px` : `${top + marginHeight + 10}px`,
+      left: `${(left / zoom.x) - margin[3]}px`,
+      top: isTopPosition ? `${(top / zoom.y) - margin[0] - 30}px` : `${(top / zoom.y) + marginHeight + 10}px`,
       filter: 'drop-shadow(0 0 3px rgba(0,0,0,0.3))',
       'border-radius': '2px',
       'font-size': '12px',
       padding: '2px 4px',
       color: '#8d8d8d',
     });
+  }
+
+  /**
+   * @private
+   */
+  getDocumentZoom() {
+    const transform = getComputedStyle(document.body).transform;
+    if (transform === 'none') {
+      return {
+        x: 1,
+        y: 1
+      };
+    }
+    const transformArray = transform.slice(7, -1).split(',');
+    return {
+      x: +transformArray[0],
+      y: +transformArray[3]
+    };
   }
 };
