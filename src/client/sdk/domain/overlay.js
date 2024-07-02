@@ -225,10 +225,11 @@ export default class Overlay extends BaseDomain {
     const isBorderBox = window.getComputedStyle(node)['box-sizing'] === 'border-box';
     const { left, top } = node.getBoundingClientRect();
 
-    const contentWidth = isBorderBox ? width - padding[1] - padding[3] : width + border[1] + border[3];
-    const contentHeight = isBorderBox ? height - padding[0] - padding[2] : height + border[0] + border[2];
-    const marginWidth = isBorderBox ? width : width + padding[1] + padding[3] + border[1] + border[3];
-    const marginHeight = isBorderBox ? height : height + padding[0] + padding[2] + border[0] + border[2];
+    // Need to determine if the value is a percentage
+    const contentWidth = isNaN(width) ? (isBorderBox ? `calc(${styles.width} - ${padding[1]}px - ${padding[3]}px)` : `calc(${styles.width} + ${border[1]}px + ${border[3]}px)`) : (isBorderBox ? width - padding[1] - padding[3] : width + border[1] + border[3]);
+    const contentHeight = isNaN(height) ? (isBorderBox ? `calc(${styles.height} - ${padding[0]}px - ${padding[2]}px)` : `calc(${styles.height} + ${border[0]}px + ${border[2]}px)`) : (isBorderBox ? height - padding[0] - padding[2] : height + border[0] + border[2]);
+    const marginWidth = isNaN(width) ? (isBorderBox ? styles.width : `calc(${styles.width} + ${padding[1]}px + ${padding[3]}px + ${border[1]}px + ${border[3]}px)`) : (isBorderBox ? width : width + padding[1] + padding[3] + border[1] + border[3]);
+    const marginHeight = isNaN(height) ? (isBorderBox ? styles.height : `calc(${styles.height} + ${padding[0]}px + ${padding[2]}px + ${border[0]}px + ${border[2]}px)`) : (isBorderBox ? height : height + padding[0] + padding[2] + border[0] + border[2]);
 
     const { contentColor, paddingColor, marginColor } = highlightConfig;
     const { containerBox, contentBox, marginBox, tooltipsBox } = this.highlightBox;
@@ -240,8 +241,8 @@ export default class Overlay extends BaseDomain {
     Object.assign(contentBox.style, {
       left: `${left / zoom.x}px`,
       top: `${top / zoom.y}px`,
-      width: `${contentWidth}px`,
-      height: `${contentHeight}px`,
+      width: isNaN(contentWidth) ? contentWidth : `${contentWidth}px`,
+      height: isNaN(contentHeight) ? contentHeight : `${contentHeight}px`,
       background: Overlay.rgba(contentColor),
       borderColor: Overlay.rgba(paddingColor),
       borderStyle: 'solid',
@@ -251,21 +252,35 @@ export default class Overlay extends BaseDomain {
     Object.assign(marginBox.style, {
       left: `${(left / zoom.x) - margin[3]}px`,
       top: `${(top / zoom.y) - margin[0]}px`,
-      width: `${marginWidth}px`,
-      height: `${marginHeight}px`,
+      width: isNaN(marginWidth) ? marginWidth : `${marginWidth}px`,
+      height: isNaN(marginHeight) ? marginHeight : `${marginHeight}px`,
       borderColor: Overlay.rgba(marginColor),
       borderStyle: 'solid',
       borderWidth: `${margin[0]}px ${margin[1]}px ${margin[2]}px ${margin[3]}px`
     });
 
-    const isTopPosition = top - margin[0] > 25;
+    const isTopPosition = (top / zoom.y) - margin[0] > 25;
     const cls = DEVTOOL_OVERLAY;
     const currentClassName = node.getAttribute('class');
+    let showContentWidth;
+    if (isNaN(contentWidth)) {
+      const { width: contentBoxWidth } = contentBox.getBoundingClientRect();
+      showContentWidth = Overlay.formatNumber(contentBoxWidth / zoom.x);
+    } else {
+      showContentWidth = Overlay.formatNumber(contentWidth);
+    }
+    let showContentHeight;
+    if (isNaN(contentHeight)) {
+      const { height: contentBoxHeight } = contentBox.getBoundingClientRect();
+      showContentHeight = Overlay.formatNumber(contentBoxHeight / zoom.y);
+    } else {
+      showContentHeight = Overlay.formatNumber(contentHeight);
+    }
     tooltipsBox.innerHTML = `
       <span class="${cls}" style="color:#973090;font-weight:bold">${node.nodeName.toLowerCase()}</span>
       <span class="${cls}" style="color:#3434B0;font-weight:bold">${currentClassName ? `.${currentClassName}` : ''}</span>
       <span class="${cls}" style="position:absolute;top:${isTopPosition ? 'auto' : '-4px'};bottom:${isTopPosition ? '-4px' : 'auto'};left:10px;width:8px;height:8px;background:#fff;transform:rotate(45deg);"></span>
-      ${Overlay.formatNumber(contentWidth)} x ${Overlay.formatNumber(contentHeight)}
+      ${showContentWidth} x ${showContentHeight}
     `;
 
     Object.assign(tooltipsBox.style, {
