@@ -16,6 +16,7 @@ export default class ChromeDomain {
   constructor(options) {
     this.registerProtocol(options);
     this.proxyAppendChild();
+    this.proxyEventListener();
   }
 
   /**
@@ -88,6 +89,66 @@ export default class ChromeDomain {
       const result = originBodyAppendChild.call(this, node);
       fetchSource(node);
       return result;
+    };
+  }
+
+  /**
+   * inject getEventListeners
+   */
+  proxyEventListener() {
+    const originalAddEventListener = EventTarget.prototype.addEventListener;
+    const originalRemoveEventListener = EventTarget.prototype.removeEventListener;
+
+    const eventListenersMap = Dom.eventListenersMap;
+
+    EventTarget.prototype.addEventListener = function(type, listener, optionOrUseCapture) {
+      let options;
+      if (typeof optionOrUseCapture === 'object' && optionOrUseCapture !== null) {
+        options = optionOrUseCapture;
+      } else {
+        options = { capture: Boolean(optionOrUseCapture) };
+      }
+
+      const targetListeners = eventListenersMap.get(this) || {};
+      if (!targetListeners[type]) {
+        targetListeners[type] = [];
+      }
+      targetListeners[type].push({ listener, once: options.once || false, passive: options.passive || false, capture: options.capture || false });
+      eventListenersMap.set(this, targetListeners);
+
+      return originalAddEventListener.apply(this, [type, listener, options.capture]);
+    };
+
+    EventTarget.prototype.removeEventListener = function(type, listener, optionOrUseCapture) {
+      let options;
+      if (typeof optionOrUseCapture === 'object' && optionOrUseCapture !== null) {
+        options = optionOrUseCapture;
+      } else {
+        options = { capture: Boolean(optionOrUseCapture) };
+      }
+
+      const targetListeners = eventListenersMap.get(this) || {};
+      if (targetListeners[type]) {
+        const index = targetListeners[type].findIndex(item =>
+          item.listener === listener &&
+          item.once === (options.once || false) &&
+          item.passive === (options.passive || false) &&
+          item.capture === (options.capture || false)
+        );
+        if (index > -1) {
+          targetListeners[type].splice(index, 1);
+          if (targetListeners[type].length === 0) {
+            delete targetListeners[type];
+          }
+        }
+      }
+      eventListenersMap.set(this, targetListeners);
+
+      return originalRemoveEventListener.apply(this, [type, listener, options.capture]);
+    };
+
+    window.getEventListeners = function(target) {
+      return eventListenersMap.get(target) || {};
     };
   }
 };
