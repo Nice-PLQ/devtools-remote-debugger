@@ -98,9 +98,11 @@ export default class ChromeDomain {
   proxyEventListener() {
     const originalAddEventListener = EventTarget.prototype.addEventListener;
     const originalRemoveEventListener = EventTarget.prototype.removeEventListener;
-
     const eventListenersMap = Dom.eventListenersMap;
 
+    /**
+     * @type { EventTarget['addEventListener'] }
+     */
     EventTarget.prototype.addEventListener = function(type, listener, optionOrUseCapture) {
       let options;
       if (typeof optionOrUseCapture === 'object' && optionOrUseCapture !== null) {
@@ -113,12 +115,21 @@ export default class ChromeDomain {
       if (!targetListeners[type]) {
         targetListeners[type] = [];
       }
-      targetListeners[type].push({ listener, once: options.once || false, passive: options.passive || false, capture: options.capture || false });
+      targetListeners[type].push({
+        listener,
+        once: options.once || false,
+        passive: options.passive || false,
+        capture: options.capture || false,
+        type,
+      });
       eventListenersMap.set(this, targetListeners);
 
-      return originalAddEventListener.apply(this, [type, listener, options.capture]);
+      return originalAddEventListener.apply(this, [type, listener, options]);
     };
 
+    /**
+     * @type { EventTarget['removeEventListener'] }
+     */
     EventTarget.prototype.removeEventListener = function(type, listener, optionOrUseCapture) {
       let options;
       if (typeof optionOrUseCapture === 'object' && optionOrUseCapture !== null) {
@@ -144,7 +155,7 @@ export default class ChromeDomain {
       }
       eventListenersMap.set(this, targetListeners);
 
-      return originalRemoveEventListener.apply(this, [type, listener, options.capture]);
+      return originalRemoveEventListener.apply(this, [type, listener, options]);
     };
 
     window.getEventListeners = function(target) {

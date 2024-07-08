@@ -69,7 +69,7 @@ export default class Runtime extends BaseDomain {
           document.body.removeChild(textArea);
         }
         if ('clipboard' in navigator) {
-          navigator.clipboard.writeText(String(object)).catch(e => {
+          navigator.clipboard.writeText(String(object)).catch(() => {
             fallbackCopyTextToClipboard(String(object));
           });
         } else {
