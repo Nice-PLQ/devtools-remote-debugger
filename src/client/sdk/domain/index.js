@@ -39,6 +39,7 @@ export default class ChromeDomain {
   registerProtocol(options) {
     const domains = [
       new Dom(options),
+      new DomDebugger(options),
       new DomStorage(options),
       new Storage(options),
       new Overlay(options),
