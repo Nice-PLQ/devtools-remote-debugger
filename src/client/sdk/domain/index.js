@@ -1,5 +1,6 @@
 import Dom from './dom';
 import DomStorage from './dom-storage';
+import DomDebugger from './dom-debugger';
 import Storage from './storage';
 import Overlay from './overlay';
 import Runtime from './runtime';
@@ -98,7 +99,7 @@ export default class ChromeDomain {
   proxyEventListener() {
     const originalAddEventListener = EventTarget.prototype.addEventListener;
     const originalRemoveEventListener = EventTarget.prototype.removeEventListener;
-    const eventListenersMap = Dom.eventListenersMap;
+    const eventListenersMap = DomDebugger.eventListenersMap;
 
     /**
      * @type { EventTarget['addEventListener'] }
@@ -115,13 +116,28 @@ export default class ChromeDomain {
       if (!targetListeners[type]) {
         targetListeners[type] = [];
       }
-      targetListeners[type].push({
+      const data = {
         listener,
         once: options.once || false,
         passive: options.passive || false,
         capture: options.capture || false,
+        useCapture: options.capture || false,
         type,
-      });
+      };
+      const callFrames = Runtime.getCallFrames(new Error('addEventListener'));
+      for (let i = 0; i < callFrames.length; i++) {
+        const callFrame = callFrames[i];
+        if (callFrame.lineNumber && callFrame.columnNumber) {
+          Object.assign(data, {
+            // todo: get scriptId
+            // scriptId: '1',
+            lineNumber: callFrame.lineNumber,
+            columnNumber: callFrame.columnNumber
+          });
+          break;
+        }
+      }
+      targetListeners[type].push(data);
       eventListenersMap.set(this, targetListeners);
 
       return originalAddEventListener.apply(this, [type, listener, options]);
@@ -159,7 +175,16 @@ export default class ChromeDomain {
     };
 
     window.getEventListeners = function(target) {
-      return eventListenersMap.get(target) || {};
+      if (eventListenersMap.has(target)) {
+        return Object.fromEntries(Object.entries(eventListenersMap.get(target)).map(([key, value]) => {
+          return [key, value.map(v => {
+            const { capture, listener, once, passive, type } = v;
+            return { capture, listener, once, passive, type };
+          })];
+        }));
+      } else {
+        return {};
+      }
     };
   }
 };

@@ -15,13 +15,6 @@ export default class Dom extends BaseDomain {
   currentSearchKey = '';
 
   /**
-   * @type { WeakMap<EventTarget, { [key: string]: EventListenerOptions & { listener: Function, type: string } }> }
-   * @static
-   * @public
-   */
-  static eventListenersMap = new WeakMap();
-
-  /**
    * set $, $$ and $x methods
    * @static
    */

@@ -1,4 +1,4 @@
-import { objectFormat, objectRelease, getObjectProperties } from '../common/remoteObject';
+import { objectFormat, objectRelease, getObjectProperties, getObjectById } from '../common/remoteObject';
 import BaseDomain from './domain';
 import { Event } from './protocol';
 
@@ -304,5 +304,25 @@ export default class Runtime extends BaseDomain {
 
     window.addEventListener('error', e => exceptionThrown(e.error));
     window.addEventListener('unhandledrejection', e => exceptionThrown(e.reason));
+  }
+
+  callFunctionOn({ functionDeclaration, objectId, arguments: args, silent }) {
+    /** @type {Function} */
+    // eslint-disable-next-line no-eval
+    const fun = eval(`(() => ${functionDeclaration})()`);
+    if (Array.isArray(args)) {
+      args = args.map(v => {
+        if ('value' in v) return v.value;
+        if ('objectId' in v) return getObjectById(v.objectId);
+        return undefined;
+      });
+    }
+    if (silent === true) {
+      try {
+        return fun.apply(objectId ? getObjectById(objectId) : null, args);
+      } catch (error) {}
+    } else {
+      return fun.apply(objectId ? getObjectById(objectId) : null, args);
+    }
   }
 };
