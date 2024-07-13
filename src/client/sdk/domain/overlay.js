@@ -63,7 +63,8 @@ export default class Overlay extends BaseDomain {
       !node ||
       [Node.TEXT_NODE, Node.COMMENT_NODE, Node.DOCUMENT_TYPE_NODE].includes(node.nodeType) ||
       ['LINK', 'SCRIPT', 'HEAD'].includes(node.nodeName) ||
-      !(node instanceof HTMLElement)
+      !(node instanceof HTMLElement) ||
+      window.getComputedStyle(node).display === 'none'
     ) {
       return;
     }
