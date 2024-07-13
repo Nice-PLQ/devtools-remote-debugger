@@ -45,6 +45,9 @@ export default class Runtime extends BaseDomain {
     if (typeof window.copy !== 'function') {
       window.copy = object => {
         function fallbackCopyTextToClipboard(text) {
+          if (typeof document !== 'object') {
+            console.error('Copy text failed, running environment is not a browser');
+          }
           const textArea = document.createElement('textarea');
           textArea.value = text;
           textArea.style.position = 'fixed';
@@ -68,12 +71,13 @@ export default class Runtime extends BaseDomain {
           }
           document.body.removeChild(textArea);
         }
+        const str = String(object);
         if ('clipboard' in navigator) {
-          navigator.clipboard.writeText(String(object)).catch(() => {
-            fallbackCopyTextToClipboard(String(object));
+          navigator.clipboard.writeText(str).catch(() => {
+            fallbackCopyTextToClipboard(str);
           });
         } else {
-          fallbackCopyTextToClipboard(String(object));
+          fallbackCopyTextToClipboard(str);
         }
       };
     }
