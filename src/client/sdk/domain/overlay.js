@@ -63,7 +63,8 @@ export default class Overlay extends BaseDomain {
       !node ||
       [Node.TEXT_NODE, Node.COMMENT_NODE, Node.DOCUMENT_TYPE_NODE].includes(node.nodeType) ||
       ['LINK', 'SCRIPT', 'HEAD'].includes(node.nodeName) ||
-      !(node instanceof HTMLElement)
+      !(node instanceof HTMLElement) ||
+      window.getComputedStyle(node).display === 'none'
     ) {
       return;
     }
@@ -148,7 +149,7 @@ export default class Overlay extends BaseDomain {
         highlightConfig: this.highlightConfig,
       });
 
-      this.expandNode(e.target.parentNode);
+      this.expandNode(target.parentNode);
 
       this.send({
         method: Event.nodeHighlightRequested,
@@ -187,6 +188,7 @@ export default class Overlay extends BaseDomain {
       position: 'fixed',
       zIndex: 99999,
       pointerEvents: 'none',
+      textShadow: 'none',
     });
 
     containerBox.className = DEVTOOL_OVERLAY;
