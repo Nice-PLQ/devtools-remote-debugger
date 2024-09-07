@@ -145,7 +145,7 @@ DEBUG_HOST='http://localhost:8080'
 │   ├── index.css
 │   ├── index.html
 │   ├── index.js
-├── cdp.js  # The SDK code for debugging needs to be loaded on the page being debugged. You can deploy it to a CDN.
+├── cdp.js  # The CDP code for debugging needs to be loaded on the page being debugged. You can deploy it to a CDN.
 ```
 
 3. Start the backend
