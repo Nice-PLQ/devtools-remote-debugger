@@ -1,6 +1,7 @@
 // Implemented CDP
 export default {
-  CSS: ['enable', 'getStyleSheetText', 'getMatchedStylesForNode', 'getComputedStyleForNode', 'getDynamicLink'],
+  CSS: ['enable', 'getStyleSheetText', 'getMatchedStylesForNode', 'getComputedStyleForNode',
+    'getInlineStylesForNode', 'getDynamicLink', 'addRule', 'createStyleSheet', 'setStyleTexts',],
   Debugger: ['enable', 'getScriptSource', 'getDynamicScript'],
   DOMStorage: ['enable', 'getDOMStorageItems', 'removeDOMStorageItem', 'clear', 'setDOMStorageItem'],
   Storage: ['getStorageKeyForFrame'],

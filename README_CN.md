@@ -132,7 +132,7 @@ DEBUG_HOST='http://www.debug.com/'
 │   ├── index.css
 │   ├── index.html
 │   ├── index.js
-├── sdk.js  # 调试用的sdk代码，需要在被调试页面中加载该脚本，可以将其部署到cdn
+├── cdp.js  # 调试用的cdp代码，需要在被调试页面中加载该脚本，可以将其部署到cdn
 ```
 
 3、启动 Node 服务
@@ -141,7 +141,7 @@ DEBUG_HOST='http://www.debug.com/'
 npm run start
 ```
 
-4、浏览器打开调试管理端[http://www.debug.com/remote/debug/index.html](http://www.debug.com/remote/debug/index.html)，如果调试目标页面加载了`sdk.js`代码，那么此时调试管理端会看到连接记录。
+4、浏览器打开调试管理端[http://www.debug.com/remote/debug/index.html](http://www.debug.com/remote/debug/index.html)，如果调试目标页面加载了`cdp.js`代码，那么此时调试管理端会看到连接记录。
 
 > 💡 请注意，www.debug.com只是作为示例，具体的域名请换成自己的
 

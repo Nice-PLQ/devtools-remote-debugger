@@ -2,7 +2,7 @@
   <div class="tips">
     {{ $t('useTitle') }}
     <div class="code">
-      &lt;script src=&quot;https://path/to/sdk.js&quot;&gt;&lt;/script&gt;
+      &lt;script src=&quot;https://path/to/cdp.js&quot;&gt;&lt;/script&gt;
     </div>
     <div class="notice">
       <div class="title">{{ $t('notice') }}</div>

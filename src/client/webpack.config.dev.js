@@ -8,9 +8,9 @@ const cwd = process.cwd();
 module.exports = [
   {
     mode: 'development',
-    entry: './src/client/sdk/index.js',
+    entry: './src/client/cdp/index.js',
     output: {
-      filename: 'sdk.js',
+      filename: 'cdp.js',
       path: path.resolve(cwd, './dist'),
     },
     module: {

@@ -143,7 +143,7 @@ DEBUG_HOST='http://localhost:8080'
 │   ├── index.css
 │   ├── index.html
 │   ├── index.js
-├── sdk.js  # The sdk code for debugging needs to load the script in the debugged page, and it can be deployed to cdn
+├── cdp.js  # The cdp code for debugging needs to load the script in the debugged page, and it can be deployed to cdn
 ```
 
 3. Start the backend
@@ -152,7 +152,7 @@ DEBUG_HOST='http://localhost:8080'
 npm run start
 ```
 
-4. The browser opens the debugging backend [http://www.debug.com/remote/debug/index.html](http://www.debug.com/remote/debug/index.html), if the debugging target page loads the `sdk.js` code, then the debugging backend will see the connection record
+4. The browser opens the debugging backend [http://www.debug.com/remote/debug/index.html](http://www.debug.com/remote/debug/index.html), if the debugging target page loads the `cdp.js` code, then the debugging backend will see the connection record
 
 > 💡Please note that www.debug.com is just an example, please replace the specific domain name with your own
 

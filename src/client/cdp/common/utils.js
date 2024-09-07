@@ -44,3 +44,7 @@ export function loadScript(url) {
     document.body.appendChild(script);
   });
 }
+
+export function escapeRegString(string) {
+  return string.replace(/[\\\$\*\+\.\?\^\|\(\)\[\]\{\}]/g, (i) => `\\${i}`);
+}

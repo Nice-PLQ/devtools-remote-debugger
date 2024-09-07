@@ -96,6 +96,37 @@ class Nodes {
       res.children = this.getChildNodes(node, depth);
     }
 
+    if (node instanceof Element) {
+      const beforeContent = window.getComputedStyle(node, '::before').content;
+      const afterContent = window.getComputedStyle(node, '::after').content;
+      const pseudoTypes = [];
+      if (beforeContent !== 'none') {
+        pseudoTypes.push('before');
+      }
+      if (afterContent !== 'none') {
+        pseudoTypes.push('after');
+      }
+      if (pseudoTypes.length) {
+        res.pseudoElements = pseudoTypes.map((pseudoType) => {
+          const pseudoNodeName = `::${pseudoType}`;
+          const pseudoNodeId = this.getIdByNode({
+            nodeName: pseudoNodeName,
+            parentNode: node,
+          });
+          return {
+            pseudoType,
+            nodeId: pseudoNodeId,
+            nodeName: pseudoNodeName,
+            nodeType,
+            nodeValue,
+            backendNodeId: pseudoNodeId,
+            childNodeCount: 0,
+            attributes: [],
+          };
+        });
+      }
+    }
+
     return res;
   }
 
