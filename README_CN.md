@@ -4,6 +4,8 @@
 
 被调试的 web 页面通过 websocket 连接到中间的 node 层，devtools 同样也通过 websocket 连接到 node。node 中间层的作用主要进行 socket 协议的相互转发，以此让 web 页面和 devtools 实现全双工的通信。
 
+同时该项目也收录在[awesome-chrome-devtools](https://github.com/ChromeDevTools/awesome-chrome-devtools#browser-adapters)
+
 ![](./images/cdp.png)
 
 ## 🎬 调试 DEMO
@@ -151,6 +153,10 @@ npm run start
 
 - 浏览器默认不允许 JavaScript 读取不同域的 CSSRule，所以你需要在 link 引入外部样式的时候加上`crossorigin="anonymous"`属性，style 标签的样式没有此问题。
 - 捕获 Javascript 的具体错误信息，同样需要在 script 标签添加`crossorigin="anonymous"`。
+
+## Star History
+
+[![Star History Chart](https://api.star-history.com/svg?repos=Nice-PLQ/devtools-remote-debugger&type=Date)](https://star-history.com/#Nice-PLQ/devtools-remote-debugger&Date)
 
 ## License
 

@@ -1,5 +1,6 @@
 import Dom from './dom';
 import DomStorage from './dom-storage';
+import DomDebugger from './dom-debugger';
 import Storage from './storage';
 import Overlay from './overlay';
 import Runtime from './runtime';
@@ -16,6 +17,7 @@ export default class ChromeDomain {
   constructor(options) {
     this.registerProtocol(options);
     this.proxyAppendChild();
+    this.proxyEventListener();
   }
 
   /**
@@ -37,6 +39,7 @@ export default class ChromeDomain {
   registerProtocol(options) {
     const domains = [
       new Dom(options),
+      new DomDebugger(options),
       new DomStorage(options),
       new Storage(options),
       new Overlay(options),
@@ -80,12 +83,109 @@ export default class ChromeDomain {
     };
 
     HTMLHeadElement.prototype.appendChild = function (node) {
-      originHeadAppendChild.call(this, node);
+      const result = originHeadAppendChild.call(this, node);
       fetchSource(node);
+      return result;
     };
     HTMLBodyElement.prototype.appendChild = function (node) {
-      originBodyAppendChild.call(this, node);
+      const result = originBodyAppendChild.call(this, node);
       fetchSource(node);
+      return result;
+    };
+  }
+
+  /**
+   * inject getEventListeners
+   */
+  proxyEventListener() {
+    const originalAddEventListener = EventTarget.prototype.addEventListener;
+    const originalRemoveEventListener = EventTarget.prototype.removeEventListener;
+    const eventListenersMap = DomDebugger.eventListenersMap;
+
+    /**
+     * @type { EventTarget['addEventListener'] }
+     */
+    EventTarget.prototype.addEventListener = function(type, listener, optionOrUseCapture) {
+      let options;
+      if (typeof optionOrUseCapture === 'object' && optionOrUseCapture !== null) {
+        options = optionOrUseCapture;
+      } else {
+        options = { capture: Boolean(optionOrUseCapture) };
+      }
+
+      const targetListeners = eventListenersMap.get(this) || {};
+      if (!targetListeners[type]) {
+        targetListeners[type] = [];
+      }
+      const data = {
+        listener,
+        once: options.once || false,
+        passive: options.passive || false,
+        capture: options.capture || false,
+        useCapture: options.capture || false,
+        type,
+      };
+      const callFrames = Runtime.getCallFrames(new Error('addEventListener'));
+      for (let i = 0; i < callFrames.length; i++) {
+        const callFrame = callFrames[i];
+        if (callFrame.lineNumber && callFrame.columnNumber) {
+          Object.assign(data, {
+            // todo: get scriptId
+            // scriptId: '1',
+            lineNumber: callFrame.lineNumber,
+            columnNumber: callFrame.columnNumber
+          });
+          break;
+        }
+      }
+      targetListeners[type].push(data);
+      eventListenersMap.set(this, targetListeners);
+
+      return originalAddEventListener.apply(this, [type, listener, options]);
+    };
+
+    /**
+     * @type { EventTarget['removeEventListener'] }
+     */
+    EventTarget.prototype.removeEventListener = function(type, listener, optionOrUseCapture) {
+      let options;
+      if (typeof optionOrUseCapture === 'object' && optionOrUseCapture !== null) {
+        options = optionOrUseCapture;
+      } else {
+        options = { capture: Boolean(optionOrUseCapture) };
+      }
+
+      const targetListeners = eventListenersMap.get(this) || {};
+      if (targetListeners[type]) {
+        const index = targetListeners[type].findIndex(item =>
+          item.listener === listener &&
+          item.once === (options.once || false) &&
+          item.passive === (options.passive || false) &&
+          item.capture === (options.capture || false)
+        );
+        if (index > -1) {
+          targetListeners[type].splice(index, 1);
+          if (targetListeners[type].length === 0) {
+            delete targetListeners[type];
+          }
+        }
+      }
+      eventListenersMap.set(this, targetListeners);
+
+      return originalRemoveEventListener.apply(this, [type, listener, options]);
+    };
+
+    window.getEventListeners = function(target) {
+      if (eventListenersMap.has(target)) {
+        return Object.fromEntries(Object.entries(eventListenersMap.get(target)).map(([key, value]) => {
+          return [key, value.map(v => {
+            const { capture, listener, once, passive, type } = v;
+            return { capture, listener, once, passive, type };
+          })];
+        }));
+      } else {
+        return {};
+      }
     };
   }
 };

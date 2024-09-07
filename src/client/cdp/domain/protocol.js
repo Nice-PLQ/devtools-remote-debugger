@@ -11,10 +11,11 @@ export default {
     'performSearch', 'getSearchResults', 'discardSearchResults', 'getNodeForLocation', 'setNodeValue',
     'getBoxModel',
   ],
+  DOMDebugger: ['getEventListeners'],
   Network: ['enable', 'getCookies', 'setCookie', 'deleteCookies', 'getResponseBody'],
   Overlay: ['enable', 'highlightNode', 'hideHighlight', 'setInspectMode'],
   Page: ['enable', 'startScreencast', 'stopScreencast', 'getResourceTree', 'getResourceContent'],
-  Runtime: ['enable', 'evaluate', 'getProperties', 'releaseObject'],
+  Runtime: ['enable', 'evaluate', 'getProperties', 'releaseObject', 'callFunctionOn'],
   ScreenPreview: ['startPreview', 'stopPreview'] // ScreenPreview is a custom protocol
 };
 

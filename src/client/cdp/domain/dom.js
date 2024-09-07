@@ -15,7 +15,7 @@ export default class Dom extends BaseDomain {
   currentSearchKey = '';
 
   /**
-   * set $ and $$ methods
+   * set $, $$ and $x methods
    * @static
    */
   static set$Function() {
@@ -28,6 +28,19 @@ export default class Dom extends BaseDomain {
     if (typeof window.$$ !== 'function') {
       window.$$ = function (selector) {
         return document.querySelectorAll(selector);
+      };
+    }
+
+    if (typeof window.$x !== 'function') {
+      window.$x = function (selector) {
+        const xpathResult = document.evaluate(selector, document, null, XPathResult.ORDERED_NODE_SNAPSHOT_TYPE, null);
+        const elements = [];
+
+        for (let i = 0; i < xpathResult.snapshotLength; i++) {
+          elements.push(xpathResult.snapshotItem(i));
+        }
+
+        return elements;
       };
     }
   }

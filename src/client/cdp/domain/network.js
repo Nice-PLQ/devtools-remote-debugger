@@ -86,7 +86,7 @@ export default class Network extends BaseDomain {
     if (typeof response === 'string') {
       body = response;
     } else {
-      body = response.data;
+      body = response?.data;
       base64Encoded = true;
     }
 
@@ -221,7 +221,7 @@ export default class Network extends BaseDomain {
       let method;
       let data = '';
       // When request is a string, it is the requested url
-      if (typeof request === 'string') {
+      if (typeof request === 'string' || request instanceof URL) {
         url = request;
         method = initConfig.method || 'get';
         data = initConfig.body;
