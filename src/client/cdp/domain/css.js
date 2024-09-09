@@ -1,6 +1,6 @@
 import nodes from '../common/nodes';
 import * as stylesheet from '../common/stylesheet';
-import { escapeRegString, getAbsolutePath, isMatches } from '../common/utils';
+import { escapeRegString, getAbsolutePath, isMatches, isElement } from '../common/utils';
 import { DEVTOOL_STYLESHEET } from '../common/constant';
 import { calculate, compare } from 'specificity';
 import { Event } from './protocol';
@@ -31,7 +31,7 @@ export default class CSS extends BaseDomain {
 
     const selectors = rule.selectorText.replace(/\/\*[\s\S]*?\*\//g, '').split(',').map((item, i) => {
       const text = item.trim();
-      if (node instanceof Element && isMatches(node, text)) {
+      if (isElement(node) && isMatches(node, text)) {
         specificityArray = calculate(text)[0].specificityArray;
         index = i;
       } else if (['::before', '::after'].includes(node.nodeName?.toLowerCase())) {
@@ -114,7 +114,7 @@ export default class CSS extends BaseDomain {
    * @param {Object} cssRange css text range，eg: {startLine,startColumn,endLine,endColumn}
    */
   static formatCssProperties(cssText = '', cssRange) {
-    const isValidProp = (text) => /[\s\S]+?\:[\s\S]+?;/.test(text);
+    const isValidProp = (text) => /[\s\S]+?:[\s\S]+?;/.test(text);
     const splitProps = (text) => text.split(';').map((v, i, a) => i < a.length - 1 ? `${v};` : v);
     const splited = cssText.split(/\/\*/)
       .map((text) => text.split(/\*\//))
@@ -158,12 +158,14 @@ export default class CSS extends BaseDomain {
           value: formatVal(value),
           text: style,
           important: value.includes('important'),
-          disabled: style.startsWith('/*'),
+          disabled: style.includes('/*'),
           implicit: false,
           shorthandEntries: [],
           range,
         };
       }
+
+      return null;
     }).filter(Boolean);
   }
 
@@ -172,8 +174,8 @@ export default class CSS extends BaseDomain {
    * @public
    */
   enable() {
-    this.sendCacheStyles();
     this.collectStyles();
+    this.sendCacheStyles();
   }
 
   /**
@@ -182,17 +184,15 @@ export default class CSS extends BaseDomain {
    * @param {string} url style file url address
    */
   getDynamicLink(url) {
+    const sourceURL = getAbsolutePath(url);
+    const styleSheets = Array.from(document.styleSheets);
+    const style = styleSheets.find(style => style.href === sourceURL);
+    if (!style) return;
+
     const styleSheetId = this.getStyleSheetId();
-    this.fetchStyleSource(styleSheetId, getAbsolutePath(url));
-    this.send({
-      method: Event.styleSheetAdded,
-      params: {
-        header: {
-          styleSheetId,
-          sourceURL: url,
-        }
-      }
-    });
+    stylesheet.setStyleSheet(styleSheetId, style);
+    style.styleSheetId = styleSheetId;
+    this.fetchStyleSource(styleSheetId, sourceURL);
   }
 
   /**
@@ -242,29 +242,7 @@ export default class CSS extends BaseDomain {
         stylesheet.setStyleSheet(styleSheetId, style);
         style.styleSheetId = styleSheetId;
         if (sourceURL) {
-          this.fetchStyleSource(styleSheetId, sourceURL, (content) => {
-            this.send({
-              method: Event.styleSheetAdded,
-              params: {
-                header: {
-                  frameId: Page.MAINFRAME_ID,
-                  styleSheetId,
-                  sourceURL,
-                  origin: 'regular',
-                  disabled: false,
-                  isConstructed: false,
-                  isInline: false,
-                  isMutable: false,
-                  length: content.length,
-                  startLine: 0,
-                  endLine: content.split('\n').length - 1,
-                  startColumn: 0,
-                  endColumn: content.split('\n').length - content.lastIndexOf('\n') - 1 - 1,
-                  title: style.title,
-                }
-              }
-            });
-          });
+          this.fetchStyleSource(styleSheetId, sourceURL);
         } else if (style.ownerNode?.innerHTML) {
           const content = style.ownerNode?.innerHTML;
           this.styles.set(styleSheetId, content);
@@ -309,10 +287,31 @@ export default class CSS extends BaseDomain {
     const xhr = new XMLHttpRequest();
     xhr.$$requestType = 'Stylesheet';
     xhr.onload = () => {
-      this.styles.set(styleSheetId, xhr.responseText);
-      this.styleRules.set(styleSheetId, this.parseStyleRules(xhr.responseText));
+      const content = xhr.responseText;
+      this.styles.set(styleSheetId, content);
+      this.styleRules.set(styleSheetId, this.parseStyleRules(content));
+      this.send({
+        method: Event.styleSheetAdded,
+        params: {
+          header: {
+            frameId: Page.MAINFRAME_ID,
+            styleSheetId,
+            sourceURL: url,
+            origin: 'regular',
+            disabled: false,
+            isConstructed: false,
+            isInline: false,
+            isMutable: false,
+            length: content.length,
+            startLine: 0,
+            endLine: content.split('\n').length - 1,
+            startColumn: 0,
+            endColumn: content.split('\n').length - content.lastIndexOf('\n') - 1 - 1,
+          }
+        }
+      });
     };
-    xhr.onerror = () => {
+    xhr.onerror = (e) => {
       this.styles.set(styleSheetId, 'Cannot get style source code');
       this.styleRules.set(styleSheetId, this.parseStyleRules(''));
     };
@@ -334,7 +333,7 @@ export default class CSS extends BaseDomain {
         case '{': {
           brackets++;
           column++;
-          if (!media && brackets === 1 || media && brackets === 2) {
+          if ((!media && brackets === 1) || (media && brackets === 2)) {
             tokenList.push({ token, media, line, column });
             token = '';
           } else if (media && brackets === 1) {
@@ -346,7 +345,7 @@ export default class CSS extends BaseDomain {
         }
         case '}': {
           brackets--;
-          if (!media && brackets === 0 || media && brackets === 1) {
+          if ((!media && brackets === 0) || (media && brackets === 1)) {
             tokenList.push({ token, media, line, column });
             token = '';
           } else if (media && brackets === 0) {
@@ -455,14 +454,14 @@ export default class CSS extends BaseDomain {
    */
   getMatchedStylesForNode({ nodeId }) {
     const node = nodes.getNodeById(nodeId);
-    if (!(node instanceof Element) && !(['::before', '::after'].includes(node.nodeName?.toLowerCase()))) return;
+    if (!isElement(node) && !(['::before', '::after'].includes(node.nodeName?.toLowerCase()))) return;
 
     const matchedCSSRules = [];
     const styleSheets = Array.from(document.styleSheets);
     const pushMatchedCSSRules = (styleSheetId, rule) => {
       if (rule.media && rule.media.length && !rule.media.find((query) => window.matchMedia(query.text).matches)) return;
       if (
-        (node instanceof Element && isMatches(node, rule.selectorText)) ||
+        (isElement(node) && isMatches(node, rule.selectorText)) ||
         (node.nodeName?.toLowerCase() === '::before' && rule.selectorText.includes(':before')) ||
         (node.nodeName?.toLowerCase() === '::after' && rule.selectorText.includes(':after'))
       ) {
@@ -495,7 +494,7 @@ export default class CSS extends BaseDomain {
    */
   getInlineStylesForNode({ nodeId }) {
     const node = nodes.getNodeById(nodeId);
-    if (!(node instanceof Element)) return;
+    if (!isElement(node)) return;
 
     const { style } = node || {};
     const cssText = node.getAttribute('style') || '';
@@ -543,9 +542,9 @@ export default class CSS extends BaseDomain {
    */
   getComputedStyleForNode({ nodeId }) {
     const node = nodes.getNodeById(nodeId);
-    if (!(node instanceof Element) && !(['::before', '::after'].includes(node.nodeName?.toLowerCase()))) return;
+    if (!isElement(node) && !(['::before', '::after'].includes(node.nodeName?.toLowerCase()))) return;
 
-    let computedStyle = node instanceof Element ? window.getComputedStyle(node) : window.getComputedStyle(node.parentNode, node.nodeName);
+    let computedStyle = isElement(node) ? window.getComputedStyle(node) : window.getComputedStyle(node.parentNode, node.nodeName);
     computedStyle = Array.from(computedStyle).map((style) => ({
       name: style,
       value: computedStyle[style]

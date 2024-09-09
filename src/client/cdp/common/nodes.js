@@ -1,4 +1,5 @@
 import { IGNORE_NODE } from './constant';
+import { isElement } from './utils';
 
 class Nodes {
   // DOM node id collection
@@ -96,7 +97,7 @@ class Nodes {
       res.children = this.getChildNodes(node, depth);
     }
 
-    if (node instanceof Element) {
+    if (isElement(node)) {
       const beforeContent = window.getComputedStyle(node, '::before').content;
       const afterContent = window.getComputedStyle(node, '::after').content;
       const pseudoTypes = [];

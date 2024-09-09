@@ -35,6 +35,10 @@ export function isMobile() {
   return /ios|iphone|ipod|android/.test(navigator.userAgent.toLowerCase());
 }
 
+export function isElement(node) {
+  return node instanceof Element;
+}
+
 export function loadScript(url) {
   return new Promise((resolve, reject) => {
     const script = document.createElement('script');
@@ -46,5 +50,5 @@ export function loadScript(url) {
 }
 
 export function escapeRegString(string) {
-  return string.replace(/[\\\$\*\+\.\?\^\|\(\)\[\]\{\}]/g, (i) => `\\${i}`);
+  return string.replace(/[\\$*+?.^|(){}[\]]/g, '\\$&');
 }

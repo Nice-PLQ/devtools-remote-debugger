@@ -70,14 +70,18 @@ export default class ChromeDomain {
         const url = node.getAttribute('href');
         const rel = node.getAttribute('rel');
         if (url && (!rel || rel === 'stylesheet')) {
-          this.protocol['CSS.getDynamicLink'](url);
+          setTimeout(() => {
+            this.protocol['CSS.getDynamicLink'](url);
+          }, 300);
         }
       }
 
       if (tag === 'script') {
         const url = node.getAttribute('src');
         if (url) {
-          this.protocol['Debugger.getDynamicScript'](url);
+          setTimeout(() => {
+            this.protocol['Debugger.getDynamicScript'](url);
+          }, 300);
         }
       }
     };
