@@ -1,3 +1,4 @@
+import ErrorStackParser from 'error-stack-parser';
 import { objectFormat, objectRelease, getObjectProperties, getObjectById } from '../common/remoteObject';
 import BaseDomain from './domain';
 import { Event } from './protocol';
@@ -116,12 +117,10 @@ export default class Runtime extends BaseDomain {
    */
   static getCallFrames(error) {
     let callFrames = [];
-    let stack;
     if (error) {
-      stack = error.stack;
-      callFrames = stack.split('\n').map(val => ({
-        functionName: val,
-        ...Runtime.getPositionAndUrl(val)
+      callFrames = ErrorStackParser.parse(error).map(frame => ({
+        ...frame,
+        url: frame.fileName,
       }));
       // Safari does not support captureStackTrace
     } else if (Error.captureStackTrace) {
@@ -132,14 +131,12 @@ export default class Runtime extends BaseDomain {
         url: val.getFileName(),
       }));
     } else {
-      stack = new Error().stack;
-      callFrames = stack.split('\n').map(val => ({
-        functionName: val,
-        ...Runtime.getPositionAndUrl(val)
+      callFrames = ErrorStackParser.parse(new Error()).map(frame => ({
+        ...frame,
+        url: frame.fileName,
       }));
     }
 
-    callFrames.shift();
     return callFrames;
   }
 

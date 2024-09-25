@@ -58,6 +58,7 @@
     "dayjs": "^1.11.7",
     "dotenv": "^16.0.3",
     "element-plus": "^2.3.3",
+    "error-stack-parser": "^2.1.4",
     "image-to-base64": "^2.2.0",
     "js-cookie": "^3.0.1",
     "koa": "^2.14.2",
