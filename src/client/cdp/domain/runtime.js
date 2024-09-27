@@ -141,32 +141,6 @@ export default class Runtime extends BaseDomain {
   }
 
   /**
-   * Get the line number and column number of each stack code from the error stack
-   * @static
-   */
-  static getPositionAndUrl(str) {
-    const reg = /at\s+(.*)(?::([0-9]+):([0-9]+))$/; // for android
-    const reg1 = /@+(.*)(?::([0-9]+):([0-9]+))$/; // for ios
-
-    let res;
-    if (reg.test(str)) {
-      res = reg.exec(str);
-    } else if (reg1.test(str)) {
-      res = reg1.exec(str);
-    }
-
-    if (res) {
-      return {
-        url: res[1],
-        lineNumber: res[2],
-        columnNumber: res[3]
-      };
-    }
-
-    return {};
-  }
-
-  /**
    * @public
    */
   enable() {
