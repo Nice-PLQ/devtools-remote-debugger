@@ -282,7 +282,7 @@ export default class Network extends BaseDomain {
           encodedDataLength: Number(headers.get('Content-Length')),
         });
 
-        const contentType = headers.get('Content-Type');
+        const contentType = headers.get('Content-Type') || "";
         if (['application/json', 'application/javascript', 'text/plain', 'text/html', 'text/css'].some(type => contentType.includes(type))) {
           return response.clone().text();
         }
