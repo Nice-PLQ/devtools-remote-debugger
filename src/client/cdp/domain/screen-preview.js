@@ -14,6 +14,7 @@ export default class ScreenPreview extends BaseDomain {
       useCORS: true,
       imageTimeout: 10000,
       scale: 1,
+      logging: false,
       ignoreElements: (element) => {
         if (!element?.style) return false;
         const { display, opacity, visibility } = element.style;
