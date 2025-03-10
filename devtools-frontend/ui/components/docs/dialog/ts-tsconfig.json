@@ -1,6 +1,7 @@
 {
   "compilerOptions": {
     "allowJs": true,
+    "allowUmdGlobalAccess": true,
     "checkJs": true,
     "composite": true,
     "declaration": true,
@@ -38,14 +39,19 @@
   },
   "files": [
     "../../../../../../../../front_end/ui/components/docs/dialog/basic.ts",
+    "../../../../../../../../front_end/ui/components/docs/dialog/button_dialog.ts",
+    "../../../../../../../../front_end/ui/components/docs/dialog/shortcut_dialog.ts",
     "../../../../../../../../front_end/legacy/legacy-defs.d.ts",
     "../../../../../../../../front_end/global_typings/global_defs.d.ts",
-    "../../../../../../../../front_end/global_typings/request_idle_callback.d.ts",
-    "../../../../../../../../node_modules/@types/filesystem/index.d.ts"
+    "../../../../../../../../node_modules/@types/filesystem/index.d.ts",
+    "../../../../../../../../node_modules/@types/wicg-task-scheduling/index.d.ts"
   ],
   "references": [
     {
-      "path": "../../../lit-html/bundle-tsconfig.json"
+      "path": "../../../lit/bundle-tsconfig.json"
+    },
+    {
+      "path": "../../../../testing/testing-tsconfig.json"
     },
     {
       "path": "../../dialogs/bundle-tsconfig.json"

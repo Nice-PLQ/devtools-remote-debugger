@@ -32,6 +32,7 @@ import * as Host from '../../core/host/host.js';
 import * as i18n from '../../core/i18n/i18n.js';
 import * as Platform from '../../core/platform/platform.js';
 import { IsolatedFileSystem } from './IsolatedFileSystem.js';
+import { PlatformFileSystemType } from './PlatformFileSystem.js';
 const UIStrings = {
     /**
      *@description Text in Isolated File System Manager of the Workspace settings in Settings
@@ -66,7 +67,6 @@ export class IsolatedFileSystemManager extends Common.ObjectWrapper.ObjectWrappe
         // Initialize exclude pattern settings
         const defaultCommonExcludedFolders = [
             '/node_modules/',
-            '/bower_components/',
             '/\\.devtools',
             '/\\.git/',
             '/\\.sass-cache/',
@@ -98,7 +98,7 @@ export class IsolatedFileSystemManager extends Common.ObjectWrapper.ObjectWrappe
             defaultExcludedFolders = defaultExcludedFolders.concat(defaultLinuxExcludedFolders);
         }
         const defaultExcludedFoldersPattern = defaultExcludedFolders.join('|');
-        this.workspaceFolderExcludePatternSettingInternal = Common.Settings.Settings.instance().createRegExpSetting('workspaceFolderExcludePattern', defaultExcludedFoldersPattern, Host.Platform.isWin() ? 'i' : '');
+        this.workspaceFolderExcludePatternSettingInternal = Common.Settings.Settings.instance().createRegExpSetting('workspace-folder-exclude-pattern', defaultExcludedFoldersPattern, Host.Platform.isWin() ? 'i' : '');
         this.fileSystemRequestResolve = null;
         this.fileSystemsLoadedPromise = this.requestFileSystems();
     }
@@ -113,10 +113,7 @@ export class IsolatedFileSystemManager extends Common.ObjectWrapper.ObjectWrappe
         isolatedFileSystemManagerInstance = null;
     }
     requestFileSystems() {
-        let fulfill;
-        const promise = new Promise(f => {
-            fulfill = f;
-        });
+        const { resolve, promise } = Promise.withResolvers();
         Host.InspectorFrontendHost.InspectorFrontendHostInstance.events.addEventListener(Host.InspectorFrontendHostAPI.Events.FileSystemsLoaded, onFileSystemsLoaded, this);
         Host.InspectorFrontendHost.InspectorFrontendHostInstance.requestFileSystems();
         return promise;
@@ -129,20 +126,20 @@ export class IsolatedFileSystemManager extends Common.ObjectWrapper.ObjectWrappe
             void Promise.all(promises).then(onFileSystemsAdded);
         }
         function onFileSystemsAdded(fileSystems) {
-            fulfill(fileSystems.filter(fs => Boolean(fs)));
+            resolve(fileSystems.filter(fs => Boolean(fs)));
         }
     }
     addFileSystem(type) {
-        Host.userMetrics.actionTaken(type === 'overrides' ? Host.UserMetrics.Action.AddFileSystemForOverrides :
-            Host.UserMetrics.Action.AddFileSystemToWorkspace);
+        Host.userMetrics.actionTaken(type === 'overrides' ? Host.UserMetrics.Action.OverrideTabAddFolder :
+            Host.UserMetrics.Action.WorkspaceTabAddFolder);
         return new Promise(resolve => {
             this.fileSystemRequestResolve = resolve;
             Host.InspectorFrontendHost.InspectorFrontendHostInstance.addFileSystem(type || '');
         });
     }
     removeFileSystem(fileSystem) {
-        Host.userMetrics.actionTaken(fileSystem.type() === 'overrides' ? Host.UserMetrics.Action.RemoveFileSystemForOverrides :
-            Host.UserMetrics.Action.RemoveFileSystemFromWorkspace);
+        Host.userMetrics.actionTaken(fileSystem.type() === 'overrides' ? Host.UserMetrics.Action.OverrideTabRemoveFolder :
+            Host.UserMetrics.Action.WorkspaceTabRemoveFolder);
         Host.InspectorFrontendHost.InspectorFrontendHostInstance.removeFileSystem(fileSystem.embedderPath());
     }
     waitForFileSystems() {
@@ -151,7 +148,7 @@ export class IsolatedFileSystemManager extends Common.ObjectWrapper.ObjectWrappe
     innerAddFileSystem(fileSystem, dispatchEvent) {
         const embedderPath = fileSystem.fileSystemPath;
         const fileSystemURL = Common.ParsedURL.ParsedURL.rawPathToUrlString(fileSystem.fileSystemPath);
-        const promise = IsolatedFileSystem.create(this, fileSystemURL, embedderPath, fileSystem.type, fileSystem.fileSystemName, fileSystem.rootURL);
+        const promise = IsolatedFileSystem.create(this, fileSystemURL, embedderPath, hostFileSystemTypeToPlatformFileSystemType(fileSystem.type), fileSystem.fileSystemName, fileSystem.rootURL, fileSystem.type === 'automatic');
         return promise.then(storeFileSystem.bind(this));
         function storeFileSystem(fileSystem) {
             if (!fileSystem) {
@@ -213,8 +210,7 @@ export class IsolatedFileSystemManager extends Common.ObjectWrapper.ObjectWrappe
                 const filePath = Common.ParsedURL.ParsedURL.rawPathToUrlString(embedderPath);
                 for (const fileSystemPath of this.fileSystemsInternal.keys()) {
                     const fileSystem = this.fileSystemsInternal.get(fileSystemPath);
-                    if (fileSystem &&
-                        fileSystem.isFileExcluded(Common.ParsedURL.ParsedURL.rawPathToEncodedPathString(embedderPath))) {
+                    if (fileSystem?.isFileExcluded(Common.ParsedURL.ParsedURL.rawPathToEncodedPathString(embedderPath))) {
                         continue;
                     }
                     const pathPrefix = fileSystemPath.endsWith('/') ? fileSystemPath : fileSystemPath + '/';
@@ -285,15 +281,25 @@ export class IsolatedFileSystemManager extends Common.ObjectWrapper.ObjectWrappe
         this.callbacks.delete(requestId);
     }
 }
-// TODO(crbug.com/1167717): Make this a const enum again
-// eslint-disable-next-line rulesdir/const_enum
 export var Events;
 (function (Events) {
+    /* eslint-disable @typescript-eslint/naming-convention -- Used by web_tests. */
     Events["FileSystemAdded"] = "FileSystemAdded";
     Events["FileSystemRemoved"] = "FileSystemRemoved";
     Events["FileSystemFilesChanged"] = "FileSystemFilesChanged";
     Events["ExcludedFolderAdded"] = "ExcludedFolderAdded";
     Events["ExcludedFolderRemoved"] = "ExcludedFolderRemoved";
+    /* eslint-enable @typescript-eslint/naming-convention */
 })(Events || (Events = {}));
 let lastRequestId = 0;
+function hostFileSystemTypeToPlatformFileSystemType(type) {
+    switch (type) {
+        case 'snippets':
+            return PlatformFileSystemType.SNIPPETS;
+        case 'overrides':
+            return PlatformFileSystemType.OVERRIDES;
+        default:
+            return PlatformFileSystemType.WORKSPACE_PROJECT;
+    }
+}
 //# sourceMappingURL=IsolatedFileSystemManager.js.map

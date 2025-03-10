@@ -46,6 +46,17 @@ const str_ = i18n.i18n.registerUIStrings('core/host/InspectorFrontendHost.ts', U
 const i18nString = i18n.i18n.getLocalizedString.bind(undefined, str_);
 const MAX_RECORDED_HISTOGRAMS_SIZE = 100;
 const OVERRIDES_FILE_SYSTEM_PATH = '/overrides';
+/**
+ * The InspectorFrontendHostStub is a stub interface used the frontend is loaded like a webpage. Examples:
+ *   - devtools://devtools/bundled/devtools_app.html
+ *   - https://chrome-devtools-frontend.appspot.com/serve_rev/@030cc140435b0152645522b9864b75cac6c0a854/worker_app.html
+ *   - http://localhost:9222/devtools/inspector.html?ws=localhost:9222/devtools/page/xTARGET_IDx
+ *
+ * When the frontend runs within the native embedder, then the InspectorFrontendHostAPI methods are provided
+ * by devtools_compatibility.js. Those leverage `DevToolsAPI.sendMessageToEmbedder()` which match up with
+ * the embedder API defined here: https://source.chromium.org/search?q=f:devtools%20f:dispatcher%20f:cc%20symbol:CreateForDevToolsFrontend&sq=&ss=chromium%2Fchromium%2Fsrc
+ * The native implementations live in devtools_ui_bindings.cc: https://source.chromium.org/chromium/chromium/src/+/main:chrome/browser/devtools/devtools_ui_bindings.cc
+ */
 export class InspectorFrontendHostStub {
     #urlsBeingSaved;
     events;
@@ -69,7 +80,7 @@ export class InspectorFrontendHostStub {
             }
         }
         document.addEventListener('keydown', event => {
-            stopEventPropagation.call(this, event);
+            stopEventPropagation.call(this, (event));
         }, true);
     }
     platform() {
@@ -118,10 +129,13 @@ export class InspectorFrontendHostStub {
     openInNewTab(url) {
         window.open(url, '_blank');
     }
+    openSearchResultsInNewTab(query) {
+        Common.Console.Console.instance().error('Search is not enabled in hosted mode. Please inspect using chrome://inspect');
+    }
     showItemInFolder(fileSystemPath) {
         Common.Console.Console.instance().error('Show item in folder is not enabled in hosted mode. Please inspect using chrome://inspect');
     }
-    save(url, content, forceSaveAs) {
+    save(url, content, forceSaveAs, isBase64) {
         let buffer = this.#urlsBeingSaved.get(url);
         if (!buffer) {
             buffer = [];
@@ -180,6 +194,11 @@ export class InspectorFrontendHostStub {
         this.recordedPerformanceHistograms.push({ histogramName, duration });
     }
     recordUserMetricsAction(umaName) {
+    }
+    connectAutomaticFileSystem(_fileSystemPath, _fileSystemUUID, _addIfMissing, callback) {
+        queueMicrotask(() => callback({ success: false }));
+    }
+    disconnectAutomaticFileSystem(fileSystemPath) {
     }
     requestFileSystems() {
         this.events.dispatchEventToListeners(Events.FileSystemsLoaded, []);
@@ -285,10 +304,48 @@ export class InspectorFrontendHostStub {
         window.localStorage.clear();
     }
     getSyncInformation(callback) {
+        if ('getSyncInformationForTesting' in globalThis) {
+            // @ts-expect-error for testing
+            return callback(globalThis.getSyncInformationForTesting());
+        }
         callback({
             isSyncActive: false,
             arePreferencesSynced: false,
         });
+    }
+    getHostConfig(callback) {
+        // This HostConfig config is used in the hosted mode (see the
+        // comment on top of this class). Only add non-default config params
+        // here that you want to also apply in the hosted mode. For tests
+        // use the hostConfigForTesting override.
+        const hostConfigForHostedMode = {
+            devToolsVeLogging: {
+                enabled: true,
+            },
+            thirdPartyCookieControls: {
+                thirdPartyCookieMetadataEnabled: true,
+                thirdPartyCookieHeuristicsEnabled: true,
+                managedBlockThirdPartyCookies: 'Unset',
+            },
+        };
+        if ('hostConfigForTesting' in globalThis) {
+            const { hostConfigForTesting } = globalThis;
+            for (const key of Object.keys(hostConfigForTesting)) {
+                const mergeEntry = (key) => {
+                    if (typeof hostConfigForHostedMode[key] === 'object' && typeof hostConfigForTesting[key] === 'object') {
+                        // If the config is an object, merge the settings, but preferring
+                        // the hostConfigForTesting values over the result values.
+                        hostConfigForHostedMode[key] = { ...hostConfigForHostedMode[key], ...hostConfigForTesting[key] };
+                    }
+                    else {
+                        // Override with the testing config if the value is present + not null/undefined.
+                        hostConfigForHostedMode[key] = hostConfigForTesting[key] ?? hostConfigForHostedMode[key];
+                    }
+                };
+                mergeEntry(key);
+            }
+        }
+        callback(hostConfigForHostedMode);
     }
     upgradeDraggedFileSystemPermissions(fileSystem) {
     }
@@ -325,14 +382,12 @@ export class InspectorFrontendHostStub {
     }
     setDevicesUpdatesEnabled(enabled) {
     }
-    performActionOnRemotePage(pageId, action) {
-    }
     openRemotePage(browserId, url) {
     }
     openNodeFrontend() {
     }
     showContextMenuAtPoint(x, y, items, document) {
-        throw 'Soft context menu should be used';
+        throw new Error('Soft context menu should be used');
     }
     isHostedMode() {
         return true;
@@ -343,14 +398,38 @@ export class InspectorFrontendHostStub {
     async initialTargetId() {
         return null;
     }
+    doAidaConversation(request, streamId, callback) {
+        callback({
+            error: 'Not implemented',
+        });
+    }
+    registerAidaClientEvent(request, callback) {
+        callback({
+            error: 'Not implemented',
+        });
+    }
+    recordImpression(event) {
+    }
+    recordResize(event) {
+    }
+    recordClick(event) {
+    }
+    recordHover(event) {
+    }
+    recordDrag(event) {
+    }
+    recordChange(event) {
+    }
+    recordKeyDown(event) {
+    }
 }
-// @ts-ignore Global injected by devtools-compatibility.js
+// @ts-expect-error Global injected by devtools_compatibility.js
 // eslint-disable-next-line @typescript-eslint/naming-convention
 export let InspectorFrontendHostInstance = globalThis.InspectorFrontendHost;
 class InspectorFrontendAPIImpl {
     constructor() {
         for (const descriptor of EventDescriptors) {
-            // @ts-ignore Dispatcher magic
+            // @ts-expect-error Dispatcher magic
             this[descriptor[1]] = this.dispatch.bind(this, descriptor[0], descriptor[2], descriptor[3]);
         }
     }
@@ -387,7 +466,7 @@ class InspectorFrontendAPIImpl {
         let proto;
         if (!InspectorFrontendHostInstance) {
             // Instantiate stub for web-hosted mode if necessary.
-            // @ts-ignore Global injected by devtools-compatibility.js
+            // @ts-expect-error Global injected by devtools_compatibility.js
             globalThis.InspectorFrontendHost = InspectorFrontendHostInstance = new InspectorFrontendHostStub();
         }
         else {
@@ -397,12 +476,12 @@ class InspectorFrontendAPIImpl {
                 // TODO(crbug.com/1172300) Ignored during the jsdoc to ts migration)
                 // @ts-expect-error
                 const stub = proto[name];
-                // @ts-ignore Global injected by devtools-compatibility.js
+                // @ts-expect-error Global injected by devtools_compatibility.js
                 if (typeof stub !== 'function' || InspectorFrontendHostInstance[name]) {
                     continue;
                 }
                 console.error(`Incompatible embedder: method Host.InspectorFrontendHost.${name} is missing. Using stub instead.`);
-                // @ts-ignore Global injected by devtools-compatibility.js
+                // @ts-expect-error Global injected by devtools_compatibility.js
                 InspectorFrontendHostInstance[name] = stub;
             }
         }
@@ -412,7 +491,7 @@ class InspectorFrontendAPIImpl {
     // FIXME: This file is included into both apps, since the devtools_app needs the InspectorFrontendHostAPI only,
     // so the host instance should not be initialized there.
     initializeInspectorFrontendHost();
-    // @ts-ignore Global injected by devtools-compatibility.js
+    // @ts-expect-error Global injected by devtools_compatibility.js
     globalThis.InspectorFrontendAPI = new InspectorFrontendAPIImpl();
 })();
 export function isUnderTest(prefs) {

@@ -5,19 +5,19 @@ import * as Platform from '../../core/platform/platform.js';
 import { TextCursor } from './TextCursor.js';
 import { SourceRange, TextRange } from './TextRange.js';
 export class Text {
-    valueInternal;
-    lineEndingsInternal;
+    #value;
+    #lineEndings;
     constructor(value) {
-        this.valueInternal = value;
+        this.#value = value;
     }
     lineEndings() {
-        if (!this.lineEndingsInternal) {
-            this.lineEndingsInternal = Platform.StringUtilities.findLineEndingIndexes(this.valueInternal);
+        if (!this.#lineEndings) {
+            this.#lineEndings = Platform.StringUtilities.findLineEndingIndexes(this.#value);
         }
-        return this.lineEndingsInternal;
+        return this.#lineEndings;
     }
     value() {
-        return this.valueInternal;
+        return this.#value;
     }
     lineCount() {
         const lineEndings = this.lineEndings();
@@ -29,13 +29,13 @@ export class Text {
     positionFromOffset(offset) {
         const lineEndings = this.lineEndings();
         const lineNumber = Platform.ArrayUtilities.lowerBound(lineEndings, offset, Platform.ArrayUtilities.DEFAULT_COMPARATOR);
-        return { lineNumber: lineNumber, columnNumber: offset - (lineNumber && (lineEndings[lineNumber - 1] + 1)) };
+        return { lineNumber, columnNumber: offset - (lineNumber && (lineEndings[lineNumber - 1] + 1)) };
     }
     lineAt(lineNumber) {
         const lineEndings = this.lineEndings();
         const lineStart = lineNumber > 0 ? lineEndings[lineNumber - 1] + 1 : 0;
         const lineEnd = lineEndings[lineNumber];
-        let lineContent = this.valueInternal.substring(lineStart, lineEnd);
+        let lineContent = this.#value.substring(lineStart, lineEnd);
         if (lineContent.length > 0 && lineContent.charAt(lineContent.length - 1) === '\r') {
             lineContent = lineContent.substring(0, lineContent.length - 1);
         }
@@ -59,12 +59,12 @@ export class Text {
     }
     replaceRange(range, replacement) {
         const sourceRange = this.toSourceRange(range);
-        return this.valueInternal.substring(0, sourceRange.offset) + replacement +
-            this.valueInternal.substring(sourceRange.offset + sourceRange.length);
+        return this.#value.substring(0, sourceRange.offset) + replacement +
+            this.#value.substring(sourceRange.offset + sourceRange.length);
     }
     extract(range) {
         const sourceRange = this.toSourceRange(range);
-        return this.valueInternal.substr(sourceRange.offset, sourceRange.length);
+        return this.#value.substr(sourceRange.offset, sourceRange.length);
     }
 }
 //# sourceMappingURL=Text.js.map

@@ -1,27 +1,31 @@
 // Copyright 2021 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
-import { StackTrace } from './StackTrace.js';
-import { PermissionsPolicySection, renderIconLink, } from './PermissionsPolicySection.js';
-import * as Bindings from '../../../models/bindings/bindings.js';
+import '../../../ui/components/expandable_list/expandable_list.js';
+import '../../../ui/components/report_view/report_view.js';
+import './StackTrace.js';
 import * as Common from '../../../core/common/common.js';
 import * as i18n from '../../../core/i18n/i18n.js';
-import * as NetworkForward from '../../../panels/network/forward/forward.js';
 import * as Platform from '../../../core/platform/platform.js';
 import * as Root from '../../../core/root/root.js';
 import * as SDK from '../../../core/sdk/sdk.js';
-import * as LitHtml from '../../../ui/lit-html/lit-html.js';
-import * as ExpandableList from '../../../ui/components/expandable_list/expandable_list.js';
-import * as ReportView from '../../../ui/components/report_view/report_view.js';
-import * as IconButton from '../../../ui/components/icon_button/icon_button.js';
-import * as ComponentHelpers from '../../../ui/components/helpers/helpers.js';
-import * as LegacyWrapper from '../../../ui/components/legacy_wrapper/legacy_wrapper.js';
+import * as Bindings from '../../../models/bindings/bindings.js';
 import * as Workspace from '../../../models/workspace/workspace.js';
+import * as NetworkForward from '../../../panels/network/forward/forward.js';
+import * as CspEvaluator from '../../../third_party/csp_evaluator/csp_evaluator.js';
+import * as Buttons from '../../../ui/components/buttons/buttons.js';
+import * as LegacyWrapper from '../../../ui/components/legacy_wrapper/legacy_wrapper.js';
+import * as RenderCoordinator from '../../../ui/components/render_coordinator/render_coordinator.js';
 import * as Components from '../../../ui/legacy/components/utils/utils.js';
+import * as Lit from '../../../ui/lit/lit.js';
+import * as VisualLogging from '../../../ui/visual_logging/visual_logging.js';
+import frameDetailsReportViewStylesRaw from './frameDetailsReportView.css.js';
 import { OriginTrialTreeView } from './OriginTrialTreeView.js';
-import * as Coordinator from '../../../ui/components/render_coordinator/render_coordinator.js';
-import frameDetailsReportViewStyles from './frameDetailsReportView.css.js';
-import { Prerender2ReasonDescription } from './Prerender2.js';
+import { renderIconLink, } from './PermissionsPolicySection.js';
+// TODO(crbug.com/391381439): Fully migrate off of constructed style sheets.
+const frameDetailsReportViewStyles = new CSSStyleSheet();
+frameDetailsReportViewStyles.replaceSync(frameDetailsReportViewStylesRaw.cssContent);
+const { html } = Lit;
 const UIStrings = {
     /**
      *@description Section header in the Frame Details view
@@ -47,11 +51,11 @@ const UIStrings = {
     /**
      *@description Title for a link to the Sources panel
      */
-    clickToRevealInSourcesPanel: 'Click to reveal in Sources panel',
+    clickToOpenInSourcesPanel: 'Click to open in Sources panel',
     /**
      *@description Title for a link to the Network panel
      */
-    clickToRevealInNetworkPanel: 'Click to reveal in Network panel',
+    clickToOpenInNetworkPanel: 'Click to open in Network panel',
     /**
      *@description Title for unreachable URL field
      */
@@ -59,7 +63,7 @@ const UIStrings = {
     /**
      *@description Title for a link that applies a filter to the network panel
      */
-    clickToRevealInNetworkPanelMight: 'Click to reveal in Network panel (might require page reload)',
+    clickToOpenInNetworkPanelMight: 'Click to open in Network panel (might require page reload)',
     /**
      *@description The origin of a URL (https://web.dev/same-site-same-origin/#origin)
      *(for a lot of languages this does not need to be translated, please translate only where necessary)
@@ -73,7 +77,7 @@ const UIStrings = {
     /**
      *@description Title for a link to the Elements panel
      */
-    clickToRevealInElementsPanel: 'Click to reveal in Elements panel',
+    clickToOpenInElementsPanel: 'Click to open in Elements panel',
     /**
      *@description Title for ad frame type field
      */
@@ -98,6 +102,10 @@ const UIStrings = {
      *@description Section header in the Frame Details view
      */
     securityIsolation: 'Security & Isolation',
+    /**
+     *@description Section header in the Frame Details view
+     */
+    contentSecurityPolicy: 'Content Security Policy (CSP)',
     /**
      *@description Row title for in the Frame Details view
      */
@@ -223,31 +231,26 @@ const UIStrings = {
      */
     createdByAdScriptExplanation: 'There was an ad script in the `(async) stack` when this frame was created. Examining the creation `stack trace` of this frame might provide more insight.',
     /**
-     *@description Label for a button which when clicked causes some information to be refreshed/updated.
-     */
-    refresh: 'Refresh',
-    /**
-     *@description Label for section of frame details view
-     */
-    prerendering: 'Prerendering',
-    /**
-     *@description Label for subtitle of frame details view
-     */
-    prerenderingStatus: 'Prerendering Status',
-    /**
      *@description Label for a link to an ad script, which created the current iframe.
      */
     creatorAdScript: 'Creator Ad Script',
+    /**
+     *@description Text describing the absence of a value.
+     */
+    none: 'None',
+    /**
+     *@description Explanation of what origin trials are
+     *(https://developer.chrome.com/docs/web-platform/origin-trials/)
+     *(please don't translate 'origin trials').
+     */
+    originTrialsExplanation: 'Origin trials give you access to a new or experimental feature.',
 };
 const str_ = i18n.i18n.registerUIStrings('panels/application/components/FrameDetailsView.ts', UIStrings);
 const i18nString = i18n.i18n.getLocalizedString.bind(undefined, str_);
-const coordinator = Coordinator.RenderCoordinator.RenderCoordinator.instance();
 export class FrameDetailsReportView extends LegacyWrapper.LegacyWrapper.WrappableComponent {
-    static litTagName = LitHtml.literal `devtools-resources-frame-details-view`;
     #shadow = this.attachShadow({ mode: 'open' });
     #frame;
     #target;
-    #prerenderedUrl;
     #protocolMonitorExperimentEnabled = false;
     #permissionsPolicies = null;
     #permissionsPolicySectionData = { policies: [], showDetails: false };
@@ -257,21 +260,11 @@ export class FrameDetailsReportView extends LegacyWrapper.LegacyWrapper.Wrappabl
     constructor(frame) {
         super();
         this.#frame = frame;
-        this.#prerenderedUrl = '';
-        this.classList.add('overflow-auto');
-        SDK.TargetManager.TargetManager.instance().addModelListener(SDK.ChildTargetManager.ChildTargetManager, SDK.ChildTargetManager.Events.TargetInfoChanged, this.targetChanged, this);
-        frame.resourceTreeModel().addEventListener(SDK.ResourceTreeModel.Events.PrerenderingStatusUpdated, this.render, this);
         void this.render();
     }
-    targetChanged(event) {
-        const targetInfo = event.data;
-        if (targetInfo.subtype === 'prerender') {
-            this.#prerenderedUrl = targetInfo.url;
-            void this.render();
-        }
-    }
     connectedCallback() {
-        this.#protocolMonitorExperimentEnabled = Root.Runtime.experiments.isEnabled('protocolMonitor');
+        this.parentElement?.classList.add('overflow-auto');
+        this.#protocolMonitorExperimentEnabled = Root.Runtime.experiments.isEnabled('protocol-monitor');
         this.#shadow.adoptedStyleSheets = [frameDetailsReportViewStyles];
     }
     async render() {
@@ -283,111 +276,96 @@ export class FrameDetailsReportView extends LegacyWrapper.LegacyWrapper.Wrappabl
         if (!this.#permissionsPolicies && this.#frame) {
             this.#permissionsPolicies = this.#frame.getPermissionsPolicyState();
         }
-        await coordinator.write('FrameDetailsView render', () => {
+        await RenderCoordinator.write('FrameDetailsView render', () => {
             if (!this.#frame) {
                 return;
             }
             // Disabled until https://crbug.com/1079231 is fixed.
             // clang-format off
-            LitHtml.render(LitHtml.html `
-        <${ReportView.ReportView.Report.litTagName} .data=${{ reportTitle: this.#frame.displayName() }}>
+            Lit.render(html `
+        <devtools-report .data=${{ reportTitle: this.#frame.displayName() }}
+        jslog=${VisualLogging.pane('frames')}>
           ${this.#renderDocumentSection()}
           ${this.#renderIsolationSection()}
           ${this.#renderApiAvailabilitySection()}
           ${this.#renderOriginTrial()}
-          ${LitHtml.Directives.until(this.#permissionsPolicies?.then(policies => {
+          ${Lit.Directives.until(this.#permissionsPolicies?.then(policies => {
                 this.#permissionsPolicySectionData.policies = policies || [];
-                return LitHtml.html `
-              <${PermissionsPolicySection.litTagName}
+                return html `
+              <devtools-resources-permissions-policy-section
                 .data=${this.#permissionsPolicySectionData}
               >
-              </${PermissionsPolicySection.litTagName}>
+              </devtools-resources-permissions-policy-section>
             `;
-            }), LitHtml.nothing)}
-          ${this.#renderPrerenderingSection()}
-          ${this.#protocolMonitorExperimentEnabled ? this.#renderAdditionalInfoSection() : LitHtml.nothing}
-        </${ReportView.ReportView.Report.litTagName}>
+            }), Lit.nothing)}
+          ${this.#protocolMonitorExperimentEnabled ? this.#renderAdditionalInfoSection() : Lit.nothing}
+        </devtools-report>
       `, this.#shadow, { host: this });
             // clang-format on
         });
     }
     #renderOriginTrial() {
         if (!this.#frame) {
-            return LitHtml.nothing;
+            return Lit.nothing;
         }
         this.#originTrialTreeView.classList.add('span-cols');
-        const frame = this.#frame;
-        const refreshOriginTrials = () => {
-            void frame.getOriginTrials().then(trials => {
-                this.#originTrialTreeView.data = { trials };
-            });
-        };
-        refreshOriginTrials();
-        return LitHtml.html `
-    <${ReportView.ReportView.ReportSectionHeader.litTagName}>
-      ${i18n.i18n.lockedString('Origin Trials')}
-      <${IconButton.IconButton.IconButton.litTagName} class="inline-button" .data=${{
-            clickHandler: refreshOriginTrials,
-            groups: [
-                {
-                    iconName: 'refresh',
-                    text: i18nString(UIStrings.refresh),
-                    iconColor: 'var(--icon-default-hover)',
-                    iconWidth: '14px',
-                    iconHeight: '14px',
-                },
-            ],
-        }}>
-      </${IconButton.IconButton.IconButton.litTagName}>
-    </${ReportView.ReportView.ReportSectionHeader.litTagName}>
+        void this.#frame.getOriginTrials().then(trials => {
+            this.#originTrialTreeView.data = { trials };
+        });
+        // clang-format off
+        return html `
+    <devtools-report-section-header>${i18n.i18n.lockedString('Origin trials')}</devtools-report-section-header>
+    <div class="span-cols">
+        ${i18nString(UIStrings.originTrialsExplanation)}
+        <x-link href="https://developer.chrome.com/docs/web-platform/origin-trials/" class="link"
+        jslog=${VisualLogging.link('learn-more.origin-trials').track({ click: true })}>${i18nString(UIStrings.learnMore)}</x-link>
+    </div>
     ${this.#originTrialTreeView}
-    <${ReportView.ReportView.ReportSectionDivider.litTagName}></${ReportView.ReportView.ReportSectionDivider.litTagName}>
+    <devtools-report-divider></devtools-report-divider>
     `;
+        // clang-format on
     }
     #renderDocumentSection() {
         if (!this.#frame) {
-            return LitHtml.nothing;
+            return Lit.nothing;
         }
-        return LitHtml.html `
-      <${ReportView.ReportView.ReportSectionHeader.litTagName}>${i18nString(UIStrings.document)}</${ReportView.ReportView.ReportSectionHeader.litTagName}>
-      <${ReportView.ReportView.ReportKey.litTagName}>${i18nString(UIStrings.url)}</${ReportView.ReportView.ReportKey.litTagName}>
-      <${ReportView.ReportView.ReportValue.litTagName}>
+        return html `
+      <devtools-report-section-header>${i18nString(UIStrings.document)}</devtools-report-section-header>
+      <devtools-report-key>${i18nString(UIStrings.url)}</devtools-report-key>
+      <devtools-report-value>
         <div class="inline-items">
           ${this.#maybeRenderSourcesLinkForURL()}
           ${this.#maybeRenderNetworkLinkForURL()}
           <div class="text-ellipsis" title=${this.#frame.url}>${this.#frame.url}</div>
         </div>
-      </${ReportView.ReportView.ReportValue.litTagName}>
+      </devtools-report-value>
       ${this.#maybeRenderUnreachableURL()}
       ${this.#maybeRenderOrigin()}
-      ${LitHtml.Directives.until(this.#renderOwnerElement(), LitHtml.nothing)}
+      ${Lit.Directives.until(this.#renderOwnerElement(), Lit.nothing)}
       ${this.#maybeRenderCreationStacktrace()}
       ${this.#maybeRenderAdStatus()}
-      <${ReportView.ReportView.ReportSectionDivider.litTagName}></${ReportView.ReportView.ReportSectionDivider.litTagName}>
+      <devtools-report-divider></devtools-report-divider>
     `;
     }
     #maybeRenderSourcesLinkForURL() {
         if (!this.#frame || this.#frame.unreachableUrl()) {
-            return LitHtml.nothing;
+            return Lit.nothing;
         }
         const sourceCode = this.#uiSourceCodeForFrame(this.#frame);
-        return renderIconLink('breakpoint-circle', i18nString(UIStrings.clickToRevealInSourcesPanel), () => Common.Revealer.reveal(sourceCode));
+        return renderIconLink('breakpoint-circle', i18nString(UIStrings.clickToOpenInSourcesPanel), () => Common.Revealer.reveal(sourceCode), 'reveal-in-sources');
     }
     #maybeRenderNetworkLinkForURL() {
         if (this.#frame) {
             const resource = this.#frame.resourceForURL(this.#frame.url);
-            if (resource && resource.request) {
+            if (resource?.request) {
                 const request = resource.request;
-                return renderIconLink('arrow-up-down-circle', i18nString(UIStrings.clickToRevealInNetworkPanel), () => {
-                    const headersTab = Root.Runtime.experiments.isEnabled(Root.Runtime.ExperimentName.HEADER_OVERRIDES) ?
-                        NetworkForward.UIRequestLocation.UIRequestTabs.HeadersComponent :
-                        NetworkForward.UIRequestLocation.UIRequestTabs.Headers;
-                    const requestLocation = NetworkForward.UIRequestLocation.UIRequestLocation.tab(request, headersTab);
+                return renderIconLink('arrow-up-down-circle', i18nString(UIStrings.clickToOpenInNetworkPanel), () => {
+                    const requestLocation = NetworkForward.UIRequestLocation.UIRequestLocation.tab(request, "headers-component" /* NetworkForward.UIRequestLocation.UIRequestTabs.HEADERS_COMPONENT */);
                     return Common.Revealer.reveal(requestLocation);
-                });
+                }, 'reveal-in-network');
             }
         }
-        return LitHtml.nothing;
+        return Lit.nothing;
     }
     #uiSourceCodeForFrame(frame) {
         for (const project of Workspace.Workspace.WorkspaceImpl.instance().projects()) {
@@ -403,23 +381,23 @@ export class FrameDetailsReportView extends LegacyWrapper.LegacyWrapper.Wrappabl
     }
     #maybeRenderUnreachableURL() {
         if (!this.#frame || !this.#frame.unreachableUrl()) {
-            return LitHtml.nothing;
+            return Lit.nothing;
         }
-        return LitHtml.html `
-      <${ReportView.ReportView.ReportKey.litTagName}>${i18nString(UIStrings.unreachableUrl)}</${ReportView.ReportView.ReportKey.litTagName}>
-      <${ReportView.ReportView.ReportValue.litTagName}>
+        return html `
+      <devtools-report-key>${i18nString(UIStrings.unreachableUrl)}</devtools-report-key>
+      <devtools-report-value>
         <div class="inline-items">
           ${this.#renderNetworkLinkForUnreachableURL()}
           <div class="text-ellipsis" title=${this.#frame.unreachableUrl()}>${this.#frame.unreachableUrl()}</div>
         </div>
-      </${ReportView.ReportView.ReportValue.litTagName}>
+      </devtools-report-value>
     `;
     }
     #renderNetworkLinkForUnreachableURL() {
         if (this.#frame) {
             const unreachableUrl = Common.ParsedURL.ParsedURL.fromString(this.#frame.unreachableUrl());
             if (unreachableUrl) {
-                return renderIconLink('arrow-up-down-circle', i18nString(UIStrings.clickToRevealInNetworkPanelMight), () => {
+                return renderIconLink('arrow-up-down-circle', i18nString(UIStrings.clickToOpenInNetworkPanelMight), () => {
                     void Common.Revealer.reveal(NetworkForward.UIFilter.UIRequestFilter.filters([
                         {
                             filterType: NetworkForward.UIFilter.FilterType.Domain,
@@ -430,21 +408,21 @@ export class FrameDetailsReportView extends LegacyWrapper.LegacyWrapper.Wrappabl
                             filterValue: unreachableUrl.path,
                         },
                     ]));
-                });
+                }, 'unreachable-url.reveal-in-network');
             }
         }
-        return LitHtml.nothing;
+        return Lit.nothing;
     }
     #maybeRenderOrigin() {
         if (this.#frame && this.#frame.securityOrigin && this.#frame.securityOrigin !== '://') {
-            return LitHtml.html `
-        <${ReportView.ReportView.ReportKey.litTagName}>${i18nString(UIStrings.origin)}</${ReportView.ReportView.ReportKey.litTagName}>
-        <${ReportView.ReportView.ReportValue.litTagName}>
+            return html `
+        <devtools-report-key>${i18nString(UIStrings.origin)}</devtools-report-key>
+        <devtools-report-value>
           <div class="text-ellipsis" title=${this.#frame.securityOrigin}>${this.#frame.securityOrigin}</div>
-        </${ReportView.ReportView.ReportValue.litTagName}>
+        </devtools-report-value>
       `;
         }
-        return LitHtml.nothing;
+        return Lit.nothing;
     }
     async #renderOwnerElement() {
         if (this.#frame) {
@@ -452,57 +430,46 @@ export class FrameDetailsReportView extends LegacyWrapper.LegacyWrapper.Wrappabl
             if (linkTargetDOMNode) {
                 // Disabled until https://crbug.com/1079231 is fixed.
                 // clang-format off
-                return LitHtml.html `
-          <${ReportView.ReportView.ReportKey.litTagName}>${i18nString(UIStrings.ownerElement)}</${ReportView.ReportView.ReportKey.litTagName}>
-          <${ReportView.ReportView.ReportValue.litTagName} class="without-min-width">
+                return html `
+          <devtools-report-key>${i18nString(UIStrings.ownerElement)}</devtools-report-key>
+          <devtools-report-value class="without-min-width">
             <div class="inline-items">
-              <button class="link" role="link" tabindex=0
+              <button class="link text-link" role="link" tabindex=0 title=${i18nString(UIStrings.clickToOpenInElementsPanel)}
                 @mouseenter=${() => this.#frame?.highlight()}
                 @mouseleave=${() => SDK.OverlayModel.OverlayModel.hideDOMNodeHighlight()}
                 @click=${() => Common.Revealer.reveal(linkTargetDOMNode)}
-                title=${i18nString(UIStrings.clickToRevealInElementsPanel)}
-              >
-                <${IconButton.Icon.Icon.litTagName} .data=${{
-                    iconName: 'code-circle',
-                    color: 'var(--icon-link)',
-                    width: '16px',
-                    height: '16px',
-                }}>
-                </${IconButton.Icon.Icon.litTagName}>
-              </button>
-              <button class="link text-link" role="link" tabindex=0 title=${i18nString(UIStrings.clickToRevealInElementsPanel)}
-                @mouseenter=${() => this.#frame?.highlight()}
-                @mouseleave=${() => SDK.OverlayModel.OverlayModel.hideDOMNodeHighlight()}
-                @click=${() => Common.Revealer.reveal(linkTargetDOMNode)}
+                jslog=${VisualLogging.action('reveal-in-elements').track({ click: true })}
               >
                 &lt;${linkTargetDOMNode.nodeName().toLocaleLowerCase()}&gt;
               </button>
             </div>
-          </${ReportView.ReportView.ReportValue.litTagName}>
+          </devtools-report-value>
         `;
                 // clang-format on
             }
         }
-        return LitHtml.nothing;
+        return Lit.nothing;
     }
     #maybeRenderCreationStacktrace() {
         const creationStackTraceData = this.#frame?.getCreationStackTraceData();
-        if (creationStackTraceData && creationStackTraceData.creationStackTrace) {
+        if (creationStackTraceData?.creationStackTrace) {
             // Disabled until https://crbug.com/1079231 is fixed.
             // clang-format off
-            return LitHtml.html `
-        <${ReportView.ReportView.ReportKey.litTagName} title=${i18nString(UIStrings.creationStackTraceExplanation)}>${i18nString(UIStrings.creationStackTrace)}</${ReportView.ReportView.ReportKey.litTagName}>
-        <${ReportView.ReportView.ReportValue.litTagName}>
-          <${StackTrace.litTagName} .data=${{
+            return html `
+        <devtools-report-key title=${i18nString(UIStrings.creationStackTraceExplanation)}>${i18nString(UIStrings.creationStackTrace)}</devtools-report-key>
+        <devtools-report-value
+        jslog=${VisualLogging.section('frame-creation-stack-trace')}
+        >
+          <devtools-resources-stack-trace .data=${{
                 frame: this.#frame,
                 buildStackTraceRows: Components.JSPresentationUtils.buildStackTraceRows,
             }}>
-          </${StackTrace.litTagName}>
-        </${ReportView.ReportView.ReportValue.litTagName}>
+          </devtools-resources-stack-trace>
+        </devtools-report-value>
       `;
             // clang-format on
         }
-        return LitHtml.nothing;
+        return Lit.nothing;
     }
     #getAdFrameTypeStrings(type) {
         switch (type) {
@@ -524,56 +491,57 @@ export class FrameDetailsReportView extends LegacyWrapper.LegacyWrapper.Wrappabl
     }
     #maybeRenderAdStatus() {
         if (!this.#frame) {
-            return LitHtml.nothing;
+            return Lit.nothing;
         }
         const adFrameType = this.#frame.adFrameType();
         if (adFrameType === "none" /* Protocol.Page.AdFrameType.None */) {
-            return LitHtml.nothing;
+            return Lit.nothing;
         }
         const typeStrings = this.#getAdFrameTypeStrings(adFrameType);
-        const rows = [LitHtml.html `<div title=${typeStrings.description}>${typeStrings.value}</div>`];
+        const rows = [html `<div title=${typeStrings.description}>${typeStrings.value}</div>`];
         for (const explanation of this.#frame.adFrameStatus()?.explanations || []) {
-            rows.push(LitHtml.html `<div>${this.#getAdFrameExplanationString(explanation)}</div>`);
+            rows.push(html `<div>${this.#getAdFrameExplanationString(explanation)}</div>`);
         }
         const adScriptLinkElement = this.#target ? this.#linkifier.linkifyScriptLocation(this.#target, this.#adScriptId?.scriptId || null, Platform.DevToolsPath.EmptyUrlString, undefined, undefined) :
             null;
         // Disabled until https://crbug.com/1079231 is fixed.
         // clang-format off
-        return LitHtml.html `
-      <${ReportView.ReportView.ReportKey.litTagName}>${i18nString(UIStrings.adStatus)}</${ReportView.ReportView.ReportKey.litTagName}>
-      <${ReportView.ReportView.ReportValue.litTagName}>
-        <${ExpandableList.ExpandableList.ExpandableList.litTagName} .data=${{ rows }}></${ExpandableList.ExpandableList.ExpandableList.litTagName}></${ReportView.ReportView.ReportValue.litTagName}>
-      ${this.#target ? LitHtml.html `
-        <${ReportView.ReportView.ReportKey.litTagName}>${i18nString(UIStrings.creatorAdScript)}</${ReportView.ReportView.ReportKey.litTagName}>
-        <${ReportView.ReportView.ReportValue.litTagName} class="ad-script-link">${adScriptLinkElement}</${ReportView.ReportView.ReportValue.litTagName}>
-      ` : LitHtml.nothing}
+        return html `
+      <devtools-report-key>${i18nString(UIStrings.adStatus)}</devtools-report-key>
+      <devtools-report-value
+      jslog=${VisualLogging.section('ad-status')}>
+        <devtools-expandable-list .data=${{ rows, title: i18nString(UIStrings.adStatus) }}></devtools-expandable-list></devtools-report-value>
+      ${this.#target ? html `
+        <devtools-report-key>${i18nString(UIStrings.creatorAdScript)}</devtools-report-key>
+        <devtools-report-value class="ad-script-link">${adScriptLinkElement?.setAttribute('jslog', `${VisualLogging.link('ad-script').track({ click: true })}`)}</devtools-report-value>
+      ` : Lit.nothing}
     `;
         // clang-format on
     }
     #renderIsolationSection() {
         if (!this.#frame) {
-            return LitHtml.nothing;
+            return Lit.nothing;
         }
-        return LitHtml.html `
-      <${ReportView.ReportView.ReportSectionHeader.litTagName}>${i18nString(UIStrings.securityIsolation)}</${ReportView.ReportView.ReportSectionHeader.litTagName}>
-      <${ReportView.ReportView.ReportKey.litTagName}>${i18nString(UIStrings.secureContext)}</${ReportView.ReportView.ReportKey.litTagName}>
-      <${ReportView.ReportView.ReportValue.litTagName}>
+        return html `
+      <devtools-report-section-header>${i18nString(UIStrings.securityIsolation)}</devtools-report-section-header>
+      <devtools-report-key>${i18nString(UIStrings.secureContext)}</devtools-report-key>
+      <devtools-report-value>
         ${this.#frame.isSecureContext() ? i18nString(UIStrings.yes) : i18nString(UIStrings.no)}\xA0${this.#maybeRenderSecureContextExplanation()}
-      </${ReportView.ReportView.ReportValue.litTagName}>
-      <${ReportView.ReportView.ReportKey.litTagName}>${i18nString(UIStrings.crossoriginIsolated)}</${ReportView.ReportView.ReportKey.litTagName}>
-      <${ReportView.ReportView.ReportValue.litTagName}>
+      </devtools-report-value>
+      <devtools-report-key>${i18nString(UIStrings.crossoriginIsolated)}</devtools-report-key>
+      <devtools-report-value>
         ${this.#frame.isCrossOriginIsolated() ? i18nString(UIStrings.yes) : i18nString(UIStrings.no)}
-      </${ReportView.ReportView.ReportValue.litTagName}>
-      ${LitHtml.Directives.until(this.#maybeRenderCoopCoepStatus(), LitHtml.nothing)}
-      <${ReportView.ReportView.ReportSectionDivider.litTagName}></${ReportView.ReportView.ReportSectionDivider.litTagName}>
+      </devtools-report-value>
+      ${Lit.Directives.until(this.#maybeRenderCoopCoepCSPStatus(), Lit.nothing)}
+      <devtools-report-divider></devtools-report-divider>
     `;
     }
     #maybeRenderSecureContextExplanation() {
         const explanation = this.#getSecureContextExplanation();
         if (explanation) {
-            return LitHtml.html `<span class="inline-comment">${explanation}</span>`;
+            return html `<span class="inline-comment">${explanation}</span>`;
         }
-        return LitHtml.nothing;
+        return Lit.nothing;
     }
     #getSecureContextExplanation() {
         switch (this.#frame?.getSecureContextType()) {
@@ -588,49 +556,95 @@ export class FrameDetailsReportView extends LegacyWrapper.LegacyWrapper.Wrappabl
         }
         return null;
     }
-    async #maybeRenderCoopCoepStatus() {
+    async #maybeRenderCoopCoepCSPStatus() {
         if (this.#frame) {
             const model = this.#frame.resourceTreeModel().target().model(SDK.NetworkManager.NetworkManager);
             const info = model && await model.getSecurityIsolationStatus(this.#frame.id);
             if (info) {
-                return LitHtml.html `
+                return html `
           ${this.#maybeRenderCrossOriginStatus(info.coep, i18n.i18n.lockedString('Cross-Origin Embedder Policy (COEP)'), "None" /* Protocol.Network.CrossOriginEmbedderPolicyValue.None */)}
           ${this.#maybeRenderCrossOriginStatus(info.coop, i18n.i18n.lockedString('Cross-Origin Opener Policy (COOP)'), "UnsafeNone" /* Protocol.Network.CrossOriginOpenerPolicyValue.UnsafeNone */)}
+          ${this.#renderCSPSection(info.csp)}
         `;
             }
         }
-        return LitHtml.nothing;
+        return Lit.nothing;
     }
     #maybeRenderCrossOriginStatus(info, policyName, noneValue) {
         if (!info) {
-            return LitHtml.nothing;
+            return Lit.nothing;
         }
         const isEnabled = info.value !== noneValue;
         const isReportOnly = (!isEnabled && info.reportOnlyValue !== noneValue);
         const endpoint = isEnabled ? info.reportingEndpoint : info.reportOnlyReportingEndpoint;
-        return LitHtml.html `
-      <${ReportView.ReportView.ReportKey.litTagName}>${policyName}</${ReportView.ReportView.ReportKey.litTagName}>
-      <${ReportView.ReportView.ReportValue.litTagName}>
+        return html `
+      <devtools-report-key>${policyName}</devtools-report-key>
+      <devtools-report-value>
         ${isEnabled ? info.value : info.reportOnlyValue}
-        ${isReportOnly ? LitHtml.html `<span class="inline-comment">report-only</span>` : LitHtml.nothing}
-        ${endpoint ? LitHtml.html `<span class="inline-name">${i18nString(UIStrings.reportingTo)}</span>${endpoint}` :
-            LitHtml.nothing}
-      </${ReportView.ReportView.ReportValue.litTagName}>
+        ${isReportOnly ? html `<span class="inline-comment">report-only</span>` : Lit.nothing}
+        ${endpoint ? html `<span class="inline-name">${i18nString(UIStrings.reportingTo)}</span>${endpoint}` : Lit.nothing}
+      </devtools-report-value>
     `;
+    }
+    #renderEffectiveDirectives(directives) {
+        const parsedDirectives = new CspEvaluator.CspParser.CspParser(directives).csp.directives;
+        const result = [];
+        for (const directive in parsedDirectives) {
+            result.push(html `<div><span class="bold">${directive}</span>${': ' + parsedDirectives[directive]?.join(', ')}</div>`);
+        }
+        return result;
+    }
+    #renderSingleCSP(cspInfo) {
+        // Disabled until https://crbug.com/1079231 is fixed.
+        // clang-format off
+        return html `
+      <devtools-report-key>${cspInfo.isEnforced ? i18n.i18n.lockedString('Content-Security-Policy') :
+            html `${i18n.i18n.lockedString('Content-Security-Policy-Report-Only')}<devtools-button
+          .iconName=${'help'}
+          class='help-button'
+          .variant=${"icon" /* Buttons.Button.Variant.ICON */}
+          .size=${"SMALL" /* Buttons.Button.Size.SMALL */}
+          @click=${() => { window.location.href = 'https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Content-Security-Policy-Report-Only'; }}
+          jslog=${VisualLogging.link('learn-more.csp-report-only').track({ click: true })}
+          ></devtools-button>`}
+      </devtools-report-key>
+      <devtools-report-value>
+        ${cspInfo.source === "HTTP" /* Protocol.Network.ContentSecurityPolicySource.HTTP */ ? i18n.i18n.lockedString('HTTP header') : i18n.i18n.lockedString('Meta tag')}
+        ${this.#renderEffectiveDirectives(cspInfo.effectiveDirectives)}
+      </devtools-report-value>
+    `;
+        // clang-format on
+    }
+    #renderCSPSection(cspInfos) {
+        // Disabled until https://crbug.com/1079231 is fixed.
+        // clang-format off
+        return html `
+      <devtools-report-divider></devtools-report-divider>
+      <devtools-report-section-header>
+        ${i18nString(UIStrings.contentSecurityPolicy)}
+      </devtools-report-section-header>
+      ${(cspInfos?.length) ? cspInfos.map(cspInfo => this.#renderSingleCSP(cspInfo)) : html `
+        <devtools-report-key>${i18n.i18n.lockedString('Content-Security-Policy')}</devtools-report-key>
+        <devtools-report-value>
+          ${i18nString(UIStrings.none)}
+        </devtools-report-value>
+      `}
+    `;
+        // clang-format on
     }
     #renderApiAvailabilitySection() {
         if (!this.#frame) {
-            return LitHtml.nothing;
+            return Lit.nothing;
         }
-        return LitHtml.html `
-      <${ReportView.ReportView.ReportSectionHeader.litTagName}>${i18nString(UIStrings.apiAvailability)}</${ReportView.ReportView.ReportSectionHeader.litTagName}>
+        return html `
+      <devtools-report-section-header>${i18nString(UIStrings.apiAvailability)}</devtools-report-section-header>
       <div class="span-cols">
         ${i18nString(UIStrings.availabilityOfCertainApisDepends)}
-        <x-link href="https://web.dev/why-coop-coep/" class="link">${i18nString(UIStrings.learnMore)}</x-link>
+        <x-link href="https://web.dev/why-coop-coep/" class="link" jslog=${VisualLogging.link('learn-more.coop-coep').track({ click: true })}>${i18nString(UIStrings.learnMore)}</x-link>
       </div>
       ${this.#renderSharedArrayBufferAvailability()}
       ${this.#renderMeasureMemoryAvailability()}
-      <${ReportView.ReportView.ReportSectionDivider.litTagName}></${ReportView.ReportView.ReportSectionDivider.litTagName}>
+      <devtools-report-divider></devtools-report-divider>
     `;
     }
     #renderSharedArrayBufferAvailability() {
@@ -648,31 +662,31 @@ export class FrameDetailsReportView extends LegacyWrapper.LegacyWrapper.Wrappabl
                 function renderHint(frame) {
                     switch (frame.getCrossOriginIsolatedContextType()) {
                         case "Isolated" /* Protocol.Page.CrossOriginIsolatedContextType.Isolated */:
-                            return LitHtml.nothing;
+                            return Lit.nothing;
                         case "NotIsolated" /* Protocol.Page.CrossOriginIsolatedContextType.NotIsolated */:
                             if (sabAvailable) {
-                                return LitHtml.html `<span class="inline-comment">${i18nString(UIStrings.willRequireCrossoriginIsolated)}</span>`;
+                                return html `<span class="inline-comment">${i18nString(UIStrings.willRequireCrossoriginIsolated)}</span>`;
                             }
-                            return LitHtml.html `<span class="inline-comment">${i18nString(UIStrings.requiresCrossoriginIsolated)}</span>`;
+                            return html `<span class="inline-comment">${i18nString(UIStrings.requiresCrossoriginIsolated)}</span>`;
                         case "NotIsolatedFeatureDisabled" /* Protocol.Page.CrossOriginIsolatedContextType.NotIsolatedFeatureDisabled */:
                             if (!sabTransferAvailable) {
-                                return LitHtml.html `<span class="inline-comment">${i18nString(UIStrings
+                                return html `<span class="inline-comment">${i18nString(UIStrings
                                     .transferRequiresCrossoriginIsolatedPermission)} <code>cross-origin-isolated</code></span>`;
                             }
                             break;
                     }
-                    return LitHtml.nothing;
+                    return Lit.nothing;
                 }
                 // SharedArrayBuffer is an API name, so we don't translate it.
-                return LitHtml.html `
-          <${ReportView.ReportView.ReportKey.litTagName}>SharedArrayBuffers</${ReportView.ReportView.ReportKey.litTagName}>
-          <${ReportView.ReportView.ReportValue.litTagName} title=${tooltipText}>
+                return html `
+          <devtools-report-key>SharedArrayBuffers</devtools-report-key>
+          <devtools-report-value title=${tooltipText}>
             ${availabilityText}\xA0${renderHint(this.#frame)}
-          </${ReportView.ReportView.ReportValue.litTagName}>
+          </devtools-report-value>
         `;
             }
         }
-        return LitHtml.nothing;
+        return Lit.nothing;
     }
     #renderMeasureMemoryAvailability() {
         if (this.#frame) {
@@ -680,72 +694,30 @@ export class FrameDetailsReportView extends LegacyWrapper.LegacyWrapper.Wrappabl
             const availabilityText = measureMemoryAvailable ? i18nString(UIStrings.available) : i18nString(UIStrings.unavailable);
             const tooltipText = measureMemoryAvailable ? i18nString(UIStrings.thePerformanceAPI) :
                 i18nString(UIStrings.thePerformancemeasureuseragentspecificmemory);
-            return LitHtml.html `
-        <${ReportView.ReportView.ReportKey.litTagName}>${i18nString(UIStrings.measureMemory)}</${ReportView.ReportView.ReportKey.litTagName}>
-        <${ReportView.ReportView.ReportValue.litTagName}>
-          <span title=${tooltipText}>${availabilityText}</span>\xA0<x-link class="link" href="https://web.dev/monitor-total-page-memory-usage/">${i18nString(UIStrings.learnMore)}</x-link>
-        </${ReportView.ReportView.ReportValue.litTagName}>
+            return html `
+        <devtools-report-key>${i18nString(UIStrings.measureMemory)}</devtools-report-key>
+        <devtools-report-value>
+          <span title=${tooltipText}>${availabilityText}</span>\xA0<x-link class="link" href="https://web.dev/monitor-total-page-memory-usage/" jslog=${VisualLogging.link('learn-more.monitor-memory-usage').track({ click: true })}>${i18nString(UIStrings.learnMore)}</x-link>
+        </devtools-report-value>
       `;
         }
-        return LitHtml.nothing;
-    }
-    #renderPrerenderingSection() {
-        if (this.#prerenderedUrl && this.#prerenderedUrl !== '') {
-            const status = Prerender2ReasonDescription['PrerenderingOngoing'].name() + ' ' + this.#prerenderedUrl;
-            return LitHtml.html `
-      <${ReportView.ReportView.ReportSectionHeader.litTagName}>
-      ${i18nString(UIStrings.prerendering)}</${ReportView.ReportView.ReportSectionHeader.litTagName}>
-      <${ReportView.ReportView.ReportKey.litTagName}>${i18nString(UIStrings.prerenderingStatus)}</${ReportView.ReportView.ReportKey.litTagName}>
-      <${ReportView.ReportView.ReportValue.litTagName}>
-      <div class="text-ellipsis" title=${status}>${status}</div>
-      </${ReportView.ReportView.ReportValue.litTagName}>
-      <${ReportView.ReportView.ReportSectionDivider.litTagName}></${ReportView.ReportView.ReportSectionDivider.litTagName}>`;
-        }
-        if (!this.#frame || !this.#frame.prerenderFinalStatus) {
-            return LitHtml.nothing;
-        }
-        const finalStatus = Prerender2ReasonDescription[this.#frame.prerenderFinalStatus].name();
-        if (this.#frame.prerenderDisallowedApiMethod) {
-            const detailSection = Prerender2ReasonDescription['DisallowedApiMethod'].name();
-            return LitHtml.html `
-      <${ReportView.ReportView.ReportSectionHeader.litTagName}>
-      ${i18nString(UIStrings.prerendering)}</${ReportView.ReportView.ReportSectionHeader.litTagName}>
-      <${ReportView.ReportView.ReportKey.litTagName}>${i18nString(UIStrings.prerenderingStatus)}</${ReportView.ReportView.ReportKey.litTagName}>
-      <${ReportView.ReportView.ReportValue.litTagName}>
-      <div class="text-ellipsis" title=${finalStatus}>${finalStatus}</div>
-      </${ReportView.ReportView.ReportValue.litTagName}>
-      <${ReportView.ReportView.ReportKey.litTagName}>${detailSection}</${ReportView.ReportView.ReportKey.litTagName}>
-      <${ReportView.ReportView.ReportValue.litTagName}>
-      <div class="text-ellipsis" title=${this.#frame.prerenderDisallowedApiMethod}>
-        ${this.#frame.prerenderDisallowedApiMethod}
-      </div>
-      </${ReportView.ReportView.ReportValue.litTagName}>
-      <${ReportView.ReportView.ReportSectionDivider.litTagName}></${ReportView.ReportView.ReportSectionDivider.litTagName}>`;
-        }
-        return LitHtml.html `
-      <${ReportView.ReportView.ReportSectionHeader.litTagName}>
-      ${i18nString(UIStrings.prerendering)}</${ReportView.ReportView.ReportSectionHeader.litTagName}>
-      <${ReportView.ReportView.ReportKey.litTagName}>${i18nString(UIStrings.prerenderingStatus)}</${ReportView.ReportView.ReportKey.litTagName}>
-      <${ReportView.ReportView.ReportValue.litTagName}>
-      <div class="text-ellipsis" title=${finalStatus}>${finalStatus}</div>
-      </${ReportView.ReportView.ReportValue.litTagName}>
-      <${ReportView.ReportView.ReportSectionDivider.litTagName}></${ReportView.ReportView.ReportSectionDivider.litTagName}>`;
+        return Lit.nothing;
     }
     #renderAdditionalInfoSection() {
         if (!this.#frame) {
-            return LitHtml.nothing;
+            return Lit.nothing;
         }
-        return LitHtml.html `
-      <${ReportView.ReportView.ReportSectionHeader.litTagName}
+        return html `
+      <devtools-report-section-header
         title=${i18nString(UIStrings.thisAdditionalDebugging)}
-      >${i18nString(UIStrings.additionalInformation)}</${ReportView.ReportView.ReportSectionHeader.litTagName}>
-      <${ReportView.ReportView.ReportKey.litTagName}>${i18nString(UIStrings.frameId)}</${ReportView.ReportView.ReportKey.litTagName}>
-      <${ReportView.ReportView.ReportValue.litTagName}>
+      >${i18nString(UIStrings.additionalInformation)}</devtools-report-section-header>
+      <devtools-report-key>${i18nString(UIStrings.frameId)}</devtools-report-key>
+      <devtools-report-value>
         <div class="text-ellipsis" title=${this.#frame.id}>${this.#frame.id}</div>
-      </${ReportView.ReportView.ReportValue.litTagName}>
-      <${ReportView.ReportView.ReportSectionDivider.litTagName}></${ReportView.ReportView.ReportSectionDivider.litTagName}>
+      </devtools-report-value>
+      <devtools-report-divider></devtools-report-divider>
     `;
     }
 }
-ComponentHelpers.CustomElements.defineComponent('devtools-resources-frame-details-view', FrameDetailsReportView);
+customElements.define('devtools-resources-frame-details-view', FrameDetailsReportView);
 //# sourceMappingURL=FrameDetailsView.js.map

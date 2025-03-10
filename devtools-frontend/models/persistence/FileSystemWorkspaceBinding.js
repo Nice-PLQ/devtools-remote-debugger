@@ -75,9 +75,6 @@ export class FileSystemWorkspaceBinding {
     static fileSystemPath(projectId) {
         return projectId;
     }
-    fileSystemManager() {
-        return this.isolatedFileSystemManager;
-    }
     onFileSystemsLoaded(fileSystems) {
         for (const fileSystem of fileSystems) {
             this.addFileSystem(fileSystem);
@@ -234,14 +231,11 @@ export class FileSystem extends Workspace.Workspace.ProjectStore {
     }
     async searchInFileContent(uiSourceCode, query, caseSensitive, isRegex) {
         const filePath = this.filePathForUISourceCode(uiSourceCode);
-        const { content } = await this.fileSystemInternal.requestFileContent(filePath);
-        if (content) {
-            return TextUtils.TextUtils.performSearchInContent(content, query, caseSensitive, isRegex);
-        }
-        return [];
+        const content = await this.fileSystemInternal.requestFileContent(filePath);
+        return TextUtils.TextUtils.performSearchInContentData(content, query, caseSensitive, isRegex);
     }
     async findFilesMatchingSearchRequest(searchConfig, filesMatchingFileQuery, progress) {
-        let result = filesMatchingFileQuery;
+        let workingFileSet = filesMatchingFileQuery.map(uiSoureCode => uiSoureCode.url());
         const queriesToRun = searchConfig.queries().slice();
         if (!queriesToRun.length) {
             queriesToRun.push('');
@@ -250,8 +244,15 @@ export class FileSystem extends Workspace.Workspace.ProjectStore {
         for (const query of queriesToRun) {
             const files = await this.fileSystemInternal.searchInPath(searchConfig.isRegex() ? '' : query, progress);
             files.sort(Platform.StringUtilities.naturalOrderComparator);
-            result = Platform.ArrayUtilities.intersectOrdered(result, files, Platform.StringUtilities.naturalOrderComparator);
+            workingFileSet = Platform.ArrayUtilities.intersectOrdered(workingFileSet, files, Platform.StringUtilities.naturalOrderComparator);
             progress.incrementWorked(1);
+        }
+        const result = new Map();
+        for (const file of workingFileSet) {
+            const uiSourceCode = this.uiSourceCodeForURL(file);
+            if (uiSourceCode) {
+                result.set(uiSourceCode, null);
+            }
         }
         progress.done();
         return result;
@@ -308,8 +309,7 @@ export class FileSystem extends Workspace.Workspace.ProjectStore {
         if (!filePath) {
             return null;
         }
-        const uiSourceCode = this.addFile(filePath);
-        uiSourceCode.setContent(content, Boolean(isBase64));
+        const uiSourceCode = this.addFile(filePath, content, isBase64);
         this.creatingFilesGuard.delete(guardFileName);
         return uiSourceCode;
     }
@@ -321,12 +321,18 @@ export class FileSystem extends Workspace.Workspace.ProjectStore {
             }
         });
     }
+    deleteDirectoryRecursively(path) {
+        return this.fileSystemInternal.deleteDirectoryRecursively(path);
+    }
     remove() {
         this.fileSystemWorkspaceBinding.isolatedFileSystemManager.removeFileSystem(this.fileSystemInternal);
     }
-    addFile(filePath) {
+    addFile(filePath, content, isBase64) {
         const contentType = this.fileSystemInternal.contentType(filePath);
         const uiSourceCode = this.createUISourceCode(Common.ParsedURL.ParsedURL.concatenate(this.fileSystemBaseURL, filePath), contentType);
+        if (content !== undefined) {
+            uiSourceCode.setContent(content, Boolean(isBase64));
+        }
         this.addUISourceCode(uiSourceCode);
         return uiSourceCode;
     }

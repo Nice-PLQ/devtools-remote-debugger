@@ -32,7 +32,7 @@ export function createCssTokenizer() {
     async function tokenize(line, callback) {
         const streamParser = await CodeMirror.cssStreamParser();
         const stream = new CodeMirror.StringStream(line, 4, 2);
-        const state = streamParser.startState();
+        const state = streamParser.startState(2);
         let lastPos = stream.pos;
         while (!stream.eol()) {
             stream.start = lastPos;

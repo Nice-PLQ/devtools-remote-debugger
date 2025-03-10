@@ -132,9 +132,9 @@ export class PersistenceImpl extends Common.ObjectWrapper.ObjectWrapper {
             return;
         }
         const target = Bindings.NetworkProject.NetworkProject.targetForUISourceCode(binding.network);
-        if (target && target.type() === SDK.Target.Type.Node) {
+        if (target && target.type() === SDK.Target.Type.NODE) {
             const newContent = uiSourceCode.workingCopy();
-            void other.requestContent().then(() => {
+            void other.requestContentData().then(() => {
                 const nodeJSContent = PersistenceImpl.rewrapNodeJSContent(other, other.workingCopy(), newContent);
                 setWorkingCopy.call(this, () => nodeJSContent);
             });
@@ -164,7 +164,7 @@ export class PersistenceImpl extends Common.ObjectWrapper.ObjectWrapper {
         }
         const other = binding.network === uiSourceCode ? binding.fileSystem : binding.network;
         const target = Bindings.NetworkProject.NetworkProject.targetForUISourceCode(binding.network);
-        if (target && target.type() === SDK.Target.Type.Node) {
+        if (target && target.type() === SDK.Target.Type.NODE) {
             void other.requestContent().then(currentContent => {
                 const nodeJSContent = PersistenceImpl.rewrapNodeJSContent(other, currentContent.content || '', newContent);
                 setContent.call(this, nodeJSContent);
@@ -208,7 +208,7 @@ export class PersistenceImpl extends Common.ObjectWrapper.ObjectWrapper {
         const breakpoints = this.breakpointManager.breakpointLocationsForUISourceCode(from).map(breakpointLocation => breakpointLocation.breakpoint);
         await Promise.all(breakpoints.map(async (breakpoint) => {
             await breakpoint.remove(false /* keepInStorage */);
-            return this.breakpointManager.setBreakpoint(to, breakpoint.lineNumber(), breakpoint.columnNumber(), breakpoint.condition(), breakpoint.enabled(), breakpoint.isLogpoint(), "RESTORED" /* BreakpointManager.BreakpointManager.BreakpointOrigin.OTHER */);
+            return await this.breakpointManager.setBreakpoint(to, breakpoint.lineNumber(), breakpoint.columnNumber(), breakpoint.condition(), breakpoint.enabled(), breakpoint.isLogpoint(), "RESTORED" /* BreakpointManager.BreakpointManager.BreakpointOrigin.OTHER */);
         }));
     }
     hasUnsavedCommittedChanges(uiSourceCode) {
@@ -299,12 +299,12 @@ const mutedWorkingCopies = new WeakSet();
 export const NodePrefix = '(function (exports, require, module, __filename, __dirname) { ';
 export const NodeSuffix = '\n});';
 export const NodeShebang = '#!/usr/bin/env node';
-// TODO(crbug.com/1167717): Make this a const enum again
-// eslint-disable-next-line rulesdir/const_enum
 export var Events;
 (function (Events) {
+    /* eslint-disable @typescript-eslint/naming-convention -- Used by web_tests. */
     Events["BindingCreated"] = "BindingCreated";
     Events["BindingRemoved"] = "BindingRemoved";
+    /* eslint-enable @typescript-eslint/naming-convention */
 })(Events || (Events = {}));
 export class PersistenceBinding {
     network;

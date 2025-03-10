@@ -7,20 +7,18 @@ import { getRegisteredProviders, Provider, registerProvider } from './FilteredLi
 import { QuickOpenImpl } from './QuickOpen.js';
 export class HelpQuickOpen extends Provider {
     providers;
-    constructor() {
-        super();
+    constructor(jslogContext) {
+        super(jslogContext);
         this.providers = [];
         getRegisteredProviders().forEach(this.addProvider.bind(this));
     }
-    addProvider(extension) {
-        if (extension.titleSuggestion) {
-            this.providers.push({
-                prefix: extension.prefix || '',
-                iconName: extension.iconName,
-                iconWidth: extension.iconWidth,
-                title: extension.titlePrefix() + ' ' + extension.titleSuggestion(),
-            });
-        }
+    async addProvider(extension) {
+        this.providers.push({
+            prefix: extension.prefix || '',
+            iconName: extension.iconName,
+            title: extension.helpTitle(),
+            jslogContext: (await extension.provider()).jslogContext,
+        });
     }
     itemCount() {
         return this.providers.length;
@@ -37,10 +35,13 @@ export class HelpQuickOpen extends Provider {
         iconElement.data = {
             iconName: provider.iconName,
             color: 'var(--icon-default)',
-            width: provider.iconWidth,
+            width: '18px',
         };
         titleElement.parentElement?.parentElement?.insertBefore(iconElement, titleElement.parentElement);
         UI.UIUtils.createTextChild(titleElement, provider.title);
+    }
+    jslogContextAt(itemIndex) {
+        return this.providers[itemIndex].jslogContext;
     }
     selectItem(itemIndex, _promptValue) {
         if (itemIndex !== null) {
@@ -54,8 +55,8 @@ export class HelpQuickOpen extends Provider {
 registerProvider({
     prefix: '?',
     iconName: 'help',
-    iconWidth: '20px',
-    provider: () => Promise.resolve(new HelpQuickOpen()),
+    provider: () => Promise.resolve(new HelpQuickOpen('help')),
+    helpTitle: () => 'Help',
     titlePrefix: () => 'Help',
     titleSuggestion: undefined,
 });

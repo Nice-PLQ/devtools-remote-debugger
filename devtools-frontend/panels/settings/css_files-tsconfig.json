@@ -4,6 +4,7 @@
         "outDir": "."
     },
     "files": [
+        "aiSettingsTab.css.js",
         "frameworkIgnoreListSettingsTab.css.js",
         "keybindsSettingsTab.css.js",
         "settingsScreen.css.js"

@@ -2,38 +2,21 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 import * as i18n from '../../core/i18n/i18n.js';
+import * as Buttons from '../../ui/components/buttons/buttons.js';
 import * as UI from '../../ui/legacy/legacy.js';
-import { Events as ProfileHeaderEvents, } from './ProfileHeader.js';
+import * as VisualLogging from '../../ui/visual_logging/visual_logging.js';
 const UIStrings = {
     /**
-     *@description Text to save something
+     *@description Tooltip for the 3-dots menu in the Memory panel profiles list.
      */
-    save: 'Save',
-    /**
-     *@description Text to save something (with ellipsis)
-     */
-    saveWithEllipsis: 'Save…',
-    /**
-     *@description A context menu item in the Profiles Panel of a profiler tool
-     */
-    load: 'Load…',
-    /**
-     *@description Text to delete something
-     */
-    delete: 'Delete',
+    profileOptions: 'Profile options',
 };
 const str_ = i18n.i18n.registerUIStrings('panels/profiler/ProfileSidebarTreeElement.ts', UIStrings);
 const i18nString = i18n.i18n.getLocalizedString.bind(undefined, str_);
-let sharedFileSelectorElement = null;
-function getSharedFileSelectorElement() {
-    return sharedFileSelectorElement;
-}
-export function setSharedFileSelectorElement(element) {
-    sharedFileSelectorElement = element;
-}
 export class ProfileSidebarTreeElement extends UI.TreeOutline.TreeElement {
     iconElement;
     titlesElement;
+    menuElement;
     titleContainer;
     titleElement;
     subtitleElement;
@@ -41,7 +24,6 @@ export class ProfileSidebarTreeElement extends UI.TreeOutline.TreeElement {
     small;
     dataDisplayDelegate;
     profile;
-    saveLinkElement;
     editing;
     constructor(dataDisplayDelegate, profile, className) {
         super('', false);
@@ -50,35 +32,34 @@ export class ProfileSidebarTreeElement extends UI.TreeOutline.TreeElement {
         this.titlesElement = document.createElement('div');
         this.titlesElement.classList.add('titles');
         this.titlesElement.classList.add('no-subtitle');
+        this.titlesElement.setAttribute('jslog', `${VisualLogging.value('title').track({ dblclick: true, change: true })}`);
         this.titleContainer = this.titlesElement.createChild('span', 'title-container');
         this.titleElement = this.titleContainer.createChild('span', 'title');
         this.subtitleElement = this.titlesElement.createChild('span', 'subtitle');
+        this.menuElement = new Buttons.Button.Button();
+        this.menuElement.data = {
+            variant: "icon" /* Buttons.Button.Variant.ICON */,
+            iconName: 'dots-vertical',
+            title: i18nString(UIStrings.profileOptions),
+        };
+        this.menuElement.tabIndex = -1;
+        this.menuElement.addEventListener('click', this.handleContextMenuEvent.bind(this));
+        this.menuElement.setAttribute('jslog', `${VisualLogging.dropDown('profile-options').track({ click: true })}`);
+        UI.Tooltip.Tooltip.install(this.menuElement, i18nString(UIStrings.profileOptions));
         this.titleElement.textContent = profile.title;
         this.className = className;
         this.small = false;
         this.dataDisplayDelegate = dataDisplayDelegate;
         this.profile = profile;
-        profile.addEventListener(ProfileHeaderEvents.UpdateStatus, this.updateStatus, this);
-        if (profile.canSaveToFile()) {
-            this.createSaveLink();
-        }
-        else {
-            profile.addEventListener(ProfileHeaderEvents.ProfileReceived, this.onProfileReceived, this);
-        }
-    }
-    createSaveLink() {
-        this.saveLinkElement = this.titleContainer.createChild('span', 'save-link');
-        this.saveLinkElement.textContent = i18nString(UIStrings.save);
-        this.saveLinkElement.addEventListener('click', this.saveProfile.bind(this), false);
-    }
-    onProfileReceived() {
-        this.createSaveLink();
+        profile.addEventListener("UpdateStatus" /* ProfileHeaderEvents.UPDATE_STATUS */, this.updateStatus, this);
+        this.editing = null;
     }
     updateStatus(event) {
         const statusUpdate = event.data;
         if (statusUpdate.subtitle !== null) {
-            this.subtitleElement.textContent = statusUpdate.subtitle || '';
+            this.subtitleElement.textContent = statusUpdate.subtitle.length > 0 ? `(${statusUpdate.subtitle})` : '';
             this.titlesElement.classList.toggle('no-subtitle', !statusUpdate.subtitle);
+            UI.ARIAUtils.setLabel(this.listItemElement, `${this.profile.title}, ${statusUpdate.subtitle}`);
         }
         if (typeof statusUpdate.wait === 'boolean' && this.listItemElement) {
             this.iconElement.classList.toggle('spinner', statusUpdate.wait);
@@ -96,19 +77,25 @@ export class ProfileSidebarTreeElement extends UI.TreeOutline.TreeElement {
         if (!container) {
             return;
         }
-        const config = new UI.InplaceEditor.Config(this.editingCommitted.bind(this), this.editingCancelled.bind(this));
+        const config = new UI.InplaceEditor.Config(this.editingCommitted.bind(this), this.editingCancelled.bind(this), undefined);
         this.editing = UI.InplaceEditor.InplaceEditor.startEditing(container, config);
     }
-    editingCommitted(container, newTitle) {
-        delete this.editing;
-        this.profile.setTitle(newTitle);
+    editingCommitted(_container, newTitle) {
+        if (newTitle.trim().length === 0) {
+            if (this.editing) {
+                this.editing.cancel();
+            }
+        }
+        else {
+            this.editing = null;
+            this.profile.setTitle(newTitle);
+        }
     }
     editingCancelled() {
-        delete this.editing;
+        this.editing = null;
     }
     dispose() {
-        this.profile.removeEventListener(ProfileHeaderEvents.UpdateStatus, this.updateStatus, this);
-        this.profile.removeEventListener(ProfileHeaderEvents.ProfileReceived, this.onProfileReceived, this);
+        this.profile.removeEventListener("UpdateStatus" /* ProfileHeaderEvents.UPDATE_STATUS */, this.updateStatus, this);
     }
     onselect() {
         this.dataDisplayDelegate.showProfile(this.profile);
@@ -125,27 +112,14 @@ export class ProfileSidebarTreeElement extends UI.TreeOutline.TreeElement {
         if (this.small) {
             this.listItemElement.classList.add('small');
         }
-        this.listItemElement.append(this.iconElement, this.titlesElement);
+        this.listItemElement.append(this.iconElement, this.titlesElement, this.menuElement);
         this.listItemElement.addEventListener('contextmenu', this.handleContextMenuEvent.bind(this), true);
         UI.ARIAUtils.setDescription(this.listItemElement, this.profile.profileType().name);
     }
     handleContextMenuEvent(event) {
-        const profile = this.profile;
         const contextMenu = new UI.ContextMenu.ContextMenu(event);
-        // FIXME: use context menu provider
-        const sharedFileSelectorElement = getSharedFileSelectorElement();
-        if (!sharedFileSelectorElement) {
-            throw new Error('File selector element shared by ProfilePanel instances is missing');
-        }
-        contextMenu.headerSection().appendItem(i18nString(UIStrings.load), sharedFileSelectorElement.click.bind(sharedFileSelectorElement));
-        if (profile.canSaveToFile()) {
-            contextMenu.saveSection().appendItem(i18nString(UIStrings.saveWithEllipsis), profile.saveToFile.bind(profile));
-        }
-        contextMenu.footerSection().appendItem(i18nString(UIStrings.delete), this.ondelete.bind(this));
+        contextMenu.appendItemsAtLocation('profilerMenu');
         void contextMenu.show();
-    }
-    saveProfile(_event) {
-        this.profile.saveToFile();
     }
     setSmall(small) {
         this.small = small;

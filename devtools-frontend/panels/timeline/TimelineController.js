@@ -1,23 +1,15 @@
 // Copyright 2016 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
-import * as Common from '../../core/common/common.js';
 import * as i18n from '../../core/i18n/i18n.js';
-import * as Platform from '../../core/platform/platform.js';
 import * as Root from '../../core/root/root.js';
 import * as SDK from '../../core/sdk/sdk.js';
-import * as TimelineModel from '../../models/timeline_model/timeline_model.js';
-import * as TraceEngine from '../../models/trace/trace.js';
-import { PerformanceModel } from './PerformanceModel.js';
+import * as CrUXManager from '../../models/crux-manager/crux-manager.js';
+import * as EmulationModel from '../../models/emulation/emulation.js';
+import * as Extensions from '../../models/extensions/extensions.js';
+import * as LiveMetrics from '../../models/live-metrics/live-metrics.js';
+import * as Trace from '../../models/trace/trace.js';
 const UIStrings = {
-    /**
-     * @description Text in Timeline Controller of the Performance panel.
-     * A "CPU profile" is a recorded performance measurement how a specific target behaves.
-     * "Target" in this context can mean a web page, service or normal worker.
-     * "Not available" is used as there are multiple things that can go wrong, but we do not
-     * know what exactly, just that the CPU profile was not correctly recorded.
-     */
-    cpuProfileForATargetIsNot: 'CPU profile for a target is not available.',
     /**
      *@description Text in Timeline Controller of the Performance panel indicating that the Performance Panel cannot
      * record a performance trace because the type of target (where possible types are page, service worker and shared
@@ -28,32 +20,53 @@ const UIStrings = {
 const str_ = i18n.i18n.registerUIStrings('panels/timeline/TimelineController.ts', UIStrings);
 const i18nString = i18n.i18n.getLocalizedString.bind(undefined, str_);
 export class TimelineController {
-    target;
+    primaryPageTarget;
+    rootTarget;
     tracingManager;
-    performanceModel;
+    #collectedEvents = [];
+    #navigationUrls = [];
+    #fieldData = null;
+    #recordingStartTime = null;
     client;
-    tracingModel;
-    // TODO(crbug.com/1172300) Ignored during the jsdoc to ts migration
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    tracingCompleteCallback;
-    profiling;
-    // TODO(crbug.com/1172300) Ignored during the jsdoc to ts migration
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    cpuProfiles;
-    constructor(target, client) {
-        this.target = target;
-        this.tracingManager = target.model(SDK.TracingManager.TracingManager);
-        this.performanceModel = new PerformanceModel();
-        this.performanceModel.setMainTarget(target);
+    tracingCompletePromise = null;
+    /**
+     * We always need to profile against the DevTools root target, which is
+     * the target that DevTools is attached to.
+     *
+     * In most cases, this will be the tab that DevTools is inspecting.
+     * Now pre-rendering is active, tabs can have multiple pages - only one
+     * of which the user is being shown. This is the "primary page" and hence
+     * why in code we have "primaryPageTarget". When there's a prerendered
+     * page in a background, tab target would have multiple subtargets, one
+     * of them being primaryPageTarget.
+     *
+     * The problems with using primary page target for tracing are:
+     * 1. Performance trace doesn't include information from the other pages on
+     *    the tab which is probably not what the user wants as it does not
+     *    reflect reality.
+     * 2. Capturing trace never finishes after prerendering activation as
+     *    we've started on one target and ending on another one, and
+     *    tracingComplete event never gets processed.
+     *
+     * However, when we want to look at the URL of the current page, we need
+     * to use the primaryPageTarget to ensure we get the URL of the tab and
+     * the tab's page that is being shown to the user. This is because the tab
+     * target (which is what rootTarget is) only exposes the Target and Tracing
+     * domains. We need the Page target to navigate as it implements the Page
+     * domain. That is why here we have to store both.
+     **/
+    constructor(rootTarget, primaryPageTarget, client) {
+        this.primaryPageTarget = primaryPageTarget;
+        this.rootTarget = rootTarget;
+        // Ensure the tracing manager is the one for the Root Target, NOT the
+        // primaryPageTarget, as that is the one we have to invoke tracing against.
+        this.tracingManager = rootTarget.model(Trace.TracingManager.TracingManager);
         this.client = client;
-        this.tracingModel = new SDK.TracingModel.TracingModel();
-        SDK.TargetManager.TargetManager.instance().observeModels(SDK.CPUProfilerModel.CPUProfilerModel, this);
     }
-    dispose() {
-        SDK.TargetManager.TargetManager.instance().unobserveModels(SDK.CPUProfilerModel.CPUProfilerModel, this);
-    }
-    mainTarget() {
-        return this.target;
+    async dispose() {
+        if (this.tracingManager) {
+            await this.tracingManager.reset();
+        }
     }
     async startRecording(options) {
         function disabledByDefault(category) {
@@ -68,27 +81,33 @@ export class TimelineController {
         // 'disabled-by-default-v8.cpu_profiler'
         //   └ default: on, option: enableJSSampling
         const categoriesArray = [
-            Root.Runtime.experiments.isEnabled('timelineShowAllEvents') ? '*' : '-*',
-            TimelineModel.TimelineModel.TimelineModelImpl.Category.Console,
-            TimelineModel.TimelineModel.TimelineModelImpl.Category.UserTiming,
+            Root.Runtime.experiments.isEnabled('timeline-show-all-events') ? '*' : '-*',
+            Trace.Types.Events.Categories.Console,
+            Trace.Types.Events.Categories.Loading,
+            Trace.Types.Events.Categories.UserTiming,
             'devtools.timeline',
-            disabledByDefault('devtools.timeline'),
+            disabledByDefault('devtools.target-rundown'),
             disabledByDefault('devtools.timeline.frame'),
             disabledByDefault('devtools.timeline.stack'),
+            disabledByDefault('devtools.timeline'),
+            disabledByDefault('devtools.v8-source-rundown-sources'),
+            disabledByDefault('devtools.v8-source-rundown'),
             disabledByDefault('v8.compile'),
+            disabledByDefault('v8.inspector'),
             disabledByDefault('v8.cpu_profiler.hires'),
-            TimelineModel.TimelineModel.TimelineModelImpl.Category.Loading,
             disabledByDefault('lighthouse'),
             'v8.execute',
             'v8',
+            'cppgc',
+            'navigation,rail',
         ];
-        if (Root.Runtime.experiments.isEnabled('timelineV8RuntimeCallStats') && options.enableJSSampling) {
+        if (Root.Runtime.experiments.isEnabled('timeline-v8-runtime-call-stats') && options.enableJSSampling) {
             categoriesArray.push(disabledByDefault('v8.runtime_stats_sampling'));
         }
         if (options.enableJSSampling) {
             categoriesArray.push(disabledByDefault('v8.cpu_profiler'));
         }
-        if (Root.Runtime.experiments.isEnabled('timelineInvalidationTracking')) {
+        if (Root.Runtime.experiments.isEnabled('timeline-invalidation-tracking')) {
             categoriesArray.push(disabledByDefault('devtools.timeline.invalidationTracking'));
         }
         if (options.capturePictures) {
@@ -97,210 +116,130 @@ export class TimelineController {
         if (options.captureFilmStrip) {
             categoriesArray.push(disabledByDefault('devtools.screenshot'));
         }
-        this.performanceModel.setRecordStartTime(Date.now());
+        if (options.captureSelectorStats) {
+            categoriesArray.push(disabledByDefault('blink.debug'));
+        }
+        await LiveMetrics.LiveMetrics.instance().disable();
+        SDK.TargetManager.TargetManager.instance().addModelListener(SDK.ResourceTreeModel.ResourceTreeModel, SDK.ResourceTreeModel.Events.FrameNavigated, this.#onFrameNavigated, this);
+        this.#navigationUrls = [];
+        this.#fieldData = null;
+        this.#recordingStartTime = Date.now();
         const response = await this.startRecordingWithCategories(categoriesArray.join(','));
         if (response.getError()) {
-            await this.waitForTracingToStop(false);
             await SDK.TargetManager.TargetManager.instance().resumeAllTargets();
         }
         return response;
+    }
+    async #onFrameNavigated(event) {
+        if (!event.data.isPrimaryFrame()) {
+            return;
+        }
+        this.#navigationUrls.push(event.data.url);
     }
     async stopRecording() {
         if (this.tracingManager) {
             this.tracingManager.stop();
         }
+        SDK.TargetManager.TargetManager.instance().removeModelListener(SDK.ResourceTreeModel.ResourceTreeModel, SDK.ResourceTreeModel.Events.FrameNavigated, this.#onFrameNavigated, this);
+        // When throttling is applied to the main renderer, it can slow down the
+        // collection of trace events once tracing has completed. Therefore we
+        // temporarily disable throttling whilst the final trace event collection
+        // takes place. Once it is done, we re-enable it (this is the existing
+        // behaviour within DevTools; the throttling settling is sticky + global).
+        const throttlingManager = SDK.CPUThrottlingManager.CPUThrottlingManager.instance();
+        const optionDuringRecording = throttlingManager.cpuThrottlingOption();
+        throttlingManager.setCPUThrottlingOption(SDK.CPUThrottlingManager.NoThrottlingOption);
         this.client.loadingStarted();
-        await this.waitForTracingToStop(true);
+        // Give `TimelinePanel.#executeNewTrace` a chance to retain source maps from SDK.SourceMap.SourceMapManager.
+        SDK.SourceMap.SourceMap.retainRawSourceMaps = true;
+        const [fieldData] = await Promise
+            .all([
+            this.fetchFieldData(),
+            // TODO(crbug.com/366072294): Report the progress of this resumption, as it can be lengthy on heavy pages.
+            SDK.TargetManager.TargetManager.instance().resumeAllTargets(),
+            this.waitForTracingToStop(),
+        ])
+            .catch(e => {
+            // Normally set false in allSourcesFinished, but just in case something fails, catch it here.
+            SDK.SourceMap.SourceMap.retainRawSourceMaps = false;
+            throw e;
+        });
+        this.#fieldData = fieldData;
+        // Now we re-enable throttling again to maintain the setting being persistent.
+        throttlingManager.setCPUThrottlingOption(optionDuringRecording);
         await this.allSourcesFinished();
-        return this.performanceModel;
+        await LiveMetrics.LiveMetrics.instance().enable();
     }
-    getPerformanceModel() {
-        return this.performanceModel;
-    }
-    async waitForTracingToStop(awaitTracingCompleteCallback) {
-        const tracingStoppedPromises = [];
-        if (this.tracingManager && awaitTracingCompleteCallback) {
-            tracingStoppedPromises.push(new Promise(resolve => {
-                this.tracingCompleteCallback = resolve;
-            }));
+    async fetchFieldData() {
+        const cruxManager = CrUXManager.CrUXManager.instance();
+        if (!cruxManager.isEnabled() || !navigator.onLine) {
+            return null;
         }
-        tracingStoppedPromises.push(this.stopProfilingOnAllModels());
-        await Promise.all(tracingStoppedPromises);
+        const urls = [...new Set(this.#navigationUrls)];
+        return await Promise.all(urls.map(url => cruxManager.getFieldDataForPage(url)));
     }
-    modelAdded(cpuProfilerModel) {
-        if (this.profiling) {
-            void cpuProfilerModel.startRecording();
+    async createMetadata() {
+        const deviceModeModel = EmulationModel.DeviceModeModel.DeviceModeModel.tryInstance();
+        let emulatedDeviceTitle;
+        if (deviceModeModel?.type() === EmulationModel.DeviceModeModel.Type.Device) {
+            emulatedDeviceTitle = deviceModeModel.device()?.title ?? undefined;
         }
+        else if (deviceModeModel?.type() === EmulationModel.DeviceModeModel.Type.Responsive) {
+            emulatedDeviceTitle = 'Responsive';
+        }
+        return await Trace.Extras.Metadata.forNewRecording(false, this.#recordingStartTime ?? undefined, emulatedDeviceTitle, this.#fieldData ?? undefined);
     }
-    modelRemoved(_cpuProfilerModel) {
-        // FIXME: We'd like to stop profiling on the target and retrieve a profile
-        // but it's too late. Backend connection is closed.
-    }
-    addCpuProfile(targetId, cpuProfile) {
-        if (!cpuProfile) {
-            Common.Console.Console.instance().warn(i18nString(UIStrings.cpuProfileForATargetIsNot));
-            return;
+    async waitForTracingToStop() {
+        if (this.tracingManager) {
+            await this.tracingCompletePromise?.promise;
         }
-        if (!this.cpuProfiles) {
-            this.cpuProfiles = new Map();
-        }
-        this.cpuProfiles.set(targetId, cpuProfile);
-    }
-    async stopProfilingOnAllModels() {
-        const models = this.profiling ? SDK.TargetManager.TargetManager.instance().models(SDK.CPUProfilerModel.CPUProfilerModel) : [];
-        this.profiling = false;
-        const promises = [];
-        for (const model of models) {
-            const targetId = model.target().id();
-            const modelPromise = model.stopRecording().then(this.addCpuProfile.bind(this, targetId));
-            promises.push(modelPromise);
-        }
-        await Promise.all(promises);
     }
     async startRecordingWithCategories(categories) {
         if (!this.tracingManager) {
-            throw new Error(UIStrings.tracingNotSupported);
+            throw new Error(i18nString(UIStrings.tracingNotSupported));
         }
         // There might be a significant delay in the beginning of timeline recording
         // caused by starting CPU profiler, that needs to traverse JS heap to collect
         // all the functions data.
         await SDK.TargetManager.TargetManager.instance().suspendAllTargets('performance-timeline');
-        return this.tracingManager.start(this, categories, '');
+        this.tracingCompletePromise = Promise.withResolvers();
+        const response = await this.tracingManager.start(this, categories, '');
+        await this.warmupJsProfiler();
+        Extensions.ExtensionServer.ExtensionServer.instance().profilingStarted();
+        return response;
+    }
+    // CPUProfiler::StartProfiling has a non-trivial cost and we'd prefer it not happen within an
+    // interaction as that complicates debugging interaction latency.
+    // To trigger the StartProfiling interrupt and get the warmup cost out of the way, we send a
+    // very soft invocation to V8.https://crbug.com/1358602
+    async warmupJsProfiler() {
+        // primaryPageTarget has RuntimeModel whereas rootTarget (Tab) does not.
+        const runtimeModel = this.primaryPageTarget.model(SDK.RuntimeModel.RuntimeModel);
+        if (!runtimeModel) {
+            return;
+        }
+        await runtimeModel.agent.invoke_evaluate({
+            expression: '(async function(){ await 1; })()',
+            throwOnSideEffect: true,
+        });
     }
     traceEventsCollected(events) {
-        this.tracingModel.addEvents(events);
+        this.#collectedEvents.push(...events);
     }
     tracingComplete() {
-        if (!this.tracingCompleteCallback) {
+        if (!this.tracingCompletePromise) {
             return;
         }
-        this.tracingCompleteCallback(undefined);
-        this.tracingCompleteCallback = null;
+        this.tracingCompletePromise.resolve(undefined);
+        this.tracingCompletePromise = null;
     }
     async allSourcesFinished() {
+        Extensions.ExtensionServer.ExtensionServer.instance().profilingStopped();
         this.client.processingStarted();
-        await this.finalizeTrace();
-    }
-    async finalizeTrace() {
-        this.injectCpuProfileEvents();
-        await SDK.TargetManager.TargetManager.instance().resumeAllTargets();
-        this.tracingModel.tracingComplete();
-        await this.client.loadingComplete(this.tracingModel, null);
+        const metadata = await this.createMetadata();
+        await this.client.loadingComplete(this.#collectedEvents, /* exclusiveFilter= */ null, metadata);
         this.client.loadingCompleteForTest();
-    }
-    injectCpuProfileEvent(pid, tid, cpuProfile) {
-        if (!cpuProfile) {
-            return;
-        }
-        // TODO(crbug/1011811): This event type is not compatible with the SDK.TracingManager.EventPayload.
-        // EventPayload requires many properties to be defined but it's not clear if they will have
-        // any side effects.
-        const cpuProfileEvent = {
-            cat: SDK.TracingModel.DevToolsMetadataEventCategory,
-            ph: "I" /* TraceEngine.Types.TraceEvents.Phase.INSTANT */,
-            ts: this.tracingModel.maximumRecordTime() * 1000,
-            pid: pid,
-            tid: tid,
-            name: TimelineModel.TimelineModel.RecordType.CpuProfile,
-            args: { data: { cpuProfile: cpuProfile } },
-            // TODO(crbug.com/1172300) Ignored during the jsdoc to ts migration
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        };
-        this.tracingModel.addEvents([cpuProfileEvent]);
-    }
-    buildTargetToProcessIdMap() {
-        const metadataEventTypes = TimelineModel.TimelineModel.TimelineModelImpl.DevToolsMetadataEvent;
-        const metadataEvents = this.tracingModel.devToolsMetadataEvents();
-        const browserMetaEvent = metadataEvents.find(e => e.name === metadataEventTypes.TracingStartedInBrowser);
-        if (!browserMetaEvent) {
-            return null;
-        }
-        const pseudoPidToFrames = new Platform.MapUtilities.Multimap();
-        const targetIdToPid = new Map();
-        // TODO(crbug.com/1172300) Ignored during the jsdoc to ts migration
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const frames = browserMetaEvent.args.data.frames;
-        for (const frameInfo of frames) {
-            targetIdToPid.set(frameInfo.frame, frameInfo.processId);
-        }
-        for (const event of metadataEvents) {
-            const data = event.args.data;
-            switch (event.name) {
-                case metadataEventTypes.FrameCommittedInBrowser:
-                    if (data.processId) {
-                        targetIdToPid.set(data.frame, data.processId);
-                    }
-                    else {
-                        pseudoPidToFrames.set(data.processPseudoId, data.frame);
-                    }
-                    break;
-                case metadataEventTypes.ProcessReadyInBrowser:
-                    for (const frame of pseudoPidToFrames.get(data.processPseudoId) || []) {
-                        targetIdToPid.set(frame, data.processId);
-                    }
-                    break;
-            }
-        }
-        const mainFrame = frames.find(frame => !frame.parent);
-        const mainRendererProcessId = mainFrame.processId;
-        const mainProcess = this.tracingModel.getProcessById(mainRendererProcessId);
-        if (mainProcess) {
-            const target = SDK.TargetManager.TargetManager.instance().primaryPageTarget();
-            if (target) {
-                targetIdToPid.set(target.id(), mainProcess.id());
-            }
-        }
-        return targetIdToPid;
-    }
-    injectCpuProfileEvents() {
-        if (!this.cpuProfiles) {
-            return;
-        }
-        const metadataEventTypes = TimelineModel.TimelineModel.TimelineModelImpl.DevToolsMetadataEvent;
-        const metadataEvents = this.tracingModel.devToolsMetadataEvents();
-        const targetIdToPid = this.buildTargetToProcessIdMap();
-        if (targetIdToPid) {
-            for (const [id, profile] of this.cpuProfiles) {
-                const pid = targetIdToPid.get(id);
-                if (!pid) {
-                    continue;
-                }
-                const process = this.tracingModel.getProcessById(pid);
-                const thread = process && process.threadByName(TimelineModel.TimelineModel.TimelineModelImpl.RendererMainThreadName);
-                if (thread) {
-                    this.injectCpuProfileEvent(pid, thread.id(), profile);
-                }
-            }
-        }
-        else {
-            // Legacy backends support.
-            const filteredEvents = metadataEvents.filter(event => event.name === metadataEventTypes.TracingStartedInPage);
-            const mainMetaEvent = filteredEvents[filteredEvents.length - 1];
-            if (mainMetaEvent) {
-                const pid = mainMetaEvent.thread.process().id();
-                if (this.tracingManager) {
-                    const mainCpuProfile = this.cpuProfiles.get(this.tracingManager.target().id());
-                    this.injectCpuProfileEvent(pid, mainMetaEvent.thread.id(), mainCpuProfile);
-                }
-            }
-            else {
-                // Or there was no tracing manager in the main target at all, in this case build the model full
-                // of cpu profiles.
-                let tid = 0;
-                for (const pair of this.cpuProfiles) {
-                    const target = SDK.TargetManager.TargetManager.instance().targetById(pair[0]);
-                    const name = target && target.name();
-                    this.tracingModel.addEvents(TimelineModel.TimelineJSProfile.TimelineJSProfileProcessor.createFakeTraceFromCpuProfile(pair[1], ++tid, /* injectPageEvent */ tid === 1, name));
-                }
-            }
-        }
-        const workerMetaEvents = metadataEvents.filter(event => event.name === metadataEventTypes.TracingSessionIdForWorker);
-        for (const metaEvent of workerMetaEvents) {
-            const workerId = metaEvent.args['data']['workerId'];
-            const cpuProfile = this.cpuProfiles.get(workerId);
-            this.injectCpuProfileEvent(metaEvent.thread.process().id(), metaEvent.args['data']['workerThreadId'], cpuProfile);
-        }
-        this.cpuProfiles = null;
+        SDK.SourceMap.SourceMap.retainRawSourceMaps = false;
     }
     tracingBufferUsage(usage) {
         this.client.recordingProgress(usage);

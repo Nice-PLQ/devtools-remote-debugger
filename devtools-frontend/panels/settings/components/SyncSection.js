@@ -1,13 +1,16 @@
 // Copyright 2021 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
-import * as Common from '../../../core/common/common.js';
-import * as ComponentHelpers from '../../../ui/components/helpers/helpers.js';
+import '../../../ui/components/chrome_link/chrome_link.js';
+import '../../../ui/components/settings/settings.js';
 import * as i18n from '../../../core/i18n/i18n.js';
-import * as LitHtml from '../../../ui/lit-html/lit-html.js';
-import * as Settings from '../../../ui/components/settings/settings.js';
-import * as ChromeLink from '../../../ui/components/chrome_link/chrome_link.js';
-import syncSectionStyles from './syncSection.css.js';
+import * as ComponentHelpers from '../../../ui/components/helpers/helpers.js';
+import * as Lit from '../../../ui/lit/lit.js';
+import syncSectionStylesRaw from './syncSection.css.js';
+// TODO(crbug.com/391381439): Fully migrate off of constructed style sheets.
+const syncSectionStyles = new CSSStyleSheet();
+syncSectionStyles.replaceSync(syncSectionStylesRaw.cssContent);
+const { html } = Lit;
 const UIStrings = {
     /**
      * @description Text shown to the user in the Settings UI. 'This setting' refers
@@ -33,7 +36,6 @@ const UIStrings = {
 const str_ = i18n.i18n.registerUIStrings('panels/settings/components/SyncSection.ts', UIStrings);
 const i18nString = i18n.i18n.getLocalizedString.bind(undefined, str_);
 export class SyncSection extends HTMLElement {
-    static litTagName = LitHtml.literal `devtools-sync-section`;
     #shadow = this.attachShadow({ mode: 'open' });
     #syncInfo = { isSyncActive: false };
     #syncSetting;
@@ -50,31 +52,32 @@ export class SyncSection extends HTMLElement {
         if (!this.#syncSetting) {
             throw new Error('SyncSection not properly initialized');
         }
+        // TODO: this should not probably happen in render, instead, the setting
+        // should be disabled.
         const checkboxDisabled = !this.#syncInfo.isSyncActive || !this.#syncInfo.arePreferencesSynced;
+        this.#syncSetting?.setDisabled(checkboxDisabled);
         // Disabled until https://crbug.com/1079231 is fixed.
         // clang-format off
-        LitHtml.render(LitHtml.html `
+        Lit.render(html `
       <fieldset>
-        <legend>${Common.Settings.getLocalizedSettingsCategory(Common.Settings.SettingCategory.SYNC)}</legend>
         ${renderAccountInfoOrWarning(this.#syncInfo)}
-        <${Settings.SettingCheckbox.SettingCheckbox.litTagName} .data=${{ setting: this.#syncSetting, disabled: checkboxDisabled }}>
-        </${Settings.SettingCheckbox.SettingCheckbox.litTagName}>
+        <setting-checkbox .data=${{ setting: this.#syncSetting }}>
+        </setting-checkbox>
       </fieldset>
     `, this.#shadow, { host: this });
         // clang-format on
     }
 }
 /* x-link doesn't work with custom click/keydown handlers */
-/* eslint-disable rulesdir/ban_a_tags_in_lit_html */
 function renderAccountInfoOrWarning(syncInfo) {
     if (!syncInfo.isSyncActive) {
         const link = 'chrome://settings/syncSetup';
         // Disabled until https://crbug.com/1079231 is fixed.
         // clang-format off
-        return LitHtml.html `
+        return html `
       <span class="warning">
         ${i18nString(UIStrings.syncDisabled)}
-        <${ChromeLink.ChromeLink.ChromeLink.litTagName} .href=${link}>${i18nString(UIStrings.settings)}</${ChromeLink.ChromeLink.ChromeLink.litTagName}>
+        <devtools-chrome-link .href=${link}>${i18nString(UIStrings.settings)}</devtools-chrome-link>
       </span>`;
         // clang-format on
     }
@@ -82,14 +85,14 @@ function renderAccountInfoOrWarning(syncInfo) {
         const link = 'chrome://settings/syncSetup/advanced';
         // Disabled until https://crbug.com/1079231 is fixed.
         // clang-format off
-        return LitHtml.html `
+        return html `
       <span class="warning">
         ${i18nString(UIStrings.preferencesSyncDisabled)}
-        <${ChromeLink.ChromeLink.ChromeLink.litTagName} .href=${link}>${i18nString(UIStrings.settings)}</${ChromeLink.ChromeLink.ChromeLink.litTagName}>
+        <devtools-chrome-link .href=${link}>${i18nString(UIStrings.settings)}</devtools-chrome-link>
       </span>`;
         // clang-format on
     }
-    return LitHtml.html `
+    return html `
     <div class="account-info">
       <img src="data:image/png;base64, ${syncInfo.accountImage}" alt="Account avatar" />
       <div class="account-email">
@@ -98,5 +101,5 @@ function renderAccountInfoOrWarning(syncInfo) {
       </div>
     </div>`;
 }
-ComponentHelpers.CustomElements.defineComponent('devtools-sync-section', SyncSection);
+customElements.define('devtools-sync-section', SyncSection);
 //# sourceMappingURL=SyncSection.js.map

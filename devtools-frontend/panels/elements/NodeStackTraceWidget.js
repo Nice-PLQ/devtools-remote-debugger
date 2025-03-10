@@ -14,29 +14,21 @@ const UIStrings = {
 };
 const str_ = i18n.i18n.registerUIStrings('panels/elements/NodeStackTraceWidget.ts', UIStrings);
 const i18nString = i18n.i18n.getLocalizedString.bind(undefined, str_);
-let nodeStackTraceWidgetInstance;
 export class NodeStackTraceWidget extends UI.ThrottledWidget.ThrottledWidget {
     noStackTraceElement;
     creationStackTraceElement;
     linkifier;
     constructor() {
         super(true /* isWebComponent */);
+        this.registerRequiredCSS(nodeStackTraceWidgetStyles);
         this.noStackTraceElement = this.contentElement.createChild('div', 'gray-info-message');
         this.noStackTraceElement.textContent = i18nString(UIStrings.noStackTraceAvailable);
         this.creationStackTraceElement = this.contentElement.createChild('div', 'stack-trace');
         this.linkifier = new Components.Linkifier.Linkifier(MaxLengthForLinks);
     }
-    static instance(opts = { forceNew: null }) {
-        const { forceNew } = opts;
-        if (!nodeStackTraceWidgetInstance || forceNew) {
-            nodeStackTraceWidgetInstance = new NodeStackTraceWidget();
-        }
-        return nodeStackTraceWidgetInstance;
-    }
     wasShown() {
         super.wasShown();
         UI.Context.Context.instance().addFlavorChangeListener(SDK.DOMModel.DOMNode, this.update, this);
-        this.registerCSSFiles([nodeStackTraceWidgetStyles]);
         this.update();
     }
     willHide() {

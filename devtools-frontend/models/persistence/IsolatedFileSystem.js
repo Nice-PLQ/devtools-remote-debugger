@@ -31,6 +31,7 @@ import * as Common from '../../core/common/common.js';
 import * as Host from '../../core/host/host.js';
 import * as i18n from '../../core/i18n/i18n.js';
 import * as Platform from '../../core/platform/platform.js';
+import * as TextUtils from '../text_utils/text_utils.js';
 import { Events } from './IsolatedFileSystemManager.js';
 import { PlatformFileSystem } from './PlatformFileSystem.js';
 const UIStrings = {
@@ -50,11 +51,6 @@ const UIStrings = {
      */
     cantReadFileSS: 'Can\'t read file: {PH1}: {PH2}',
     /**
-     *@description Error message when failing to load a file
-     *@example {c:\dir\file.js} PH1
-     */
-    unknownErrorReadingFileS: 'Unknown error reading file: {PH1}',
-    /**
      *@description Text to show something is linked to another
      *@example {example.url} PH1
      */
@@ -68,36 +64,31 @@ export class IsolatedFileSystem extends PlatformFileSystem {
     domFileSystem;
     excludedFoldersSetting;
     excludedFoldersInternal;
-    excludedEmbedderFolders;
-    initialFilePathsInternal;
-    initialGitFoldersInternal;
-    fileLocks;
-    constructor(manager, path, embedderPath, domFileSystem, type) {
-        super(path, type);
+    excludedEmbedderFolders = [];
+    initialFilePathsInternal = new Set();
+    initialGitFoldersInternal = new Set();
+    fileLocks = new Map();
+    constructor(manager, path, embedderPath, domFileSystem, type, automatic) {
+        super(path, type, automatic);
         this.manager = manager;
         this.embedderPathInternal = embedderPath;
         this.domFileSystem = domFileSystem;
         this.excludedFoldersSetting =
-            Common.Settings.Settings.instance().createLocalSetting('workspaceExcludedFolders', {});
+            Common.Settings.Settings.instance().createLocalSetting('workspace-excluded-folders', {});
         this.excludedFoldersInternal = new Set(this.excludedFoldersSetting.get()[path] || []);
-        this.excludedEmbedderFolders = [];
-        this.initialFilePathsInternal = new Set();
-        this.initialGitFoldersInternal = new Set();
-        this.fileLocks = new Map();
     }
-    static async create(manager, path, embedderPath, type, name, rootURL) {
+    static async create(manager, path, embedderPath, type, name, rootURL, automatic) {
         const domFileSystem = Host.InspectorFrontendHost.InspectorFrontendHostInstance.isolatedFileSystem(name, rootURL);
         if (!domFileSystem) {
             return null;
         }
-        const fileSystem = new IsolatedFileSystem(manager, path, embedderPath, domFileSystem, type);
-        return fileSystem.initializeFilePaths().then(() => fileSystem).catch(error => {
+        const fileSystem = new IsolatedFileSystem(manager, path, embedderPath, domFileSystem, type, automatic);
+        return await fileSystem.initializeFilePaths().then(() => fileSystem).catch(error => {
             console.error(error);
             return null;
         });
     }
     static errorMessage(error) {
-        // @ts-ignore TODO(crbug.com/1172300) Properly type this after jsdoc to ts migration
         return i18nString(UIStrings.fileSystemErrorS, { PH1: error.message });
     }
     serializedFileOperation(path, operation) {
@@ -106,19 +97,16 @@ export class IsolatedFileSystem extends PlatformFileSystem {
         return promise;
     }
     getMetadata(path) {
-        let fulfill;
-        const promise = new Promise(f => {
-            fulfill = f;
-        });
+        const { promise, resolve } = Promise.withResolvers();
         this.domFileSystem.root.getFile(Common.ParsedURL.ParsedURL.encodedPathToRawPathString(path), undefined, fileEntryLoaded, errorHandler);
         return promise;
         function fileEntryLoaded(entry) {
-            entry.getMetadata(fulfill, errorHandler);
+            entry.getMetadata(resolve, errorHandler);
         }
         function errorHandler(error) {
             const errorMessage = IsolatedFileSystem.errorMessage(error);
             console.error(errorMessage + ' when getting file metadata \'' + path);
-            fulfill(null);
+            resolve(null);
         }
     }
     initialFilePaths() {
@@ -133,7 +121,6 @@ export class IsolatedFileSystem extends PlatformFileSystem {
     initializeFilePaths() {
         return new Promise(fulfill => {
             let pendingRequests = 1;
-            let numberOfFilesLoaded = 0, numberOfDirectoriesTraversed = 1;
             const boundInnerCallback = innerCallback.bind(this);
             this.requestEntries(Platform.DevToolsPath.EmptyRawPathString, boundInnerCallback);
             function innerCallback(entries) {
@@ -143,7 +130,6 @@ export class IsolatedFileSystem extends PlatformFileSystem {
                         if (this.isFileExcluded(Common.ParsedURL.ParsedURL.rawPathToEncodedPathString(entry.fullPath))) {
                             continue;
                         }
-                        ++numberOfFilesLoaded;
                         this.initialFilePathsInternal.add(Common.ParsedURL.ParsedURL.rawPathToEncodedPathString(Common.ParsedURL.ParsedURL.substr(entry.fullPath, 1)));
                     }
                     else {
@@ -157,16 +143,12 @@ export class IsolatedFileSystem extends PlatformFileSystem {
                             this.excludedEmbedderFolders.push(Common.ParsedURL.ParsedURL.urlToRawPathString(url, Host.Platform.isWin()));
                             continue;
                         }
-                        ++numberOfDirectoriesTraversed;
                         ++pendingRequests;
                         this.requestEntries(entry.fullPath, boundInnerCallback);
                     }
                 }
                 if ((--pendingRequests === 0)) {
                     fulfill();
-                    if (this.type() === '') {
-                        Host.userMetrics.workspacesNumberOfFiles(numberOfFilesLoaded, numberOfDirectoriesTraversed);
-                    }
                 }
             }
         });
@@ -224,17 +206,14 @@ export class IsolatedFileSystem extends PlatformFileSystem {
         }
     }
     deleteFile(path) {
-        let resolveCallback;
-        const promise = new Promise(resolve => {
-            resolveCallback = resolve;
-        });
+        const { promise, resolve } = Promise.withResolvers();
         this.domFileSystem.root.getFile(Common.ParsedURL.ParsedURL.encodedPathToRawPathString(path), undefined, fileEntryLoaded.bind(this), errorHandler.bind(this));
         return promise;
         function fileEntryLoaded(fileEntry) {
             fileEntry.remove(fileEntryRemoved, errorHandler.bind(this));
         }
         function fileEntryRemoved() {
-            resolveCallback(true);
+            resolve(true);
         }
         /**
          * TODO(jsbell): Update externs replacing DOMError with DOMException. https://crbug.com/496901
@@ -242,7 +221,26 @@ export class IsolatedFileSystem extends PlatformFileSystem {
         function errorHandler(error) {
             const errorMessage = IsolatedFileSystem.errorMessage(error);
             console.error(errorMessage + ' when deleting file \'' + (this.path() + '/' + path) + '\'');
-            resolveCallback(false);
+            resolve(false);
+        }
+    }
+    deleteDirectoryRecursively(path) {
+        const { promise, resolve } = Promise.withResolvers();
+        this.domFileSystem.root.getDirectory(Common.ParsedURL.ParsedURL.encodedPathToRawPathString(path), undefined, dirEntryLoaded.bind(this), errorHandler.bind(this));
+        return promise;
+        function dirEntryLoaded(dirEntry) {
+            dirEntry.removeRecursively(dirEntryRemoved, errorHandler.bind(this));
+        }
+        function dirEntryRemoved() {
+            resolve(true);
+        }
+        /**
+         * TODO(jsbell): Update externs replacing DOMError with DOMException. https://crbug.com/496901
+         */
+        function errorHandler(error) {
+            const errorMessage = IsolatedFileSystem.errorMessage(error);
+            console.error(errorMessage + ' when deleting directory \'' + (this.path() + '/' + path) + '\'');
+            resolve(false);
         }
     }
     requestFileBlob(path) {
@@ -267,49 +265,25 @@ export class IsolatedFileSystem extends PlatformFileSystem {
     async innerRequestFileContent(path) {
         const blob = await this.requestFileBlob(path);
         if (!blob) {
-            return { content: null, error: i18nString(UIStrings.blobCouldNotBeLoaded), isEncoded: false };
+            return { error: i18nString(UIStrings.blobCouldNotBeLoaded) };
         }
-        const reader = new FileReader();
-        const extension = Common.ParsedURL.ParsedURL.extractExtension(path);
-        const encoded = BinaryExtensions.has(extension);
-        const readPromise = new Promise(x => {
-            reader.onloadend = x;
-        });
-        if (encoded) {
-            reader.readAsBinaryString(blob);
-        }
-        else {
-            reader.readAsText(blob);
-        }
-        await readPromise;
-        if (reader.error) {
-            const error = i18nString(UIStrings.cantReadFileSS, { PH1: path, PH2: reader.error.toString() });
-            console.error(error);
-            return { content: null, isEncoded: false, error };
-        }
-        let result = null;
-        let error = null;
+        const mimeType = mimeTypeForBlob(path, blob);
         try {
-            result = reader.result;
+            if (Platform.MimeType.isTextType(mimeType)) {
+                return new TextUtils.ContentData.ContentData(await blob.text(), /* isBase64 */ false, mimeType);
+            }
+            return new TextUtils.ContentData.ContentData(await Common.Base64.encode(blob), /* isBase64 */ true, mimeType);
         }
         catch (e) {
-            result = null;
-            error = i18nString(UIStrings.cantReadFileSS, { PH1: path, PH2: e.message });
+            return { error: i18nString(UIStrings.cantReadFileSS, { PH1: path, PH2: e.message }) };
         }
-        if (result === undefined || result === null) {
-            error = error || i18nString(UIStrings.unknownErrorReadingFileS, { PH1: path });
-            console.error(error);
-            return { content: null, isEncoded: false, error };
-        }
-        return { isEncoded: encoded, content: encoded ? btoa(result) : result };
     }
     async setFileContent(path, content, isBase64) {
         Host.userMetrics.actionTaken(Host.UserMetrics.Action.FileSavedInWorkspace);
-        let callback;
+        let resolve;
         const innerSetFileContent = () => {
             const promise = new Promise(x => {
-                // @ts-ignore TODO(crbug.com/1172300) Properly type this after jsdoc to ts migration
-                callback = x;
+                resolve = x;
             });
             this.domFileSystem.root.getFile(Common.ParsedURL.ParsedURL.encodedPathToRawPathString(path), { create: true }, fileEntryLoaded.bind(this), errorHandler.bind(this));
             return promise;
@@ -330,15 +304,15 @@ export class IsolatedFileSystem extends PlatformFileSystem {
             }
             fileWriter.write(blob);
             function fileWritten() {
-                fileWriter.onwriteend = callback;
+                fileWriter.onwriteend = resolve;
                 fileWriter.truncate(blob.size);
             }
         }
         function errorHandler(error) {
-            // @ts-ignore TODO(crbug.com/1172300) Properly type this after jsdoc to ts migration
+            // @ts-expect-error TODO(crbug.com/1172300) Properly type this after jsdoc to ts migration
             const errorMessage = IsolatedFileSystem.errorMessage(error);
             console.error(errorMessage + ' when setting content for file \'' + (this.path() + '/' + path) + '\'');
-            callback(undefined);
+            resolve(undefined);
         }
     }
     renameFile(path, newName, callback) {
@@ -438,8 +412,8 @@ export class IsolatedFileSystem extends PlatformFileSystem {
         if (this.excludedFoldersInternal.has(folderPath)) {
             return true;
         }
-        const regex = this.manager.workspaceFolderExcludePatternSetting().asRegExp();
-        return Boolean(regex && regex.test(Common.ParsedURL.ParsedURL.encodedPathToRawPathString(folderPath)));
+        const regex = (this.manager.workspaceFolderExcludePatternSetting()).asRegExp();
+        return Boolean(regex?.test(Common.ParsedURL.ParsedURL.encodedPathToRawPathString(folderPath)));
     }
     excludedFolders() {
         return this.excludedFoldersInternal;
@@ -490,6 +464,24 @@ export class IsolatedFileSystem extends PlatformFileSystem {
     supportsAutomapping() {
         return this.type() !== 'overrides';
     }
+}
+/**
+ * @returns Tries to determine the mime type for this Blob:
+ *   1) If blob.type is non-empty, we return that.
+ *   2) If we know it from the extension, use that.
+ *   3) Check the list of known binary extensions and use application/octet-stream.
+ *   4) Use text/plain
+ */
+function mimeTypeForBlob(path, blob) {
+    if (blob.type) {
+        return blob.type;
+    }
+    const extension = Common.ParsedURL.ParsedURL.extractExtension(path);
+    const maybeMime = Common.ResourceType.ResourceType.mimeFromExtension(extension);
+    if (maybeMime) {
+        return maybeMime;
+    }
+    return BinaryExtensions.has(extension) ? 'application/octet-stream' : 'text/plain';
 }
 const STYLE_SHEET_EXTENSIONS = new Set(['css', 'scss', 'sass', 'less']);
 const DOCUMENT_EXTENSIONS = new Set(['htm', 'html', 'asp', 'aspx', 'phtml', 'jsp']);

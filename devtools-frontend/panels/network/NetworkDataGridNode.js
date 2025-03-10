@@ -31,23 +31,23 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 // TODO(crbug.com/1172300) Ignored during the jsdoc to ts migration)
-/* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @typescript-eslint/naming-convention */
 import * as Common from '../../core/common/common.js';
 import * as Host from '../../core/host/host.js';
 import * as i18n from '../../core/i18n/i18n.js';
 import * as Platform from '../../core/platform/platform.js';
-import * as Root from '../../core/root/root.js';
 import * as SDK from '../../core/sdk/sdk.js';
 import * as Bindings from '../../models/bindings/bindings.js';
 import * as Logs from '../../models/logs/logs.js';
 import * as Workspace from '../../models/workspace/workspace.js';
 import * as NetworkForward from '../../panels/network/forward/forward.js';
+import * as FloatingButton from '../../ui/components/floating_button/floating_button.js';
+import * as IconButton from '../../ui/components/icon_button/icon_button.js';
 import * as DataGrid from '../../ui/legacy/components/data_grid/data_grid.js';
 import * as PerfUI from '../../ui/legacy/components/perf_ui/perf_ui.js';
 import * as Components from '../../ui/legacy/components/utils/utils.js';
 import * as UI from '../../ui/legacy/legacy.js';
-import { iconDataForResourceType } from '../utils/utils.js';
+import { PanelUtils } from '../utils/utils.js';
 const UIStrings = {
     /**
      *@description Text in Network Data Grid Node of the Network panel
@@ -148,6 +148,10 @@ const UIStrings = {
      */
     preload: 'Preload',
     /**
+     *@description Cell title in Network Data Grid Node of the Network panel
+     */
+    earlyHints: 'early-hints',
+    /**
      *@description Text in Network Data Grid Node of the Network panel
      */
     signedexchange: 'signed-exchange',
@@ -171,12 +175,12 @@ const UIStrings = {
     /**
      *@description Text of a DOM element in Network Data Grid Node of the Network panel
      */
-    serviceworker: '(`ServiceWorker`)',
+    serviceWorker: '(`ServiceWorker`)',
     /**
      *@description Cell title in Network Data Grid Node of the Network panel
      *@example {4 B} PH1
      */
-    servedFromServiceworkerResource: 'Served from `ServiceWorker`, resource size: {PH1}',
+    servedFromServiceWorkerResource: 'Served from `ServiceWorker`, resource size: {PH1}',
     /**
      *@description Cell title in Network Data Grid Node of the Network panel
      *@example {4 B} PH1
@@ -205,6 +209,19 @@ const UIStrings = {
      *@example {10 B} PH1
      */
     servedFromDiskCacheResourceSizeS: 'Served from disk cache, resource size: {PH1}',
+    /**
+     *@description Cell title in Network Data Grid Node of the Network panel
+     *@example {1} PH1
+     *@example {4 B} PH2
+     */
+    matchedToServiceWorkerRouter: 'Matched to `ServiceWorker router`#{PH1}, resource size: {PH2}',
+    /**
+     *@description Cell title in Network Data Grid Node of the Network panel
+     *@example {1} PH1
+     *@example {4 B} PH2
+     *@example {12 B} PH3
+     */
+    matchedToServiceWorkerRouterWithNetworkSource: 'Matched to `ServiceWorker router`#{PH1}, {PH2} transferred over network, resource size: {PH3}',
     /**
      *@description Text in Network Data Grid Node of the Network panel
      */
@@ -260,20 +277,14 @@ const UIStrings = {
      */
     dnsAlpnH3JobWonRace: '`Chrome` used a `HTTP/3` connection due to the `DNS record` indicating `HTTP/3` support, which won a race against establishing a connection using a different `HTTP` version.',
     /**
-     *@description Tooltip text for a small circular icon which signifies that (some) response headers of this request have been overridden
+     *@description Tooltip to explain the resource's initial priority
+     *@example {High} PH1
+     *@example {Low} PH2
      */
-    hasOverriddenHeaders: 'Request has overridden headers',
+    initialPriorityToolTip: '{PH1}, Initial priority: {PH2}',
 };
 const str_ = i18n.i18n.registerUIStrings('panels/network/NetworkDataGridNode.ts', UIStrings);
 const i18nString = i18n.i18n.getLocalizedString.bind(undefined, str_);
-// TODO(crbug.com/1167717): Make this a const enum again
-// eslint-disable-next-line rulesdir/const_enum
-export var Events;
-(function (Events) {
-    // RequestSelected might fire twice for the same "activation"
-    Events["RequestSelected"] = "RequestSelected";
-    Events["RequestActivated"] = "RequestActivated";
-})(Events || (Events = {}));
 export class NetworkNode extends DataGrid.SortableDataGrid.SortableDataGridNode {
     parentViewInternal;
     isHovered;
@@ -297,18 +308,25 @@ export class NetworkNode extends DataGrid.SortableDataGrid.SortableDataGridNode 
         this.renderCell(cell, columnId);
         return cell;
     }
-    renderCell(cell, columnId) {
+    renderCell(_cell, _columnId) {
     }
-    isFailed() {
+    isError() {
+        return false;
+    }
+    isWarning() {
         return false;
     }
     backgroundColor() {
         const bgColors = _backgroundColors;
         const hasFocus = document.hasFocus();
         const isSelected = this.dataGrid && this.dataGrid.element === document.activeElement;
-        const isFailed = this.isFailed();
-        if (this.selected && hasFocus && isSelected && isFailed) {
+        const isWarning = this.isWarning();
+        const isError = this.isError();
+        if (this.selected && hasFocus && isSelected && isError) {
             return bgColors.FocusSelectedHasError;
+        }
+        if (this.selected && hasFocus && isSelected && isWarning) {
+            return bgColors.FocusSelectedHasWarning;
         }
         if (this.selected && hasFocus && isSelected) {
             return bgColors.FocusSelected;
@@ -331,7 +349,7 @@ export class NetworkNode extends DataGrid.SortableDataGrid.SortableDataGridNode 
         return bgColors.Default;
     }
     updateBackgroundColor() {
-        const element = this.existingElement();
+        const element = (this.existingElement());
         if (!element) {
             return;
         }
@@ -421,15 +439,16 @@ export class NetworkNode extends DataGrid.SortableDataGrid.SortableDataGridNode 
     }
 }
 export const _backgroundColors = {
-    Default: '--network-grid-default-color',
-    Stripe: '--network-grid-stripe-color',
+    Default: '--color-grid-default',
+    Stripe: '--color-grid-stripe',
     Navigation: '--network-grid-navigation-color',
-    Hovered: '--network-grid-hovered-color',
+    Hovered: '--color-grid-hovered',
     InitiatorPath: '--network-grid-initiator-path-color',
     InitiatedPath: '--network-grid-initiated-path-color',
-    Selected: '--network-grid-selected-color',
-    FocusSelected: '--network-grid-focus-selected-color',
+    Selected: '--color-grid-selected',
+    FocusSelected: '--color-grid-focus-selected',
     FocusSelectedHasError: '--network-grid-focus-selected-color-has-error',
+    FocusSelectedHasWarning: '--network-grid-focus-selected-color-has-warning',
     FromFrame: '--network-grid-from-frame-color',
 };
 export class NetworkRequestNode extends NetworkNode {
@@ -527,8 +546,8 @@ export class NetworkRequestNode extends NetworkNode {
             return !aHasInitiatorCell ? -1 : 1;
         }
         // `a` and `b` are guaranteed NetworkRequestNodes with present initiatorCell elements.
-        const networkRequestNodeA = a;
-        const networkRequestNodeB = b;
+        const networkRequestNodeA = (a);
+        const networkRequestNodeB = (b);
         const aText = networkRequestNodeA.linkifiedInitiatorAnchor ?
             networkRequestNodeA.linkifiedInitiatorAnchor.textContent || '' :
             networkRequestNodeA.initiatorCell.title;
@@ -717,6 +736,9 @@ export class NetworkRequestNode extends NetworkNode {
         const mimeType = this.requestInternal.mimeType || this.requestInternal.requestContentType() || '';
         const resourceType = this.requestInternal.resourceType();
         let simpleType = resourceType.name();
+        if (this.requestInternal.fromEarlyHints()) {
+            return i18nString(UIStrings.earlyHints);
+        }
         if (resourceType === Common.ResourceType.resourceTypes.Other ||
             resourceType === Common.ResourceType.resourceTypes.Image) {
             simpleType = mimeType.replace(/^(application|image)\//, '');
@@ -739,10 +761,20 @@ export class NetworkRequestNode extends NetworkNode {
     nodeSelfHeight() {
         return this.parentView().rowHeight();
     }
+    isPrefetch() {
+        return this.requestInternal.resourceType() === Common.ResourceType.resourceTypes.Prefetch;
+    }
+    isWarning() {
+        return this.isFailed() && this.isPrefetch();
+    }
+    isError() {
+        return this.isFailed() && !this.isPrefetch();
+    }
     createCells(element) {
         this.nameCell = null;
         this.initiatorCell = null;
-        element.classList.toggle('network-error-row', this.isFailed());
+        element.classList.toggle('network-warning-row', this.isWarning());
+        element.classList.toggle('network-error-row', this.isError());
         element.classList.toggle('network-navigation-row', this.isNavigationRequestInternal);
         super.createCells(element);
         this.updateBackgroundColor();
@@ -778,7 +810,7 @@ export class NetworkRequestNode extends NetworkNode {
                 const preflightRequest = this.requestInternal.preflightRequest();
                 if (preflightRequest) {
                     this.setTextAndTitle(cell, `${this.requestInternal.requestMethod} + `, i18nString(UIStrings.sPreflight, { PH1: this.requestInternal.requestMethod }));
-                    cell.appendChild(Components.Linkifier.Linkifier.linkifyRevealable(preflightRequest, i18nString(UIStrings.preflight), undefined, i18nString(UIStrings.selectPreflightRequest)));
+                    cell.appendChild(Components.Linkifier.Linkifier.linkifyRevealable(preflightRequest, i18nString(UIStrings.preflight), undefined, i18nString(UIStrings.selectPreflightRequest), undefined, 'preflight-request'));
                 }
                 else {
                     this.setTextAndTitle(cell, this.requestInternal.requestMethod);
@@ -801,11 +833,11 @@ export class NetworkRequestNode extends NetworkNode {
                 this.setTextAndTitle(cell, this.requestInternal.domain);
                 break;
             }
-            case 'remoteaddress': {
+            case 'remote-address': {
                 this.setTextAndTitle(cell, this.requestInternal.remoteAddress());
                 break;
             }
-            case 'remoteaddress-space': {
+            case 'remote-address-space': {
                 this.renderAddressSpaceCell(cell, this.requestInternal.remoteAddressSpace());
                 break;
             }
@@ -813,16 +845,26 @@ export class NetworkRequestNode extends NetworkNode {
                 this.setTextAndTitle(cell, this.arrayLength(this.requestInternal.includedRequestCookies()));
                 break;
             }
-            case 'setcookies': {
-                this.setTextAndTitle(cell, this.arrayLength(this.requestInternal.responseCookies));
+            case 'set-cookies': {
+                this.setTextAndTitle(cell, this.arrayLength(this.requestInternal.nonBlockedResponseCookies()));
                 break;
             }
             case 'priority': {
                 const priority = this.requestInternal.priority();
-                this.setTextAndTitle(cell, priority ? PerfUI.NetworkPriorities.uiLabelForNetworkPriority(priority) : '');
+                const initialPriority = this.requestInternal.initialPriority();
+                if (priority && initialPriority) {
+                    this.setTextAndTitle(cell, PerfUI.NetworkPriorities.uiLabelForNetworkPriority(priority), i18nString(UIStrings.initialPriorityToolTip, {
+                        PH1: PerfUI.NetworkPriorities.uiLabelForNetworkPriority(priority),
+                        PH2: PerfUI.NetworkPriorities.uiLabelForNetworkPriority(initialPriority),
+                    }));
+                }
+                else {
+                    this.setTextAndTitle(cell, priority ? PerfUI.NetworkPriorities.uiLabelForNetworkPriority(priority) : '');
+                }
+                this.appendSubtitle(cell, initialPriority ? PerfUI.NetworkPriorities.uiLabelForNetworkPriority(initialPriority) : '');
                 break;
             }
-            case 'connectionid': {
+            case 'connection-id': {
                 this.setTextAndTitle(cell, this.requestInternal.connectionId === '0' ? '' : this.requestInternal.connectionId);
                 break;
             }
@@ -852,6 +894,10 @@ export class NetworkRequestNode extends NetworkNode {
                 this.setTextAndTitle(cell, '');
                 break;
             }
+            case 'has-overrides': {
+                this.setTextAndTitle(cell, this.requestInternal.overrideTypes.join(', '));
+                break;
+            }
             default: {
                 this.setTextAndTitle(cell, this.requestInternal.responseHeaderValue(columnId) || '');
                 break;
@@ -863,90 +909,51 @@ export class NetworkRequestNode extends NetworkNode {
     }
     select(supressSelectedEvent) {
         super.select(supressSelectedEvent);
-        this.parentView().dispatchEventToListeners(Events.RequestSelected, this.requestInternal);
-    }
-    highlightMatchedSubstring(regexp) {
-        if (!regexp || !this.nameCell || this.nameCell.textContent === null) {
-            return [];
-        }
-        // Ensure element is created.
-        this.element();
-        const domChanges = [];
-        const matchInfo = this.nameCell.textContent.match(regexp);
-        if (matchInfo) {
-            UI.UIUtils.highlightSearchResult(this.nameCell, matchInfo.index || 0, matchInfo[0].length, domChanges);
-        }
-        return domChanges;
+        this.parentView().dispatchEventToListeners("RequestSelected" /* Events.RequestSelected */, this.requestInternal);
     }
     openInNewTab() {
         Host.InspectorFrontendHost.InspectorFrontendHostInstance.openInNewTab(this.requestInternal.url());
     }
     isFailed() {
-        if (this.requestInternal.failed && !this.requestInternal.statusCode) {
-            return true;
-        }
-        if (this.requestInternal.statusCode >= 400) {
-            return true;
-        }
-        const signedExchangeInfo = this.requestInternal.signedExchangeInfo();
-        if (signedExchangeInfo !== null && Boolean(signedExchangeInfo.errors)) {
-            return true;
-        }
-        if (this.requestInternal.webBundleInfo()?.errorMessage ||
-            this.requestInternal.webBundleInnerRequestInfo()?.errorMessage) {
-            return true;
-        }
-        if (this.requestInternal.corsErrorStatus()) {
-            return true;
-        }
-        return false;
+        return PanelUtils.isFailedNetworkRequest(this.requestInternal);
     }
     renderPrimaryCell(cell, columnId, text) {
-        const columnIndex = this.dataGrid.indexOfVisibleColumn(columnId);
+        const columnIndex = this.dataGrid?.indexOfVisibleColumn(columnId) | 0;
         const isFirstCell = (columnIndex === 0);
         if (isFirstCell) {
             const leftPadding = this.leftPadding ? this.leftPadding + 'px' : '';
             cell.style.setProperty('padding-left', leftPadding);
+            cell.tabIndex = -1;
             this.nameCell = cell;
             cell.addEventListener('dblclick', this.openInNewTab.bind(this), false);
             cell.addEventListener('mousedown', () => {
                 // When the request panel isn't visible yet, firing the RequestActivated event
                 // doesn't make it visible if no request is selected. So we'll select it first.
                 this.select();
-                this.parentView().dispatchEventToListeners(Events.RequestActivated, { showPanel: true });
+                this.parentView().dispatchEventToListeners("RequestActivated" /* Events.RequestActivated */, { showPanel: true });
             });
-            let iconElement;
-            if (this.requestInternal.resourceType() === Common.ResourceType.resourceTypes.Image) {
-                const previewImage = document.createElement('img');
-                previewImage.classList.add('image-network-icon-preview');
-                previewImage.alt = this.requestInternal.resourceType().title();
-                void this.requestInternal.populateImageSource(previewImage);
-                iconElement = document.createElement('div');
-                iconElement.classList.add('image');
-                iconElement.appendChild(previewImage);
-            }
-            else {
-                const iconData = iconDataForResourceType(this.requestInternal.resourceType());
-                iconElement = document.createElement('div');
-                iconElement.title = this.requestInternal.resourceType().title();
-                iconElement.style.setProperty('-webkit-mask', `url('${new URL(`../../Images/${iconData.iconName}.svg`, import.meta.url)
-                    .toString()}')  no-repeat center /99%`);
-                iconElement.style.setProperty('background-color', iconData.color);
-            }
-            iconElement.classList.add('icon');
+            cell.addEventListener('focus', () => this.parentView().resetFocus());
+            // render icons
+            const iconElement = PanelUtils.getIconForNetworkRequest(this.requestInternal);
             cell.appendChild(iconElement);
+            // render Ask AI button
+            const aiButtonContainer = this.createAiButtonIfAvailable();
+            if (aiButtonContainer) {
+                cell.appendChild(aiButtonContainer);
+            }
         }
         if (columnId === 'name') {
             const webBundleInnerRequestInfo = this.requestInternal.webBundleInnerRequestInfo();
             if (webBundleInnerRequestInfo) {
-                const secondIconElement = document.createElement('div');
+                const iconData = {
+                    iconName: 'bundle',
+                    color: 'var(--icon-info)',
+                };
+                const secondIconElement = PanelUtils.createIconElement(iconData, i18nString(UIStrings.webBundleInnerRequest));
                 secondIconElement.classList.add('icon');
-                secondIconElement.title = i18nString(UIStrings.webBundleInnerRequest);
-                secondIconElement.style.setProperty('-webkit-mask', `url('${new URL('../../Images/bundle.svg', import.meta.url).toString()}')  no-repeat center /99%`);
-                secondIconElement.style.setProperty('background-color', 'var(--icon-info)');
                 const networkManager = SDK.NetworkManager.NetworkManager.forRequest(this.requestInternal);
                 if (webBundleInnerRequestInfo.bundleRequestId && networkManager) {
-                    cell.appendChild(Components.Linkifier.Linkifier.linkifyRevealable(new NetworkForward.NetworkRequestId.NetworkRequestId(webBundleInnerRequestInfo.bundleRequestId, networkManager), secondIconElement));
+                    cell.appendChild(Components.Linkifier.Linkifier.linkifyRevealable(new NetworkForward.NetworkRequestId.NetworkRequestId(webBundleInnerRequestInfo.bundleRequestId, networkManager), secondIconElement, undefined, undefined, undefined, 'webbundle-request'));
                 }
                 else {
                     cell.appendChild(secondIconElement);
@@ -986,9 +993,10 @@ export class NetworkRequestNode extends NetworkNode {
             }
         }
         else if (this.requestInternal.statusCode && this.requestInternal.statusCode >= 400) {
+            const statusText = this.requestInternal.getInferredStatusText();
             UI.UIUtils.createTextChild(cell, String(this.requestInternal.statusCode));
-            this.appendSubtitle(cell, this.requestInternal.statusText);
-            UI.Tooltip.Tooltip.install(cell, this.requestInternal.statusCode + ' ' + this.requestInternal.statusText);
+            this.appendSubtitle(cell, statusText);
+            UI.Tooltip.Tooltip.install(cell, this.requestInternal.statusCode + ' ' + statusText);
         }
         else if (!this.requestInternal.statusCode && this.requestInternal.parsedURL.isDataURL()) {
             this.setTextAndTitle(cell, i18nString(UIStrings.data));
@@ -1044,12 +1052,9 @@ export class NetworkRequestNode extends NetworkNode {
             }
             if (displayShowHeadersLink) {
                 this.setTextAndTitleAsLink(cell, i18nString(UIStrings.blockeds, { PH1: reason }), i18nString(UIStrings.blockedTooltip), () => {
-                    const tab = Root.Runtime.experiments.isEnabled(Root.Runtime.ExperimentName.HEADER_OVERRIDES) ?
-                        NetworkForward.UIRequestLocation.UIRequestTabs.HeadersComponent :
-                        NetworkForward.UIRequestLocation.UIRequestTabs.Headers;
-                    this.parentView().dispatchEventToListeners(Events.RequestActivated, {
+                    this.parentView().dispatchEventToListeners("RequestActivated" /* Events.RequestActivated */, {
                         showPanel: true,
-                        tab,
+                        tab: "headers-component" /* NetworkForward.UIRequestLocation.UIRequestTabs.HEADERS_COMPONENT */,
                     });
                 });
             }
@@ -1061,15 +1066,10 @@ export class NetworkRequestNode extends NetworkNode {
             this.setTextAndTitle(cell, i18nString(UIStrings.corsError), i18nString(UIStrings.crossoriginResourceSharingErrorS, { PH1: corsErrorStatus.corsError }));
         }
         else if (this.requestInternal.statusCode) {
-            if (this.requestInternal.hasOverriddenHeaders()) {
-                const markerDiv = document.createElement('div');
-                markerDiv.classList.add('network-override-marker');
-                markerDiv.title = i18nString(UIStrings.hasOverriddenHeaders);
-                cell.appendChild(markerDiv);
-            }
             UI.UIUtils.createTextChild(cell, String(this.requestInternal.statusCode));
-            this.appendSubtitle(cell, this.requestInternal.statusText);
-            UI.Tooltip.Tooltip.install(cell, this.requestInternal.statusCode + ' ' + this.requestInternal.statusText);
+            const statusText = this.requestInternal.getInferredStatusText();
+            this.appendSubtitle(cell, statusText);
+            UI.Tooltip.Tooltip.install(cell, this.requestInternal.statusCode + ' ' + statusText);
         }
         else if (this.requestInternal.finished) {
             this.setTextAndTitle(cell, i18nString(UIStrings.finished));
@@ -1129,14 +1129,18 @@ export class NetworkRequestNode extends NetworkNode {
         const request = this.requestInternal;
         const initiator = Logs.NetworkLog.NetworkLog.instance().initiatorInfoForRequest(request);
         const timing = request.timing;
-        if (timing && timing.pushStart) {
+        if (timing?.pushStart) {
             cell.appendChild(document.createTextNode(i18nString(UIStrings.push)));
         }
         switch (initiator.type) {
-            case SDK.NetworkRequest.InitiatorType.Parser: {
+            case "parser" /* SDK.NetworkRequest.InitiatorType.PARSER */: {
                 const uiSourceCode = Workspace.Workspace.WorkspaceImpl.instance().uiSourceCodeForURL(initiator.url);
+                const displayName = uiSourceCode?.displayName();
+                const text = displayName !== undefined && initiator.lineNumber !== undefined ?
+                    `${displayName}:${initiator.lineNumber}` :
+                    undefined;
                 cell.appendChild(Components.Linkifier.Linkifier.linkifyURL(initiator.url, {
-                    text: uiSourceCode ? uiSourceCode.displayName() : undefined,
+                    text,
                     lineNumber: initiator.lineNumber,
                     columnNumber: initiator.columnNumber,
                     userMetric: this.#getLinkifierMetric(),
@@ -1144,20 +1148,20 @@ export class NetworkRequestNode extends NetworkNode {
                 this.appendSubtitle(cell, i18nString(UIStrings.parser));
                 break;
             }
-            case SDK.NetworkRequest.InitiatorType.Redirect: {
+            case "redirect" /* SDK.NetworkRequest.InitiatorType.REDIRECT */: {
                 UI.Tooltip.Tooltip.install(cell, initiator.url);
                 const redirectSource = request.redirectSource();
                 console.assert(redirectSource !== null);
                 if (this.parentView().nodeForRequest(redirectSource)) {
-                    cell.appendChild(Components.Linkifier.Linkifier.linkifyRevealable(redirectSource, Bindings.ResourceUtils.displayNameForURL(redirectSource.url())));
+                    cell.appendChild(Components.Linkifier.Linkifier.linkifyRevealable(redirectSource, Bindings.ResourceUtils.displayNameForURL(redirectSource.url()), undefined, undefined, undefined, 'redirect-source-request'));
                 }
                 else {
-                    cell.appendChild(Components.Linkifier.Linkifier.linkifyURL(redirectSource.url()));
+                    cell.appendChild(Components.Linkifier.Linkifier.linkifyURL(redirectSource.url(), { jslogContext: 'redirect-source-request-url' }));
                 }
                 this.appendSubtitle(cell, i18nString(UIStrings.redirect));
                 break;
             }
-            case SDK.NetworkRequest.InitiatorType.Script: {
+            case "script" /* SDK.NetworkRequest.InitiatorType.SCRIPT */: {
                 const target = SDK.NetworkManager.NetworkManager.forRequest(request)?.target() || null;
                 const linkifier = this.parentView().linkifier();
                 if (initiator.stack) {
@@ -1172,22 +1176,22 @@ export class NetworkRequestNode extends NetworkNode {
                 cell.classList.add('network-script-initiated');
                 break;
             }
-            case SDK.NetworkRequest.InitiatorType.Preload: {
+            case "preload" /* SDK.NetworkRequest.InitiatorType.PRELOAD */: {
                 UI.Tooltip.Tooltip.install(cell, i18nString(UIStrings.preload));
                 cell.classList.add('network-dim-cell');
                 cell.appendChild(document.createTextNode(i18nString(UIStrings.preload)));
                 break;
             }
-            case SDK.NetworkRequest.InitiatorType.SignedExchange: {
+            case "signedExchange" /* SDK.NetworkRequest.InitiatorType.SIGNED_EXCHANGE */: {
                 cell.appendChild(Components.Linkifier.Linkifier.linkifyURL(initiator.url));
                 this.appendSubtitle(cell, i18nString(UIStrings.signedexchange));
                 break;
             }
-            case SDK.NetworkRequest.InitiatorType.Preflight: {
+            case "preflight" /* SDK.NetworkRequest.InitiatorType.PREFLIGHT */: {
                 cell.appendChild(document.createTextNode(i18nString(UIStrings.preflight)));
                 if (initiator.initiatorRequest) {
-                    const icon = UI.Icon.Icon.create('arrow-up-down-circle');
-                    const link = Components.Linkifier.Linkifier.linkifyRevealable(initiator.initiatorRequest, icon, undefined, i18nString(UIStrings.selectTheRequestThatTriggered), 'trailing-link-icon');
+                    const icon = IconButton.Icon.create('arrow-up-down-circle');
+                    const link = Components.Linkifier.Linkifier.linkifyRevealable(initiator.initiatorRequest, icon, undefined, i18nString(UIStrings.selectTheRequestThatTriggered), 'trailing-link-icon', 'initator-request');
                     UI.ARIAUtils.setLabel(link, i18nString(UIStrings.selectTheRequestThatTriggered));
                     cell.appendChild(link);
                 }
@@ -1206,15 +1210,31 @@ export class NetworkRequestNode extends NetworkNode {
         }
     }
     renderSizeCell(cell) {
-        const resourceSize = Platform.NumberUtilities.bytesToString(this.requestInternal.resourceSize);
+        const resourceSize = i18n.ByteUtilities.bytesToString(this.requestInternal.resourceSize);
         if (this.requestInternal.cachedInMemory()) {
             UI.UIUtils.createTextChild(cell, i18nString(UIStrings.memoryCache));
             UI.Tooltip.Tooltip.install(cell, i18nString(UIStrings.servedFromMemoryCacheResource, { PH1: resourceSize }));
             cell.classList.add('network-dim-cell');
         }
+        else if (this.requestInternal.serviceWorkerRouterInfo) {
+            const { serviceWorkerRouterInfo } = this.requestInternal;
+            // If `serviceWorkerRouterInfo.ruleIdMatched` is undefined,store 0 to indicate invalid ID.
+            const ruleIdMatched = serviceWorkerRouterInfo.ruleIdMatched ?? 0;
+            UI.UIUtils.createTextChild(cell, i18n.i18n.lockedString('(ServiceWorker router)'));
+            let tooltipText;
+            if (serviceWorkerRouterInfo.matchedSourceType === "network" /* Protocol.Network.ServiceWorkerRouterSource.Network */) {
+                const transferSize = i18n.ByteUtilities.bytesToString(this.requestInternal.transferSize);
+                tooltipText = i18nString(UIStrings.matchedToServiceWorkerRouterWithNetworkSource, { PH1: ruleIdMatched, PH2: transferSize, PH3: resourceSize });
+            }
+            else {
+                tooltipText = i18nString(UIStrings.matchedToServiceWorkerRouter, { PH1: ruleIdMatched, PH2: resourceSize });
+            }
+            UI.Tooltip.Tooltip.install(cell, tooltipText);
+            cell.classList.add('network-dim-cell');
+        }
         else if (this.requestInternal.fetchedViaServiceWorker) {
-            UI.UIUtils.createTextChild(cell, i18nString(UIStrings.serviceworker));
-            UI.Tooltip.Tooltip.install(cell, i18nString(UIStrings.servedFromServiceworkerResource, { PH1: resourceSize }));
+            UI.UIUtils.createTextChild(cell, i18nString(UIStrings.serviceWorker));
+            UI.Tooltip.Tooltip.install(cell, i18nString(UIStrings.servedFromServiceWorkerResource, { PH1: resourceSize }));
             cell.classList.add('network-dim-cell');
         }
         else if (this.requestInternal.redirectSourceSignedExchangeInfoHasNoErrors()) {
@@ -1238,7 +1258,7 @@ export class NetworkRequestNode extends NetworkNode {
             cell.classList.add('network-dim-cell');
         }
         else {
-            const transferSize = Platform.NumberUtilities.bytesToString(this.requestInternal.transferSize);
+            const transferSize = i18n.ByteUtilities.bytesToString(this.requestInternal.transferSize);
             UI.UIUtils.createTextChild(cell, transferSize);
             UI.Tooltip.Tooltip.install(cell, `${transferSize} transferred over network, resource size: ${resourceSize}`);
         }
@@ -1257,17 +1277,38 @@ export class NetworkRequestNode extends NetworkNode {
             this.setTextAndTitle(cell, i18nString(UIStrings.pending));
         }
     }
-    appendSubtitle(cellElement, subtitleText, showInlineWhenSelected = false, tooltipText = '') {
+    appendSubtitle(cellElement, subtitleText, alwaysVisible = false, tooltipText = '') {
         const subtitleElement = document.createElement('div');
         subtitleElement.classList.add('network-cell-subtitle');
-        if (showInlineWhenSelected) {
-            subtitleElement.classList.add('network-cell-subtitle-show-inline-when-selected');
+        if (alwaysVisible) {
+            subtitleElement.classList.add('always-visible');
         }
         subtitleElement.textContent = subtitleText;
         if (tooltipText) {
             UI.Tooltip.Tooltip.install(subtitleElement, tooltipText);
         }
         cellElement.appendChild(subtitleElement);
+    }
+    createAiButtonIfAvailable() {
+        if (UI.ActionRegistry.ActionRegistry.instance().hasAction('drjones.network-floating-button')) {
+            const action = UI.ActionRegistry.ActionRegistry.instance().getAction('drjones.network-floating-button');
+            const aiButtonContainer = document.createElement('span');
+            aiButtonContainer.classList.add('ai-button-container');
+            const floatingButton = new FloatingButton.FloatingButton.FloatingButton({
+                title: action.title(),
+                iconName: 'smart-assistant',
+            });
+            floatingButton.addEventListener('click', ev => {
+                ev.stopPropagation();
+                this.select();
+                void action.execute();
+            }, { capture: true });
+            floatingButton.addEventListener('mousedown', ev => {
+                ev.stopPropagation();
+            }, { capture: true });
+            aiButtonContainer.appendChild(floatingButton);
+            return aiButtonContainer;
+        }
     }
 }
 export class NetworkGroupNode extends NetworkNode {
@@ -1294,7 +1335,7 @@ export class NetworkGroupNode extends NetworkNode {
         const firstChildNode = this.traverseNextNode(false, undefined, true);
         const request = firstChildNode?.request();
         if (request) {
-            this.parentView().dispatchEventToListeners(Events.RequestSelected, request);
+            this.parentView().dispatchEventToListeners("RequestSelected" /* Events.RequestSelected */, request);
         }
     }
 }

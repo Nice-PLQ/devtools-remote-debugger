@@ -1,11 +1,13 @@
 // Copyright (c) 2020 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
-import * as ComponentHelpers from '../../../components/helpers/helpers.js';
-import * as LitHtml from '../../../lit-html/lit-html.js';
-import pieChartStyles from './pieChart.css.js';
-const { render, html, svg } = LitHtml;
 import * as i18n from '../../../../core/i18n/i18n.js';
+import { html, render, svg } from '../../../lit/lit.js';
+import * as VisualLogging from '../../../visual_logging/visual_logging.js';
+import pieChartStylesRaw from './pieChart.css.js';
+// TODO(crbug.com/391381439): Fully migrate off of constructed style sheets.
+const pieChartStyles = new CSSStyleSheet();
+pieChartStyles.replaceSync(pieChartStylesRaw.cssContent);
 const UIStrings = {
     /**
      *@description Text for sum
@@ -19,7 +21,6 @@ const i18nString = i18n.i18n.getLocalizedString.bind(undefined, str_);
 // the correct initial size. This avoids a layout shift when the slices are
 // later populated.
 export class PieChart extends HTMLElement {
-    static litTagName = LitHtml.literal `devtools-perf-piechart`;
     shadow = this.attachShadow({ mode: 'open' });
     chartName = '';
     size = 0;
@@ -47,7 +48,8 @@ export class PieChart extends HTMLElement {
         this.lastAngle = -Math.PI / 2;
         // clang-format off
         const output = html `
-      <div class="root" role="group" @keydown=${this.onKeyDown} aria-label=${this.chartName}>
+      <div class="root" role="group" @keydown=${this.onKeyDown} aria-label=${this.chartName}
+          jslog=${VisualLogging.pieChart().track({ keydown: 'ArrowUp|ArrowDown' })}>
         <div class="chart-root" style="width: ${this.size}px; height: ${this.size}px;">
           ${svg `
           <svg>
@@ -58,6 +60,7 @@ export class PieChart extends HTMLElement {
             const selected = this.sliceSelected === index;
             const tabIndex = selected && !this.showLegend ? '0' : '-1';
             return svg `<path class="slice ${selected ? 'selected' : ''}"
+                  jslog=${VisualLogging.pieChartSlice().track({ click: true })}
                   @click=${this.onSliceClicked(index)} tabIndex=${tabIndex}
                   fill=${slice.color} d=${this.getPathStringForSlice(slice)}
                   aria-label=${slice.title} id=${selected ? 'selectedSlice' : ''}></path>`;
@@ -70,17 +73,19 @@ export class PieChart extends HTMLElement {
           `}
           <div class="pie-chart-foreground">
             <div class="pie-chart-total ${this.totalSelected ? 'selected' : ''}" @click=${this.selectTotal}
+                jslog=${VisualLogging.pieChartTotal('select-total').track({ click: true })}
                 tabIndex=${this.totalSelected && !this.showLegend ? '1' : '-1'}>
               ${this.total ? this.formatter(this.total) : ''}
             </div>
           </div>
         </div>
         ${this.showLegend ? html `
-        <div class="pie-chart-legend">
+        <div class="pie-chart-legend" jslog=${VisualLogging.section('legend')}>
           ${this.slices.map((slice, index) => {
             const selected = this.sliceSelected === index;
             return html `
               <div class="pie-chart-legend-row ${selected ? 'selected' : ''}"
+                  jslog=${VisualLogging.pieChartSlice().track({ click: true })}
                   @click=${this.onSliceClicked(index)} tabIndex=${selected ? '0' : '-1'}>
                 <div class="pie-chart-size">${this.formatter(slice.value)}</div>
                 <div class="pie-chart-swatch" style="background-color: ${slice.color};"></div>
@@ -88,13 +93,15 @@ export class PieChart extends HTMLElement {
               </div>`;
         })}
           <div class="pie-chart-legend-row ${this.totalSelected ? 'selected' : ''}"
+              jslog=${VisualLogging.pieChartTotal('select-total').track({ click: true })}
               @click=${this.selectTotal} tabIndex=${this.totalSelected ? '0' : '-1'}>
             <div class="pie-chart-size">${this.formatter(this.total)}</div>
-            <div class="pie-chart-swatch pie-chart-empty-swatch"></div>
+            <div class="pie-chart-swatch"></div>
             <div class="pie-chart-name">${i18nString(UIStrings.total)}</div>
           </div>
         </div>
         ` : ''}
+      </div>
     `;
         // clang-format on
         render(output, this.shadow, { host: this });
@@ -194,5 +201,5 @@ export class PieChart extends HTMLElement {
         return pathString;
     }
 }
-ComponentHelpers.CustomElements.defineComponent('devtools-perf-piechart', PieChart);
+customElements.define('devtools-perf-piechart', PieChart);
 //# sourceMappingURL=PieChart.js.map

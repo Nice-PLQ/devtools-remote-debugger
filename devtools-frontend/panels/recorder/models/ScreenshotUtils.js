@@ -10,6 +10,10 @@ async function captureScreenshot() {
         throw new Error('Could not find main target');
     }
     const { data } = await mainTarget.pageAgent().invoke_captureScreenshot({});
+    if (!data) {
+        // 1x1 px empty image.
+        return 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
+    }
     return ('data:image/png;base64,' + data);
 }
 export async function resizeScreenshot(data) {

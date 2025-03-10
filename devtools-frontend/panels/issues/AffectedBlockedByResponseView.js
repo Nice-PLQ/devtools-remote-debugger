@@ -1,9 +1,9 @@
 // Copyright 2021 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
+import * as Host from '../../core/host/host.js';
 import * as i18n from '../../core/i18n/i18n.js';
 import * as IssuesManager from '../../models/issues_manager/issues_manager.js';
-import * as Host from '../../core/host/host.js';
 import { AffectedResourcesView } from './AffectedResourcesView.js';
 const UIStrings = {
     /**
@@ -47,7 +47,7 @@ export class AffectedBlockedByResponseView extends AffectedResourcesView {
         element.classList.add('affected-resource-row');
         const requestCell = this.createRequestCell(details.request, {
             additionalOnClickAction() {
-                Host.userMetrics.issuesPanelResourceOpened(IssuesManager.Issue.IssueCategory.CrossOriginEmbedderPolicy, "Request" /* AffectedItem.Request */);
+                Host.userMetrics.issuesPanelResourceOpened("CrossOriginEmbedderPolicy" /* IssuesManager.Issue.IssueCategory.CROSS_ORIGIN_EMBEDDER_POLICY */, "Request" /* AffectedItem.REQUEST */);
             },
         });
         element.appendChild(requestCell);

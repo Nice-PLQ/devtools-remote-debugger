@@ -1,16 +1,21 @@
 // Copyright 2021 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
+import '../../../ui/components/icon_button/icon_button.js';
+import '../../../ui/components/report_view/report_view.js';
+import * as Common from '../../../core/common/common.js';
 import * as i18n from '../../../core/i18n/i18n.js';
 import * as SDK from '../../../core/sdk/sdk.js';
 import * as NetworkForward from '../../../panels/network/forward/forward.js';
-import * as ComponentHelpers from '../../../ui/components/helpers/helpers.js';
-import * as IconButton from '../../../ui/components/icon_button/icon_button.js';
-import * as Coordinator from '../../../ui/components/render_coordinator/render_coordinator.js';
-import * as ReportView from '../../../ui/components/report_view/report_view.js';
-import * as LitHtml from '../../../ui/lit-html/lit-html.js';
-import permissionsPolicySectionStyles from './permissionsPolicySection.css.js';
-import * as Common from '../../../core/common/common.js';
+import * as Buttons from '../../../ui/components/buttons/buttons.js';
+import * as RenderCoordinator from '../../../ui/components/render_coordinator/render_coordinator.js';
+import * as Lit from '../../../ui/lit/lit.js';
+import * as VisualLogging from '../../../ui/visual_logging/visual_logging.js';
+import permissionsPolicySectionStylesRaw from './permissionsPolicySection.css.js';
+// TODO(crbug.com/391381439): Fully migrate off of constructed style sheets.
+const permissionsPolicySectionStyles = new CSSStyleSheet();
+permissionsPolicySectionStyles.replaceSync(permissionsPolicySectionStylesRaw.cssContent);
+const { html } = Lit;
 const UIStrings = {
     /**
      *@description Label for a button. When clicked more details (for the content this button refers to) will be shown.
@@ -54,25 +59,21 @@ const UIStrings = {
 };
 const str_ = i18n.i18n.registerUIStrings('panels/application/components/PermissionsPolicySection.ts', UIStrings);
 const i18nString = i18n.i18n.getLocalizedString.bind(undefined, str_);
-const coordinator = Coordinator.RenderCoordinator.RenderCoordinator.instance();
-export function renderIconLink(iconName, title, clickHandler) {
+export function renderIconLink(iconName, title, clickHandler, jsLogContext) {
     // Disabled until https://crbug.com/1079231 is fixed.
     // clang-format off
-    return LitHtml.html `
-    <button class="link" role="link" tabindex=0 @click=${clickHandler} title=${title}>
-      <${IconButton.Icon.Icon.litTagName} .data=${{
-        iconName: iconName,
-        color: 'var(--icon-link)',
-        width: '16px',
-        height: '16px',
-    }}>
-      </${IconButton.Icon.Icon.litTagName}>
-    </button>
+    return html `
+  <devtools-button
+    .iconName=${iconName}
+    title=${title}
+    .variant=${"icon" /* Buttons.Button.Variant.ICON */}
+    .size=${"SMALL" /* Buttons.Button.Size.SMALL */}
+    @click=${clickHandler}
+    jslog=${VisualLogging.action().track({ click: true }).context(jsLogContext)}></devtools-button>
   `;
     // clang-format on
 }
 export class PermissionsPolicySection extends HTMLElement {
-    static litTagName = LitHtml.literal `devtools-resources-permissions-policy-section`;
     #shadow = this.attachShadow({ mode: 'open' });
     #permissionsPolicySectionData = { policies: [], showDetails: false };
     set data(data) {
@@ -89,40 +90,44 @@ export class PermissionsPolicySection extends HTMLElement {
     #renderAllowed() {
         const allowed = this.#permissionsPolicySectionData.policies.filter(p => p.allowed).map(p => p.feature).sort();
         if (!allowed.length) {
-            return LitHtml.nothing;
+            return Lit.nothing;
         }
-        return LitHtml.html `
-      <${ReportView.ReportView.ReportKey.litTagName}>${i18nString(UIStrings.allowedFeatures)}</${ReportView.ReportView.ReportKey.litTagName}>
-      <${ReportView.ReportView.ReportValue.litTagName}>
+        return html `
+      <devtools-report-key>${i18nString(UIStrings.allowedFeatures)}</devtools-report-key>
+      <devtools-report-value>
         ${allowed.join(', ')}
-      </${ReportView.ReportView.ReportValue.litTagName}>
+      </devtools-report-value>
     `;
     }
     async #renderDisallowed() {
         const disallowed = this.#permissionsPolicySectionData.policies.filter(p => !p.allowed)
             .sort((a, b) => a.feature.localeCompare(b.feature));
         if (!disallowed.length) {
-            return LitHtml.nothing;
+            return Lit.nothing;
         }
         if (!this.#permissionsPolicySectionData.showDetails) {
-            return LitHtml.html `
-        <${ReportView.ReportView.ReportKey.litTagName}>${i18nString(UIStrings.disabledFeatures)}</${ReportView.ReportView.ReportKey.litTagName}>
-        <${ReportView.ReportView.ReportValue.litTagName}>
+            return html `
+        <devtools-report-key>${i18nString(UIStrings.disabledFeatures)}</devtools-report-key>
+        <devtools-report-value>
           ${disallowed.map(p => p.feature).join(', ')}
-          <button class="link" @click=${() => this.#toggleShowPermissionsDisallowedDetails()}>
-            ${i18nString(UIStrings.showDetails)}
-          </button>
-        </${ReportView.ReportView.ReportValue.litTagName}>
+          <devtools-button
+          .variant=${"outlined" /* Buttons.Button.Variant.OUTLINED */}
+          @click=${() => this.#toggleShowPermissionsDisallowedDetails()}
+          jslog=${VisualLogging.action('show-disabled-features-details').track({
+                click: true,
+            })}>${i18nString(UIStrings.showDetails)}
+        </devtools-button>
+        </devtools-report-value>
       `;
         }
         const frameManager = SDK.FrameManager.FrameManager.instance();
         const featureRows = await Promise.all(disallowed.map(async (policy) => {
             const frame = policy.locator ? frameManager.getFrame(policy.locator.frameId) : null;
             const blockReason = policy.locator?.blockReason;
-            const linkTargetDOMNode = await (blockReason === "IframeAttribute" /* Protocol.Page.PermissionsPolicyBlockReason.IframeAttribute */ && frame &&
-                frame.getOwnerDOMNodeOrDocument());
-            const resource = frame && frame.resourceForURL(frame.url);
-            const linkTargetRequest = blockReason === "Header" /* Protocol.Page.PermissionsPolicyBlockReason.Header */ && resource && resource.request;
+            const linkTargetDOMNode = await (blockReason === "IframeAttribute" /* Protocol.Page.PermissionsPolicyBlockReason.IframeAttribute */ &&
+                frame?.getOwnerDOMNodeOrDocument());
+            const resource = frame?.resourceForURL(frame.url);
+            const linkTargetRequest = blockReason === "Header" /* Protocol.Page.PermissionsPolicyBlockReason.Header */ && resource?.request;
             const blockReasonText = (() => {
                 switch (blockReason) {
                     case "IframeAttribute" /* Protocol.Page.PermissionsPolicyBlockReason.IframeAttribute */:
@@ -145,56 +150,60 @@ export class PermissionsPolicySection extends HTMLElement {
             };
             // Disabled until https://crbug.com/1079231 is fixed.
             // clang-format off
-            return LitHtml.html `
+            return html `
         <div class="permissions-row">
           <div>
-            <${IconButton.Icon.Icon.litTagName} class="allowed-icon"
+            <devtools-icon class="allowed-icon"
               .data=${{
                 color: 'var(--icon-error)',
                 iconName: 'cross-circle',
                 width: '20px', height: '20px',
             }}>
-            </${IconButton.Icon.Icon.litTagName}>
+            </devtools-icon>
           </div>
           <div class="feature-name text-ellipsis">
             ${policy.feature}
           </div>
           <div class="block-reason">${blockReasonText}</div>
           <div>
-            ${linkTargetDOMNode ? renderIconLink('code-circle', i18nString(UIStrings.clickToShowIframe), () => Common.Revealer.reveal(linkTargetDOMNode)) :
-                LitHtml.nothing}
-            ${linkTargetRequest ? renderIconLink('arrow-up-down-circle', i18nString(UIStrings.clickToShowHeader), revealHeader) :
-                LitHtml.nothing}
+            ${linkTargetDOMNode ? renderIconLink('code-circle', i18nString(UIStrings.clickToShowIframe), () => Common.Revealer.reveal(linkTargetDOMNode), 'reveal-in-elements') :
+                Lit.nothing}
+            ${linkTargetRequest ? renderIconLink('arrow-up-down-circle', i18nString(UIStrings.clickToShowHeader), revealHeader, 'reveal-in-network') :
+                Lit.nothing}
           </div>
         </div>
       `;
             // clang-format on
         }));
-        return LitHtml.html `
-      <${ReportView.ReportView.ReportKey.litTagName}>${i18nString(UIStrings.disabledFeatures)}</${ReportView.ReportView.ReportKey.litTagName}>
-      <${ReportView.ReportView.ReportValue.litTagName} class="policies-list">
+        return html `
+      <devtools-report-key>${i18nString(UIStrings.disabledFeatures)}</devtools-report-key>
+      <devtools-report-value class="policies-list">
         ${featureRows}
         <div class="permissions-row">
-          <button class="link" @click=${() => this.#toggleShowPermissionsDisallowedDetails()}>
-            ${i18nString(UIStrings.hideDetails)}
-          </button>
+        <devtools-button
+          .variant=${"outlined" /* Buttons.Button.Variant.OUTLINED */}
+          @click=${() => this.#toggleShowPermissionsDisallowedDetails()}
+          jslog=${VisualLogging.action('hide-disabled-features-details').track({
+            click: true,
+        })}>${i18nString(UIStrings.hideDetails)}
+        </devtools-button>
         </div>
-      </${ReportView.ReportView.ReportValue.litTagName}>
+      </devtools-report-value>
     `;
     }
     async #render() {
-        await coordinator.write('PermissionsPolicySection render', () => {
+        await RenderCoordinator.write('PermissionsPolicySection render', () => {
             // Disabled until https://crbug.com/1079231 is fixed.
             // clang-format off
-            LitHtml.render(LitHtml.html `
-          <${ReportView.ReportView.ReportSectionHeader.litTagName}>${i18n.i18n.lockedString('Permissions Policy')}</${ReportView.ReportView.ReportSectionHeader.litTagName}>
+            Lit.render(html `
+          <devtools-report-section-header>${i18n.i18n.lockedString('Permissions Policy')}</devtools-report-section-header>
           ${this.#renderAllowed()}
-          ${LitHtml.Directives.until(this.#renderDisallowed(), LitHtml.nothing)}
-          <${ReportView.ReportView.ReportSectionDivider.litTagName}></${ReportView.ReportView.ReportSectionDivider.litTagName}>
+          ${Lit.Directives.until(this.#renderDisallowed(), Lit.nothing)}
+          <devtools-report-divider></devtools-report-divider>
         `, this.#shadow, { host: this });
             // clang-format on
         });
     }
 }
-ComponentHelpers.CustomElements.defineComponent('devtools-resources-permissions-policy-section', PermissionsPolicySection);
+customElements.define('devtools-resources-permissions-policy-section', PermissionsPolicySection);
 //# sourceMappingURL=PermissionsPolicySection.js.map

@@ -1,9 +1,11 @@
 // Copyright 2016 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
+import '../../ui/legacy/legacy.js';
 import * as Common from '../../core/common/common.js';
 import * as i18n from '../../core/i18n/i18n.js';
 import * as UI from '../../ui/legacy/legacy.js';
+import * as VisualLogging from '../../ui/visual_logging/visual_logging.js';
 import { Events, LighthouseController, } from './LighthouseController.js';
 import lighthousePanelStyles from './lighthousePanel.css.js';
 import { ProtocolService } from './LighthouseProtocolService.js';
@@ -63,6 +65,7 @@ export class LighthousePanel extends UI.Panel.Panel {
     showSettingsPaneSetting;
     constructor(controller) {
         super('lighthouse');
+        this.registerRequiredCSS(lighthousePanelStyles);
         this.controller = controller;
         this.startView = new StartView(this.controller, this);
         this.timespanView = new TimespanView(this);
@@ -164,22 +167,26 @@ export class LighthousePanel extends UI.Panel.Panel {
     }
     renderToolbar() {
         const lighthouseToolbarContainer = this.element.createChild('div', 'lighthouse-toolbar-container');
-        const toolbar = new UI.Toolbar.Toolbar('', lighthouseToolbarContainer);
+        lighthouseToolbarContainer.setAttribute('jslog', `${VisualLogging.toolbar()}`);
+        lighthouseToolbarContainer.role = 'toolbar';
+        const toolbar = lighthouseToolbarContainer.createChild('devtools-toolbar');
+        toolbar.role = 'presentation';
         this.newButton = new UI.Toolbar.ToolbarButton(i18nString(UIStrings.performAnAudit), 'plus');
         toolbar.appendToolbarItem(this.newButton);
-        this.newButton.addEventListener(UI.Toolbar.ToolbarButton.Events.Click, this.renderStartView.bind(this));
+        this.newButton.addEventListener("Click" /* UI.Toolbar.ToolbarButton.Events.CLICK */, this.renderStartView.bind(this));
         toolbar.appendSeparator();
         this.reportSelector = new ReportSelector(() => this.renderStartView());
         toolbar.appendToolbarItem(this.reportSelector.comboBox());
         this.clearButton = new UI.Toolbar.ToolbarButton(i18nString(UIStrings.clearAll), 'clear');
         toolbar.appendToolbarItem(this.clearButton);
-        this.clearButton.addEventListener(UI.Toolbar.ToolbarButton.Events.Click, this.clearAll.bind(this));
+        this.clearButton.addEventListener("Click" /* UI.Toolbar.ToolbarButton.Events.CLICK */, this.clearAll.bind(this));
         this.settingsPane = new UI.Widget.HBox();
         this.settingsPane.show(this.contentElement);
         this.settingsPane.element.classList.add('lighthouse-settings-pane');
-        this.settingsPane.element.appendChild(this.startView.settingsToolbar().element);
-        this.showSettingsPaneSetting = Common.Settings.Settings.instance().createSetting('lighthouseShowSettingsToolbar', false, Common.Settings.SettingStorageType.Synced);
-        this.rightToolbar = new UI.Toolbar.Toolbar('', lighthouseToolbarContainer);
+        this.settingsPane.element.appendChild(this.startView.settingsToolbar());
+        this.showSettingsPaneSetting = Common.Settings.Settings.instance().createSetting('lighthouse-show-settings-toolbar', false, "Synced" /* Common.Settings.SettingStorageType.SYNCED */);
+        this.rightToolbar = lighthouseToolbarContainer.createChild('devtools-toolbar');
+        this.rightToolbar.role = 'presentation';
         this.rightToolbar.appendSeparator();
         this.rightToolbar.appendToolbarItem(new UI.Toolbar.ToolbarSettingToggle(this.showSettingsPaneSetting, 'gear', i18nString(UIStrings.lighthouseSettings), 'gear-filled'));
         this.showSettingsPaneSetting.addChangeListener(this.updateSettingsPaneVisibility.bind(this));
@@ -190,7 +197,7 @@ export class LighthousePanel extends UI.Panel.Panel {
         this.settingsPane.element.classList.toggle('hidden', !this.showSettingsPaneSetting.get());
     }
     toggleSettingsDisplay(show) {
-        this.rightToolbar.element.classList.toggle('hidden', !show);
+        this.rightToolbar.classList.toggle('hidden', !show);
         this.settingsPane.element.classList.toggle('hidden', !show);
         this.updateSettingsPaneVisibility();
     }
@@ -285,10 +292,6 @@ export class LighthousePanel extends UI.Panel.Panel {
             els.push(lhContainerEl);
         }
         return els;
-    }
-    wasShown() {
-        super.wasShown();
-        this.registerCSSFiles([lighthousePanelStyles]);
     }
 }
 //# sourceMappingURL=LighthousePanel.js.map

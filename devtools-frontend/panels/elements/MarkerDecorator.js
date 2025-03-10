@@ -23,7 +23,7 @@ export class GenericDecorator {
             throw new Error(`Generic decorator requires a color and a title: ${extension.marker}`);
         }
         this.title = extension.title();
-        this.color = extension.color;
+        this.color = (extension.color);
     }
     decorate(_node) {
         return { title: this.title, color: this.color };
@@ -32,12 +32,12 @@ export class GenericDecorator {
 const domBreakpointData = {
     marker: 'breakpoint-marker',
     title: i18nLazyString(UIStrings.domBreakpoint),
-    color: 'rgb(105, 140, 254)',
+    color: 'var(--sys-color-primary-bright)',
 };
 const elementIsHiddenData = {
     marker: 'hidden-marker',
     title: i18nLazyString(UIStrings.elementIsHidden),
-    color: '#555',
+    color: 'var(--sys-color-neutral-bright)',
 };
 export function getRegisteredDecorators() {
     return [

@@ -70,9 +70,9 @@ export class CSSStyleSheetHeader {
             const lazyContent = (async () => {
                 const originalText = await this.#cssModelInternal.originalStyleSheetText(this);
                 if (originalText === null) {
-                    return { content: null, error: i18nString(UIStrings.couldNotFindTheOriginalStyle), isEncoded: false };
+                    return { error: i18nString(UIStrings.couldNotFindTheOriginalStyle) };
                 }
-                return { content: originalText, isEncoded: false };
+                return new TextUtils.ContentData.ContentData(originalText, /* isBase64=*/ false, 'text/css');
             });
             this.#originalContentProviderInternal =
                 new TextUtils.StaticContentProvider.StaticContentProvider(this.contentURL(), this.contentType(), lazyContent);
@@ -93,7 +93,7 @@ export class CSSStyleSheetHeader {
     }
     resourceURL() {
         const url = this.isViaInspector() ? this.viaInspectorResourceURL() : this.sourceURL;
-        if (!url && Root.Runtime.experiments.isEnabled(Root.Runtime.ExperimentName.STYLES_PANE_CSS_CHANGES)) {
+        if (!url && Root.Runtime.experiments.isEnabled("styles-pane-css-changes" /* Root.Runtime.ExperimentName.STYLES_PANE_CSS_CHANGES */)) {
             return this.dynamicStyleURL();
         }
         return url;
@@ -117,7 +117,7 @@ export class CSSStyleSheetHeader {
         return urlPath;
     }
     viaInspectorResourceURL() {
-        return `inspector://${this.getFrameURLPath()}inspector-stylesheet`;
+        return `inspector://${this.getFrameURLPath()}inspector-stylesheet#${this.id}`;
     }
     dynamicStyleURL() {
         return `stylesheet://${this.getFrameURLPath()}style#${this.id}`;
@@ -143,32 +143,26 @@ export class CSSStyleSheetHeader {
     contentType() {
         return Common.ResourceType.resourceTypes.Stylesheet;
     }
-    async requestContent() {
-        try {
-            const cssText = await this.#cssModelInternal.getStyleSheetText(this.id);
-            return { content: cssText, isEncoded: false };
+    requestContent() {
+        return this.requestContentData().then(TextUtils.ContentData.ContentData.asDeferredContent.bind(undefined));
+    }
+    async requestContentData() {
+        const cssText = await this.#cssModelInternal.getStyleSheetText(this.id);
+        if (cssText === null) {
+            return { error: i18nString(UIStrings.thereWasAnErrorRetrievingThe) };
         }
-        catch (err) {
-            return {
-                content: null,
-                error: i18nString(UIStrings.thereWasAnErrorRetrievingThe),
-                isEncoded: false,
-            };
-        }
+        return new TextUtils.ContentData.ContentData(cssText, /* isBase64=*/ false, 'text/css');
     }
     async searchInContent(query, caseSensitive, isRegex) {
-        const requestedContent = await this.requestContent();
-        if (requestedContent.content === null) {
-            return [];
-        }
-        return TextUtils.TextUtils.performSearchInContent(requestedContent.content, query, caseSensitive, isRegex);
+        const contentData = await this.requestContentData();
+        return TextUtils.TextUtils.performSearchInContentData(contentData, query, caseSensitive, isRegex);
     }
     isViaInspector() {
         return this.origin === 'inspector';
     }
     createPageResourceLoadInitiator() {
         return {
-            target: null,
+            target: this.#cssModelInternal.target(),
             frameId: this.frameId,
             initiatorUrl: this.hasSourceURL ? Platform.DevToolsPath.EmptyUrlString : this.sourceURL,
         };

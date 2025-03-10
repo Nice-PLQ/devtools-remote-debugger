@@ -1,7 +1,6 @@
 // Copyright 2017 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
-import * as Bindings from '../../models/bindings/bindings.js';
 import * as Platform from '../../core/platform/platform.js';
 import * as TextUtils from '../../models/text_utils/text_utils.js';
 import * as Workspace from '../../models/workspace/workspace.js';
@@ -10,23 +9,29 @@ export class CoverageDecorationManager {
     coverageModel;
     textByProvider;
     uiSourceCodeByContentProvider;
-    constructor(coverageModel) {
+    #workspace;
+    #debuggerBinding;
+    #cssBinding;
+    constructor(coverageModel, workspace, debuggerBinding, cssBinding) {
         this.coverageModel = coverageModel;
+        this.#workspace = workspace;
+        this.#debuggerBinding = debuggerBinding;
+        this.#cssBinding = cssBinding;
         this.textByProvider = new Map();
         this.uiSourceCodeByContentProvider = new Platform.MapUtilities.Multimap();
-        for (const uiSourceCode of Workspace.Workspace.WorkspaceImpl.instance().uiSourceCodes()) {
+        for (const uiSourceCode of this.#workspace.uiSourceCodes()) {
             uiSourceCode.setDecorationData(decoratorType, this);
         }
-        Workspace.Workspace.WorkspaceImpl.instance().addEventListener(Workspace.Workspace.Events.UISourceCodeAdded, this.onUISourceCodeAdded, this);
+        this.#workspace.addEventListener(Workspace.Workspace.Events.UISourceCodeAdded, this.onUISourceCodeAdded, this);
     }
     reset() {
-        for (const uiSourceCode of Workspace.Workspace.WorkspaceImpl.instance().uiSourceCodes()) {
+        for (const uiSourceCode of this.#workspace.uiSourceCodes()) {
             uiSourceCode.setDecorationData(decoratorType, undefined);
         }
     }
     dispose() {
         this.reset();
-        Workspace.Workspace.WorkspaceImpl.instance().removeEventListener(Workspace.Workspace.Events.UISourceCodeAdded, this.onUISourceCodeAdded, this);
+        this.#workspace.removeEventListener(Workspace.Workspace.Events.UISourceCodeAdded, this.onUISourceCodeAdded, this);
     }
     update(updatedEntries) {
         for (const entry of updatedEntries) {
@@ -35,23 +40,21 @@ export class CoverageDecorationManager {
             }
         }
     }
-    async usageByLine(uiSourceCode) {
+    /**
+     * Returns the coverage per line of the provided uiSourceCode. The resulting array has the same length
+     * as the provided `lines` array.
+     *
+     * @param uiSourceCode The UISourceCode for which to get the coverage info.
+     * @param lineMappings The caller might have applied formatting to the UISourceCode. Each entry
+     *                     in this array represents one line and the range specifies where it's found in
+     *                     the original content.
+     */
+    async usageByLine(uiSourceCode, lineMappings) {
         const result = [];
-        const { content } = await uiSourceCode.requestContent();
-        if (!content) {
-            return [];
-        }
-        const sourceText = new TextUtils.Text.Text(content);
-        await this.updateTexts(uiSourceCode, sourceText);
-        const lineEndings = sourceText.lineEndings();
-        for (let line = 0; line < sourceText.lineCount(); ++line) {
-            const lineLength = lineEndings[line] - (line ? lineEndings[line - 1] : 0) - 1;
-            if (!lineLength) {
-                result.push(undefined);
-                continue;
-            }
-            const startLocationsPromise = this.rawLocationsForSourceLocation(uiSourceCode, line, 0);
-            const endLocationsPromise = this.rawLocationsForSourceLocation(uiSourceCode, line, lineLength);
+        await this.updateTexts(uiSourceCode, lineMappings);
+        for (const { startLine, startColumn, endLine, endColumn } of lineMappings) {
+            const startLocationsPromise = this.rawLocationsForSourceLocation(uiSourceCode, startLine, startColumn);
+            const endLocationsPromise = this.rawLocationsForSourceLocation(uiSourceCode, endLine, endColumn);
             const [startLocations, endLocations] = await Promise.all([startLocationsPromise, endLocationsPromise]);
             let used = undefined;
             for (let startIndex = 0, endIndex = 0; startIndex < startLocations.length; ++startIndex) {
@@ -88,10 +91,10 @@ export class CoverageDecorationManager {
         }
         return result;
     }
-    async updateTexts(uiSourceCode, text) {
+    async updateTexts(uiSourceCode, lineMappings) {
         const promises = [];
-        for (let line = 0; line < text.lineCount(); ++line) {
-            for (const entry of await this.rawLocationsForSourceLocation(uiSourceCode, line, 0)) {
+        for (const range of lineMappings) {
+            for (const entry of await this.rawLocationsForSourceLocation(uiSourceCode, range.startLine, 0)) {
                 if (this.textByProvider.has(entry.contentProvider)) {
                     continue;
                 }
@@ -103,14 +106,14 @@ export class CoverageDecorationManager {
         await Promise.all(promises);
     }
     async updateTextForProvider(contentProvider) {
-        const { content } = await contentProvider.requestContent();
-        this.textByProvider.set(contentProvider, new TextUtils.Text.Text(content || ''));
+        const contentData = TextUtils.ContentData.ContentData.contentDataOrEmpty(await contentProvider.requestContentData());
+        this.textByProvider.set(contentProvider, contentData.textObj);
     }
     async rawLocationsForSourceLocation(uiSourceCode, line, column) {
         const result = [];
         const contentType = uiSourceCode.contentType();
         if (contentType.hasScripts()) {
-            let locations = await Bindings.DebuggerWorkspaceBinding.DebuggerWorkspaceBinding.instance().uiLocationToRawLocations(uiSourceCode, line, column);
+            let locations = await this.#debuggerBinding.uiLocationToRawLocations(uiSourceCode, line, column);
             locations = locations.filter(location => Boolean(location.script()));
             for (const location of locations) {
                 const script = location.script();
@@ -132,7 +135,7 @@ export class CoverageDecorationManager {
             }
         }
         if (contentType.isStyleSheet() || contentType.isDocument()) {
-            const rawStyleLocations = Bindings.CSSWorkspaceBinding.CSSWorkspaceBinding.instance().uiLocationToRawLocations(new Workspace.UISourceCode.UILocation(uiSourceCode, line, column));
+            const rawStyleLocations = this.#cssBinding.uiLocationToRawLocations(new Workspace.UISourceCode.UILocation(uiSourceCode, line, column));
             for (const location of rawStyleLocations) {
                 const header = location.header();
                 if (!header) {

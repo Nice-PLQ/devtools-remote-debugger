@@ -7,8 +7,8 @@ import { CSSContainerQuery } from './CSSContainerQuery.js';
 import { CSSLayer } from './CSSLayer.js';
 import { CSSMedia } from './CSSMedia.js';
 import { CSSScope } from './CSSScope.js';
-import { CSSSupports } from './CSSSupports.js';
 import { CSSStyleDeclaration, Type } from './CSSStyleDeclaration.js';
+import { CSSSupports } from './CSSSupports.js';
 export class CSSRule {
     cssModelInternal;
     styleSheetId;
@@ -50,6 +50,9 @@ export class CSSRule {
     isRegular() {
         return this.origin === "regular" /* Protocol.CSS.StyleSheetOrigin.Regular */;
     }
+    isKeyframeRule() {
+        return false;
+    }
     cssModel() {
         return this.cssModelInternal;
     }
@@ -87,6 +90,7 @@ export class CSSStyleRule extends CSSRule {
     supports;
     scopes;
     layers;
+    ruleTypes;
     wasUsed;
     constructor(cssModel, payload, wasUsed) {
         super(cssModel, { origin: payload.origin, style: payload.style, styleSheetId: payload.styleSheetId });
@@ -99,6 +103,7 @@ export class CSSStyleRule extends CSSRule {
         this.scopes = payload.scopes ? CSSScope.parseScopesPayload(cssModel, payload.scopes) : [];
         this.supports = payload.supports ? CSSSupports.parseSupportsPayload(cssModel, payload.supports) : [];
         this.layers = payload.layers ? CSSLayer.parseLayerPayload(cssModel, payload.layers) : [];
+        this.ruleTypes = payload.ruleTypes || [];
         this.wasUsed = wasUsed || false;
     }
     static createDummyRule(cssModel, selectorText) {
@@ -126,11 +131,11 @@ export class CSSStyleRule extends CSSRule {
     setSelectorText(newSelector) {
         const styleSheetId = this.styleSheetId;
         if (!styleSheetId) {
-            throw 'No rule stylesheet id';
+            throw new Error('No rule stylesheet id');
         }
         const range = this.selectorRange();
         if (!range) {
-            throw 'Rule selector is not editable';
+            throw new Error('Rule selector is not editable');
         }
         return this.cssModelInternal.setSelectorText(styleSheetId, range, newSelector);
     }
@@ -138,6 +143,11 @@ export class CSSStyleRule extends CSSRule {
         return this.selectors.map(selector => selector.text).join(', ');
     }
     selectorRange() {
+        // Nested group rules might not contain a selector.
+        // https://www.w3.org/TR/css-nesting-1/#conditionals
+        if (this.selectors.length === 0) {
+            return null;
+        }
         const firstRange = this.selectors[0].range;
         const lastRange = this.selectors[this.selectors.length - 1].range;
         if (!firstRange || !lastRange) {
@@ -147,7 +157,7 @@ export class CSSStyleRule extends CSSRule {
     }
     lineNumberInSource(selectorIndex) {
         const selector = this.selectors[selectorIndex];
-        if (!selector || !selector.range || !this.styleSheetId) {
+        if (!selector?.range || !this.styleSheetId) {
             return 0;
         }
         const styleSheetHeader = this.getStyleSheetHeader(this.styleSheetId);
@@ -155,7 +165,7 @@ export class CSSStyleRule extends CSSRule {
     }
     columnNumberInSource(selectorIndex) {
         const selector = this.selectors[selectorIndex];
-        if (!selector || !selector.range || !this.styleSheetId) {
+        if (!selector?.range || !this.styleSheetId) {
             return undefined;
         }
         const styleSheetHeader = this.getStyleSheetHeader(this.styleSheetId);
@@ -166,7 +176,7 @@ export class CSSStyleRule extends CSSRule {
             return;
         }
         const range = this.selectorRange();
-        if (range && range.equal(edit.oldRange)) {
+        if (range?.equal(edit.oldRange)) {
             this.reinitializeSelectors(edit.payload);
         }
         else {
@@ -179,6 +189,46 @@ export class CSSStyleRule extends CSSRule {
         this.scopes.forEach(scope => scope.rebase(edit));
         this.supports.forEach(supports => supports.rebase(edit));
         super.rebase(edit);
+    }
+}
+export class CSSPropertyRule extends CSSRule {
+    #name;
+    constructor(cssModel, payload) {
+        super(cssModel, { origin: payload.origin, style: payload.style, styleSheetId: payload.styleSheetId });
+        this.#name = new CSSValue(payload.propertyName);
+    }
+    propertyName() {
+        return this.#name;
+    }
+    initialValue() {
+        return this.style.hasActiveProperty('initial-value') ? this.style.getPropertyValue('initial-value') : null;
+    }
+    syntax() {
+        return this.style.getPropertyValue('syntax');
+    }
+    inherits() {
+        return this.style.getPropertyValue('inherits') === 'true';
+    }
+    setPropertyName(newPropertyName) {
+        const styleSheetId = this.styleSheetId;
+        if (!styleSheetId) {
+            throw new Error('No rule stylesheet id');
+        }
+        const range = this.#name.range;
+        if (!range) {
+            throw new Error('Property name is not editable');
+        }
+        return this.cssModelInternal.setPropertyRulePropertyName(styleSheetId, range, newPropertyName);
+    }
+}
+export class CSSFontPaletteValuesRule extends CSSRule {
+    #paletteName;
+    constructor(cssModel, payload) {
+        super(cssModel, { origin: payload.origin, style: payload.style, styleSheetId: payload.styleSheetId });
+        this.#paletteName = new CSSValue(payload.fontPaletteName);
+    }
+    name() {
+        return this.#paletteName;
     }
 }
 export class CSSKeyframesRule {
@@ -219,30 +269,34 @@ export class CSSKeyframeRule extends CSSRule {
         }
         super.rebase(edit);
     }
+    isKeyframeRule() {
+        return true;
+    }
     setKeyText(newKeyText) {
         const styleSheetId = this.styleSheetId;
         if (!styleSheetId) {
-            throw 'No rule stylesheet id';
+            throw new Error('No rule stylesheet id');
         }
         const range = this.#keyText.range;
         if (!range) {
-            throw 'Keyframe key is not editable';
+            throw new Error('Keyframe key is not editable');
         }
         return this.cssModelInternal.setKeyframeKey(styleSheetId, range, newKeyText);
     }
 }
-export class CSSPositionFallbackRule {
+export class CSSPositionTryRule extends CSSRule {
     #name;
-    #tryRules;
+    #active;
     constructor(cssModel, payload) {
+        super(cssModel, { origin: payload.origin, style: payload.style, styleSheetId: payload.styleSheetId });
         this.#name = new CSSValue(payload.name);
-        this.#tryRules = payload.tryRules.map(tryRule => new CSSRule(cssModel, { origin: tryRule.origin, style: tryRule.style, styleSheetId: tryRule.styleSheetId }));
+        this.#active = payload.active;
     }
     name() {
         return this.#name;
     }
-    tryRules() {
-        return this.#tryRules;
+    active() {
+        return this.#active;
     }
 }
 //# sourceMappingURL=CSSRule.js.map

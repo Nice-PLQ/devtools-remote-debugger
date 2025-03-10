@@ -11,7 +11,8 @@ import * as IssuesManager from '../../models/issues_manager/issues_manager.js';
 export class AggregatedIssue extends IssuesManager.Issue.Issue {
     #affectedCookies = new Map();
     #affectedRawCookieLines = new Map();
-    #affectedRequests = new Map();
+    #affectedRequests = [];
+    #affectedRequestIds = new Set();
     #affectedLocations = new Map();
     #heavyAdIssues = new Set();
     #blockedByResponseDetails = new Map();
@@ -19,13 +20,16 @@ export class AggregatedIssue extends IssuesManager.Issue.Issue {
     #corsIssues = new Set();
     #cspIssues = new Set();
     #deprecationIssues = new Set();
-    #issueKind = IssuesManager.Issue.IssueKind.Improvement;
+    #issueKind = "Improvement" /* IssuesManager.Issue.IssueKind.IMPROVEMENT */;
     #lowContrastIssues = new Set();
+    #cookieDeprecationMetadataIssues = new Set();
     #mixedContentIssues = new Set();
+    #partitioningBlobURLIssues = new Set();
     #sharedArrayBufferIssues = new Set();
     #quirksModeIssues = new Set();
     #attributionReportingIssues = new Set();
     #genericIssues = new Set();
+    #selectElementAccessibilityIssues = new Set();
     #representative;
     #aggregatedIssuesCount = 0;
     #key;
@@ -60,6 +64,9 @@ export class AggregatedIssue extends IssuesManager.Issue.Issue {
     getHeavyAdIssues() {
         return this.#heavyAdIssues;
     }
+    getCookieDeprecationMetadataIssues() {
+        return this.#cookieDeprecationMetadataIssues;
+    }
     getMixedContentIssues() {
         return this.#mixedContentIssues;
     }
@@ -90,6 +97,9 @@ export class AggregatedIssue extends IssuesManager.Issue.Issue {
     getGenericIssues() {
         return this.#genericIssues;
     }
+    getSelectElementAccessibilityIssues() {
+        return this.#selectElementAccessibilityIssues;
+    }
     getDescription() {
         if (this.#representative) {
             return this.#representative.getDescription();
@@ -100,10 +110,13 @@ export class AggregatedIssue extends IssuesManager.Issue.Issue {
         if (this.#representative) {
             return this.#representative.getCategory();
         }
-        return IssuesManager.Issue.IssueCategory.Other;
+        return "Other" /* IssuesManager.Issue.IssueCategory.OTHER */;
     }
     getAggregatedIssuesCount() {
         return this.#aggregatedIssuesCount;
+    }
+    getPartitioningBlobURLIssues() {
+        return this.#partitioningBlobURLIssues;
     }
     /**
      * Produces a primary key for a cookie. Use this instead of `JSON.stringify` in
@@ -121,9 +134,14 @@ export class AggregatedIssue extends IssuesManager.Issue.Issue {
         this.#issueKind = IssuesManager.Issue.unionIssueKind(this.#issueKind, issue.getKind());
         let hasRequest = false;
         for (const request of issue.requests()) {
+            const { requestId } = request;
             hasRequest = true;
-            if (!this.#affectedRequests.has(request.requestId)) {
-                this.#affectedRequests.set(request.requestId, request);
+            if (requestId === undefined) {
+                this.#affectedRequests.push(request);
+            }
+            else if (!this.#affectedRequestIds.has(requestId)) {
+                this.#affectedRequests.push(request);
+                this.#affectedRequestIds.add(requestId);
             }
         }
         for (const cookie of issue.cookies()) {
@@ -147,6 +165,9 @@ export class AggregatedIssue extends IssuesManager.Issue.Issue {
             if (!this.#affectedLocations.has(key)) {
                 this.#affectedLocations.set(key, location);
             }
+        }
+        if (issue instanceof IssuesManager.CookieDeprecationMetadataIssue.CookieDeprecationMetadataIssue) {
+            this.#cookieDeprecationMetadataIssues.add(issue);
         }
         if (issue instanceof IssuesManager.MixedContentIssue.MixedContentIssue) {
             this.#mixedContentIssues.add(issue);
@@ -182,6 +203,12 @@ export class AggregatedIssue extends IssuesManager.Issue.Issue {
         if (issue instanceof IssuesManager.GenericIssue.GenericIssue) {
             this.#genericIssues.add(issue);
         }
+        if (issue instanceof IssuesManager.SelectElementAccessibilityIssue.SelectElementAccessibilityIssue) {
+            this.#selectElementAccessibilityIssues.add(issue);
+        }
+        if (issue instanceof IssuesManager.PartitioningBlobURLIssue.PartitioningBlobURLIssue) {
+            this.#partitioningBlobURLIssues.add(issue);
+        }
     }
     getKind() {
         return this.#issueKind;
@@ -200,8 +227,8 @@ export class IssueAggregator extends Common.ObjectWrapper.ObjectWrapper {
     constructor(issuesManager) {
         super();
         this.issuesManager = issuesManager;
-        this.issuesManager.addEventListener("IssueAdded" /* IssuesManager.IssuesManager.Events.IssueAdded */, this.#onIssueAdded, this);
-        this.issuesManager.addEventListener("FullUpdateRequired" /* IssuesManager.IssuesManager.Events.FullUpdateRequired */, this.#onFullUpdateRequired, this);
+        this.issuesManager.addEventListener("IssueAdded" /* IssuesManager.IssuesManager.Events.ISSUE_ADDED */, this.#onIssueAdded, this);
+        this.issuesManager.addEventListener("FullUpdateRequired" /* IssuesManager.IssuesManager.Events.FULL_UPDATE_REQUIRED */, this.#onFullUpdateRequired, this);
         for (const issue of this.issuesManager.issues()) {
             this.#aggregateIssue(issue);
         }
@@ -215,12 +242,19 @@ export class IssueAggregator extends Common.ObjectWrapper.ObjectWrapper {
         for (const issue of this.issuesManager.issues()) {
             this.#aggregateIssue(issue);
         }
-        this.dispatchEventToListeners("FullUpdateRequired" /* Events.FullUpdateRequired */);
+        this.dispatchEventToListeners("FullUpdateRequired" /* Events.FULL_UPDATE_REQUIRED */);
     }
     #aggregateIssue(issue) {
+        const excludeFromAggregate = [
+            "WarnThirdPartyCookieHeuristic" /* Protocol.Audits.CookieWarningReason.WarnThirdPartyCookieHeuristic */,
+            "WarnDeprecationTrialMetadata" /* Protocol.Audits.CookieWarningReason.WarnDeprecationTrialMetadata */,
+        ];
+        if (excludeFromAggregate.some(exclude => issue.code().includes(exclude))) {
+            return;
+        }
         const map = issue.isHidden() ? this.#hiddenAggregatedIssuesByKey : this.#aggregatedIssuesByKey;
         const aggregatedIssue = this.#aggregateIssueByStatus(map, issue);
-        this.dispatchEventToListeners("AggregatedIssueUpdated" /* Events.AggregatedIssueUpdated */, aggregatedIssue);
+        this.dispatchEventToListeners("AggregatedIssueUpdated" /* Events.AGGREGATED_ISSUE_UPDATED */, aggregatedIssue);
         return aggregatedIssue;
     }
     #aggregateIssueByStatus(aggregatedIssuesMap, issue) {

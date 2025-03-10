@@ -27,13 +27,10 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-// TODO(crbug.com/1172300) Ignored during the jsdoc to ts migration
-/* eslint-disable @typescript-eslint/naming-convention */
 import * as Common from '../../core/common/common.js';
 import * as Host from '../../core/host/host.js';
 import * as i18n from '../../core/i18n/i18n.js';
 import * as Platform from '../../core/platform/platform.js';
-import * as Root from '../../core/root/root.js';
 import * as SDK from '../../core/sdk/sdk.js';
 import * as Logs from '../../models/logs/logs.js';
 import * as Components from '../../ui/legacy/components/utils/utils.js';
@@ -41,14 +38,97 @@ import * as UI from '../../ui/legacy/legacy.js';
 import * as ThemeSupport from '../../ui/legacy/theme_support/theme_support.js';
 import * as Bindings from '../bindings/bindings.js';
 import * as HAR from '../har/har.js';
+import * as TextUtils from '../text_utils/text_utils.js';
 import * as Workspace from '../workspace/workspace.js';
 import { ExtensionButton, ExtensionPanel, ExtensionSidebarPane } from './ExtensionPanel.js';
+import { HostUrlPattern } from './HostUrlPattern.js';
 import { LanguageExtensionEndpoint } from './LanguageExtensionEndpoint.js';
 import { RecorderExtensionEndpoint } from './RecorderExtensionEndpoint.js';
 import { RecorderPluginManager } from './RecorderPluginManager.js';
 const extensionOrigins = new WeakMap();
-const kAllowedOrigins = [].map(url => (new URL(url)).origin);
+const kPermittedSchemes = ['http:', 'https:', 'file:', 'data:', 'chrome-extension:', 'about:'];
 let extensionServerInstance;
+export class HostsPolicy {
+    runtimeAllowedHosts;
+    runtimeBlockedHosts;
+    static create(policy) {
+        const runtimeAllowedHosts = [];
+        const runtimeBlockedHosts = [];
+        if (policy) {
+            for (const pattern of policy.runtimeAllowedHosts) {
+                const parsedPattern = HostUrlPattern.parse(pattern);
+                if (!parsedPattern) {
+                    return null;
+                }
+                runtimeAllowedHosts.push(parsedPattern);
+            }
+            for (const pattern of policy.runtimeBlockedHosts) {
+                const parsedPattern = HostUrlPattern.parse(pattern);
+                if (!parsedPattern) {
+                    return null;
+                }
+                runtimeBlockedHosts.push(parsedPattern);
+            }
+        }
+        return new HostsPolicy(runtimeAllowedHosts, runtimeBlockedHosts);
+    }
+    constructor(runtimeAllowedHosts, runtimeBlockedHosts) {
+        this.runtimeAllowedHosts = runtimeAllowedHosts;
+        this.runtimeBlockedHosts = runtimeBlockedHosts;
+    }
+    isAllowedOnURL(inspectedURL) {
+        if (!inspectedURL) {
+            // If there aren't any blocked hosts retain the old behavior and don't worry about the inspectedURL
+            return this.runtimeBlockedHosts.length === 0;
+        }
+        if (this.runtimeBlockedHosts.some(pattern => pattern.matchesUrl(inspectedURL)) &&
+            !this.runtimeAllowedHosts.some(pattern => pattern.matchesUrl(inspectedURL))) {
+            return false;
+        }
+        return true;
+    }
+}
+class RegisteredExtension {
+    name;
+    hostsPolicy;
+    allowFileAccess;
+    constructor(name, hostsPolicy, allowFileAccess) {
+        this.name = name;
+        this.hostsPolicy = hostsPolicy;
+        this.allowFileAccess = allowFileAccess;
+    }
+    isAllowedOnTarget(inspectedURL) {
+        if (!inspectedURL) {
+            inspectedURL = SDK.TargetManager.TargetManager.instance().primaryPageTarget()?.inspectedURL();
+        }
+        if (!inspectedURL) {
+            return false;
+        }
+        if (!ExtensionServer.canInspectURL(inspectedURL)) {
+            return false;
+        }
+        if (!this.hostsPolicy.isAllowedOnURL(inspectedURL)) {
+            return false;
+        }
+        if (!this.allowFileAccess) {
+            let parsedURL;
+            try {
+                parsedURL = new URL(inspectedURL);
+            }
+            catch {
+                return false;
+            }
+            return parsedURL.protocol !== 'file:';
+        }
+        return true;
+    }
+}
+export class RevealableNetworkRequestFilter {
+    filter;
+    constructor(filter) {
+        this.filter = filter;
+    }
+}
 export class ExtensionServer extends Common.ObjectWrapper.ObjectWrapper {
     clientObjects;
     handlers;
@@ -66,6 +146,7 @@ export class ExtensionServer extends Common.ObjectWrapper.ObjectWrapper {
     inspectedTabId;
     extensionAPITestHook;
     themeChangeHandlers = new Map();
+    #pendingExtensions = [];
     constructor() {
         super();
         this.clientObjects = new Map();
@@ -83,7 +164,6 @@ export class ExtensionServer extends Common.ObjectWrapper.ObjectWrapper {
         // TODO(caseq): properly unload extensions when we disable them.
         this.extensionsEnabled = true;
         this.registerHandler("addRequestHeaders" /* PrivateAPI.Commands.AddRequestHeaders */, this.onAddRequestHeaders.bind(this));
-        this.registerHandler("applyStyleSheet" /* PrivateAPI.Commands.ApplyStyleSheet */, this.onApplyStyleSheet.bind(this));
         this.registerHandler("createPanel" /* PrivateAPI.Commands.CreatePanel */, this.onCreatePanel.bind(this));
         this.registerHandler("createSidebarPane" /* PrivateAPI.Commands.CreateSidebarPane */, this.onCreateSidebarPane.bind(this));
         this.registerHandler("createToolbarButton" /* PrivateAPI.Commands.CreateToolbarButton */, this.onCreateToolbarButton.bind(this));
@@ -97,6 +177,7 @@ export class ExtensionServer extends Common.ObjectWrapper.ObjectWrapper {
         this.registerHandler("setOpenResourceHandler" /* PrivateAPI.Commands.SetOpenResourceHandler */, this.onSetOpenResourceHandler.bind(this));
         this.registerHandler("setThemeChangeHandler" /* PrivateAPI.Commands.SetThemeChangeHandler */, this.onSetThemeChangeHandler.bind(this));
         this.registerHandler("setResourceContent" /* PrivateAPI.Commands.SetResourceContent */, this.onSetResourceContent.bind(this));
+        this.registerHandler("attachSourceMapToResource" /* PrivateAPI.Commands.AttachSourceMapToResource */, this.onAttachSourceMapToResource.bind(this));
         this.registerHandler("setSidebarHeight" /* PrivateAPI.Commands.SetSidebarHeight */, this.onSetSidebarHeight.bind(this));
         this.registerHandler("setSidebarContent" /* PrivateAPI.Commands.SetSidebarContent */, this.onSetSidebarContent.bind(this));
         this.registerHandler("setSidebarPage" /* PrivateAPI.Commands.SetSidebarPage */, this.onSetSidebarPage.bind(this));
@@ -111,10 +192,13 @@ export class ExtensionServer extends Common.ObjectWrapper.ObjectWrapper {
         this.registerHandler("getWasmLocal" /* PrivateAPI.Commands.GetWasmLocal */, this.onGetWasmLocal.bind(this));
         this.registerHandler("getWasmOp" /* PrivateAPI.Commands.GetWasmOp */, this.onGetWasmOp.bind(this));
         this.registerHandler("registerRecorderExtensionPlugin" /* PrivateAPI.Commands.RegisterRecorderExtensionPlugin */, this.registerRecorderExtensionEndpoint.bind(this));
+        this.registerHandler("reportResourceLoad" /* PrivateAPI.Commands.ReportResourceLoad */, this.onReportResourceLoad.bind(this));
+        this.registerHandler("setFunctionRangesForScript" /* PrivateAPI.Commands.SetFunctionRangesForScript */, this.onSetFunctionRangesForScript.bind(this));
         this.registerHandler("createRecorderView" /* PrivateAPI.Commands.CreateRecorderView */, this.onCreateRecorderView.bind(this));
         this.registerHandler("showRecorderView" /* PrivateAPI.Commands.ShowRecorderView */, this.onShowRecorderView.bind(this));
+        this.registerHandler("showNetworkPanel" /* PrivateAPI.Commands.ShowNetworkPanel */, this.onShowNetworkPanel.bind(this));
         window.addEventListener('message', this.onWindowMessage, false); // Only for main window.
-        const existingTabId = window.DevToolsAPI && window.DevToolsAPI.getInspectedTabId && window.DevToolsAPI.getInspectedTabId();
+        const existingTabId = window.DevToolsAPI?.getInspectedTabId?.();
         if (existingTabId) {
             this.setInspectedTabId({ data: existingTabId });
         }
@@ -122,10 +206,13 @@ export class ExtensionServer extends Common.ObjectWrapper.ObjectWrapper {
         this.initExtensions();
         ThemeSupport.ThemeSupport.instance().addEventListener(ThemeSupport.ThemeChangeEvent.eventName, this.#onThemeChange);
     }
+    get isEnabledForTest() {
+        return this.extensionsEnabled;
+    }
     dispose() {
         ThemeSupport.ThemeSupport.instance().removeEventListener(ThemeSupport.ThemeChangeEvent.eventName, this.#onThemeChange);
         // Set up by this.initExtensions in the constructor.
-        SDK.TargetManager.TargetManager.instance().removeEventListener(SDK.TargetManager.Events.InspectedURLChanged, this.inspectedURLChanged, this);
+        SDK.TargetManager.TargetManager.instance().removeEventListener("InspectedURLChanged" /* SDK.TargetManager.Events.INSPECTED_URL_CHANGED */, this.inspectedURLChanged, this);
         Host.InspectorFrontendHost.InspectorFrontendHostInstance.events.removeEventListener(Host.InspectorFrontendHostAPI.Events.SetInspectedTabId, this.setInspectedTabId, this);
         window.removeEventListener('message', this.onWindowMessage, false);
     }
@@ -164,25 +251,30 @@ export class ExtensionServer extends Common.ObjectWrapper.ObjectWrapper {
     notifyButtonClicked(identifier) {
         this.postNotification("button-clicked-" /* PrivateAPI.Events.ButtonClicked */ + identifier);
     }
+    profilingStarted() {
+        this.postNotification("profiling-started-" /* PrivateAPI.Events.ProfilingStarted */);
+    }
+    profilingStopped() {
+        this.postNotification("profiling-stopped-" /* PrivateAPI.Events.ProfilingStopped */);
+    }
     registerLanguageExtensionEndpoint(message, _shared_port) {
         if (message.command !== "registerLanguageExtensionPlugin" /* PrivateAPI.Commands.RegisterLanguageExtensionPlugin */) {
             return this.status.E_BADARG('command', `expected ${"registerLanguageExtensionPlugin" /* PrivateAPI.Commands.RegisterLanguageExtensionPlugin */}`);
         }
         const { pluginManager } = Bindings.DebuggerWorkspaceBinding.DebuggerWorkspaceBinding.instance();
-        if (!pluginManager) {
-            return this.status.E_FAILED('WebAssembly DWARF support needs to be enabled to use this extension');
-        }
         const { pluginName, port, supportedScriptTypes: { language, symbol_types } } = message;
         const symbol_types_array = (Array.isArray(symbol_types) && symbol_types.every(e => typeof e === 'string') ? symbol_types : []);
-        const endpoint = new LanguageExtensionEndpoint(pluginName, { language, symbol_types: symbol_types_array }, port);
+        const extensionOrigin = this.getExtensionOrigin(_shared_port);
+        const registration = this.registeredExtensions.get(extensionOrigin);
+        if (!registration) {
+            throw new Error('Received a message from an unregistered extension');
+        }
+        const endpoint = new LanguageExtensionEndpoint(registration.allowFileAccess, extensionOrigin, pluginName, { language, symbol_types: symbol_types_array }, port);
         pluginManager.addPlugin(endpoint);
         return this.status.OK();
     }
-    async loadWasmValue(expression, stopId) {
+    async loadWasmValue(expectValue, convert, expression, stopId) {
         const { pluginManager } = Bindings.DebuggerWorkspaceBinding.DebuggerWorkspaceBinding.instance();
-        if (!pluginManager) {
-            return this.status.E_FAILED('WebAssembly DWARF support needs to be enabled to use this extension');
-        }
         const callFrame = pluginManager.callFrameForStopId(stopId);
         if (!callFrame) {
             return this.status.E_BADARG('stopId', 'Unknown stop id');
@@ -191,11 +283,12 @@ export class ExtensionServer extends Common.ObjectWrapper.ObjectWrapper {
             callFrameId: callFrame.id,
             expression,
             silent: true,
-            returnByValue: true,
+            returnByValue: !expectValue,
+            generatePreview: expectValue,
             throwOnSideEffect: true,
         });
         if (!result.exceptionDetails && !result.getError()) {
-            return result.result.value;
+            return convert(result.result);
         }
         return this.status.E_FAILED('Failed');
     }
@@ -203,25 +296,55 @@ export class ExtensionServer extends Common.ObjectWrapper.ObjectWrapper {
         if (message.command !== "getWasmLinearMemory" /* PrivateAPI.Commands.GetWasmLinearMemory */) {
             return this.status.E_BADARG('command', `expected ${"getWasmLinearMemory" /* PrivateAPI.Commands.GetWasmLinearMemory */}`);
         }
-        return await this.loadWasmValue(`[].slice.call(new Uint8Array(memories[0].buffer, ${Number(message.offset)}, ${Number(message.length)}))`, message.stopId);
+        return await this.loadWasmValue(false, result => result.value, `[].slice.call(new Uint8Array(memories[0].buffer, ${Number(message.offset)}, ${Number(message.length)}))`, message.stopId);
+    }
+    convertWasmValue(valueClass, index) {
+        return obj => {
+            if (obj.type === 'undefined') {
+                return;
+            }
+            if (obj.type !== 'object' || obj.subtype !== 'wasmvalue') {
+                return this.status.E_FAILED('Bad object type');
+            }
+            const type = obj?.description;
+            const value = obj.preview?.properties?.find(o => o.name === 'value')?.value ?? '';
+            switch (type) {
+                case 'i32':
+                case 'f32':
+                case 'f64':
+                    return { type, value: Number(value) };
+                case 'i64':
+                    return { type, value: BigInt(value) };
+                case 'v128':
+                    return { type, value };
+                default:
+                    return { type: 'reftype', valueClass, index };
+            }
+        };
     }
     async onGetWasmGlobal(message) {
         if (message.command !== "getWasmGlobal" /* PrivateAPI.Commands.GetWasmGlobal */) {
             return this.status.E_BADARG('command', `expected ${"getWasmGlobal" /* PrivateAPI.Commands.GetWasmGlobal */}`);
         }
-        return this.loadWasmValue(`globals[${Number(message.global)}]`, message.stopId);
+        const global = Number(message.global);
+        const result = await this.loadWasmValue(true, this.convertWasmValue('global', global), `globals[${global}]`, message.stopId);
+        return result ?? this.status.E_BADARG('global', `No global with index ${global}`);
     }
     async onGetWasmLocal(message) {
         if (message.command !== "getWasmLocal" /* PrivateAPI.Commands.GetWasmLocal */) {
             return this.status.E_BADARG('command', `expected ${"getWasmLocal" /* PrivateAPI.Commands.GetWasmLocal */}`);
         }
-        return this.loadWasmValue(`locals[${Number(message.local)}]`, message.stopId);
+        const local = Number(message.local);
+        const result = await this.loadWasmValue(true, this.convertWasmValue('local', local), `locals[${local}]`, message.stopId);
+        return result ?? this.status.E_BADARG('local', `No local with index ${local}`);
     }
     async onGetWasmOp(message) {
         if (message.command !== "getWasmOp" /* PrivateAPI.Commands.GetWasmOp */) {
             return this.status.E_BADARG('command', `expected ${"getWasmOp" /* PrivateAPI.Commands.GetWasmOp */}`);
         }
-        return this.loadWasmValue(`stack[${Number(message.op)}]`, message.stopId);
+        const op = Number(message.op);
+        const result = await this.loadWasmValue(true, this.convertWasmValue('operand', op), `stack[${op}]`, message.stopId);
+        return result ?? this.status.E_BADARG('op', `No operand with index ${op}`);
     }
     registerRecorderExtensionEndpoint(message, _shared_port) {
         if (message.command !== "registerRecorderExtensionPlugin" /* PrivateAPI.Commands.RegisterRecorderExtensionPlugin */) {
@@ -231,12 +354,60 @@ export class ExtensionServer extends Common.ObjectWrapper.ObjectWrapper {
         RecorderPluginManager.instance().addPlugin(new RecorderExtensionEndpoint(pluginName, port, capabilities, mediaType));
         return this.status.OK();
     }
+    onReportResourceLoad(message) {
+        if (message.command !== "reportResourceLoad" /* PrivateAPI.Commands.ReportResourceLoad */) {
+            return this.status.E_BADARG('command', `expected ${"reportResourceLoad" /* PrivateAPI.Commands.ReportResourceLoad */}`);
+        }
+        const { resourceUrl, extensionId, status } = message;
+        const url = resourceUrl;
+        const initiator = { target: null, frameId: null, initiatorUrl: extensionId, extensionId };
+        const pageResource = {
+            url,
+            initiator,
+            errorMessage: status.errorMessage,
+            success: status.success ?? null,
+            size: status.size ?? null,
+            duration: null,
+        };
+        SDK.PageResourceLoader.PageResourceLoader.instance().resourceLoadedThroughExtension(pageResource);
+        return this.status.OK();
+    }
+    onSetFunctionRangesForScript(message) {
+        if (message.command !== "setFunctionRangesForScript" /* PrivateAPI.Commands.SetFunctionRangesForScript */) {
+            return this.status.E_BADARG('command', `expected ${"setFunctionRangesForScript" /* PrivateAPI.Commands.SetFunctionRangesForScript */}`);
+        }
+        const { scriptUrl, ranges } = message;
+        if (!scriptUrl || !ranges?.length) {
+            return this.status.E_BADARG('command', 'expected valid scriptUrl and non-empty NamedFunctionRanges');
+        }
+        const uiSourceCode = Workspace.Workspace.WorkspaceImpl.instance().uiSourceCodeForURL(scriptUrl);
+        if (!uiSourceCode) {
+            return this.status.E_NOTFOUND(scriptUrl);
+        }
+        if (!uiSourceCode.contentType().isScript() || !uiSourceCode.contentType().isFromSourceMap()) {
+            return this.status.E_BADARG('command', `expected a source map script resource for url: ${scriptUrl}`);
+        }
+        try {
+            Bindings.DebuggerWorkspaceBinding.DebuggerWorkspaceBinding.instance().setFunctionRanges(uiSourceCode, ranges);
+        }
+        catch (e) {
+            return this.status.E_FAILED(e);
+        }
+        return this.status.OK();
+    }
     onShowRecorderView(message) {
         if (message.command !== "showRecorderView" /* PrivateAPI.Commands.ShowRecorderView */) {
             return this.status.E_BADARG('command', `expected ${"showRecorderView" /* PrivateAPI.Commands.ShowRecorderView */}`);
         }
         RecorderPluginManager.instance().showView(message.id);
         return undefined;
+    }
+    onShowNetworkPanel(message) {
+        if (message.command !== "showNetworkPanel" /* PrivateAPI.Commands.ShowNetworkPanel */) {
+            return this.status.E_BADARG('command', `expected ${"showNetworkPanel" /* PrivateAPI.Commands.ShowNetworkPanel */}`);
+        }
+        void Common.Revealer.reveal(new RevealableNetworkRequestFilter(message.filter));
+        return this.status.OK();
     }
     onCreateRecorderView(message, port) {
         if (message.command !== "createRecorderView" /* PrivateAPI.Commands.CreateRecorderView */) {
@@ -264,7 +435,7 @@ export class ExtensionServer extends Common.ObjectWrapper.ObjectWrapper {
         return this.status.OK();
     }
     inspectedURLChanged(event) {
-        if (!this.canInspectURL(event.data.inspectedURL())) {
+        if (!ExtensionServer.canInspectURL(event.data.inspectedURL())) {
             this.disableExtensions();
             return;
         }
@@ -272,11 +443,26 @@ export class ExtensionServer extends Common.ObjectWrapper.ObjectWrapper {
             return;
         }
         this.requests = new Map();
+        this.enableExtensions();
         const url = event.data.inspectedURL();
         this.postNotification("inspected-url-changed" /* PrivateAPI.Events.InspectedURLChanged */, url);
+        const extensions = this.#pendingExtensions.splice(0);
+        extensions.forEach(e => this.addExtension(e));
     }
     hasSubscribers(type) {
         return this.subscribers.has(type);
+    }
+    isNotificationAllowedForExtension(port, type, ..._args) {
+        if (type === "network-request-finished" /* PrivateAPI.Events.NetworkRequestFinished */) {
+            const entry = _args[1];
+            const origin = extensionOrigins.get(port);
+            const extension = origin && this.registeredExtensions.get(origin);
+            if (extension?.isAllowedOnTarget(entry.request.url)) {
+                return true;
+            }
+            return false;
+        }
+        return true;
     }
     postNotification(type, ..._vararg) {
         if (!this.extensionsEnabled) {
@@ -288,7 +474,9 @@ export class ExtensionServer extends Common.ObjectWrapper.ObjectWrapper {
         }
         const message = { command: 'notify-' + type, arguments: Array.prototype.slice.call(arguments, 1) };
         for (const subscriber of subscribers) {
-            subscriber.postMessage(message);
+            if (this.extensionEnabled(subscriber) && this.isNotificationAllowedForExtension(subscriber, type, ..._vararg)) {
+                subscriber.postMessage(message);
+            }
         }
     }
     onSubscribe(message, port) {
@@ -353,25 +541,6 @@ export class ExtensionServer extends Common.ObjectWrapper.ObjectWrapper {
         SDK.NetworkManager.MultitargetNetworkManager.instance().setExtraHTTPHeaders(allHeaders);
         return undefined;
     }
-    onApplyStyleSheet(message) {
-        if (message.command !== "applyStyleSheet" /* PrivateAPI.Commands.ApplyStyleSheet */) {
-            return this.status.E_BADARG('command', `expected ${"applyStyleSheet" /* PrivateAPI.Commands.ApplyStyleSheet */}`);
-        }
-        if (!Root.Runtime.experiments.isEnabled('applyCustomStylesheet')) {
-            return;
-        }
-        const styleSheet = document.createElement('style');
-        styleSheet.textContent = message.styleSheet;
-        document.head.appendChild(styleSheet);
-        ThemeSupport.ThemeSupport.instance().addCustomStylesheet(message.styleSheet);
-        // Add to all the shadow roots that have already been created
-        for (let node = document.body; node; node = node.traverseNextNode(document.body)) {
-            if (node instanceof ShadowRoot) {
-                ThemeSupport.ThemeSupport.instance().injectCustomStyleSheets(node);
-            }
-        }
-        return undefined;
-    }
     getExtensionOrigin(port) {
         const origin = extensionOrigins.get(port);
         if (!origin) {
@@ -394,7 +563,7 @@ export class ExtensionServer extends Common.ObjectWrapper.ObjectWrapper {
             return this.status.E_BADARG('page', 'Resources paths cannot point to non-extension resources');
         }
         let persistentId = this.getExtensionOrigin(port) + message.title;
-        persistentId = persistentId.replace(/\s/g, '');
+        persistentId = persistentId.replace(/\s|:\d+/g, '');
         const panelView = new ExtensionServerPanelView(persistentId, i18n.i18n.lockedString(message.title), new ExtensionPanel(this, persistentId, id, page));
         this.clientObjects.set(id, panelView);
         UI.InspectorView.InspectorView.instance().addPanel(panelView);
@@ -455,7 +624,7 @@ export class ExtensionServer extends Common.ObjectWrapper.ObjectWrapper {
         const sidebar = new ExtensionSidebarPane(this, message.panel, i18n.i18n.lockedString(message.title), id);
         this.sidebarPanesInternal.push(sidebar);
         this.clientObjects.set(id, sidebar);
-        this.dispatchEventToListeners(Events.SidebarPaneAdded, sidebar);
+        this.dispatchEventToListeners("SidebarPaneAdded" /* Events.SidebarPaneAdded */, sidebar);
         return this.status.OK();
     }
     sidebarPanes() {
@@ -565,7 +734,15 @@ export class ExtensionServer extends Common.ObjectWrapper.ObjectWrapper {
     handleOpenURL(port, contentProvider, lineNumber) {
         port.postMessage({ command: 'open-resource', resource: this.makeResource(contentProvider), lineNumber: lineNumber + 1 });
     }
-    onReload(message) {
+    extensionAllowedOnURL(url, port) {
+        const origin = extensionOrigins.get(port);
+        const extension = origin && this.registeredExtensions.get(origin);
+        return Boolean(extension?.isAllowedOnTarget(url));
+    }
+    extensionAllowedOnTarget(target, port) {
+        return this.extensionAllowedOnURL(target.inspectedURL(), port);
+    }
+    onReload(message, port) {
         if (message.command !== "Reload" /* PrivateAPI.Commands.Reload */) {
             return this.status.E_BADARG('command', `expected ${"Reload" /* PrivateAPI.Commands.Reload */}`);
         }
@@ -575,7 +752,15 @@ export class ExtensionServer extends Common.ObjectWrapper.ObjectWrapper {
         if (options.injectedScript) {
             injectedScript = '(function(){' + options.injectedScript + '})()';
         }
-        SDK.ResourceTreeModel.ResourceTreeModel.reloadAllPages(Boolean(options.ignoreCache), injectedScript);
+        const target = SDK.TargetManager.TargetManager.instance().primaryPageTarget();
+        if (!target) {
+            return this.status.OK();
+        }
+        const resourceTreeModel = target.model(SDK.ResourceTreeModel.ResourceTreeModel);
+        if (!this.extensionAllowedOnTarget(target, port)) {
+            return this.status.E_FAILED('Permission denied');
+        }
+        resourceTreeModel?.reloadPage(Boolean(options.ignoreCache), injectedScript);
         return this.status.OK();
     }
     onEvaluateOnInspectedPage(message, port) {
@@ -598,14 +783,14 @@ export class ExtensionServer extends Common.ObjectWrapper.ObjectWrapper {
         }
         return this.evaluate(expression, true, true, evaluateOptions, this.getExtensionOrigin(port), callback.bind(this));
     }
-    async onGetHAR(message) {
+    async onGetHAR(message, port) {
         if (message.command !== "getHAR" /* PrivateAPI.Commands.GetHAR */) {
             return this.status.E_BADARG('command', `expected ${"getHAR" /* PrivateAPI.Commands.GetHAR */}`);
         }
-        const requests = Logs.NetworkLog.NetworkLog.instance().requests();
-        const harLog = await HAR.Log.Log.build(requests);
+        const requests = Logs.NetworkLog.NetworkLog.instance().requests().filter(r => this.extensionAllowedOnURL(r.url(), port));
+        const harLog = await HAR.Log.Log.build(requests, { sanitize: false });
         for (let i = 0; i < harLog.entries.length; ++i) {
-            // @ts-ignore
+            // @ts-expect-error
             harLog.entries[i]._requestId = this.requestId(requests[i]);
         }
         return harLog;
@@ -613,7 +798,7 @@ export class ExtensionServer extends Common.ObjectWrapper.ObjectWrapper {
     makeResource(contentProvider) {
         return { url: contentProvider.contentURL(), type: contentProvider.contentType().name() };
     }
-    onGetPageResources() {
+    onGetPageResources(_message, port) {
         const resources = new Map();
         function pushResourceData(contentProvider) {
             if (!resources.has(contentProvider.contentURL())) {
@@ -625,13 +810,25 @@ export class ExtensionServer extends Common.ObjectWrapper.ObjectWrapper {
         uiSourceCodes = uiSourceCodes.concat(Workspace.Workspace.WorkspaceImpl.instance().uiSourceCodesForProjectType(Workspace.Workspace.projectTypes.ContentScripts));
         uiSourceCodes.forEach(pushResourceData.bind(this));
         for (const resourceTreeModel of SDK.TargetManager.TargetManager.instance().models(SDK.ResourceTreeModel.ResourceTreeModel)) {
-            resourceTreeModel.forAllResources(pushResourceData.bind(this));
+            if (this.extensionAllowedOnTarget(resourceTreeModel.target(), port)) {
+                resourceTreeModel.forAllResources(pushResourceData.bind(this));
+            }
         }
         return [...resources.values()];
     }
     async getResourceContent(contentProvider, message, port) {
-        const { content, isEncoded } = await contentProvider.requestContent();
-        this.dispatchCallback(message.requestId, port, { encoding: isEncoded ? 'base64' : '', content: content });
+        if (!this.extensionAllowedOnURL(contentProvider.contentURL(), port)) {
+            this.dispatchCallback(message.requestId, port, this.status.E_FAILED('Permission denied'));
+            return undefined;
+        }
+        const contentData = await contentProvider.requestContentData();
+        if (TextUtils.ContentData.ContentData.isError(contentData)) {
+            this.dispatchCallback(message.requestId, port, { encoding: '', content: null });
+            return;
+        }
+        const encoding = !contentData.isTextContent ? 'base64' : '';
+        const content = contentData.isTextContent ? contentData.text : contentData.base64;
+        this.dispatchCallback(message.requestId, port, { encoding, content });
     }
     onGetRequestContent(message, port) {
         if (message.command !== "getRequestContent" /* PrivateAPI.Commands.GetRequestContent */) {
@@ -657,6 +854,28 @@ export class ExtensionServer extends Common.ObjectWrapper.ObjectWrapper {
         void this.getResourceContent(contentProvider, message, port);
         return undefined;
     }
+    onAttachSourceMapToResource(message) {
+        if (message.command !== "attachSourceMapToResource" /* PrivateAPI.Commands.AttachSourceMapToResource */) {
+            return this.status.E_BADARG('command', `expected ${"getResourceContent" /* PrivateAPI.Commands.GetResourceContent */}`);
+        }
+        if (!message.sourceMapURL) {
+            return this.status.E_FAILED('Expected a source map URL but got null');
+        }
+        const url = message.contentUrl;
+        const contentProvider = Workspace.Workspace.WorkspaceImpl.instance().uiSourceCodeForURL(url);
+        if (!contentProvider) {
+            return this.status.E_NOTFOUND(url);
+        }
+        const debuggerBindingsInstance = Bindings.DebuggerWorkspaceBinding.DebuggerWorkspaceBinding.instance();
+        const scriptFiles = debuggerBindingsInstance.scriptsForUISourceCode(contentProvider);
+        if (scriptFiles.length > 0) {
+            for (const script of scriptFiles) {
+                const resourceFile = debuggerBindingsInstance.scriptFile(contentProvider, script.debuggerModel);
+                resourceFile?.addSourceMapURL(message.sourceMapURL);
+            }
+        }
+        return this.status.OK();
+    }
     onSetResourceContent(message, port) {
         if (message.command !== "setResourceContent" /* PrivateAPI.Commands.SetResourceContent */) {
             return this.status.E_BADARG('command', `expected ${"setResourceContent" /* PrivateAPI.Commands.SetResourceContent */}`);
@@ -666,8 +885,11 @@ export class ExtensionServer extends Common.ObjectWrapper.ObjectWrapper {
             const response = error ? this.status.E_FAILED(error) : this.status.OK();
             this.dispatchCallback(requestId, port, response);
         }
+        if (!this.extensionAllowedOnURL(url, port)) {
+            return this.status.E_FAILED('Permission denied');
+        }
         const uiSourceCode = Workspace.Workspace.WorkspaceImpl.instance().uiSourceCodeForURL(url);
-        if (!uiSourceCode || !uiSourceCode.contentType().isDocumentOrScriptOrStyleSheet()) {
+        if (!uiSourceCode?.contentType().isDocumentOrScriptOrStyleSheet()) {
             const resource = SDK.ResourceTreeModel.ResourceTreeModel.resourceForURL(url);
             if (!resource) {
                 return this.status.E_NOTFOUND(url);
@@ -712,7 +934,7 @@ export class ExtensionServer extends Common.ObjectWrapper.ObjectWrapper {
                 shiftKey: entry.shiftKey,
                 metaKey: entry.metaKey,
             });
-            // @ts-ignore
+            // @ts-expect-error
             event.__keyCode = keyCodeForEntry(entry);
             document.dispatchEvent(event);
         }
@@ -730,7 +952,7 @@ export class ExtensionServer extends Common.ObjectWrapper.ObjectWrapper {
     }
     dispatchCallback(requestId, port, result) {
         if (requestId) {
-            port.postMessage({ command: 'callback', requestId: requestId, result: result });
+            port.postMessage({ command: 'callback', requestId, result });
         }
     }
     initExtensions() {
@@ -744,7 +966,7 @@ export class ExtensionServer extends Common.ObjectWrapper.ObjectWrapper {
         }
         this.registerSubscriptionHandler("panel-objectSelected-" /* PrivateAPI.Events.PanelObjectSelected */ + 'elements', onElementsSubscriptionStarted.bind(this), onElementsSubscriptionStopped.bind(this));
         this.registerResourceContentCommittedHandler(this.notifyUISourceCodeContentCommitted);
-        SDK.TargetManager.TargetManager.instance().addEventListener(SDK.TargetManager.Events.InspectedURLChanged, this.inspectedURLChanged, this);
+        SDK.TargetManager.TargetManager.instance().addEventListener("InspectedURLChanged" /* SDK.TargetManager.Events.INSPECTED_URL_CHANGED */, this.inspectedURLChanged, this);
     }
     notifyResourceAdded(event) {
         const uiSourceCode = event.data;
@@ -756,7 +978,7 @@ export class ExtensionServer extends Common.ObjectWrapper.ObjectWrapper {
     }
     async notifyRequestFinished(event) {
         const request = event.data;
-        const entry = await HAR.Log.Entry.build(request);
+        const entry = await HAR.Log.Entry.build(request, { sanitize: false });
         this.postNotification("network-request-finished" /* PrivateAPI.Events.NetworkRequestFinished */, this.requestId(request), entry);
     }
     notifyElementsSelectionChanged() {
@@ -768,7 +990,7 @@ export class ExtensionServer extends Common.ObjectWrapper.ObjectWrapper {
             startColumn: range.startColumn,
             endLine: range.endLine,
             endColumn: range.endColumn,
-            url: url,
+            url,
         });
     }
     setInspectedTabId(event) {
@@ -779,35 +1001,47 @@ export class ExtensionServer extends Common.ObjectWrapper.ObjectWrapper {
             this.initializeExtensions();
         }
     }
-    addExtensionForTest(extensionInfo, origin) {
-        const name = extensionInfo.name || `Extension ${origin}`;
-        this.registeredExtensions.set(origin, { name });
-        return true;
+    addExtensionFrame({ startPage, name }) {
+        const iframe = document.createElement('iframe');
+        iframe.src = startPage;
+        iframe.dataset.devtoolsExtension = name;
+        iframe.style.display = 'none';
+        document.body.appendChild(iframe); // Only for main window.
     }
     addExtension(extensionInfo) {
         const startPage = extensionInfo.startPage;
         const inspectedURL = SDK.TargetManager.TargetManager.instance().primaryPageTarget()?.inspectedURL() ?? '';
-        if (inspectedURL !== '' && !this.canInspectURL(inspectedURL)) {
+        if (inspectedURL === '') {
+            this.#pendingExtensions.push(extensionInfo);
+            return;
+        }
+        if (!ExtensionServer.canInspectURL(inspectedURL)) {
             this.disableExtensions();
         }
         if (!this.extensionsEnabled) {
+            this.#pendingExtensions.push(extensionInfo);
+            return;
+        }
+        const hostsPolicy = HostsPolicy.create(extensionInfo.hostsPolicy);
+        if (!hostsPolicy) {
             return;
         }
         try {
-            const startPageURL = new URL(startPage);
+            const startPageURL = new URL((startPage));
             const extensionOrigin = startPageURL.origin;
+            const name = extensionInfo.name || `Extension ${extensionOrigin}`;
+            const extensionRegistration = new RegisteredExtension(name, hostsPolicy, Boolean(extensionInfo.allowFileAccess));
+            if (!extensionRegistration.isAllowedOnTarget(inspectedURL)) {
+                this.#pendingExtensions.push(extensionInfo);
+                return;
+            }
             if (!this.registeredExtensions.get(extensionOrigin)) {
                 // See ExtensionAPI.js for details.
                 const injectedAPI = self.buildExtensionAPIInjectedScript(extensionInfo, this.inspectedTabId, ThemeSupport.ThemeSupport.instance().themeName(), UI.ShortcutRegistry.ShortcutRegistry.instance().globalShortcutKeys(), ExtensionServer.instance().extensionAPITestHook);
                 Host.InspectorFrontendHost.InspectorFrontendHostInstance.setInjectedScriptForOrigin(extensionOrigin, injectedAPI);
-                const name = extensionInfo.name || `Extension ${extensionOrigin}`;
-                this.registeredExtensions.set(extensionOrigin, { name });
+                this.registeredExtensions.set(extensionOrigin, extensionRegistration);
             }
-            const iframe = document.createElement('iframe');
-            iframe.src = startPage;
-            iframe.dataset.devtoolsExtension = extensionInfo.name;
-            iframe.style.display = 'none';
-            document.body.appendChild(iframe); // Only for main window.
+            this.addExtensionFrame(extensionInfo);
         }
         catch (e) {
             console.error('Failed to initialize extension ' + startPage + ':' + e);
@@ -831,14 +1065,29 @@ export class ExtensionServer extends Common.ObjectWrapper.ObjectWrapper {
             this.registerExtension(event.origin, event.ports[0]);
         }
     };
+    extensionEnabled(port) {
+        if (!this.extensionsEnabled) {
+            return false;
+        }
+        const origin = extensionOrigins.get(port);
+        if (!origin) {
+            return false;
+        }
+        const extension = this.registeredExtensions.get(origin);
+        if (!extension) {
+            return false;
+        }
+        return extension.isAllowedOnTarget();
+    }
     async onmessage(event) {
         const message = event.data;
         let result;
+        const port = event.currentTarget;
         const handler = this.handlers.get(message.command);
         if (!handler) {
             result = this.status.E_NOTSUPPORTED(message.command);
         }
-        else if (!this.extensionsEnabled) {
+        else if (!this.extensionEnabled(port)) {
             result = this.status.E_FAILED('Permission denied');
         }
         else {
@@ -899,8 +1148,8 @@ export class ExtensionServer extends Common.ObjectWrapper.ObjectWrapper {
         }
         else {
             const target = SDK.TargetManager.TargetManager.instance().primaryPageTarget();
-            const resourceTreeModel = target && target.model(SDK.ResourceTreeModel.ResourceTreeModel);
-            frame = resourceTreeModel && resourceTreeModel.mainFrame;
+            const resourceTreeModel = target?.model(SDK.ResourceTreeModel.ResourceTreeModel);
+            frame = resourceTreeModel?.mainFrame;
         }
         if (!frame) {
             if (options.frameURL) {
@@ -913,7 +1162,8 @@ export class ExtensionServer extends Common.ObjectWrapper.ObjectWrapper {
         }
         // We shouldn't get here if the outermost frame can't be inspected by an extension, but
         // let's double check for subframes.
-        if (!this.canInspectURL(frame.url)) {
+        const extension = this.registeredExtensions.get(securityOrigin);
+        if (!extension?.isAllowedOnTarget(frame.url)) {
             return this.status.E_FAILED('Permission denied');
         }
         let contextSecurityOrigin;
@@ -949,16 +1199,16 @@ export class ExtensionServer extends Common.ObjectWrapper.ObjectWrapper {
                 return this.status.E_FAILED(frame.url + ' has no execution context');
             }
         }
-        if (!this.canInspectURL(context.origin)) {
+        if (!extension?.isAllowedOnTarget(context.origin)) {
             return this.status.E_FAILED('Permission denied');
         }
         void context
             .evaluate({
-            expression: expression,
+            expression,
             objectGroup: 'extension',
             includeCommandLineAPI: exposeCommandLineAPI,
             silent: true,
-            returnByValue: returnByValue,
+            returnByValue,
             generatePreview: false,
         }, 
         /* userGesture */ false, /* awaitPromise */ false)
@@ -972,44 +1222,53 @@ export class ExtensionServer extends Common.ObjectWrapper.ObjectWrapper {
         }
         return undefined;
     }
-    canInspectURL(url) {
+    static canInspectURL(url) {
         let parsedURL;
         // This is only to work around invalid URLs we're occasionally getting from some tests.
         // TODO(caseq): make sure tests supply valid URLs or we specifically handle invalid ones.
         try {
             parsedURL = new URL(url);
         }
-        catch (exception) {
+        catch {
             return false;
         }
-        if (kAllowedOrigins.includes(parsedURL.origin)) {
-            return true;
-        }
-        if (parsedURL.protocol === 'chrome:' || parsedURL.protocol === 'devtools:') {
+        if (!kPermittedSchemes.includes(parsedURL.protocol)) {
             return false;
         }
-        if (parsedURL.protocol.startsWith('http') && parsedURL.hostname === 'chrome.google.com' &&
-            parsedURL.pathname.startsWith('/webstore')) {
+        if ((window.DevToolsAPI?.getOriginsForbiddenForExtensions?.() || []).includes(parsedURL.origin)) {
             return false;
         }
-        if ((window.DevToolsAPI && window.DevToolsAPI.getOriginsForbiddenForExtensions &&
-            window.DevToolsAPI.getOriginsForbiddenForExtensions() ||
-            []).includes(parsedURL.origin)) {
+        if (this.#isUrlFromChromeWebStore(parsedURL)) {
             return false;
         }
         return true;
     }
+    /**
+     * Tests whether a given URL is from the Chrome web store to prevent the extension server from
+     * being injected. This is treated as separate from the `getOriginsForbiddenForExtensions` API because
+     * DevTools might not be being run from a native origin and we still want to lock down this specific
+     * origin from DevTools extensions.
+     *
+     * @param parsedURL The URL to check
+     * @returns `true` if the URL corresponds to the Chrome web store; otherwise `false`
+     */
+    static #isUrlFromChromeWebStore(parsedURL) {
+        if (parsedURL.protocol.startsWith('http') && parsedURL.hostname.match(/^chrome\.google\.com\.?$/) &&
+            parsedURL.pathname.startsWith('/webstore')) {
+            return true;
+        }
+        if (parsedURL.protocol.startsWith('http') && parsedURL.hostname.match(/^chromewebstore\.google\.com\.?$/)) {
+            return true;
+        }
+        return false;
+    }
     disableExtensions() {
         this.extensionsEnabled = false;
     }
+    enableExtensions() {
+        this.extensionsEnabled = true;
+    }
 }
-// TODO(crbug.com/1167717): Make this a const enum again
-// eslint-disable-next-line rulesdir/const_enum
-export var Events;
-(function (Events) {
-    Events["SidebarPaneAdded"] = "SidebarPaneAdded";
-    Events["TraceProviderAdded"] = "TraceProviderAdded";
-})(Events || (Events = {}));
 class ExtensionServerPanelView extends UI.View.SimpleView {
     name;
     panel;

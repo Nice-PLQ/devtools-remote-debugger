@@ -2,9 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 import * as Common from '../../core/common/common.js';
+import * as i18n from '../../core/i18n/i18n.js';
 import * as Root from '../../core/root/root.js';
 import * as UI from '../../ui/legacy/legacy.js';
-import * as i18n from '../../core/i18n/i18n.js';
 const UIStrings = {
     /**
      *@description Title of an action in the emulation tool to toggle device mode
@@ -66,61 +66,61 @@ async function loadEmulationModule() {
     return loadedEmulationModule;
 }
 UI.ActionRegistration.registerActionExtension({
-    category: UI.ActionRegistration.ActionCategory.MOBILE,
+    category: "MOBILE" /* UI.ActionRegistration.ActionCategory.MOBILE */,
     actionId: 'emulation.toggle-device-mode',
     toggleable: true,
     async loadActionDelegate() {
         const Emulation = await loadEmulationModule();
-        return Emulation.DeviceModeWrapper.ActionDelegate.instance();
+        return new Emulation.DeviceModeWrapper.ActionDelegate();
     },
-    condition: Root.Runtime.ConditionName.CAN_DOCK,
+    condition: Root.Runtime.conditions.canDock,
     title: i18nLazyString(UIStrings.toggleDeviceToolbar),
     iconClass: "devices" /* UI.ActionRegistration.IconClass.LARGEICON_PHONE */,
     bindings: [
         {
-            platform: "windows,linux" /* UI.ActionRegistration.Platforms.WindowsLinux */,
+            platform: "windows,linux" /* UI.ActionRegistration.Platforms.WINDOWS_LINUX */,
             shortcut: 'Shift+Ctrl+M',
         },
         {
-            platform: "mac" /* UI.ActionRegistration.Platforms.Mac */,
+            platform: "mac" /* UI.ActionRegistration.Platforms.MAC */,
             shortcut: 'Shift+Meta+M',
         },
     ],
 });
 UI.ActionRegistration.registerActionExtension({
     actionId: 'emulation.capture-screenshot',
-    category: UI.ActionRegistration.ActionCategory.SCREENSHOT,
+    category: "SCREENSHOT" /* UI.ActionRegistration.ActionCategory.SCREENSHOT */,
     async loadActionDelegate() {
         const Emulation = await loadEmulationModule();
-        return Emulation.DeviceModeWrapper.ActionDelegate.instance();
+        return new Emulation.DeviceModeWrapper.ActionDelegate();
     },
-    condition: Root.Runtime.ConditionName.CAN_DOCK,
+    condition: Root.Runtime.conditions.canDock,
     title: i18nLazyString(UIStrings.captureScreenshot),
 });
 UI.ActionRegistration.registerActionExtension({
     actionId: 'emulation.capture-full-height-screenshot',
-    category: UI.ActionRegistration.ActionCategory.SCREENSHOT,
+    category: "SCREENSHOT" /* UI.ActionRegistration.ActionCategory.SCREENSHOT */,
     async loadActionDelegate() {
         const Emulation = await loadEmulationModule();
-        return Emulation.DeviceModeWrapper.ActionDelegate.instance();
+        return new Emulation.DeviceModeWrapper.ActionDelegate();
     },
-    condition: Root.Runtime.ConditionName.CAN_DOCK,
+    condition: Root.Runtime.conditions.canDock,
     title: i18nLazyString(UIStrings.captureFullSizeScreenshot),
 });
 UI.ActionRegistration.registerActionExtension({
     actionId: 'emulation.capture-node-screenshot',
-    category: UI.ActionRegistration.ActionCategory.SCREENSHOT,
+    category: "SCREENSHOT" /* UI.ActionRegistration.ActionCategory.SCREENSHOT */,
     async loadActionDelegate() {
         const Emulation = await loadEmulationModule();
-        return Emulation.DeviceModeWrapper.ActionDelegate.instance();
+        return new Emulation.DeviceModeWrapper.ActionDelegate();
     },
-    condition: Root.Runtime.ConditionName.CAN_DOCK,
+    condition: Root.Runtime.conditions.canDock,
     title: i18nLazyString(UIStrings.captureNodeScreenshot),
 });
 Common.Settings.registerSettingExtension({
-    category: Common.Settings.SettingCategory.MOBILE,
-    settingName: 'showMediaQueryInspector',
-    settingType: Common.Settings.SettingType.BOOLEAN,
+    category: "MOBILE" /* Common.Settings.SettingCategory.MOBILE */,
+    settingName: 'show-media-query-inspector',
+    settingType: "boolean" /* Common.Settings.SettingType.BOOLEAN */,
     defaultValue: false,
     options: [
         {
@@ -135,9 +135,9 @@ Common.Settings.registerSettingExtension({
     tags: [i18nLazyString(UIStrings.device)],
 });
 Common.Settings.registerSettingExtension({
-    category: Common.Settings.SettingCategory.MOBILE,
-    settingName: 'emulation.showRulers',
-    settingType: Common.Settings.SettingType.BOOLEAN,
+    category: "MOBILE" /* Common.Settings.SettingCategory.MOBILE */,
+    settingName: 'emulation.show-rulers',
+    settingType: "boolean" /* Common.Settings.SettingType.BOOLEAN */,
     defaultValue: false,
     options: [
         {
@@ -152,9 +152,9 @@ Common.Settings.registerSettingExtension({
     tags: [i18nLazyString(UIStrings.device)],
 });
 Common.Settings.registerSettingExtension({
-    category: Common.Settings.SettingCategory.MOBILE,
-    settingName: 'emulation.showDeviceOutline',
-    settingType: Common.Settings.SettingType.BOOLEAN,
+    category: "MOBILE" /* Common.Settings.SettingCategory.MOBILE */,
+    settingName: 'emulation.show-device-outline',
+    settingType: "boolean" /* Common.Settings.SettingType.BOOLEAN */,
     defaultValue: false,
     options: [
         {
@@ -170,10 +170,9 @@ Common.Settings.registerSettingExtension({
 });
 UI.Toolbar.registerToolbarItem({
     actionId: 'emulation.toggle-device-mode',
-    condition: Root.Runtime.ConditionName.CAN_DOCK,
-    location: UI.Toolbar.ToolbarItemLocation.MAIN_TOOLBAR_LEFT,
+    condition: Root.Runtime.conditions.canDock,
+    location: "main-toolbar-left" /* UI.Toolbar.ToolbarItemLocation.MAIN_TOOLBAR_LEFT */,
     order: 1,
-    showLabel: undefined,
     loadItem: undefined,
     separator: undefined,
 });
@@ -182,16 +181,16 @@ Common.AppProvider.registerAppProvider({
         const Emulation = await loadEmulationModule();
         return Emulation.AdvancedApp.AdvancedAppProvider.instance();
     },
-    condition: Root.Runtime.ConditionName.CAN_DOCK,
+    condition: Root.Runtime.conditions.canDock,
     order: 0,
 });
 UI.ContextMenu.registerItem({
-    location: UI.ContextMenu.ItemLocation.DEVICE_MODE_MENU_SAVE,
+    location: "deviceModeMenu/save" /* UI.ContextMenu.ItemLocation.DEVICE_MODE_MENU_SAVE */,
     order: 12,
     actionId: 'emulation.capture-screenshot',
 });
 UI.ContextMenu.registerItem({
-    location: UI.ContextMenu.ItemLocation.DEVICE_MODE_MENU_SAVE,
+    location: "deviceModeMenu/save" /* UI.ContextMenu.ItemLocation.DEVICE_MODE_MENU_SAVE */,
     order: 13,
     actionId: 'emulation.capture-full-height-screenshot',
 });

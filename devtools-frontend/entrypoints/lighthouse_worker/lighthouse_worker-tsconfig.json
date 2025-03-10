@@ -32,8 +32,8 @@
     "../../../../../../front_end/entrypoints/lighthouse_worker/LighthouseWorkerService.ts",
     "../../../../../../front_end/legacy/legacy-defs.d.ts",
     "../../../../../../front_end/global_typings/global_defs.d.ts",
-    "../../../../../../front_end/global_typings/request_idle_callback.d.ts",
-    "../../../../../../node_modules/@types/filesystem/index.d.ts"
+    "../../../../../../node_modules/@types/filesystem/index.d.ts",
+    "../../../../../../node_modules/@types/wicg-task-scheduling/index.d.ts"
   ],
   "references": [
     {
@@ -47,6 +47,9 @@
     },
     {
       "path": "../../third_party/lighthouse/lighthouse-tsconfig.json"
+    },
+    {
+      "path": "../../third_party/third-party-web/bundle-tsconfig.json"
     }
   ]
 }

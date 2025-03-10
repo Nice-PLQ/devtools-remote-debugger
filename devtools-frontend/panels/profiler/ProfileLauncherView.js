@@ -29,6 +29,7 @@
  */
 import * as Common from '../../core/common/common.js';
 import * as i18n from '../../core/i18n/i18n.js';
+import * as Buttons from '../../ui/components/buttons/buttons.js';
 import * as UI from '../../ui/legacy/legacy.js';
 import { IsolateSelector } from './IsolateSelector.js';
 import profileLauncherViewStyles from './profileLauncherView.css.js';
@@ -40,7 +41,7 @@ const UIStrings = {
     /**
      *@description Text to load something
      */
-    load: 'Load',
+    load: 'Load profile',
     /**
      *@description Control button text content in Profile Launcher View of a profiler tool
      */
@@ -75,12 +76,12 @@ export class ProfileLauncherView extends Common.ObjectWrapper.eventMixin(UI.Widg
     isEnabled;
     constructor(profilesPanel) {
         super();
+        this.registerRequiredCSS(profileLauncherViewStyles);
         this.panel = profilesPanel;
         this.element.classList.add('profile-launcher-view');
-        this.contentElementInternal =
-            this.element.createChild('div', 'profile-launcher-view-content vbox');
+        this.contentElementInternal = this.element.createChild('div', 'profile-launcher-view-content vbox');
         const profileTypeSelectorElement = this.contentElementInternal.createChild('div', 'vbox');
-        this.selectedProfileTypeSetting = Common.Settings.Settings.instance().createSetting('selectedProfileType', 'CPU');
+        this.selectedProfileTypeSetting = Common.Settings.Settings.instance().createSetting('selected-profile-type', 'CPU');
         this.profileTypeHeaderElement = profileTypeSelectorElement.createChild('h1');
         this.profileTypeSelectorForm = profileTypeSelectorElement.createChild('form');
         UI.ARIAUtils.markAsRadioGroup(this.profileTypeSelectorForm);
@@ -92,15 +93,23 @@ export class ProfileLauncherView extends Common.ObjectWrapper.eventMixin(UI.Widg
         isolateSelector.show(isolateSelectorElementChild);
         isolateSelectorElement.appendChild(isolateSelector.totalMemoryElement());
         const buttonsDiv = this.contentElementInternal.createChild('div', 'hbox profile-launcher-buttons');
-        this.controlButton = UI.UIUtils.createTextButton('', this.controlButtonClicked.bind(this), '', /* primary */ true);
-        this.loadButton = UI.UIUtils.createTextButton(i18nString(UIStrings.load), this.loadButtonClicked.bind(this), '');
-        buttonsDiv.appendChild(this.controlButton);
+        this.controlButton = UI.UIUtils.createTextButton('', this.controlButtonClicked.bind(this), {
+            jslogContext: 'profiler.heap-toggle-recording',
+            variant: "primary" /* Buttons.Button.Variant.PRIMARY */,
+        });
+        this.loadButton = new Buttons.Button.Button();
+        this.loadButton
+            .data = { iconName: 'import', variant: "outlined" /* Buttons.Button.Variant.OUTLINED */, jslogContext: 'profiler.load-from-file' };
+        this.loadButton.textContent = i18nString(UIStrings.load);
+        this.loadButton.addEventListener('click', this.loadButtonClicked.bind(this));
         buttonsDiv.appendChild(this.loadButton);
+        buttonsDiv.appendChild(this.controlButton);
         this.recordButtonEnabled = true;
         this.typeIdToOptionElementAndProfileType = new Map();
     }
     loadButtonClicked() {
-        this.panel.showLoadFromFileDialog();
+        const loadFromFileAction = UI.ActionRegistry.ActionRegistry.instance().getAction('profiler.load-from-file');
+        void loadFromFileAction.execute();
     }
     updateControls() {
         if (this.isEnabled && this.recordButtonEnabled) {
@@ -112,17 +121,14 @@ export class ProfileLauncherView extends Common.ObjectWrapper.eventMixin(UI.Widg
         UI.Tooltip.Tooltip.install(this.controlButton, this.recordButtonEnabled ? '' : UI.UIUtils.anotherProfilerActiveLabel());
         if (this.isInstantProfile) {
             this.controlButton.classList.remove('running');
-            this.controlButton.classList.add('primary-button');
             this.controlButton.textContent = i18nString(UIStrings.takeSnapshot);
         }
         else if (this.isProfiling) {
             this.controlButton.classList.add('running');
-            this.controlButton.classList.remove('primary-button');
             this.controlButton.textContent = i18nString(UIStrings.stop);
         }
         else {
             this.controlButton.classList.remove('running');
-            this.controlButton.classList.add('primary-button');
             this.controlButton.textContent = i18nString(UIStrings.start);
         }
         for (const { optionElement } of this.typeIdToOptionElementAndProfileType.values()) {
@@ -144,18 +150,17 @@ export class ProfileLauncherView extends Common.ObjectWrapper.eventMixin(UI.Widg
         this.updateControls();
     }
     addProfileType(profileType) {
-        const labelElement = UI.UIUtils.createRadioLabel('profile-type', profileType.name);
-        this.profileTypeSelectorForm.appendChild(labelElement);
-        const optionElement = labelElement.radioElement;
-        this.typeIdToOptionElementAndProfileType.set(profileType.id, { optionElement, profileType });
-        optionElement.addEventListener('change', this.profileTypeChanged.bind(this, profileType), false);
+        const { radio, label } = UI.UIUtils.createRadioButton('profile-type', profileType.name, 'profiler.profile-type');
+        this.profileTypeSelectorForm.appendChild(label);
+        this.typeIdToOptionElementAndProfileType.set(profileType.id, { optionElement: radio, profileType });
+        radio.addEventListener('change', this.profileTypeChanged.bind(this, profileType), false);
         const descriptionElement = this.profileTypeSelectorForm.createChild('p');
         descriptionElement.textContent = profileType.description;
-        UI.ARIAUtils.setDescription(optionElement, profileType.description);
+        UI.ARIAUtils.setDescription(radio, profileType.description);
         const customContent = profileType.customContent();
         if (customContent) {
             customContent.setAttribute('role', 'group');
-            customContent.setAttribute('aria-labelledby', `${optionElement.id}`);
+            customContent.setAttribute('aria-labelledby', `${radio.id}`);
             this.profileTypeSelectorForm.createChild('p').appendChild(customContent);
             profileType.setCustomContentEnabled(false);
         }
@@ -177,7 +182,7 @@ export class ProfileLauncherView extends Common.ObjectWrapper.eventMixin(UI.Widg
             const enabled = (id === typeId);
             profileType.setCustomContentEnabled(enabled);
         }
-        this.dispatchEventToListeners(Events.ProfileTypeSelected, type);
+        this.dispatchEventToListeners("ProfileTypeSelected" /* Events.PROFILE_TYPE_SELECTED */, type);
     }
     controlButtonClicked() {
         this.panel.toggleRecord();
@@ -187,21 +192,11 @@ export class ProfileLauncherView extends Common.ObjectWrapper.eventMixin(UI.Widg
         const type = this.typeIdToOptionElementAndProfileType.get(typeId).profileType;
         type.setCustomContentEnabled(false);
         profileType.setCustomContentEnabled(true);
-        this.dispatchEventToListeners(Events.ProfileTypeSelected, profileType);
+        this.dispatchEventToListeners("ProfileTypeSelected" /* Events.PROFILE_TYPE_SELECTED */, profileType);
         this.isInstantProfile = profileType.isInstantProfile();
         this.isEnabled = profileType.isEnabled();
         this.updateControls();
         this.selectedProfileTypeSetting.set(profileType.id);
     }
-    wasShown() {
-        super.wasShown();
-        this.registerCSSFiles([profileLauncherViewStyles]);
-    }
 }
-// TODO(crbug.com/1167717): Make this a const enum again
-// eslint-disable-next-line rulesdir/const_enum
-export var Events;
-(function (Events) {
-    Events["ProfileTypeSelected"] = "ProfileTypeSelected";
-})(Events || (Events = {}));
 //# sourceMappingURL=ProfileLauncherView.js.map

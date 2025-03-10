@@ -29,15 +29,29 @@
     "useUnknownInCatchVariables": false
   },
   "files": [
+    "../../../../../../../front_end/models/trace/extras/FetchNodes.ts",
     "../../../../../../../front_end/models/trace/extras/FilmStrip.ts",
+    "../../../../../../../front_end/models/trace/extras/MainThreadActivity.ts",
+    "../../../../../../../front_end/models/trace/extras/Metadata.ts",
+    "../../../../../../../front_end/models/trace/extras/ScriptDuplication.ts",
+    "../../../../../../../front_end/models/trace/extras/StackTraceForEvent.ts",
+    "../../../../../../../front_end/models/trace/extras/ThirdParties.ts",
+    "../../../../../../../front_end/models/trace/extras/TraceFilter.ts",
+    "../../../../../../../front_end/models/trace/extras/TraceTree.ts",
     "../../../../../../../front_end/legacy/legacy-defs.d.ts",
     "../../../../../../../front_end/global_typings/global_defs.d.ts",
-    "../../../../../../../front_end/global_typings/request_idle_callback.d.ts",
-    "../../../../../../../node_modules/@types/filesystem/index.d.ts"
+    "../../../../../../../node_modules/@types/filesystem/index.d.ts",
+    "../../../../../../../node_modules/@types/wicg-task-scheduling/index.d.ts"
   ],
   "references": [
     {
       "path": "../../../core/platform/bundle-tsconfig.json"
+    },
+    {
+      "path": "../../../core/sdk/bundle-tsconfig.json"
+    },
+    {
+      "path": "../../../generated/protocol-tsconfig.json"
     },
     {
       "path": "../handlers/bundle-tsconfig.json"

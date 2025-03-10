@@ -1,13 +1,13 @@
 // Copyright 2023 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
-import * as SDK from '../../core/sdk/sdk.js';
+import * as Trace from '../../models/trace/trace.js';
 export class PerformanceTracing {
     #traceEvents = [];
     #tracingManager = null;
     #delegate;
     constructor(target, delegate) {
-        this.#tracingManager = target.model(SDK.TracingManager.TracingManager);
+        this.#tracingManager = target.model(Trace.TracingManager.TracingManager);
         this.#delegate = delegate;
     }
     async start() {
@@ -46,9 +46,6 @@ export class PerformanceTracing {
         return this.#tracingManager?.stop();
     }
     // Start of implementation of SDK.TracingManager.TracingManagerClient
-    getTraceEvents() {
-        return this.#traceEvents;
-    }
     traceEventsCollected(events) {
         this.#traceEvents.push(...events);
     }

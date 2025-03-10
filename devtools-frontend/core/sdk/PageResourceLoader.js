@@ -6,8 +6,7 @@ import * as Host from '../host/host.js';
 import * as i18n from '../i18n/i18n.js';
 import { FrameManager } from './FrameManager.js';
 import { IOModel } from './IOModel.js';
-import { MultitargetNetworkManager } from './NetworkManager.js';
-import { NetworkManager } from './NetworkManager.js';
+import { MultitargetNetworkManager, NetworkManager } from './NetworkManager.js';
 import { Events as ResourceTreeModelEvents, ResourceTreeModel, } from './ResourceTreeModel.js';
 import { TargetManager } from './TargetManager.js';
 const UIStrings = {
@@ -18,6 +17,16 @@ const UIStrings = {
 };
 const str_ = i18n.i18n.registerUIStrings('core/sdk/PageResourceLoader.ts', UIStrings);
 const i18nString = i18n.i18n.getLocalizedString.bind(undefined, str_);
+function isExtensionInitiator(initiator) {
+    return 'extensionId' in initiator;
+}
+// Used for revealing a resource.
+export class ResourceKey {
+    key;
+    constructor(key) {
+        this.key = key;
+    }
+}
 let pageResourceLoader = null;
 /**
  * The page resource loader is a bottleneck for all DevTools-initiated resource loads. For each such load, it keeps a
@@ -26,6 +35,7 @@ let pageResourceLoader = null;
  */
 export class PageResourceLoader extends Common.ObjectWrapper.ObjectWrapper {
     #currentlyLoading;
+    #currentlyLoadingPerTarget;
     #maxConcurrentLoads;
     #pageResources;
     #queuedLoads;
@@ -33,6 +43,7 @@ export class PageResourceLoader extends Common.ObjectWrapper.ObjectWrapper {
     constructor(loadOverride, maxConcurrentLoads) {
         super();
         this.#currentlyLoading = 0;
+        this.#currentlyLoadingPerTarget = new Map();
         this.#maxConcurrentLoads = maxConcurrentLoads;
         this.#pageResources = new Map();
         this.#queuedLoads = [];
@@ -53,7 +64,7 @@ export class PageResourceLoader extends Common.ObjectWrapper.ObjectWrapper {
         pageResourceLoader = null;
     }
     onPrimaryPageChanged(event) {
-        const mainFrame = event.data.frame;
+        const { frame: mainFrame, type } = event.data;
         if (!mainFrame.isOutermostFrame()) {
             return;
         }
@@ -61,11 +72,25 @@ export class PageResourceLoader extends Common.ObjectWrapper.ObjectWrapper {
             reject(new Error(i18nString(UIStrings.loadCanceledDueToReloadOf)));
         }
         this.#queuedLoads = [];
-        this.#pageResources.clear();
-        this.dispatchEventToListeners(Events.Update);
+        const mainFrameTarget = mainFrame.resourceTreeModel().target();
+        const keptResources = new Map();
+        // If the navigation is a prerender-activation, the pageResources for the destination page have
+        // already been preloaded. In such cases, we therefore don't just discard all pageResources, but
+        // instead make sure to keep the pageResources for the prerendered target.
+        for (const [key, pageResource] of this.#pageResources.entries()) {
+            if ((type === "Activation" /* PrimaryPageChangeType.ACTIVATION */) && mainFrameTarget === pageResource.initiator.target) {
+                keptResources.set(key, pageResource);
+            }
+        }
+        this.#pageResources = keptResources;
+        this.dispatchEventToListeners("Update" /* Events.UPDATE */);
     }
     getResourcesLoaded() {
         return this.#pageResources;
+    }
+    getScopedResourcesLoaded() {
+        return new Map([...this.#pageResources].filter(([_, pageResource]) => TargetManager.instance().isInScope(pageResource.initiator.target) ||
+            isExtensionInitiator(pageResource.initiator)));
     }
     /**
      * Loading is the number of currently loading and queued items. Resources is the total number of resources,
@@ -75,8 +100,23 @@ export class PageResourceLoader extends Common.ObjectWrapper.ObjectWrapper {
     getNumberOfResources() {
         return { loading: this.#currentlyLoading, queued: this.#queuedLoads.length, resources: this.#pageResources.size };
     }
-    async acquireLoadSlot() {
+    getScopedNumberOfResources() {
+        const targetManager = TargetManager.instance();
+        let loadingCount = 0;
+        for (const [targetId, count] of this.#currentlyLoadingPerTarget) {
+            const target = targetManager.targetById(targetId);
+            if (targetManager.isInScope(target)) {
+                loadingCount += count;
+            }
+        }
+        return { loading: loadingCount, resources: this.getScopedResourcesLoaded().size };
+    }
+    async acquireLoadSlot(target) {
         this.#currentlyLoading++;
+        if (target) {
+            const currentCount = this.#currentlyLoadingPerTarget.get(target.id()) || 0;
+            this.#currentlyLoadingPerTarget.set(target.id(), currentCount + 1);
+        }
         if (this.#currentlyLoading > this.#maxConcurrentLoads) {
             const entry = { resolve: () => { }, reject: () => { } };
             const waitForCapacity = new Promise((resolve, reject) => {
@@ -87,12 +127,24 @@ export class PageResourceLoader extends Common.ObjectWrapper.ObjectWrapper {
             await waitForCapacity;
         }
     }
-    releaseLoadSlot() {
+    releaseLoadSlot(target) {
         this.#currentlyLoading--;
+        if (target) {
+            const currentCount = this.#currentlyLoadingPerTarget.get(target.id());
+            if (currentCount) {
+                this.#currentlyLoadingPerTarget.set(target.id(), currentCount - 1);
+            }
+        }
         const entry = this.#queuedLoads.shift();
         if (entry) {
             entry.resolve();
         }
+    }
+    static makeExtensionKey(url, initiator) {
+        if (isExtensionInitiator(initiator) && initiator.extensionId) {
+            return `${url}-${initiator.extensionId}`;
+        }
+        throw new Error('Invalid initiator');
     }
     static makeKey(url, initiator) {
         if (initiator.frameId) {
@@ -103,13 +155,22 @@ export class PageResourceLoader extends Common.ObjectWrapper.ObjectWrapper {
         }
         throw new Error('Invalid initiator');
     }
-    async loadResource(url, initiator) {
-        const key = PageResourceLoader.makeKey(url, initiator);
-        const pageResource = { success: null, size: null, errorMessage: undefined, url, initiator };
+    resourceLoadedThroughExtension(pageResource) {
+        const key = PageResourceLoader.makeExtensionKey(pageResource.url, pageResource.initiator);
         this.#pageResources.set(key, pageResource);
-        this.dispatchEventToListeners(Events.Update);
+        this.dispatchEventToListeners("Update" /* Events.UPDATE */);
+    }
+    async loadResource(url, initiator) {
+        if (isExtensionInitiator(initiator)) {
+            throw new Error('Invalid initiator');
+        }
+        const key = PageResourceLoader.makeKey(url, initiator);
+        const pageResource = { success: null, size: null, duration: null, errorMessage: undefined, url, initiator };
+        this.#pageResources.set(key, pageResource);
+        this.dispatchEventToListeners("Update" /* Events.UPDATE */);
+        const startTime = performance.now();
         try {
-            await this.acquireLoadSlot();
+            await this.acquireLoadSlot(initiator.target);
             const resultPromise = this.dispatchLoad(url, initiator);
             const result = await resultPromise;
             pageResource.errorMessage = result.errorDescription.message;
@@ -130,14 +191,18 @@ export class PageResourceLoader extends Common.ObjectWrapper.ObjectWrapper {
             throw e;
         }
         finally {
-            this.releaseLoadSlot();
-            this.dispatchEventToListeners(Events.Update);
+            pageResource.duration = performance.now() - startTime;
+            this.releaseLoadSlot(initiator.target);
+            this.dispatchEventToListeners("Update" /* Events.UPDATE */);
         }
     }
     async dispatchLoad(url, initiator) {
+        if (isExtensionInitiator(initiator)) {
+            throw new Error('Invalid initiator');
+        }
         let failureReason = null;
         if (this.#loadOverride) {
-            return this.#loadOverride(url);
+            return await this.#loadOverride(url);
         }
         const parsedURL = new Common.ParsedURL.ParsedURL(url);
         const eligibleForLoadFromTarget = getLoadThroughTargetSetting().get() && parsedURL && parsedURL.scheme !== 'file' &&
@@ -146,34 +211,34 @@ export class PageResourceLoader extends Common.ObjectWrapper.ObjectWrapper {
         if (eligibleForLoadFromTarget) {
             try {
                 if (initiator.target) {
-                    Host.userMetrics.developerResourceLoaded(Host.UserMetrics.DeveloperResourceLoaded.LoadThroughPageViaTarget);
+                    Host.userMetrics.developerResourceLoaded(0 /* Host.UserMetrics.DeveloperResourceLoaded.LOAD_THROUGH_PAGE_VIA_TARGET */);
                     const result = await this.loadFromTarget(initiator.target, initiator.frameId, url);
                     return result;
                 }
                 const frame = FrameManager.instance().getFrame(initiator.frameId);
                 if (frame) {
-                    Host.userMetrics.developerResourceLoaded(Host.UserMetrics.DeveloperResourceLoaded.LoadThroughPageViaFrame);
+                    Host.userMetrics.developerResourceLoaded(1 /* Host.UserMetrics.DeveloperResourceLoaded.LOAD_THROUGH_PAGE_VIA_FRAME */);
                     const result = await this.loadFromTarget(frame.resourceTreeModel().target(), initiator.frameId, url);
                     return result;
                 }
             }
             catch (e) {
                 if (e instanceof Error) {
-                    Host.userMetrics.developerResourceLoaded(Host.UserMetrics.DeveloperResourceLoaded.LoadThroughPageFailure);
+                    Host.userMetrics.developerResourceLoaded(2 /* Host.UserMetrics.DeveloperResourceLoaded.LOAD_THROUGH_PAGE_FAILURE */);
                     failureReason = e.message;
                 }
             }
-            Host.userMetrics.developerResourceLoaded(Host.UserMetrics.DeveloperResourceLoaded.LoadThroughPageFallback);
-            console.warn('Fallback triggered', url, initiator);
+            Host.userMetrics.developerResourceLoaded(3 /* Host.UserMetrics.DeveloperResourceLoaded.LOAD_THROUGH_PAGE_FALLBACK */);
         }
         else {
-            const code = getLoadThroughTargetSetting().get() ? Host.UserMetrics.DeveloperResourceLoaded.FallbackPerProtocol :
-                Host.UserMetrics.DeveloperResourceLoaded.FallbackPerOverride;
+            const code = getLoadThroughTargetSetting().get() ?
+                6 /* Host.UserMetrics.DeveloperResourceLoaded.FALLBACK_PER_PROTOCOL */ :
+                5 /* Host.UserMetrics.DeveloperResourceLoaded.FALLBACK_PER_OVERRIDE */;
             Host.userMetrics.developerResourceLoaded(code);
         }
         const result = await MultitargetNetworkManager.instance().loadResource(url);
         if (eligibleForLoadFromTarget && !result.success) {
-            Host.userMetrics.developerResourceLoaded(Host.UserMetrics.DeveloperResourceLoaded.FallbackFailure);
+            Host.userMetrics.developerResourceLoaded(7 /* Host.UserMetrics.DeveloperResourceLoaded.FALLBACK_FAILURE */);
         }
         if (failureReason) {
             // In case we have a success, add a note about why the load through the target failed.
@@ -184,29 +249,29 @@ export class PageResourceLoader extends Common.ObjectWrapper.ObjectWrapper {
     }
     getDeveloperResourceScheme(parsedURL) {
         if (!parsedURL || parsedURL.scheme === '') {
-            return Host.UserMetrics.DeveloperResourceScheme.SchemeUnknown;
+            return 1 /* Host.UserMetrics.DeveloperResourceScheme.UKNOWN */;
         }
         const isLocalhost = parsedURL.host === 'localhost' || parsedURL.host.endsWith('.localhost');
         switch (parsedURL.scheme) {
             case 'file':
-                return Host.UserMetrics.DeveloperResourceScheme.SchemeFile;
+                return 7 /* Host.UserMetrics.DeveloperResourceScheme.FILE */;
             case 'data':
-                return Host.UserMetrics.DeveloperResourceScheme.SchemeData;
+                return 6 /* Host.UserMetrics.DeveloperResourceScheme.DATA */;
             case 'blob':
-                return Host.UserMetrics.DeveloperResourceScheme.SchemeBlob;
+                return 8 /* Host.UserMetrics.DeveloperResourceScheme.BLOB */;
             case 'http':
-                return isLocalhost ? Host.UserMetrics.DeveloperResourceScheme.SchemeHttpLocalhost :
-                    Host.UserMetrics.DeveloperResourceScheme.SchemeHttp;
+                return isLocalhost ? 4 /* Host.UserMetrics.DeveloperResourceScheme.HTTP_LOCALHOST */ :
+                    2 /* Host.UserMetrics.DeveloperResourceScheme.HTTP */;
             case 'https':
-                return isLocalhost ? Host.UserMetrics.DeveloperResourceScheme.SchemeHttpsLocalhost :
-                    Host.UserMetrics.DeveloperResourceScheme.SchemeHttps;
+                return isLocalhost ? 5 /* Host.UserMetrics.DeveloperResourceScheme.HTTPS_LOCALHOST */ :
+                    3 /* Host.UserMetrics.DeveloperResourceScheme.HTTPS */;
         }
-        return Host.UserMetrics.DeveloperResourceScheme.SchemeOther;
+        return 0 /* Host.UserMetrics.DeveloperResourceScheme.OTHER */;
     }
     async loadFromTarget(target, frameId, url) {
         const networkManager = target.model(NetworkManager);
         const ioModel = target.model(IOModel);
-        const disableCache = Common.Settings.Settings.instance().moduleSetting('cacheDisabled').get();
+        const disableCache = Common.Settings.Settings.instance().moduleSetting('cache-disabled').get();
         const resource = await networkManager.loadNetworkResource(frameId, url, { disableCache, includeCredentials: true });
         try {
             const content = resource.stream ? await ioModel.readToString(resource.stream) : '';
@@ -231,12 +296,6 @@ export class PageResourceLoader extends Common.ObjectWrapper.ObjectWrapper {
     }
 }
 export function getLoadThroughTargetSetting() {
-    return Common.Settings.Settings.instance().createSetting('loadThroughTarget', true);
+    return Common.Settings.Settings.instance().createSetting('load-through-target', true);
 }
-// TODO(crbug.com/1167717): Make this a const enum again
-// eslint-disable-next-line rulesdir/const_enum
-export var Events;
-(function (Events) {
-    Events["Update"] = "Update";
-})(Events || (Events = {}));
 //# sourceMappingURL=PageResourceLoader.js.map

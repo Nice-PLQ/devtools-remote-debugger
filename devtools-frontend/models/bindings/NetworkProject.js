@@ -43,17 +43,10 @@ export class NetworkProjectManager extends Common.ObjectWrapper.ObjectWrapper {
         return networkProjectManagerInstance;
     }
 }
-// TODO(crbug.com/1167717): Make this a const enum again
-// eslint-disable-next-line rulesdir/const_enum
-export var Events;
-(function (Events) {
-    Events["FrameAttributionAdded"] = "FrameAttributionAdded";
-    Events["FrameAttributionRemoved"] = "FrameAttributionRemoved";
-})(Events || (Events = {}));
 export class NetworkProject {
     static resolveFrame(uiSourceCode, frameId) {
         const target = NetworkProject.targetForUISourceCode(uiSourceCode);
-        const resourceTreeModel = target && target.model(SDK.ResourceTreeModel.ResourceTreeModel);
+        const resourceTreeModel = target?.model(SDK.ResourceTreeModel.ResourceTreeModel);
         return resourceTreeModel ? resourceTreeModel.frameForId(frameId) : null;
     }
     static setInitialFrameAttribution(uiSourceCode, frameId) {
@@ -65,7 +58,7 @@ export class NetworkProject {
             return;
         }
         const attribution = new Map();
-        attribution.set(frameId, { frame: frame, count: 1 });
+        attribution.set(frameId, { frame, count: 1 });
         uiSourceCodeToAttributionMap.set(uiSourceCode, attribution);
     }
     static cloneInitialFrameAttribution(fromUISourceCode, toUISourceCode) {
@@ -91,14 +84,14 @@ export class NetworkProject {
         if (!frameAttribution) {
             return;
         }
-        const attributionInfo = frameAttribution.get(frameId) || { frame: frame, count: 0 };
+        const attributionInfo = frameAttribution.get(frameId) || { frame, count: 0 };
         attributionInfo.count += 1;
         frameAttribution.set(frameId, attributionInfo);
         if (attributionInfo.count !== 1) {
             return;
         }
-        const data = { uiSourceCode: uiSourceCode, frame: frame };
-        NetworkProjectManager.instance().dispatchEventToListeners(Events.FrameAttributionAdded, data);
+        const data = { uiSourceCode, frame };
+        NetworkProjectManager.instance().dispatchEventToListeners("FrameAttributionAdded" /* Events.FRAME_ATTRIBUTION_ADDED */, data);
     }
     static removeFrameAttribution(uiSourceCode, frameId) {
         const frameAttribution = uiSourceCodeToAttributionMap.get(uiSourceCode);
@@ -115,8 +108,8 @@ export class NetworkProject {
             return;
         }
         frameAttribution.delete(frameId);
-        const data = { uiSourceCode: uiSourceCode, frame: attributionInfo.frame };
-        NetworkProjectManager.instance().dispatchEventToListeners(Events.FrameAttributionRemoved, data);
+        const data = { uiSourceCode, frame: attributionInfo.frame };
+        NetworkProjectManager.instance().dispatchEventToListeners("FrameAttributionRemoved" /* Events.FRAME_ATTRIBUTION_REMOVED */, data);
     }
     static targetForUISourceCode(uiSourceCode) {
         return projectToTargetMap.get(uiSourceCode.project()) || null;
@@ -129,7 +122,7 @@ export class NetworkProject {
     }
     static framesForUISourceCode(uiSourceCode) {
         const target = NetworkProject.targetForUISourceCode(uiSourceCode);
-        const resourceTreeModel = target && target.model(SDK.ResourceTreeModel.ResourceTreeModel);
+        const resourceTreeModel = target?.model(SDK.ResourceTreeModel.ResourceTreeModel);
         const attribution = uiSourceCodeToAttributionMap.get(uiSourceCode);
         if (!resourceTreeModel || !attribution) {
             return [];

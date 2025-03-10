@@ -17,12 +17,11 @@ self.onmessage = function (event) {
             FormatterWorker.CSSRuleParser.parseCSS(params.content, self.postMessage);
             break;
         case "javaScriptSubstitute" /* FormatterActions.JAVASCRIPT_SUBSTITUTE */: {
-            const mapping = new Map(params.mapping);
-            self.postMessage(FormatterWorker.Substitute.substituteExpression(params.content, mapping));
+            self.postMessage(FormatterWorker.Substitute.substituteExpression(params.content, params.mapping));
             break;
         }
         case "javaScriptScopeTree" /* FormatterActions.JAVASCRIPT_SCOPE_TREE */: {
-            self.postMessage(FormatterWorker.ScopeParser.parseScopes(params.content)?.export());
+            self.postMessage(FormatterWorker.ScopeParser.parseScopes(params.content, params.sourceType)?.export());
             break;
         }
         case "evaluatableJavaScriptSubstring" /* FormatterActions.EVALUATE_JAVASCRIPT_SUBSTRING */:

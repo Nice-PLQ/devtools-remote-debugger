@@ -9,6 +9,7 @@ import * as IssuesManager from '../../models/issues_manager/issues_manager.js';
 import * as IconButton from '../../ui/components/icon_button/icon_button.js';
 import * as IssueCounter from '../../ui/components/issue_counter/issue_counter.js';
 import * as UI from '../../ui/legacy/legacy.js';
+import * as VisualLogging from '../../ui/visual_logging/visual_logging.js';
 const UIStrings = {
     /**
      *@description The console error count in the Warning Error Counter shown in the main toolbar (top-left in DevTools). The error count refers to the number of errors currently present in the JavaScript console.
@@ -40,10 +41,12 @@ export class WarningErrorCounter {
     constructor() {
         WarningErrorCounter.instanceForTest = this;
         const countersWrapper = document.createElement('div');
+        countersWrapper.classList.add('status-buttons');
         this.toolbarItem = new UI.Toolbar.ToolbarItemWithCompactLayout(countersWrapper);
         this.toolbarItem.setVisible(false);
-        this.toolbarItem.addEventListener("CompactLayoutUpdated" /* UI.Toolbar.ToolbarItemWithCompactLayoutEvents.CompactLayoutUpdated */, this.onSetCompactLayout, this);
+        this.toolbarItem.addEventListener("CompactLayoutUpdated" /* UI.Toolbar.ToolbarItemWithCompactLayoutEvents.COMPACT_LAYOUT_UPDATED */, this.onSetCompactLayout, this);
         this.consoleCounter = new IconButton.IconButton.IconButton();
+        this.consoleCounter.setAttribute('jslog', `${VisualLogging.counter('console').track({ click: true })}`);
         countersWrapper.appendChild(this.consoleCounter);
         this.consoleCounter.data = {
             clickHandler: Common.Console.Console.instance().show.bind(Common.Console.Console.instance()),
@@ -54,20 +57,22 @@ export class WarningErrorCounter {
         };
         const issuesManager = IssuesManager.IssuesManager.IssuesManager.instance();
         this.issueCounter = new IssueCounter.IssueCounter.IssueCounter();
+        this.issueCounter.classList.add('main-toolbar');
+        this.issueCounter.setAttribute('jslog', `${VisualLogging.counter('issue').track({ click: true })}`);
         countersWrapper.appendChild(this.issueCounter);
         this.issueCounter.data = {
             clickHandler: () => {
-                Host.userMetrics.issuesPanelOpenedFrom(Host.UserMetrics.IssueOpener.StatusBarIssuesCounter);
+                Host.userMetrics.issuesPanelOpenedFrom(2 /* Host.UserMetrics.IssueOpener.STATUS_BAR_ISSUES_COUNTER */);
                 void UI.ViewManager.ViewManager.instance().showView('issues-pane');
             },
             issuesManager,
-            displayMode: "OnlyMostImportant" /* IssueCounter.IssueCounter.DisplayMode.OnlyMostImportant */,
+            displayMode: "OnlyMostImportant" /* IssueCounter.IssueCounter.DisplayMode.ONLY_MOST_IMPORTANT */,
         };
         this.throttler = new Common.Throttler.Throttler(100);
         SDK.TargetManager.TargetManager.instance().addModelListener(SDK.ConsoleModel.ConsoleModel, SDK.ConsoleModel.Events.ConsoleCleared, this.update, this);
         SDK.TargetManager.TargetManager.instance().addModelListener(SDK.ConsoleModel.ConsoleModel, SDK.ConsoleModel.Events.MessageAdded, this.update, this);
         SDK.TargetManager.TargetManager.instance().addModelListener(SDK.ConsoleModel.ConsoleModel, SDK.ConsoleModel.Events.MessageUpdated, this.update, this);
-        issuesManager.addEventListener("IssuesCountUpdated" /* IssuesManager.IssuesManager.Events.IssuesCountUpdated */, this.update, this);
+        issuesManager.addEventListener("IssuesCountUpdated" /* IssuesManager.IssuesManager.Events.ISSUES_COUNT_UPDATED */, this.update, this);
         this.update();
     }
     onSetCompactLayout(event) {

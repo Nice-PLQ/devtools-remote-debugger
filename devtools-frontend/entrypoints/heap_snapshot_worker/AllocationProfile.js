@@ -29,8 +29,6 @@
  */
 import * as HeapSnapshotModel from '../../models/heap_snapshot_model/heap_snapshot_model.js';
 export class AllocationProfile {
-    // TODO(crbug.com/1172300) Ignored during the jsdoc to ts migration)
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     #strings;
     #nextNodeId;
     #functionInfos;
@@ -38,8 +36,6 @@ export class AllocationProfile {
     #idToTopDownNode;
     #collapsedTopNodeIdToFunctionInfo;
     #traceTops;
-    // TODO(crbug.com/1172300) Ignored during the jsdoc to ts migration)
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     constructor(profile, liveObjectStats) {
         this.#strings = profile.strings;
         this.#nextNodeId = 1;
@@ -51,8 +47,6 @@ export class AllocationProfile {
         this.#buildFunctionAllocationInfos(profile);
         this.#buildAllocationTree(profile, liveObjectStats);
     }
-    // TODO(crbug.com/1172300) Ignored during the jsdoc to ts migration)
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     #buildFunctionAllocationInfos(profile) {
         const strings = this.#strings;
         const functionInfoFields = profile.snapshot.meta.trace_function_info_fields;
@@ -70,8 +64,6 @@ export class AllocationProfile {
             functionInfos[index++] = new FunctionAllocationInfo(strings[rawInfos[i + functionNameOffset]], strings[rawInfos[i + scriptNameOffset]], rawInfos[i + scriptIdOffset], rawInfos[i + lineOffset], rawInfos[i + columnOffset]);
         }
     }
-    // TODO(crbug.com/1172300) Ignored during the jsdoc to ts migration)
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     #buildAllocationTree(profile, liveObjectStats) {
         const traceTreeRaw = profile.trace_tree;
         const functionInfos = this.#functionInfos;

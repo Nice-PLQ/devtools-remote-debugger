@@ -18,7 +18,7 @@ export class LogManager {
     }
     modelAdded(logModel) {
         const eventListeners = [];
-        eventListeners.push(logModel.addEventListener(SDK.LogModel.Events.EntryAdded, this.logEntryAdded, this));
+        eventListeners.push(logModel.addEventListener("EntryAdded" /* SDK.LogModel.Events.ENTRY_ADDED */, this.logEntryAdded, this));
         modelToEventListeners.set(logModel, eventListeners);
     }
     modelRemoved(logModel) {

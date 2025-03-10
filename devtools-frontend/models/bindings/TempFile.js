@@ -73,7 +73,7 @@ export class TempFile {
             return null;
         }
         const reader = new ChunkedFileReader(this.#lastBlob, 10 * 1000 * 1000, progress);
-        return reader.read(outputStream).then(success => success ? null : reader.error());
+        return await reader.read(outputStream).then(success => success ? null : reader.error());
     }
     remove() {
         this.#lastBlob = null;

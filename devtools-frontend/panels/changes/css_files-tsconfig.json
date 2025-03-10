@@ -5,6 +5,7 @@
     },
     "files": [
         "changesSidebar.css.js",
-        "changesView.css.js"
+        "changesView.css.js",
+        "combinedDiffView.css.js"
     ]
 }

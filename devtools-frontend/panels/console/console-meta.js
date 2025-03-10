@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 import * as Common from '../../core/common/common.js';
-import * as UI from '../../ui/legacy/legacy.js';
 import * as i18n from '../../core/i18n/i18n.js';
+import * as UI from '../../ui/legacy/legacy.js';
 const UIStrings = {
     /**
      *@description Title of the Console tool
@@ -13,6 +13,10 @@ const UIStrings = {
      *@description Title of an action that shows the console.
      */
     showConsole: 'Show Console',
+    /**
+     *@description Title of an action that toggles the console.
+     */
+    toggleConsole: 'Toggle Console',
     /**
      *@description Text to clear the console
      */
@@ -49,6 +53,10 @@ const UIStrings = {
      *@description Title of a setting under the Console category in Settings
      */
     logXmlhttprequests: 'Log XMLHttpRequests',
+    /**
+     *@description Title of a setting under the Console category
+     */
+    timestamps: 'Timestamps',
     /**
      *@description Title of a setting under the Console category that can be invoked through the Command Menu
      */
@@ -161,12 +169,12 @@ UI.ViewManager.registerViewExtension({
     },
 });
 UI.ActionRegistration.registerActionExtension({
-    actionId: 'console.show',
-    category: UI.ActionRegistration.ActionCategory.CONSOLE,
-    title: i18nLazyString(UIStrings.showConsole),
+    actionId: 'console.toggle',
+    category: "CONSOLE" /* UI.ActionRegistration.ActionCategory.CONSOLE */,
+    title: i18nLazyString(UIStrings.toggleConsole),
     async loadActionDelegate() {
         const Console = await loadConsoleModule();
-        return Console.ConsoleView.ActionDelegate.instance();
+        return new Console.ConsoleView.ActionDelegate();
     },
     bindings: [
         {
@@ -180,12 +188,12 @@ UI.ActionRegistration.registerActionExtension({
 });
 UI.ActionRegistration.registerActionExtension({
     actionId: 'console.clear',
-    category: UI.ActionRegistration.ActionCategory.CONSOLE,
+    category: "CONSOLE" /* UI.ActionRegistration.ActionCategory.CONSOLE */,
     title: i18nLazyString(UIStrings.clearConsole),
     iconClass: "clear" /* UI.ActionRegistration.IconClass.CLEAR */,
     async loadActionDelegate() {
         const Console = await loadConsoleModule();
-        return Console.ConsoleView.ActionDelegate.instance();
+        return new Console.ConsoleView.ActionDelegate();
     },
     contextTypes() {
         return maybeRetrieveContextTypes(Console => [Console.ConsoleView.ConsoleView]);
@@ -196,35 +204,35 @@ UI.ActionRegistration.registerActionExtension({
         },
         {
             shortcut: 'Meta+K',
-            platform: "mac" /* UI.ActionRegistration.Platforms.Mac */,
+            platform: "mac" /* UI.ActionRegistration.Platforms.MAC */,
         },
     ],
 });
 UI.ActionRegistration.registerActionExtension({
     actionId: 'console.clear.history',
-    category: UI.ActionRegistration.ActionCategory.CONSOLE,
+    category: "CONSOLE" /* UI.ActionRegistration.ActionCategory.CONSOLE */,
     title: i18nLazyString(UIStrings.clearConsoleHistory),
     async loadActionDelegate() {
         const Console = await loadConsoleModule();
-        return Console.ConsoleView.ActionDelegate.instance();
+        return new Console.ConsoleView.ActionDelegate();
     },
 });
 UI.ActionRegistration.registerActionExtension({
     actionId: 'console.create-pin',
-    category: UI.ActionRegistration.ActionCategory.CONSOLE,
+    category: "CONSOLE" /* UI.ActionRegistration.ActionCategory.CONSOLE */,
     title: i18nLazyString(UIStrings.createLiveExpression),
     iconClass: "eye" /* UI.ActionRegistration.IconClass.EYE */,
     async loadActionDelegate() {
         const Console = await loadConsoleModule();
-        return Console.ConsoleView.ActionDelegate.instance();
+        return new Console.ConsoleView.ActionDelegate();
     },
 });
 Common.Settings.registerSettingExtension({
-    category: Common.Settings.SettingCategory.CONSOLE,
-    storageType: Common.Settings.SettingStorageType.Synced,
+    category: "CONSOLE" /* Common.Settings.SettingCategory.CONSOLE */,
+    storageType: "Synced" /* Common.Settings.SettingStorageType.SYNCED */,
     title: i18nLazyString(UIStrings.hideNetworkMessages),
-    settingName: 'hideNetworkMessages',
-    settingType: Common.Settings.SettingType.BOOLEAN,
+    settingName: 'hide-network-messages',
+    settingType: "boolean" /* Common.Settings.SettingType.BOOLEAN */,
     defaultValue: false,
     options: [
         {
@@ -238,11 +246,11 @@ Common.Settings.registerSettingExtension({
     ],
 });
 Common.Settings.registerSettingExtension({
-    category: Common.Settings.SettingCategory.CONSOLE,
-    storageType: Common.Settings.SettingStorageType.Synced,
+    category: "CONSOLE" /* Common.Settings.SettingCategory.CONSOLE */,
+    storageType: "Synced" /* Common.Settings.SettingStorageType.SYNCED */,
     title: i18nLazyString(UIStrings.selectedContextOnly),
-    settingName: 'selectedContextFilterEnabled',
-    settingType: Common.Settings.SettingType.BOOLEAN,
+    settingName: 'selected-context-filter-enabled',
+    settingType: "boolean" /* Common.Settings.SettingType.BOOLEAN */,
     defaultValue: false,
     options: [
         {
@@ -256,19 +264,19 @@ Common.Settings.registerSettingExtension({
     ],
 });
 Common.Settings.registerSettingExtension({
-    category: Common.Settings.SettingCategory.CONSOLE,
-    storageType: Common.Settings.SettingStorageType.Synced,
+    category: "CONSOLE" /* Common.Settings.SettingCategory.CONSOLE */,
+    storageType: "Synced" /* Common.Settings.SettingStorageType.SYNCED */,
     title: i18nLazyString(UIStrings.logXmlhttprequests),
-    settingName: 'monitoringXHREnabled',
-    settingType: Common.Settings.SettingType.BOOLEAN,
+    settingName: 'monitoring-xhr-enabled',
+    settingType: "boolean" /* Common.Settings.SettingType.BOOLEAN */,
     defaultValue: false,
 });
 Common.Settings.registerSettingExtension({
-    category: Common.Settings.SettingCategory.CONSOLE,
-    storageType: Common.Settings.SettingStorageType.Synced,
-    title: i18nLazyString(UIStrings.showTimestamps),
-    settingName: 'consoleTimestampsEnabled',
-    settingType: Common.Settings.SettingType.BOOLEAN,
+    category: "CONSOLE" /* Common.Settings.SettingCategory.CONSOLE */,
+    storageType: "Synced" /* Common.Settings.SettingStorageType.SYNCED */,
+    title: i18nLazyString(UIStrings.timestamps),
+    settingName: 'console-timestamps-enabled',
+    settingType: "boolean" /* Common.Settings.SettingType.BOOLEAN */,
     defaultValue: false,
     options: [
         {
@@ -282,10 +290,10 @@ Common.Settings.registerSettingExtension({
     ],
 });
 Common.Settings.registerSettingExtension({
-    category: Common.Settings.SettingCategory.CONSOLE,
+    category: "CONSOLE" /* Common.Settings.SettingCategory.CONSOLE */,
     title: i18nLazyString(UIStrings.autocompleteFromHistory),
-    settingName: 'consoleHistoryAutocomplete',
-    settingType: Common.Settings.SettingType.BOOLEAN,
+    settingName: 'console-history-autocomplete',
+    settingType: "boolean" /* Common.Settings.SettingType.BOOLEAN */,
     defaultValue: true,
     options: [
         {
@@ -299,11 +307,11 @@ Common.Settings.registerSettingExtension({
     ],
 });
 Common.Settings.registerSettingExtension({
-    category: Common.Settings.SettingCategory.CONSOLE,
-    storageType: Common.Settings.SettingStorageType.Synced,
+    category: "CONSOLE" /* Common.Settings.SettingCategory.CONSOLE */,
+    storageType: "Synced" /* Common.Settings.SettingStorageType.SYNCED */,
     title: i18nLazyString(UIStrings.autocompleteOnEnter),
-    settingName: 'consoleAutocompleteOnEnter',
-    settingType: Common.Settings.SettingType.BOOLEAN,
+    settingName: 'console-autocomplete-on-enter',
+    settingType: "boolean" /* Common.Settings.SettingType.BOOLEAN */,
     defaultValue: false,
     options: [
         {
@@ -317,11 +325,11 @@ Common.Settings.registerSettingExtension({
     ],
 });
 Common.Settings.registerSettingExtension({
-    category: Common.Settings.SettingCategory.CONSOLE,
-    storageType: Common.Settings.SettingStorageType.Synced,
+    category: "CONSOLE" /* Common.Settings.SettingCategory.CONSOLE */,
+    storageType: "Synced" /* Common.Settings.SettingStorageType.SYNCED */,
     title: i18nLazyString(UIStrings.groupSimilarMessagesInConsole),
-    settingName: 'consoleGroupSimilar',
-    settingType: Common.Settings.SettingType.BOOLEAN,
+    settingName: 'console-group-similar',
+    settingType: "boolean" /* Common.Settings.SettingType.BOOLEAN */,
     defaultValue: true,
     options: [
         {
@@ -335,10 +343,10 @@ Common.Settings.registerSettingExtension({
     ],
 });
 Common.Settings.registerSettingExtension({
-    category: Common.Settings.SettingCategory.CONSOLE,
+    category: "CONSOLE" /* Common.Settings.SettingCategory.CONSOLE */,
     title: i18nLazyString(UIStrings.showCorsErrorsInConsole),
-    settingName: 'consoleShowsCorsErrors',
-    settingType: Common.Settings.SettingType.BOOLEAN,
+    settingName: 'console-shows-cors-errors',
+    settingType: "boolean" /* Common.Settings.SettingType.BOOLEAN */,
     defaultValue: true,
     options: [
         {
@@ -352,11 +360,11 @@ Common.Settings.registerSettingExtension({
     ],
 });
 Common.Settings.registerSettingExtension({
-    category: Common.Settings.SettingCategory.CONSOLE,
-    storageType: Common.Settings.SettingStorageType.Synced,
+    category: "CONSOLE" /* Common.Settings.SettingCategory.CONSOLE */,
+    storageType: "Synced" /* Common.Settings.SettingStorageType.SYNCED */,
     title: i18nLazyString(UIStrings.eagerEvaluation),
-    settingName: 'consoleEagerEval',
-    settingType: Common.Settings.SettingType.BOOLEAN,
+    settingName: 'console-eager-eval',
+    settingType: "boolean" /* Common.Settings.SettingType.BOOLEAN */,
     defaultValue: true,
     options: [
         {
@@ -370,11 +378,11 @@ Common.Settings.registerSettingExtension({
     ],
 });
 Common.Settings.registerSettingExtension({
-    category: Common.Settings.SettingCategory.CONSOLE,
-    storageType: Common.Settings.SettingStorageType.Synced,
+    category: "CONSOLE" /* Common.Settings.SettingCategory.CONSOLE */,
+    storageType: "Synced" /* Common.Settings.SettingStorageType.SYNCED */,
     title: i18nLazyString(UIStrings.evaluateTriggersUserActivation),
-    settingName: 'consoleUserActivationEval',
-    settingType: Common.Settings.SettingType.BOOLEAN,
+    settingName: 'console-user-activation-eval',
+    settingType: "boolean" /* Common.Settings.SettingType.BOOLEAN */,
     defaultValue: true,
     options: [
         {
@@ -388,11 +396,11 @@ Common.Settings.registerSettingExtension({
     ],
 });
 Common.Settings.registerSettingExtension({
-    category: Common.Settings.SettingCategory.CONSOLE,
-    storageType: Common.Settings.SettingStorageType.Synced,
+    category: "CONSOLE" /* Common.Settings.SettingCategory.CONSOLE */,
+    storageType: "Synced" /* Common.Settings.SettingStorageType.SYNCED */,
     title: i18nLazyString(UIStrings.expandConsoleTraceMessagesByDefault),
-    settingName: 'consoleTraceExpand',
-    settingType: Common.Settings.SettingType.BOOLEAN,
+    settingName: 'console-trace-expand',
+    settingType: "boolean" /* Common.Settings.SettingType.BOOLEAN */,
     defaultValue: true,
     options: [
         {
@@ -411,10 +419,10 @@ Common.Revealer.registerRevealer({
             Common.Console.Console,
         ];
     },
+    destination: undefined,
     async loadRevealer() {
         const Console = await loadConsoleModule();
-        return Console.ConsolePanel.ConsoleRevealer.instance();
+        return new Console.ConsolePanel.ConsoleRevealer();
     },
-    destination: undefined,
 });
 //# sourceMappingURL=console-meta.js.map

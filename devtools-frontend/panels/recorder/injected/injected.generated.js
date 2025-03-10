@@ -1,1 +1,1417 @@
-!function(){"use strict";const e=()=>{};class t{#e;#t;#n;constructor(t){if("silent"===t)this.#e=e,this.#t=e,this.#n=e;else this.#e=console.log,this.#t=console.time,this.#n=console.timeEnd}log(...e){this.#e(...e)}timed(e,t){this.#t(e);const n=t();return this.#n(e),n}}class n{#o=new WeakMap;#r=1;getOrInsert=e=>{const t=this.#o.get(e);return void 0!==t?t:(this.#o.set(e,this.#r),this.#r++,this.#r-1)}}class o{#i;constructor(e){this.#i=e}#s=(e,t)=>{const n=[];let o=document;for(const r of e){let e=this.#c(o,r.name);if(e)n.push(r.name),o=e;else if(t&&(e=this.#l(o,r.role),e))n.push(`[role="${r.role}"]`),o=e;else{if(e=this.#a(o,r.name,r.role),!e)return;n.push(`${r.name}[role="${r.role}"]`),o=e}}return n};#c=(e,t)=>{if(!t)return null;const n=this.#d(e,t);return 1!==n.length?null:n[0]};#l=(e,t)=>{if(!t)return null;const n=this.#d(e,void 0,t);return 1!==n.length?null:n[0]};#a=(e,t,n)=>{if(!n||!t)return null;const o=this.#d(e,t,n);return 1!==o.length?null:o[0]};#d=(e,t,n)=>{const o=[];if(!t&&!n)throw new Error("Both role and name are empty");const r=Boolean(t),i=Boolean(n),s=e=>{const c=document.createTreeWalker(e,NodeFilter.SHOW_ELEMENT);do{const e=c.currentNode;e.shadowRoot&&s(e.shadowRoot),e instanceof ShadowRoot||(r&&this.#i.getAccessibleName(e)!==t||i&&this.#i.getAccessibleRole(e)!==n||o.push(e))}while(c.nextNode())};return s(e instanceof Document?document.documentElement:e),o};compute=e=>{let t,n=e;const o=[];for(;n;){const r=this.#i.getAccessibleRole(n),i=this.#i.getAccessibleName(n);if(r||i){if(o.unshift({name:i,role:r}),t=this.#s(o,n!==e),t)break;n!==e&&o.shift()}else if(n===e)break;n=n.parentNode,n instanceof ShadowRoot&&(n=n.host)}return t}}class r{value;optimized;constructor(e,t){this.value=e,this.optimized=t||!1}toString(){return this.value}}const i=e=>`#${CSS.escape(e)}`,s=(e,t)=>`[${e}='${CSS.escape(t)}']`,c=(e,t=[])=>{if(!(e instanceof Element))return;for(const n of t){const t=e.getAttribute(n);if(t)return new r(s(n,t),!0)}if((e=>Boolean(e.id)&&1===e.getRootNode().querySelectorAll(i(e.id)).length)(e))return new r(i(e.id),!0);const n=e.tagName.toLowerCase();switch(e.tagName){case"BODY":case"HEAD":case"HTML":return new r(n,!0)}const o=e.parentNode;if(!o)return new r(n,!0);const c=o.children;if(((e,t)=>{for(const n of t)if(n!==e&&n.tagName===e.tagName)return!1;return!0})(e,c))return new r(n,!0);if(e instanceof HTMLInputElement&&((e,t)=>{for(const n of t)if(n!==e&&n instanceof HTMLInputElement&&n.type===e.type)return!1;return!0})(e,c))return new r(((e,t)=>`${e}${s("type",t)}`)(n,e.type),!0);const l=((e,t)=>{const n=new Set(e.classList);for(const o of t)if(o!==e){for(const e of o.classList)n.delete(e);if(0===n.size)break}if(n.size>0)return n.values().next().value})(e,c);return void 0!==l?new r(((e,t)=>`${e}.${CSS.escape(t)}`)(n,l),!0):new r(((e,t)=>`${e}:nth-of-type(${t+1})`)(n,((e,t)=>{let n=0;for(const o of t){if(o===e)return n;o.tagName===e.tagName&&++n}throw new Error("Node not found in children")})(e,c)),!1)},l=([e,t],n)=>{n.self??=e=>e;let o,r,i=n.inc(e);do{for(o=n.valueOf(e),r=!0;i!==t;)if(e=n.self(i),i=n.inc(e),!n.gte(o,i)){r=!1;break}}while(!r);return o};class a{#u=[[]];#h;#f=0;constructor(e=[]){this.#h=e}inc(e){return e.parentNode??e.getRootNode()}valueOf(e){const t=c(e,this.#h);if(!t)throw new Error("Node is not an element");return this.#f>1?this.#u.unshift([t]):this.#u[0].unshift(t),this.#f=0,this.#u.map((e=>e.join(" > "))).join(" ")}gte(e,t){return++this.#f,1===t.querySelectorAll(e).length}}const d=(e,t)=>{const n=[],o=e=>{const r=document.createTreeWalker(e,NodeFilter.SHOW_ELEMENT);do{const i=r.currentNode;i.shadowRoot&&o(i.shadowRoot),i instanceof ShadowRoot||i!==e&&i.matches(t)&&n.push(i)}while(r.nextNode())};return e instanceof Document&&(e=e.documentElement),o(e),n};class u{#g=[[]];#h;#f=0;constructor(e=[]){this.#h=e}inc(e){return e.getRootNode()}self(e){return e instanceof ShadowRoot?e.host:e}valueOf(e){const t=l([e,e.getRootNode()],new a(this.#h));return this.#f>1?this.#g.unshift([t]):this.#g[0].unshift(t),this.#f=0,this.#g}gte(e,t){return++this.#f,1===d(t,e[0][0]).length}}const h=new Set(["checkbox","image","radio"]),f=new Set(["SCRIPT","STYLE"]),g=e=>!f.has(e.nodeName)&&!document.head?.contains(e),p=new WeakMap,m=e=>{for(;e;)p.delete(e),e=e instanceof ShadowRoot?e.host:e.parentNode},w=new WeakSet,E=new MutationObserver((e=>{for(const t of e)m(t.target)})),T=e=>{let t=p.get(e);if(t)return t;if(t={full:"",immediate:[]},!g(e))return t;let n="";if((o=e)instanceof HTMLSelectElement||o instanceof HTMLTextAreaElement||o instanceof HTMLInputElement&&!h.has(o.type))t.full=e.value,t.immediate.push(e.value),e.addEventListener("input",(e=>{m(e.target)}),{once:!0,capture:!0});else{for(let o=e.firstChild;o;o=o.nextSibling)o.nodeType!==Node.TEXT_NODE?(n&&t.immediate.push(n),n="",o.nodeType===Node.ELEMENT_NODE&&(t.full+=T(o).full)):(t.full+=o.nodeValue??"",n+=o.nodeValue??"");n&&t.immediate.push(n),e instanceof Element&&e.shadowRoot&&(t.full+=T(e.shadowRoot).full),w.has(e)||(E.observe(e,{childList:!0,characterData:!0}),w.add(e))}var o;return p.set(e,t),t},S=function*(e,t){let n=!1;for(const o of e.childNodes)if(o instanceof Element&&g(o)){let e;e=o.shadowRoot?S(o.shadowRoot,t):S(o,t);for(const t of e)yield t,n=!0}if(!n&&e instanceof Element&&g(e)){T(e).full.includes(t)&&(yield e)}},y=(e,t=1/0)=>{const n=[];for(const o of e){if(t<=0)break;n.push(o),--t}return n},N=(e,t)=>`//*[@${e}=${JSON.stringify(t)}]`,v=(e,t,n=[])=>{let o;switch(e.nodeType){case Node.ELEMENT_NODE:if(!(e instanceof Element))return;if(t)for(const t of n)if(o=e.getAttribute(t)??"",o)return new r(N(t,o),!0);if(e.id)return new r(N("id",e.id),!0);o=e.localName;break;case Node.ATTRIBUTE_NODE:o="@"+e.nodeName;break;case Node.TEXT_NODE:case Node.CDATA_SECTION_NODE:o="text()";break;case Node.PROCESSING_INSTRUCTION_NODE:o="processing-instruction()";break;case Node.COMMENT_NODE:o="comment()";break;case Node.DOCUMENT_NODE:default:o=""}const i=b(e);return i>0&&(o+=`[${i}]`),new r(o,e.nodeType===Node.DOCUMENT_NODE)},b=e=>{function t(e,t){if(e===t)return!0;if(e instanceof Element&&t instanceof Element)return e.localName===t.localName;if(e.nodeType===t.nodeType)return!0;return(e.nodeType===Node.CDATA_SECTION_NODE?Node.TEXT_NODE:e.nodeType)===(t.nodeType===Node.CDATA_SECTION_NODE?Node.TEXT_NODE:t.nodeType)}const n=e.parentNode?e.parentNode.children:null;if(!n)return 0;let o;for(let r=0;r<n.length;++r)if(t(e,n[r])&&n[r]!==e){o=!0;break}if(!o)return 0;let r=1;for(let o=0;o<n.length;++o)if(t(e,n[o])){if(n[o]===e)return r;++r}throw new Error("This is impossible; a child must be the child of the parent")},k=(e,t)=>{if(void 0!==e)return"string"==typeof e?`${t}/${e}`:e.map((e=>`${t}/${e}`))};class C{#p=["data-testid","data-test","data-qa","data-cy","data-test-id","data-qa-id","data-testing"];#i;#m;#w=new n;#E;constructor(e,t,n="",o){this.#i=e,this.#m=t;let r=["aria","css","xpath","pierce","text"];n&&(this.#p.unshift(n),r=["css","xpath","pierce","aria","text"]),this.#E=r.filter((e=>!o||o.includes(e))).map((e=>{switch(e){case"css":return this.getCSSSelector.bind(this);case"xpath":return this.getXPathSelector.bind(this);case"pierce":return this.getPierceSelector.bind(this);case"aria":return this.getARIASelector.bind(this);case"text":return this.getTextSelector.bind(this);default:throw new Error("Unknown selector type: "+e)}}))}getSelectors(e){const t=[];for(const n of this.#E){const o=n(e);o&&t.push(o)}return t}getCSSSelector(e){return this.#m.timed(`getCSSSelector: ${this.#w.getOrInsert(e)} ${e.nodeName}`,(()=>((e,t)=>{const n=[];try{let o;for(;e instanceof Element;)o=e.getRootNode(),n.unshift(l([e,o],new a(t))),e=o instanceof ShadowRoot?o.host:o}catch{return}return n})(e,this.#p)))}getTextSelector(e){return this.#m.timed(`getTextSelector: ${this.#w.getOrInsert(e)} ${e.nodeName}`,(()=>k((e=>{const t=T(e).full.trim();if(!t)return;if(t.length<=12){const n=y(S(document,t),2);if(1!==n.length||n[0]!==e)return;return[t]}if(t.length>64)return;let n=12,o=t.length;for(;n<=o;){const r=n+(o-n>>2),i=y(S(document,t.slice(0,r)),2);1!==i.length||i[0]!==e?n=r+1:o=r-1}if(o===t.length)return;const r=o+1,i=t.slice(r,r+64);return[t.slice(0,r+i.search(/ |$/))]})(e),"text")))}getXPathSelector(e){return this.#m.timed(`getXPathSelector: ${this.#w.getOrInsert(e)} ${e.nodeName}`,(()=>k(((e,t,n)=>{if(e.nodeType===Node.DOCUMENT_NODE)return"/";const o=[],r=[];let i=e;for(;i!==document&&i;){const e=v(i,t,n);if(!e)return;r.unshift(e),i=e.optimized?i.getRootNode():i.parentNode,i instanceof ShadowRoot&&(o.unshift((r[0].optimized?"":"/")+r.join("/")),r.splice(0,r.length),i=i.host)}return r.length&&o.unshift((r[0].optimized?"":"/")+r.join("/")),!o.length||o.length>1?void 0:o})(e,!0,this.#p),"xpath")))}getPierceSelector(e){return this.#m.timed(`getPierceSelector: ${this.#w.getOrInsert(e)} ${e.nodeName}`,(()=>k(((e,t)=>{try{const n=new u(t);return l([e,document],n).flat()}catch{return}})(e,this.#p),"pierce")))}getARIASelector(e){return this.#m.timed(`getARIASelector: ${this.#w.getOrInsert(e)} ${e.nodeName}`,(()=>k(((e,t)=>new o(t).compute(e))(e,this.#i),"aria")))}}const I=e=>{e.preventDefault(),e.stopImmediatePropagation()},O=(e,t)=>{const n=t.getBoundingClientRect();return{offsetX:e.clientX-n.x,offsetY:e.clientY-n.y}},A=e=>{for(const t of e.composedPath()){if(!(t instanceof Element))continue;const e=t.getBoundingClientRect();if(0!==e.width&&0!==e.height)return t}throw new Error(`No target is found in event of type ${e.type}`)},R=e=>Object.values(e).filter((e=>Boolean(e))).length.toString();class D{static defaultSetupOptions=Object.freeze({debug:!1,allowUntrustedEvents:!1,selectorTypesToRecord:["aria","css","text","xpath","pierce"]});#T;#S=e=>e.isTrusted;#y=[];#m;constructor(e,n=D.defaultSetupOptions){this.#m=new t(n.debug?"debug":"silent"),this.#m.log("creating a RecordingClient"),this.#T=new C(e,this.#m,n.selectorAttribute,n.selectorTypesToRecord),n.allowUntrustedEvents&&(this.#S=()=>!0),this.#y=n.stopShortcuts??[]}start=()=>{this.#m.log("Setting up recording listeners"),window.addEventListener("keydown",this.#N,!0),window.addEventListener("beforeinput",this.#v,!0),window.addEventListener("input",this.#b,!0),window.addEventListener("keyup",this.#k,!0),window.addEventListener("pointerdown",this.#C,!0),window.addEventListener("click",this.#I,!0),window.addEventListener("auxclick",this.#I,!0),window.addEventListener("beforeunload",this.#O,!0)};stop=()=>{this.#m.log("Tearing down client listeners"),window.removeEventListener("keydown",this.#N,!0),window.removeEventListener("beforeinput",this.#v,!0),window.removeEventListener("input",this.#b,!0),window.removeEventListener("keyup",this.#k,!0),window.removeEventListener("pointerdown",this.#C,!0),window.removeEventListener("click",this.#I,!0),window.removeEventListener("auxclick",this.#I,!0),window.removeEventListener("beforeunload",this.#O,!0)};getSelectors=e=>this.#T.getSelectors(e);getCSSSelector=e=>this.#T.getCSSSelector(e);getTextSelector=e=>this.#T.getTextSelector(e);queryCSSSelectorAllForTesting=e=>(e=>{if("string"==typeof e)e=[e];else if(0===e.length)return[];let t=[[document.documentElement]];do{const n=e.shift(),o=[];for(const e of t)for(const t of e){const e=(t.shadowRoot??t).querySelectorAll(n);e.length>0&&o.push(e)}t=o}while(e.length>0&&t.length>0);return t.flatMap((e=>[...e]))})(e);#A=e=>{for(const t of this.#y??[])if(e.shiftKey===t.shift&&e.ctrlKey===t.ctrl&&e.metaKey===t.meta&&e.keyCode===t.keyCode)return this.stop(),I(e),window.stopShortcut(R(t)),!0;return!1};#R={element:document.documentElement,selectors:[]};#D=e=>{const t=e.composedPath()[0];!function(e){if(!e)throw new Error("Assertion failed!")}(t instanceof Element),this.#R.element!==t&&(this.#R={element:t,selectors:this.getSelectors(t)})};#N=e=>{this.#S(e)&&(this.#A(e)||(this.#D(e),this.#L({type:"keyDown",key:e.key})))};#v=e=>{this.#S(e)&&this.#D(e)};#b=e=>{if(!this.#S(e))return;if(this.#D(e),(e=>{if(e instanceof HTMLInputElement)switch(e.type){case"checkbox":case"radio":return!0}return!1})(this.#R.element))return;const{element:t,selectors:n}=this.#R;this.#L({type:"change",selectors:n,value:"value"in t?t.value:t.textContent})};#k=e=>{this.#S(e)&&this.#L({type:"keyUp",key:e.key})};#P={element:document.documentElement,selectors:[]};#x=e=>{const t=A(e);this.#P.element!==t&&(this.#P={element:t,selectors:this.#T.getSelectors(t)})};#$=0;#C=e=>{this.#S(e)&&(this.#$=e.timeStamp,this.#x(e))};#I=e=>{if(!this.#S(e))return;this.#x(e);const t=((e,t)=>{let n;if(e instanceof PointerEvent)switch(e.pointerType){case"mouse":break;case"pen":case"touch":n=e.pointerType;break;default:return}const{offsetX:o,offsetY:r}=O(e,t);if(!(o<0||r<0))return{button:["auxiliary","secondary","back","forward"][e.button-1],deviceType:n,offsetX:o,offsetY:r}})(e,this.#P.element);if(!t)return;const n=e.timeStamp-this.#$;this.#L({type:2===e.detail?"doubleClick":"click",selectors:this.#P.selectors,duration:n>350?n:void 0,...t})};#O=e=>{this.#m.log("Unloading..."),this.#S(e)&&this.#L({type:"beforeUnload"})};#L=e=>{const t=JSON.stringify(e);this.#m.log(`Adding step: ${t}`),window.addStep(t)}}class L{#m;#T;constructor(e,n="",o=!0){this.#m=new t(o?"debug":"silent"),this.#m.log("Creating a SelectorPicker"),this.#T=new C(e,this.#m,n)}#B=e=>{I(e);const t=A(e);window.captureSelectors(JSON.stringify({selectors:this.#T.getSelectors(t),...O(e,t)}))};start=()=>{this.#m.log("Setting up selector listeners"),window.addEventListener("click",this.#B,!0),window.addEventListener("mousedown",I,!0),window.addEventListener("mouseup",I,!0)};stop=()=>{this.#m.log("Tearing down selector listeners"),window.removeEventListener("click",this.#B,!0),window.removeEventListener("mousedown",I,!0),window.removeEventListener("mouseup",I,!0)}}class P{#_;startRecording(e,t){if(this.#_)throw new Error("Recording client already started.");if(this.#M)throw new Error("Selector picker is active.");this.#_=new D(e,t),this.#_.start()}stopRecording(){if(!this.#_)throw new Error("Recording client was not started.");this.#_.stop(),this.#_=void 0}get recordingClientForTesting(){if(!this.#_)throw new Error("Recording client was not started.");return this.#_}#M;startSelectorPicker(e,t,n){if(this.#M)throw new Error("Selector picker already started.");this.#_&&this.#_.stop(),this.#M=new L(e,t,n),this.#M.start()}stopSelectorPicker(){if(!this.#M)throw new Error("Selector picker was not started.");this.#M.stop(),this.#M=void 0,this.#_&&this.#_.start()}}window.DevToolsRecorder||(window.DevToolsRecorder=new P)}();
+(function () {
+    'use strict';
+
+    // Copyright 2023 The Chromium Authors. All rights reserved.
+    // Use of this source code is governed by a BSD-style license that can be
+    // found in the LICENSE file.
+    const noop = () => void 0;
+    class Logger {
+        #log;
+        #time;
+        #timeEnd;
+        constructor(level) {
+            switch (level) {
+                case 'silent':
+                    this.#log = noop;
+                    this.#time = noop;
+                    this.#timeEnd = noop;
+                    break;
+                default:
+                    // eslint-disable-next-line no-console
+                    this.#log = console.log;
+                    this.#time = console.time;
+                    this.#timeEnd = console.timeEnd;
+                    break;
+            }
+        }
+        log(...args) {
+            this.#log(...args);
+        }
+        timed(label, action) {
+            this.#time(label);
+            const value = action();
+            this.#timeEnd(label);
+            return value;
+        }
+    }
+
+    // Copyright 2023 The Chromium Authors. All rights reserved.
+    // Use of this source code is governed by a BSD-style license that can be
+    // found in the LICENSE file.
+    class MonotonicArray {
+        #values = new WeakMap();
+        #nextId = 1;
+        getOrInsert = (node) => {
+            const value = this.#values.get(node);
+            if (value !== undefined) {
+                return value;
+            }
+            this.#values.set(node, this.#nextId);
+            this.#nextId++;
+            return this.#nextId - 1;
+        };
+    }
+
+    // Copyright 2023 The Chromium Authors. All rights reserved.
+    // Use of this source code is governed by a BSD-style license that can be
+    // found in the LICENSE file.
+    class ARIASelectorComputer {
+        #bindings;
+        constructor(bindings) {
+            this.#bindings = bindings;
+        }
+        // Takes a path consisting of element names and roles and makes sure that
+        // every element resolves to a single result. If it does, the selector is added
+        // to the chain of selectors.
+        #computeUniqueARIASelectorForElements = (elements, queryByRoleOnly) => {
+            const selectors = [];
+            let parent = document;
+            for (const element of elements) {
+                let result = this.#queryA11yTreeOneByName(parent, element.name);
+                if (result) {
+                    selectors.push(element.name);
+                    parent = result;
+                    continue;
+                }
+                if (queryByRoleOnly) {
+                    result = this.#queryA11yTreeOneByRole(parent, element.role);
+                    if (result) {
+                        selectors.push(`[role="${element.role}"]`);
+                        parent = result;
+                        continue;
+                    }
+                }
+                result = this.#queryA11yTreeOneByNameAndRole(parent, element.name, element.role);
+                if (result) {
+                    selectors.push(`${element.name}[role="${element.role}"]`);
+                    parent = result;
+                    continue;
+                }
+                return;
+            }
+            return selectors;
+        };
+        #queryA11yTreeOneByName = (parent, name) => {
+            if (!name) {
+                return null;
+            }
+            const maxResults = 2;
+            const result = this.#queryA11yTree(parent, name, undefined, maxResults);
+            if (result.length !== 1) {
+                return null;
+            }
+            return result[0];
+        };
+        #queryA11yTreeOneByRole = (parent, role) => {
+            if (!role) {
+                return null;
+            }
+            const maxResults = 2;
+            const result = this.#queryA11yTree(parent, undefined, role, maxResults);
+            if (result.length !== 1) {
+                return null;
+            }
+            return result[0];
+        };
+        #queryA11yTreeOneByNameAndRole = (parent, name, role) => {
+            if (!role || !name) {
+                return null;
+            }
+            const maxResults = 2;
+            const result = this.#queryA11yTree(parent, name, role, maxResults);
+            if (result.length !== 1) {
+                return null;
+            }
+            return result[0];
+        };
+        // Queries the DOM tree for elements with matching accessibility name and role.
+        // It attempts to mimic https://chromedevtools.github.io/devtools-protocol/tot/Accessibility/#method-queryAXTree.
+        #queryA11yTree = (parent, name, role, maxResults = 0) => {
+            const result = [];
+            if (!name && !role) {
+                throw new Error('Both role and name are empty');
+            }
+            const shouldMatchName = Boolean(name);
+            const shouldMatchRole = Boolean(role);
+            const collect = (root) => {
+                const iter = document.createTreeWalker(root, NodeFilter.SHOW_ELEMENT);
+                do {
+                    const currentNode = iter.currentNode;
+                    if (currentNode.shadowRoot) {
+                        collect(currentNode.shadowRoot);
+                    }
+                    if (currentNode instanceof ShadowRoot) {
+                        continue;
+                    }
+                    if (shouldMatchName && this.#bindings.getAccessibleName(currentNode) !== name) {
+                        continue;
+                    }
+                    if (shouldMatchRole && this.#bindings.getAccessibleRole(currentNode) !== role) {
+                        continue;
+                    }
+                    result.push(currentNode);
+                    if (maxResults && result.length >= maxResults) {
+                        return;
+                    }
+                } while (iter.nextNode());
+            };
+            collect(parent instanceof Document ? document.documentElement : parent);
+            return result;
+        };
+        compute = (node) => {
+            let selector;
+            let current = node;
+            const elements = [];
+            while (current) {
+                const role = this.#bindings.getAccessibleRole(current);
+                const name = this.#bindings.getAccessibleName(current);
+                if (!role && !name) {
+                    if (current === node) {
+                        break;
+                    }
+                }
+                else {
+                    elements.unshift({ name, role });
+                    selector = this.#computeUniqueARIASelectorForElements(elements, current !== node);
+                    if (selector) {
+                        break;
+                    }
+                    if (current !== node) {
+                        elements.shift();
+                    }
+                }
+                current = current.parentNode;
+                if (current instanceof ShadowRoot) {
+                    current = current.host;
+                }
+            }
+            return selector;
+        };
+    }
+    /**
+     * Computes the ARIA selector for a node.
+     *
+     * @param node - The node to compute.
+     * @returns The computed CSS selector.
+     *
+     * @internal
+     */
+    const computeARIASelector = (node, bindings) => {
+        return new ARIASelectorComputer(bindings).compute(node);
+    };
+
+    // Copyright 2023 The Chromium Authors. All rights reserved.
+    // Use of this source code is governed by a BSD-style license that can be
+    // found in the LICENSE file.
+    class SelectorPart {
+        value;
+        optimized;
+        constructor(value, optimized) {
+            this.value = value;
+            this.optimized = optimized || false;
+        }
+        toString() {
+            return this.value;
+        }
+    }
+
+    // Copyright 2023 The Chromium Authors. All rights reserved.
+    // Use of this source code is governed by a BSD-style license that can be
+    // found in the LICENSE file.
+    const idSelector = (id) => {
+        return `#${CSS.escape(id)}`;
+    };
+    const attributeSelector$1 = (name, value) => {
+        return `[${name}='${CSS.escape(value)}']`;
+    };
+    const classSelector = (selector, className) => {
+        return `${selector}.${CSS.escape(className)}`;
+    };
+    const nthTypeSelector = (selector, index) => {
+        return `${selector}:nth-of-type(${index + 1})`;
+    };
+    const typeSelector = (selector, type) => {
+        return `${selector}${attributeSelector$1('type', type)}`;
+    };
+    const hasUniqueId = (node) => {
+        return (Boolean(node.id) && node.getRootNode().querySelectorAll(idSelector(node.id)).length === 1);
+    };
+    const isUniqueAmongTagNames = (node, children) => {
+        for (const child of children) {
+            if (child !== node && child.tagName === node.tagName) {
+                return false;
+            }
+        }
+        return true;
+    };
+    const isUniqueAmongInputTypes = (node, children) => {
+        for (const child of children) {
+            if (child !== node && child instanceof HTMLInputElement && child.type === node.type) {
+                return false;
+            }
+        }
+        return true;
+    };
+    const getUniqueClassName = (node, children) => {
+        const classNames = new Set(node.classList);
+        for (const child of children) {
+            if (child !== node) {
+                for (const className of child.classList) {
+                    classNames.delete(className);
+                }
+                if (classNames.size === 0) {
+                    break;
+                }
+            }
+        }
+        if (classNames.size > 0) {
+            return classNames.values().next().value;
+        }
+        return undefined;
+    };
+    const getTypeIndex = (node, children) => {
+        let nthTypeIndex = 0;
+        for (const child of children) {
+            if (child === node) {
+                return nthTypeIndex;
+            }
+            if (child.tagName === node.tagName) {
+                ++nthTypeIndex;
+            }
+        }
+        throw new Error('Node not found in children');
+    };
+    const getSelectorPart$1 = (node, attributes = []) => {
+        if (!(node instanceof Element)) {
+            return;
+        }
+        // Declared attibutes have the greatest priority.
+        for (const attribute of attributes) {
+            const value = node.getAttribute(attribute);
+            if (value) {
+                return new SelectorPart(attributeSelector$1(attribute, value), true);
+            }
+        }
+        // IDs are supposed to be globally unique, so this has second priority.
+        if (hasUniqueId(node)) {
+            return new SelectorPart(idSelector(node.id), true);
+        }
+        // All selectors will be prefixed with the tag name starting here.
+        const selector = node.tagName.toLowerCase();
+        // These can only appear once in the entire document, so handle this fast.
+        switch (node.tagName) {
+            case 'BODY':
+            case 'HEAD':
+            case 'HTML':
+                return new SelectorPart(selector, true);
+        }
+        const parent = node.parentNode;
+        // If the node has no parent, then the node must be detached. We handle this
+        // gracefully.
+        if (!parent) {
+            return new SelectorPart(selector, true);
+        }
+        const children = parent.children;
+        // Determine if the child has a unique node name among all children.
+        if (isUniqueAmongTagNames(node, children)) {
+            return new SelectorPart(selector, true);
+        }
+        // If it's an input, check uniqueness among types.
+        if (node instanceof HTMLInputElement && isUniqueAmongInputTypes(node, children)) {
+            return new SelectorPart(typeSelector(selector, node.type), true);
+        }
+        // Determine if the child has a unique class name.
+        const className = getUniqueClassName(node, children);
+        if (className !== undefined) {
+            return new SelectorPart(classSelector(selector, className), true);
+        }
+        // Last resort. Just use the nth-type index. A priori, this will always exists.
+        return new SelectorPart(nthTypeSelector(selector, getTypeIndex(node, children)), false);
+    };
+    /**
+     * The goal of this function is to find the smallest index `i` that makes
+     * `gte(valueOf(i), j)` true for all `j` in `[min, max)`. We do not use binary
+     * search because
+     *
+     *  1. We expect the min-max to be concentrated towards the minimum (< 10
+     *     iterations).
+     *  2. We expect `valueOf` to be `O(n)`, so together with (1), the average will
+     *     be around `O(n)` which is significantly faster than binary search in this
+     *     case.
+     */
+    const findMinMax = ([min, max], fns) => {
+        fns.self ??= (i) => i;
+        let index = fns.inc(min);
+        let value;
+        let isMax;
+        do {
+            value = fns.valueOf(min);
+            isMax = true;
+            while (index !== max) {
+                min = fns.self(index);
+                index = fns.inc(min);
+                if (!fns.gte(value, index)) {
+                    isMax = false;
+                    break;
+                }
+            }
+        } while (!isMax);
+        return value;
+    };
+    class SelectorRangeOps {
+        // Close chains (using `>`) are stored in inner arrays.
+        #buffer = [[]];
+        #attributes;
+        #depth = 0;
+        constructor(attributes = []) {
+            this.#attributes = attributes;
+        }
+        inc(node) {
+            return node.parentNode ?? node.getRootNode();
+        }
+        valueOf(node) {
+            const part = getSelectorPart$1(node, this.#attributes);
+            if (!part) {
+                throw new Error('Node is not an element');
+            }
+            if (this.#depth > 1) {
+                // Implies this selector is for a distant ancestor.
+                this.#buffer.unshift([part]);
+            }
+            else {
+                // Implies this selector is for a parent.
+                this.#buffer[0].unshift(part);
+            }
+            this.#depth = 0;
+            return this.#buffer.map(parts => parts.join(' > ')).join(' ');
+        }
+        gte(selector, node) {
+            ++this.#depth;
+            return node.querySelectorAll(selector).length === 1;
+        }
+    }
+    /**
+     * Computes the CSS selector for a node.
+     *
+     * @param node - The node to compute.
+     * @returns The computed CSS selector.
+     *
+     * @internal
+     */
+    const computeCSSSelector = (node, attributes) => {
+        const selectors = [];
+        // We want to find the minimal selector that is unique within a document. We
+        // are slightly restricted since selectors cannot cross ShadowRoot borders, so
+        // the actual goal is to find the minimal selector that is unique within a
+        // root node. We then need to repeat this for each shadow root.
+        try {
+            let root;
+            while (node instanceof Element) {
+                root = node.getRootNode();
+                selectors.unshift(findMinMax([node, root], new SelectorRangeOps(attributes)));
+                node = root instanceof ShadowRoot ? root.host : root;
+            }
+        }
+        catch {
+            return undefined;
+        }
+        return selectors;
+    };
+    const queryCSSSelectorAll = (selectors) => {
+        if (typeof selectors === 'string') {
+            selectors = [selectors];
+        }
+        else if (selectors.length === 0) {
+            return [];
+        }
+        let lists = [
+            [document.documentElement],
+        ];
+        do {
+            const selector = selectors.shift();
+            const roots = [];
+            for (const nodes of lists) {
+                for (const node of nodes) {
+                    const list = (node.shadowRoot ?? node).querySelectorAll(selector);
+                    if (list.length > 0) {
+                        roots.push(list);
+                    }
+                }
+            }
+            lists = roots;
+        } while (selectors.length > 0 && lists.length > 0);
+        return lists.flatMap(list => [...list]);
+    };
+
+    /**
+     * @license
+     * Copyright 2022 Google Inc.
+     * SPDX-License-Identifier: Apache-2.0
+     */
+    /**
+     * @internal
+     */
+    const pierceQuerySelector = (root, selector) => {
+        let found = null;
+        const search = (root) => {
+            const iter = document.createTreeWalker(root, NodeFilter.SHOW_ELEMENT);
+            do {
+                const currentNode = iter.currentNode;
+                if (currentNode.shadowRoot) {
+                    search(currentNode.shadowRoot);
+                }
+                if (currentNode instanceof ShadowRoot) {
+                    continue;
+                }
+                if (currentNode !== root && !found && currentNode.matches(selector)) {
+                    found = currentNode;
+                }
+            } while (!found && iter.nextNode());
+        };
+        if (root instanceof Document) {
+            root = root.documentElement;
+        }
+        search(root);
+        return found;
+    };
+    /**
+     * @internal
+     */
+    const pierceQuerySelectorAll = (element, selector) => {
+        const result = [];
+        const collect = (root) => {
+            const iter = document.createTreeWalker(root, NodeFilter.SHOW_ELEMENT);
+            do {
+                const currentNode = iter.currentNode;
+                if (currentNode.shadowRoot) {
+                    collect(currentNode.shadowRoot);
+                }
+                if (currentNode instanceof ShadowRoot) {
+                    continue;
+                }
+                if (currentNode !== root && currentNode.matches(selector)) {
+                    result.push(currentNode);
+                }
+            } while (iter.nextNode());
+        };
+        if (element instanceof Document) {
+            element = element.documentElement;
+        }
+        collect(element);
+        return result;
+    };
+
+    // Copyright 2023 The Chromium Authors. All rights reserved.
+    // Use of this source code is governed by a BSD-style license that can be
+    // found in the LICENSE file.
+    class PierceSelectorRangeOpts {
+        #selector = [[]];
+        #attributes;
+        #depth = 0;
+        constructor(attributes = []) {
+            this.#attributes = attributes;
+        }
+        inc(node) {
+            return node.getRootNode();
+        }
+        self(node) {
+            return node instanceof ShadowRoot ? node.host : node;
+        }
+        valueOf(node) {
+            const selector = findMinMax([node, node.getRootNode()], new SelectorRangeOps(this.#attributes));
+            if (this.#depth > 1) {
+                this.#selector.unshift([selector]);
+            }
+            else {
+                this.#selector[0].unshift(selector);
+            }
+            this.#depth = 0;
+            return this.#selector;
+        }
+        gte(selector, node) {
+            ++this.#depth;
+            // Note we use some insider logic here. `valueOf(node)` will always
+            // correspond to `selector.flat().slice(1)`, so it suffices to check
+            // uniqueness for `selector.flat()[0]`.
+            return pierceQuerySelectorAll(node, selector[0][0]).length === 1;
+        }
+    }
+    /**
+     * Computes the pierce CSS selector for a node.
+     *
+     * @param node - The node to compute.
+     * @returns The computed pierce CSS selector.
+     *
+     * @internal
+     */
+    const computePierceSelector = (node, attributes) => {
+        try {
+            const ops = new PierceSelectorRangeOpts(attributes);
+            return findMinMax([node, document], ops).flat();
+        }
+        catch {
+            return undefined;
+        }
+    };
+    const queryPierceSelectorAll = (selectors) => {
+        if (typeof selectors === 'string') {
+            selectors = [selectors];
+        }
+        else if (selectors.length === 0) {
+            return [];
+        }
+        let lists = [[document.documentElement]];
+        do {
+            const selector = selectors.shift();
+            const roots = [];
+            for (const nodes of lists) {
+                for (const node of nodes) {
+                    const list = pierceQuerySelectorAll(node.shadowRoot ?? node, selector);
+                    if (list.length > 0) {
+                        roots.push(list);
+                    }
+                }
+            }
+            lists = roots;
+        } while (selectors.length > 0 && lists.length > 0);
+        return lists.flatMap(list => [...list]);
+    };
+
+    /**
+     * @license
+     * Copyright 2022 Google Inc.
+     * SPDX-License-Identifier: Apache-2.0
+     */
+    const TRIVIAL_VALUE_INPUT_TYPES = new Set(['checkbox', 'image', 'radio']);
+    /**
+     * Determines if the node has a non-trivial value property.
+     *
+     * @internal
+     */
+    const isNonTrivialValueNode = (node) => {
+        if (node instanceof HTMLSelectElement) {
+            return true;
+        }
+        if (node instanceof HTMLTextAreaElement) {
+            return true;
+        }
+        if (node instanceof HTMLInputElement &&
+            !TRIVIAL_VALUE_INPUT_TYPES.has(node.type)) {
+            return true;
+        }
+        return false;
+    };
+    const UNSUITABLE_NODE_NAMES = new Set(['SCRIPT', 'STYLE']);
+    /**
+     * Determines whether a given node is suitable for text matching.
+     *
+     * @internal
+     */
+    const isSuitableNodeForTextMatching = (node) => {
+        return (!UNSUITABLE_NODE_NAMES.has(node.nodeName) && !document.head?.contains(node));
+    };
+    /**
+     * Maps {@link Node}s to their computed {@link TextContent}.
+     */
+    const textContentCache = new WeakMap();
+    const eraseFromCache = (node) => {
+        while (node) {
+            textContentCache.delete(node);
+            if (node instanceof ShadowRoot) {
+                node = node.host;
+            }
+            else {
+                node = node.parentNode;
+            }
+        }
+    };
+    /**
+     * Erases the cache when the tree has mutated text.
+     */
+    const observedNodes = new WeakSet();
+    const textChangeObserver = new MutationObserver(mutations => {
+        for (const mutation of mutations) {
+            eraseFromCache(mutation.target);
+        }
+    });
+    /**
+     * Builds the text content of a node using some custom logic.
+     *
+     * @remarks
+     * The primary reason this function exists is due to {@link ShadowRoot}s not having
+     * text content.
+     *
+     * @internal
+     */
+    const createTextContent = (root) => {
+        let value = textContentCache.get(root);
+        if (value) {
+            return value;
+        }
+        value = { full: '', immediate: [] };
+        if (!isSuitableNodeForTextMatching(root)) {
+            return value;
+        }
+        let currentImmediate = '';
+        if (isNonTrivialValueNode(root)) {
+            value.full = root.value;
+            value.immediate.push(root.value);
+            root.addEventListener('input', event => {
+                eraseFromCache(event.target);
+            }, { once: true, capture: true });
+        }
+        else {
+            for (let child = root.firstChild; child; child = child.nextSibling) {
+                if (child.nodeType === Node.TEXT_NODE) {
+                    value.full += child.nodeValue ?? '';
+                    currentImmediate += child.nodeValue ?? '';
+                    continue;
+                }
+                if (currentImmediate) {
+                    value.immediate.push(currentImmediate);
+                }
+                currentImmediate = '';
+                if (child.nodeType === Node.ELEMENT_NODE) {
+                    value.full += createTextContent(child).full;
+                }
+            }
+            if (currentImmediate) {
+                value.immediate.push(currentImmediate);
+            }
+            if (root instanceof Element && root.shadowRoot) {
+                value.full += createTextContent(root.shadowRoot).full;
+            }
+            if (!observedNodes.has(root)) {
+                textChangeObserver.observe(root, {
+                    childList: true,
+                    characterData: true,
+                    subtree: true,
+                });
+                observedNodes.add(root);
+            }
+        }
+        textContentCache.set(root, value);
+        return value;
+    };
+
+    /**
+     * @license
+     * Copyright 2022 Google Inc.
+     * SPDX-License-Identifier: Apache-2.0
+     */
+    /**
+     * Queries the given node for all nodes matching the given text selector.
+     *
+     * @internal
+     */
+    const textQuerySelectorAll = function* (root, selector) {
+        let yielded = false;
+        for (const node of root.childNodes) {
+            if (node instanceof Element && isSuitableNodeForTextMatching(node)) {
+                let matches;
+                if (!node.shadowRoot) {
+                    matches = textQuerySelectorAll(node, selector);
+                }
+                else {
+                    matches = textQuerySelectorAll(node.shadowRoot, selector);
+                }
+                for (const match of matches) {
+                    yield match;
+                    yielded = true;
+                }
+            }
+        }
+        if (yielded) {
+            return;
+        }
+        if (root instanceof Element && isSuitableNodeForTextMatching(root)) {
+            const textContent = createTextContent(root);
+            if (textContent.full.includes(selector)) {
+                yield root;
+            }
+        }
+    };
+
+    // Copyright 2023 The Chromium Authors. All rights reserved.
+    // Use of this source code is governed by a BSD-style license that can be
+    // found in the LICENSE file.
+    const MINIMUM_TEXT_LENGTH = 12;
+    const MAXIMUM_TEXT_LENGTH = 64;
+    const collect = (iter, max = Infinity) => {
+        const results = [];
+        for (const value of iter) {
+            if (max <= 0) {
+                break;
+            }
+            results.push(value);
+            --max;
+        }
+        return results;
+    };
+    /**
+     * Computes the text selector for a node.
+     *
+     * @param node - The node to compute.
+     * @returns The computed text selector.
+     *
+     * @internal
+     */
+    const computeTextSelector = (node) => {
+        const content = createTextContent(node).full.trim();
+        if (!content) {
+            return;
+        }
+        // If it's short, just return it.
+        if (content.length <= MINIMUM_TEXT_LENGTH) {
+            const elements = collect(textQuerySelectorAll(document, content), 2);
+            if (elements.length !== 1 || elements[0] !== node) {
+                return;
+            }
+            return [content];
+        }
+        // If it's too long, it's probably irrelevant.
+        if (content.length > MAXIMUM_TEXT_LENGTH) {
+            return;
+        }
+        // We do a binary search for the optimal length of a substring starting at 0.
+        let left = MINIMUM_TEXT_LENGTH;
+        let right = content.length;
+        while (left <= right) {
+            const center = left + ((right - left) >> 2);
+            const elements = collect(textQuerySelectorAll(document, content.slice(0, center)), 2);
+            if (elements.length !== 1 || elements[0] !== node) {
+                left = center + 1;
+            }
+            else {
+                right = center - 1;
+            }
+        }
+        // Never matched.
+        if (right === content.length) {
+            return;
+        }
+        // We attempt to round the word in the event we are in the middle of a word.
+        const length = right + 1;
+        const remainder = content.slice(length, length + MAXIMUM_TEXT_LENGTH);
+        return [content.slice(0, length + remainder.search(/ |$/))];
+    };
+
+    // Copyright 2023 The Chromium Authors. All rights reserved.
+    // Use of this source code is governed by a BSD-style license that can be
+    // found in the LICENSE file.
+    const attributeSelector = (name, value) => {
+        return `//*[@${name}=${JSON.stringify(value)}]`;
+    };
+    const getSelectorPart = (node, optimized, attributes = []) => {
+        let value;
+        switch (node.nodeType) {
+            case Node.ELEMENT_NODE:
+                if (!(node instanceof Element)) {
+                    return;
+                }
+                if (optimized) {
+                    for (const attribute of attributes) {
+                        value = node.getAttribute(attribute) ?? '';
+                        if (value) {
+                            return new SelectorPart(attributeSelector(attribute, value), true);
+                        }
+                    }
+                }
+                if (node.id) {
+                    return new SelectorPart(attributeSelector('id', node.id), true);
+                }
+                value = node.localName;
+                break;
+            case Node.ATTRIBUTE_NODE:
+                value = '@' + node.nodeName;
+                break;
+            case Node.TEXT_NODE:
+            case Node.CDATA_SECTION_NODE:
+                value = 'text()';
+                break;
+            case Node.PROCESSING_INSTRUCTION_NODE:
+                value = 'processing-instruction()';
+                break;
+            case Node.COMMENT_NODE:
+                value = 'comment()';
+                break;
+            case Node.DOCUMENT_NODE:
+                value = '';
+                break;
+            default:
+                value = '';
+                break;
+        }
+        const index = getXPathIndexInParent(node);
+        if (index > 0) {
+            value += `[${index}]`;
+        }
+        return new SelectorPart(value, node.nodeType === Node.DOCUMENT_NODE);
+    };
+    const getXPathIndexInParent = (node) => {
+        /**
+         * @returns -1 in case of error, 0 if no siblings matching the same expression,
+         * XPath index among the same expression-matching sibling nodes otherwise.
+         */
+        function areNodesSimilar(left, right) {
+            if (left === right) {
+                return true;
+            }
+            if (left instanceof Element && right instanceof Element) {
+                return left.localName === right.localName;
+            }
+            if (left.nodeType === right.nodeType) {
+                return true;
+            }
+            // XPath treats CDATA as text nodes.
+            const leftType = left.nodeType === Node.CDATA_SECTION_NODE ? Node.TEXT_NODE : left.nodeType;
+            const rightType = right.nodeType === Node.CDATA_SECTION_NODE ? Node.TEXT_NODE : right.nodeType;
+            return leftType === rightType;
+        }
+        const children = node.parentNode ? node.parentNode.children : null;
+        if (!children) {
+            return 0;
+        }
+        let hasSameNamedElements;
+        for (let i = 0; i < children.length; ++i) {
+            if (areNodesSimilar(node, children[i]) && children[i] !== node) {
+                hasSameNamedElements = true;
+                break;
+            }
+        }
+        if (!hasSameNamedElements) {
+            return 0;
+        }
+        let ownIndex = 1; // XPath indices start with 1.
+        for (let i = 0; i < children.length; ++i) {
+            if (areNodesSimilar(node, children[i])) {
+                if (children[i] === node) {
+                    return ownIndex;
+                }
+                ++ownIndex;
+            }
+        }
+        throw new Error('This is impossible; a child must be the child of the parent');
+    };
+    /**
+     * Computes the XPath for a node.
+     *
+     * @param node - The node to compute.
+     * @param optimized - Whether to optimize the XPath for the node. Does not imply
+     * the XPath is shorter; implies the XPath will be highly-scoped to the node.
+     * @returns The computed XPath.
+     *
+     * @internal
+     */
+    const computeXPath = (node, optimized, attributes) => {
+        if (node.nodeType === Node.DOCUMENT_NODE) {
+            return '/';
+        }
+        const selectors = [];
+        const buffer = [];
+        let contextNode = node;
+        while (contextNode !== document && contextNode) {
+            const part = getSelectorPart(contextNode, optimized, attributes);
+            if (!part) {
+                return;
+            }
+            buffer.unshift(part);
+            if (part.optimized) {
+                contextNode = contextNode.getRootNode();
+            }
+            else {
+                contextNode = contextNode.parentNode;
+            }
+            if (contextNode instanceof ShadowRoot) {
+                selectors.unshift((buffer[0].optimized ? '' : '/') + buffer.join('/'));
+                buffer.splice(0, buffer.length);
+                contextNode = contextNode.host;
+            }
+        }
+        if (buffer.length) {
+            selectors.unshift((buffer[0].optimized ? '' : '/') + buffer.join('/'));
+        }
+        if (!selectors.length || selectors.length > 1) {
+            // XPath evaluation does not work on shadowRoot.
+            return;
+        }
+        return selectors;
+    };
+
+    // Copyright 2023 The Chromium Authors. All rights reserved.
+    // Use of this source code is governed by a BSD-style license that can be
+    // found in the LICENSE file.
+    const prefixSelector = (selector, prefix) => {
+        if (selector === undefined) {
+            return;
+        }
+        if (typeof selector === 'string') {
+            return `${prefix}/${selector}`;
+        }
+        return selector.map(selector => `${prefix}/${selector}`);
+    };
+    class SelectorComputer {
+        #customAttributes = [
+            // Most common attributes first.
+            'data-testid',
+            'data-test',
+            'data-qa',
+            'data-cy',
+            'data-test-id',
+            'data-qa-id',
+            'data-testing',
+        ];
+        #bindings;
+        #logger;
+        #nodes = new MonotonicArray();
+        #selectorFunctionsInOrder;
+        constructor(bindings, logger, customAttribute = '', selectorTypesToRecord) {
+            this.#bindings = bindings;
+            this.#logger = logger;
+            let selectorOrder = [
+                'aria',
+                'css',
+                'xpath',
+                'pierce',
+                'text',
+            ];
+            if (customAttribute) {
+                // Custom DOM attributes indicate a preference for CSS/XPath selectors.
+                this.#customAttributes.unshift(customAttribute);
+                selectorOrder = [
+                    'css',
+                    'xpath',
+                    'pierce',
+                    'aria',
+                    'text',
+                ];
+            }
+            this.#selectorFunctionsInOrder = selectorOrder
+                .filter(type => {
+                if (selectorTypesToRecord) {
+                    return selectorTypesToRecord.includes(type);
+                }
+                return true;
+            })
+                .map(selectorType => {
+                switch (selectorType) {
+                    case 'css':
+                        return this.getCSSSelector.bind(this);
+                    case 'xpath':
+                        return this.getXPathSelector.bind(this);
+                    case 'pierce':
+                        return this.getPierceSelector.bind(this);
+                    case 'aria':
+                        return this.getARIASelector.bind(this);
+                    case 'text':
+                        return this.getTextSelector.bind(this);
+                    default:
+                        throw new Error('Unknown selector type: ' + selectorType);
+                }
+            });
+        }
+        getSelectors(node) {
+            const selectors = [];
+            for (const getSelector of this.#selectorFunctionsInOrder) {
+                const selector = getSelector(node);
+                if (selector) {
+                    selectors.push(selector);
+                }
+            }
+            return selectors;
+        }
+        getCSSSelector(node) {
+            return this.#logger.timed(`getCSSSelector: ${this.#nodes.getOrInsert(node)} ${node.nodeName}`, () => {
+                return computeCSSSelector(node, this.#customAttributes);
+            });
+        }
+        getTextSelector(node) {
+            return this.#logger.timed(`getTextSelector: ${this.#nodes.getOrInsert(node)} ${node.nodeName}`, () => {
+                return prefixSelector(computeTextSelector(node), 'text');
+            });
+        }
+        getXPathSelector(node) {
+            return this.#logger.timed(`getXPathSelector: ${this.#nodes.getOrInsert(node)} ${node.nodeName}`, () => {
+                return prefixSelector(computeXPath(node, true, this.#customAttributes), 'xpath');
+            });
+        }
+        getPierceSelector(node) {
+            return this.#logger.timed(`getPierceSelector: ${this.#nodes.getOrInsert(node)} ${node.nodeName}`, () => {
+                return prefixSelector(computePierceSelector(node, this.#customAttributes), 'pierce');
+            });
+        }
+        getARIASelector(node) {
+            return this.#logger.timed(`getARIASelector: ${this.#nodes.getOrInsert(node)} ${node.nodeName}`, () => {
+                return prefixSelector(computeARIASelector(node, this.#bindings), 'aria');
+            });
+        }
+    }
+
+    // Copyright 2023 The Chromium Authors. All rights reserved.
+    // Use of this source code is governed by a BSD-style license that can be
+    // found in the LICENSE file.
+    function assert(condition) {
+        if (!condition) {
+            throw new Error('Assertion failed!');
+        }
+    }
+    const haultImmediateEvent = (event) => {
+        event.preventDefault();
+        event.stopImmediatePropagation();
+    };
+    const getMouseEventOffsets = (event, target) => {
+        const rect = target.getBoundingClientRect();
+        return { offsetX: event.clientX - rect.x, offsetY: event.clientY - rect.y };
+    };
+    /**
+     * @returns the element that emitted the event.
+     */
+    const getClickableTargetFromEvent = (event) => {
+        for (const element of event.composedPath()) {
+            if (!(element instanceof Element)) {
+                continue;
+            }
+            // If an element has no width or height, we skip this target.
+            const rect = element.getBoundingClientRect();
+            if (rect.width === 0 || rect.height === 0) {
+                continue;
+            }
+            return element;
+        }
+        throw new Error(`No target is found in event of type ${event.type}`);
+    };
+    const createClickAttributes = (event, target) => {
+        let deviceType;
+        if (event instanceof PointerEvent) {
+            switch (event.pointerType) {
+                case 'mouse':
+                    // Default device.
+                    break;
+                case 'pen':
+                case 'touch':
+                    deviceType = event.pointerType;
+                    break;
+                default:
+                    // Unsupported device type.
+                    return;
+            }
+        }
+        const { offsetX, offsetY } = getMouseEventOffsets(event, target);
+        if (offsetX < 0 || offsetY < 0) {
+            // Event comes from outside the viewport. Can happen as a result of a
+            // simulated click (through a keyboard event e.g.).
+            return;
+        }
+        return {
+            button: ['auxiliary', 'secondary', 'back', 'forward'][event.button - 1],
+            deviceType,
+            offsetX,
+            offsetY,
+        };
+    };
+
+    // Copyright 2023 The Chromium Authors. All rights reserved.
+    // Use of this source code is governed by a BSD-style license that can be
+    // found in the LICENSE file.
+    /**
+     * Determines whether an element is ignorable as an input.
+     *
+     * This is only called on input-like elements (elements that emit the `input`
+     * event).
+     *
+     * With every `if` statement, please write a comment above explaining your
+     * reasoning for ignoring the event.
+     */
+    const isIgnorableInputElement = (element) => {
+        if (element instanceof HTMLInputElement) {
+            switch (element.type) {
+                // Checkboxes are always changed as a consequence of another type of action
+                // such as the keyboard or mouse. As such, we can safely ignore these
+                // elements.
+                case 'checkbox':
+                    return true;
+                // Radios are always changed as a consequence of another type of action
+                // such as the keyboard or mouse. As such, we can safely ignore these
+                // elements.
+                case 'radio':
+                    return true;
+            }
+        }
+        return false;
+    };
+    const getShortcutLength = (shortcut) => {
+        return Object.values(shortcut).filter(key => Boolean(key)).length.toString();
+    };
+    class RecordingClient {
+        static defaultSetupOptions = Object.freeze({
+            debug: false,
+            allowUntrustedEvents: false,
+            selectorTypesToRecord: [
+                'aria',
+                'css',
+                'text',
+                'xpath',
+                'pierce',
+            ],
+        });
+        #computer;
+        #isTrustedEvent = (event) => event.isTrusted;
+        #stopShortcuts = [];
+        #logger;
+        constructor(bindings, options = RecordingClient.defaultSetupOptions) {
+            this.#logger = new Logger(options.debug ? 'debug' : 'silent');
+            this.#logger.log('creating a RecordingClient');
+            this.#computer = new SelectorComputer(bindings, this.#logger, options.selectorAttribute, options.selectorTypesToRecord);
+            if (options.allowUntrustedEvents) {
+                this.#isTrustedEvent = () => true;
+            }
+            this.#stopShortcuts = options.stopShortcuts ?? [];
+        }
+        start = () => {
+            this.#logger.log('Setting up recording listeners');
+            window.addEventListener('keydown', this.#onKeyDown, true);
+            window.addEventListener('beforeinput', this.#onBeforeInput, true);
+            window.addEventListener('input', this.#onInput, true);
+            window.addEventListener('keyup', this.#onKeyUp, true);
+            window.addEventListener('pointerdown', this.#onPointerDown, true);
+            window.addEventListener('click', this.#onClick, true);
+            window.addEventListener('auxclick', this.#onClick, true);
+            window.addEventListener('beforeunload', this.#onBeforeUnload, true);
+        };
+        stop = () => {
+            this.#logger.log('Tearing down client listeners');
+            window.removeEventListener('keydown', this.#onKeyDown, true);
+            window.removeEventListener('beforeinput', this.#onBeforeInput, true);
+            window.removeEventListener('input', this.#onInput, true);
+            window.removeEventListener('keyup', this.#onKeyUp, true);
+            window.removeEventListener('pointerdown', this.#onPointerDown, true);
+            window.removeEventListener('click', this.#onClick, true);
+            window.removeEventListener('auxclick', this.#onClick, true);
+            window.removeEventListener('beforeunload', this.#onBeforeUnload, true);
+        };
+        getSelectors = (node) => {
+            return this.#computer.getSelectors(node);
+        };
+        getCSSSelector = (node) => {
+            return this.#computer.getCSSSelector(node);
+        };
+        getTextSelector = (node) => {
+            return this.#computer.getTextSelector(node);
+        };
+        queryCSSSelectorAllForTesting = (selector) => {
+            return queryCSSSelectorAll(selector);
+        };
+        #wasStopShortcutPress = (event) => {
+            for (const shortcut of this.#stopShortcuts ?? []) {
+                if (event.shiftKey === shortcut.shift && event.ctrlKey === shortcut.ctrl && event.metaKey === shortcut.meta &&
+                    event.keyCode === shortcut.keyCode) {
+                    this.stop();
+                    haultImmediateEvent(event);
+                    window.stopShortcut(getShortcutLength(shortcut));
+                    return true;
+                }
+            }
+            return false;
+        };
+        #initialInputTarget = { element: document.documentElement, selectors: [] };
+        /**
+         * Sets the current input target and computes the selector.
+         *
+         * This needs to be called before any input-related events (keydown, keyup,
+         * input, change, etc) occur so the precise selector is known. Since we
+         * capture on the `Window`, it suffices to call this on the first event in any
+         * given input sequence. This will always be either `keydown`, `beforeinput`,
+         * or `input`.
+         */
+        #setInitialInputTarget = (event) => {
+            const element = event.composedPath()[0];
+            assert(element instanceof Element);
+            if (this.#initialInputTarget.element === element) {
+                return;
+            }
+            this.#initialInputTarget = { element, selectors: this.getSelectors(element) };
+        };
+        #onKeyDown = (event) => {
+            if (!this.#isTrustedEvent(event)) {
+                return;
+            }
+            if (this.#wasStopShortcutPress(event)) {
+                return;
+            }
+            this.#setInitialInputTarget(event);
+            this.#addStep({
+                type: 'keyDown',
+                key: event.key,
+            });
+        };
+        #onBeforeInput = (event) => {
+            if (!this.#isTrustedEvent(event)) {
+                return;
+            }
+            this.#setInitialInputTarget(event);
+        };
+        #onInput = (event) => {
+            if (!this.#isTrustedEvent(event)) {
+                return;
+            }
+            this.#setInitialInputTarget(event);
+            if (isIgnorableInputElement(this.#initialInputTarget.element)) {
+                return;
+            }
+            const { element, selectors } = this.#initialInputTarget;
+            this.#addStep({
+                type: 'change',
+                selectors,
+                value: 'value' in element ? element.value : element.textContent,
+            });
+        };
+        #onKeyUp = (event) => {
+            if (!this.#isTrustedEvent(event)) {
+                return;
+            }
+            this.#addStep({
+                type: 'keyUp',
+                key: event.key,
+            });
+        };
+        #initialPointerTarget = {
+            element: document.documentElement,
+            selectors: [],
+        };
+        #setInitialPointerTarget = (event) => {
+            const element = getClickableTargetFromEvent(event);
+            if (this.#initialPointerTarget.element === element) {
+                return;
+            }
+            this.#initialPointerTarget = {
+                element,
+                selectors: this.#computer.getSelectors(element),
+            };
+        };
+        #pointerDownTimestamp = 0;
+        #onPointerDown = (event) => {
+            if (!this.#isTrustedEvent(event)) {
+                return;
+            }
+            this.#pointerDownTimestamp = event.timeStamp;
+            this.#setInitialPointerTarget(event);
+        };
+        #onClick = (event) => {
+            if (!this.#isTrustedEvent(event)) {
+                return;
+            }
+            this.#setInitialPointerTarget(event);
+            const attributes = createClickAttributes(event, this.#initialPointerTarget.element);
+            if (!attributes) {
+                return;
+            }
+            const duration = event.timeStamp - this.#pointerDownTimestamp;
+            this.#addStep({
+                type: event.detail === 2 ? 'doubleClick' : 'click',
+                selectors: this.#initialPointerTarget.selectors,
+                duration: duration > 350 ? duration : undefined,
+                ...attributes,
+            });
+        };
+        #onBeforeUnload = (event) => {
+            this.#logger.log('Unloading...');
+            if (!this.#isTrustedEvent(event)) {
+                return;
+            }
+            this.#addStep({ type: 'beforeUnload' });
+        };
+        #addStep = (step) => {
+            const payload = JSON.stringify(step);
+            this.#logger.log(`Adding step: ${payload}`);
+            window.addStep(payload);
+        };
+    }
+
+    // Copyright 2023 The Chromium Authors. All rights reserved.
+    // Use of this source code is governed by a BSD-style license that can be
+    // found in the LICENSE file.
+    class SelectorPicker {
+        #logger;
+        #computer;
+        constructor(bindings, customAttribute = '', debug = true) {
+            this.#logger = new Logger(debug ? 'debug' : 'silent');
+            this.#logger.log('Creating a SelectorPicker');
+            this.#computer = new SelectorComputer(bindings, this.#logger, customAttribute);
+        }
+        #handleClickEvent = (event) => {
+            haultImmediateEvent(event);
+            const target = getClickableTargetFromEvent(event);
+            window.captureSelectors(JSON.stringify({
+                selectors: this.#computer.getSelectors(target),
+                ...getMouseEventOffsets(event, target),
+            }));
+        };
+        start = () => {
+            this.#logger.log('Setting up selector listeners');
+            window.addEventListener('click', this.#handleClickEvent, true);
+            window.addEventListener('mousedown', haultImmediateEvent, true);
+            window.addEventListener('mouseup', haultImmediateEvent, true);
+        };
+        stop = () => {
+            this.#logger.log('Tearing down selector listeners');
+            window.removeEventListener('click', this.#handleClickEvent, true);
+            window.removeEventListener('mousedown', haultImmediateEvent, true);
+            window.removeEventListener('mouseup', haultImmediateEvent, true);
+        };
+    }
+
+    // Copyright 2023 The Chromium Authors. All rights reserved.
+    // Use of this source code is governed by a BSD-style license that can be
+    // found in the LICENSE file.
+    class DevToolsRecorder {
+        #recordingClient;
+        startRecording(bindings, options) {
+            if (this.#recordingClient) {
+                throw new Error('Recording client already started.');
+            }
+            if (this.#selectorPicker) {
+                throw new Error('Selector picker is active.');
+            }
+            this.#recordingClient = new RecordingClient(bindings, options);
+            this.#recordingClient.start();
+        }
+        stopRecording() {
+            if (!this.#recordingClient) {
+                throw new Error('Recording client was not started.');
+            }
+            this.#recordingClient.stop();
+            this.#recordingClient = undefined;
+        }
+        get recordingClientForTesting() {
+            if (!this.#recordingClient) {
+                throw new Error('Recording client was not started.');
+            }
+            return this.#recordingClient;
+        }
+        #selectorPicker;
+        startSelectorPicker(bindings, customAttribute, debug) {
+            if (this.#selectorPicker) {
+                throw new Error('Selector picker already started.');
+            }
+            if (this.#recordingClient) {
+                this.#recordingClient.stop();
+            }
+            this.#selectorPicker = new SelectorPicker(bindings, customAttribute, debug);
+            this.#selectorPicker.start();
+        }
+        stopSelectorPicker() {
+            if (!this.#selectorPicker) {
+                throw new Error('Selector picker was not started.');
+            }
+            this.#selectorPicker.stop();
+            this.#selectorPicker = undefined;
+            if (this.#recordingClient) {
+                this.#recordingClient.start();
+            }
+        }
+    }
+    if (!window.DevToolsRecorder) {
+        window.DevToolsRecorder = new DevToolsRecorder();
+    }
+
+})();

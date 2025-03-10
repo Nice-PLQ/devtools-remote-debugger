@@ -29,6 +29,8 @@
     "useUnknownInCatchVariables": false
   },
   "files": [
+    "../../../../../../../../front_end/ui/legacy/components/perf_ui/BrickBreaker.ts",
+    "../../../../../../../../front_end/ui/legacy/components/perf_ui/CanvasHelper.ts",
     "../../../../../../../../front_end/ui/legacy/components/perf_ui/ChartViewport.ts",
     "../../../../../../../../front_end/ui/legacy/components/perf_ui/FilmStripView.ts",
     "../../../../../../../../front_end/ui/legacy/components/perf_ui/FlameChart.ts",
@@ -40,11 +42,12 @@
     "../../../../../../../../front_end/ui/legacy/components/perf_ui/OverviewGrid.ts",
     "../../../../../../../../front_end/ui/legacy/components/perf_ui/PieChart.ts",
     "../../../../../../../../front_end/ui/legacy/components/perf_ui/TimelineGrid.ts",
+    "../../../../../../../../front_end/ui/legacy/components/perf_ui/TimelineOverviewCalculator.ts",
     "../../../../../../../../front_end/ui/legacy/components/perf_ui/TimelineOverviewPane.ts",
     "../../../../../../../../front_end/legacy/legacy-defs.d.ts",
     "../../../../../../../../front_end/global_typings/global_defs.d.ts",
-    "../../../../../../../../front_end/global_typings/request_idle_callback.d.ts",
-    "../../../../../../../../node_modules/@types/filesystem/index.d.ts"
+    "../../../../../../../../node_modules/@types/filesystem/index.d.ts",
+    "../../../../../../../../node_modules/@types/wicg-task-scheduling/index.d.ts"
   ],
   "references": [
     {
@@ -66,7 +69,7 @@
       "path": "../../../../models/bindings/bundle-tsconfig.json"
     },
     {
-      "path": "../../../../models/timeline_model/bundle-tsconfig.json"
+      "path": "../../../../models/cpu_profile/bundle-tsconfig.json"
     },
     {
       "path": "../../../../models/workspace/bundle-tsconfig.json"
@@ -81,7 +84,7 @@
       "path": "../../theme_support/bundle-tsconfig.json"
     },
     {
-      "path": "../../../lit-html/bundle-tsconfig.json"
+      "path": "../../../lit/bundle-tsconfig.json"
     }
   ]
 }

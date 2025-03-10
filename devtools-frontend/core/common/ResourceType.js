@@ -33,29 +33,21 @@ import * as i18n from '../i18n/i18n.js';
 import { ParsedURL } from './ParsedURL.js';
 const UIStrings = {
     /**
-     *@description Text that appears in a tooltip the xhr and fetch resource types filter.
+     *@description Text that appears in a tooltip the fetch and xhr resource types filter.
      */
-    xhrAndFetch: '`XHR` and `Fetch`',
+    fetchAndXHR: '`Fetch` and `XHR`',
     /**
      *@description Text that appears in a tooltip for the JavaScript types filter.
      */
-    scripts: 'Scripts',
+    javascript: 'JavaScript',
     /**
      *@description Text that appears on a button for the JavaScript resource type filter.
      */
     js: 'JS',
     /**
-     *@description Text that appears in a tooltip for the css types filter.
-     */
-    stylesheets: 'Stylesheets',
-    /**
      *@description Text that appears on a button for the css resource type filter.
      */
     css: 'CSS',
-    /**
-     *@description Text that appears in a tooltip for the image types filter.
-     */
-    images: 'Images',
     /**
      *@description Text that appears on a button for the image resource type filter.
      */
@@ -65,25 +57,13 @@ const UIStrings = {
      */
     media: 'Media',
     /**
-     *@description Text that appears in a tooltip for the resource types filter.
-     */
-    fonts: 'Fonts',
-    /**
      *@description Text that appears on a button for the font resource type filter.
      */
     font: 'Font',
     /**
-     *@description Text for documents, a type of resources
-     */
-    documents: 'Documents',
-    /**
      *@description Text that appears on a button for the document resource type filter.
      */
     doc: 'Doc',
-    /**
-     *@description Text that appears in a tooltip for the websocket types filter.
-     */
-    websockets: 'WebSockets',
     /**
      *@description Text that appears on a button for the websocket resource type filter.
      */
@@ -229,6 +209,9 @@ export class ResourceType {
         return null;
     }
     static mimeFromURL(url) {
+        if (url.startsWith('snippet://') || url.startsWith('debugger://')) {
+            return 'text/javascript';
+        }
         const name = ParsedURL.extractName(url);
         if (mimeTypeByName.has(name)) {
             return mimeTypeByName.get(name);
@@ -242,11 +225,15 @@ export class ResourceType {
     static mimeFromExtension(ext) {
         return mimeTypeByExtension.get(ext);
     }
+    static simplifyContentType(contentType) {
+        const regex = new RegExp('^application(.*json$|\/json\+.*)');
+        return regex.test(contentType) ? 'application/json' : contentType;
+    }
     /**
      * Adds suffixes iff the mimeType is 'text/javascript' to denote whether the JS is minified or from
      * a source map.
      */
-    static mediaTypeForMetrics(mimeType, isFromSourceMap, isMinified) {
+    static mediaTypeForMetrics(mimeType, isFromSourceMap, isMinified, isSnippet, isDebugger) {
         if (mimeType !== 'text/javascript') {
             return mimeType;
         }
@@ -257,6 +244,12 @@ export class ResourceType {
         }
         if (isMinified) {
             return 'text/javascript+minified';
+        }
+        if (isSnippet) {
+            return 'text/javascript+snippet';
+        }
+        if (isDebugger) {
+            return 'text/javascript+eval';
         }
         return 'text/javascript+plain';
     }
@@ -319,25 +312,27 @@ export class ResourceType {
     }
 }
 export class ResourceCategory {
+    name;
     title;
     shortTitle;
-    constructor(title, shortTitle) {
+    constructor(name, title, shortTitle) {
+        this.name = name;
         this.title = title;
         this.shortTitle = shortTitle;
     }
 }
 export const resourceCategories = {
-    XHR: new ResourceCategory(i18nLazyString(UIStrings.xhrAndFetch), i18n.i18n.lockedLazyString('Fetch/XHR')),
-    Script: new ResourceCategory(i18nLazyString(UIStrings.scripts), i18nLazyString(UIStrings.js)),
-    Stylesheet: new ResourceCategory(i18nLazyString(UIStrings.stylesheets), i18nLazyString(UIStrings.css)),
-    Image: new ResourceCategory(i18nLazyString(UIStrings.images), i18nLazyString(UIStrings.img)),
-    Media: new ResourceCategory(i18nLazyString(UIStrings.media), i18nLazyString(UIStrings.media)),
-    Font: new ResourceCategory(i18nLazyString(UIStrings.fonts), i18nLazyString(UIStrings.font)),
-    Document: new ResourceCategory(i18nLazyString(UIStrings.documents), i18nLazyString(UIStrings.doc)),
-    WebSocket: new ResourceCategory(i18nLazyString(UIStrings.websockets), i18nLazyString(UIStrings.ws)),
-    Wasm: new ResourceCategory(i18nLazyString(UIStrings.webassembly), i18nLazyString(UIStrings.wasm)),
-    Manifest: new ResourceCategory(i18nLazyString(UIStrings.manifest), i18nLazyString(UIStrings.manifest)),
-    Other: new ResourceCategory(i18nLazyString(UIStrings.other), i18nLazyString(UIStrings.other)),
+    XHR: new ResourceCategory('Fetch and XHR', i18nLazyString(UIStrings.fetchAndXHR), i18n.i18n.lockedLazyString('Fetch/XHR')),
+    Document: new ResourceCategory(UIStrings.document, i18nLazyString(UIStrings.document), i18nLazyString(UIStrings.doc)),
+    Stylesheet: new ResourceCategory(UIStrings.css, i18nLazyString(UIStrings.css), i18nLazyString(UIStrings.css)),
+    Script: new ResourceCategory(UIStrings.javascript, i18nLazyString(UIStrings.javascript), i18nLazyString(UIStrings.js)),
+    Font: new ResourceCategory(UIStrings.font, i18nLazyString(UIStrings.font), i18nLazyString(UIStrings.font)),
+    Image: new ResourceCategory(UIStrings.image, i18nLazyString(UIStrings.image), i18nLazyString(UIStrings.img)),
+    Media: new ResourceCategory(UIStrings.media, i18nLazyString(UIStrings.media), i18nLazyString(UIStrings.media)),
+    Manifest: new ResourceCategory(UIStrings.manifest, i18nLazyString(UIStrings.manifest), i18nLazyString(UIStrings.manifest)),
+    WebSocket: new ResourceCategory(UIStrings.websocket, i18nLazyString(UIStrings.websocket), i18nLazyString(UIStrings.ws)),
+    Wasm: new ResourceCategory(UIStrings.webassembly, i18nLazyString(UIStrings.webassembly), i18nLazyString(UIStrings.wasm)),
+    Other: new ResourceCategory(UIStrings.other, i18nLazyString(UIStrings.other), i18nLazyString(UIStrings.other)),
 };
 /**
  * This enum is a superset of all types defined in WebCore::InspectorPageAgent::resourceTypeJson

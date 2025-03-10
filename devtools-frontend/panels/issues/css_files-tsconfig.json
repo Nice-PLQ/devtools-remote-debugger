@@ -4,8 +4,6 @@
         "outDir": "."
     },
     "files": [
-        "cspViolationsListView.css.js",
-        "cspViolationsView.css.js",
         "issuesPane.css.js",
         "issuesTree.css.js"
     ]

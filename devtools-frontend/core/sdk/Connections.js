@@ -1,11 +1,20 @@
 // Copyright (c) 2015 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
+import * as i18n from '../../core/i18n/i18n.js';
 import * as Common from '../common/common.js';
 import * as Host from '../host/host.js';
 import * as ProtocolClient from '../protocol_client/protocol_client.js';
 import * as Root from '../root/root.js';
-import { TargetManager } from './TargetManager.js';
+import { RehydratingConnection } from './RehydratingConnection.js';
+const UIStrings = {
+    /**
+     *@description Text on the remote debugging window to indicate the connection is lost
+     */
+    websocketDisconnected: 'WebSocket disconnected',
+};
+const str_ = i18n.i18n.registerUIStrings('core/sdk/Connections.ts', UIStrings);
+const i18nString = i18n.i18n.getLocalizedString.bind(undefined, str_);
 export class MainConnection {
     onMessage;
     #onDisconnect;
@@ -92,7 +101,7 @@ export class WebSocketConnection {
     }
     onError() {
         if (this.#onWebSocketDisconnect) {
-            this.#onWebSocketDisconnect.call(null);
+            this.#onWebSocketDisconnect.call(null, i18nString(UIStrings.websocketDisconnected));
         }
         if (this.#onDisconnect) {
             // This is called if error occurred while connecting.
@@ -112,7 +121,7 @@ export class WebSocketConnection {
     }
     onClose() {
         if (this.#onWebSocketDisconnect) {
-            this.#onWebSocketDisconnect.call(null);
+            this.#onWebSocketDisconnect.call(null, i18nString(UIStrings.websocketDisconnected));
         }
         if (this.#onDisconnect) {
             this.#onDisconnect.call(null, 'websocket closed');
@@ -173,7 +182,7 @@ export class StubConnection {
             data: messageObject,
         };
         if (this.onMessage) {
-            this.onMessage.call(null, { id: messageObject.id, error: error });
+            this.onMessage.call(null, { id: messageObject.id, error });
         }
     }
     async disconnect() {
@@ -223,27 +232,20 @@ export class ParallelConnection {
         this.onMessage = null;
     }
 }
-export async function initMainConnection(createRootTarget, websocketConnectionLost) {
-    ProtocolClient.InspectorBackend.Connection.setFactory(createMainConnection.bind(null, websocketConnectionLost));
+export async function initMainConnection(createRootTarget, onConnectionLost) {
+    ProtocolClient.InspectorBackend.Connection.setFactory(createMainConnection.bind(null, onConnectionLost));
     await createRootTarget();
     Host.InspectorFrontendHost.InspectorFrontendHostInstance.connectionReady();
-    Host.InspectorFrontendHost.InspectorFrontendHostInstance.events.addEventListener(Host.InspectorFrontendHostAPI.Events.ReattachRootTarget, () => {
-        const target = TargetManager.instance().rootTarget();
-        if (target) {
-            const router = target.router();
-            if (router) {
-                void router.connection().disconnect();
-            }
-        }
-        void createRootTarget();
-    });
 }
-function createMainConnection(websocketConnectionLost) {
+function createMainConnection(onConnectionLost) {
+    if (Root.Runtime.getPathName().includes('rehydrated_devtools_app')) {
+        return new RehydratingConnection(onConnectionLost);
+    }
     const wsParam = Root.Runtime.Runtime.queryParam('ws');
     const wssParam = Root.Runtime.Runtime.queryParam('wss');
     if (wsParam || wssParam) {
         const ws = (wsParam ? `ws://${wsParam}` : `wss://${wssParam}`);
-        return new WebSocketConnection(ws, websocketConnectionLost);
+        return new WebSocketConnection(ws, onConnectionLost);
     }
     if (Host.InspectorFrontendHost.InspectorFrontendHostInstance.isHostedMode()) {
         return new StubConnection();

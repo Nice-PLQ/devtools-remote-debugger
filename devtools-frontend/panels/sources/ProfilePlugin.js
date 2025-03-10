@@ -81,7 +81,7 @@ class PerformanceMarker extends CodeMirror.GutterMarker {
     }
 }
 function markersFromProfileData(map, state, type) {
-    const markerType = type === SourceFrame.SourceFrame.DecoratorType.PERFORMANCE ? PerformanceMarker : MemoryMarker;
+    const markerType = type === "performance" /* SourceFrame.SourceFrame.DecoratorType.PERFORMANCE */ ? PerformanceMarker : MemoryMarker;
     const markers = [];
     for (const [line, value] of map) {
         if (line <= state.doc.lines) {
@@ -109,7 +109,7 @@ const makeLineLevelProfilePlugin = (type) => class extends Plugin {
             },
         });
         this.gutter = CodeMirror.gutter({
-            markers: (view) => view.state.field(this.field),
+            markers: view => view.state.field(this.field),
             class: `cm-${type}Gutter`,
         });
     }
@@ -142,14 +142,18 @@ const makeLineLevelProfilePlugin = (type) => class extends Plugin {
     }
 };
 const theme = CodeMirror.EditorView.baseTheme({
+    '.cm-line::selection': {
+        backgroundColor: 'transparent',
+        color: 'currentColor',
+    },
     '.cm-performanceGutter': {
         width: '60px',
-        backgroundColor: 'var(--color-background)',
+        backgroundColor: 'var(--sys-color-cdt-base-container)',
         marginLeft: '3px',
     },
     '.cm-memoryGutter': {
         width: '48px',
-        backgroundColor: 'var(--color-background)',
+        backgroundColor: 'var(--sys-color-cdt-base-container)',
         marginLeft: '3px',
     },
     '.cm-profileMarker': {
@@ -157,11 +161,11 @@ const theme = CodeMirror.EditorView.baseTheme({
         paddingRight: '3px',
     },
     '.cm-profileMarker .cm-units': {
-        color: 'var(--color-text-secondary)',
+        color: 'var(--sys-color-token-subtle)',
         fontSize: '75%',
         marginLeft: '3px',
     },
 });
-export const MemoryProfilePlugin = makeLineLevelProfilePlugin(SourceFrame.SourceFrame.DecoratorType.MEMORY);
-export const PerformanceProfilePlugin = makeLineLevelProfilePlugin(SourceFrame.SourceFrame.DecoratorType.PERFORMANCE);
+export const MemoryProfilePlugin = makeLineLevelProfilePlugin("memory" /* SourceFrame.SourceFrame.DecoratorType.MEMORY */);
+export const PerformanceProfilePlugin = makeLineLevelProfilePlugin("performance" /* SourceFrame.SourceFrame.DecoratorType.PERFORMANCE */);
 //# sourceMappingURL=ProfilePlugin.js.map

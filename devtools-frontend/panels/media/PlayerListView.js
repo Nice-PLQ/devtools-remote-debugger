@@ -2,7 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 import * as i18n from '../../core/i18n/i18n.js';
+import * as IconButton from '../../ui/components/icon_button/icon_button.js';
 import * as UI from '../../ui/legacy/legacy.js';
+import * as VisualLogging from '../../ui/visual_logging/visual_logging.js';
 import playerListViewStyles from './playerListView.css.js';
 const UIStrings = {
     /**
@@ -31,6 +33,7 @@ export class PlayerListView extends UI.Widget.VBox {
     currentlySelectedEntry;
     constructor(mainContainer) {
         super(true);
+        this.registerRequiredCSS(playerListViewStyles);
         this.playerEntryFragments = new Map();
         this.playerEntriesWithHostnameFrameTitle = new Set();
         // Container where new panels can be added based on clicks.
@@ -49,9 +52,10 @@ export class PlayerListView extends UI.Widget.VBox {
     </div>
     `;
         const element = entry.element();
+        element.setAttribute('jslog', `${VisualLogging.item('player').track({ click: true })}`);
         element.addEventListener('click', this.selectPlayer.bind(this, playerID, element));
         element.addEventListener('contextmenu', this.rightClickPlayer.bind(this, playerID));
-        entry.$('icon').appendChild(UI.Icon.Icon.create('pause', 'media-player'));
+        entry.$('icon').appendChild(IconButton.Icon.create('pause', 'media-player'));
         return entry;
     }
     selectPlayer(playerID, element) {
@@ -66,9 +70,9 @@ export class PlayerListView extends UI.Widget.VBox {
     }
     rightClickPlayer(playerID, event) {
         const contextMenu = new UI.ContextMenu.ContextMenu(event);
-        contextMenu.headerSection().appendItem(i18nString(UIStrings.hidePlayer), this.mainContainer.markPlayerForDeletion.bind(this.mainContainer, playerID));
-        contextMenu.headerSection().appendItem(i18nString(UIStrings.hideAllOthers), this.mainContainer.markOtherPlayersForDeletion.bind(this.mainContainer, playerID));
-        contextMenu.headerSection().appendItem(i18nString(UIStrings.savePlayerInfo), this.mainContainer.exportPlayerData.bind(this.mainContainer, playerID));
+        contextMenu.headerSection().appendItem(i18nString(UIStrings.hidePlayer), this.mainContainer.markPlayerForDeletion.bind(this.mainContainer, playerID), { jslogContext: 'hide-player' });
+        contextMenu.headerSection().appendItem(i18nString(UIStrings.hideAllOthers), this.mainContainer.markOtherPlayersForDeletion.bind(this.mainContainer, playerID), { jslogContext: 'hide-all-others' });
+        contextMenu.headerSection().appendItem(i18nString(UIStrings.savePlayerInfo), this.mainContainer.exportPlayerData.bind(this.mainContainer, playerID), { jslogContext: 'save-player-info' });
         void contextMenu.show();
         return true;
     }
@@ -88,7 +92,7 @@ export class PlayerListView extends UI.Widget.VBox {
             return;
         }
         const fragment = this.playerEntryFragments.get(playerID);
-        if (fragment === undefined || fragment.element() === undefined) {
+        if (fragment?.element() === undefined) {
             return;
         }
         fragment.$('frame-title').textContent = frameTitle;
@@ -116,7 +120,7 @@ export class PlayerListView extends UI.Widget.VBox {
             return;
         }
         icon.textContent = '';
-        icon.appendChild(UI.Icon.Icon.create(iconName, 'media-player'));
+        icon.appendChild(IconButton.Icon.create(iconName, 'media-player'));
     }
     formatAndEvaluate(playerID, func, candidate, min, max) {
         if (candidate.length <= min) {
@@ -138,7 +142,7 @@ export class PlayerListView extends UI.Widget.VBox {
             return;
         }
         const fragment = this.playerEntryFragments.get(playerID);
-        if (fragment === undefined || fragment.element() === undefined) {
+        if (fragment?.element() === undefined) {
             return;
         }
         this.contentElement.removeChild(fragment.element());
@@ -176,7 +180,7 @@ export class PlayerListView extends UI.Widget.VBox {
         // title from the FrameUrl though, since the page location itself might not
         // have any relevance to the video being played, and would be shared by all
         // videos on the page.
-        if (property.name === "kFrameUrl" /* PlayerPropertyKeys.FrameUrl */) {
+        if (property.name === "kFrameUrl" /* PlayerPropertyKeys.FRAME_URL */) {
             const frameTitle = new URL(property.value).hostname;
             this.formatAndEvaluate(playerID, this.setMediaElementFrameTitle, frameTitle, 1, 20);
             return;
@@ -187,7 +191,7 @@ export class PlayerListView extends UI.Widget.VBox {
         // junk, or it might be super long. If it's empty, or 1 character, It's
         // preferable to just drop it. Titles longer than 20 will have the first
         // 17 characters kept and an elipsis appended.
-        if (property.name === "kFrameTitle" /* PlayerPropertyKeys.FrameTitle */ && property.value) {
+        if (property.name === "kFrameTitle" /* PlayerPropertyKeys.FRAME_TITLE */ && property.value) {
             this.formatAndEvaluate(playerID, this.setMediaElementFrameTitle, property.value, 1, 20);
             return;
         }
@@ -197,10 +201,6 @@ export class PlayerListView extends UI.Widget.VBox {
     }
     onMessage(_playerID, _message) {
         // TODO(tmathmeyer) show a message count number next to the player name.
-    }
-    wasShown() {
-        super.wasShown();
-        this.registerCSSFiles([playerListViewStyles]);
     }
 }
 //# sourceMappingURL=PlayerListView.js.map

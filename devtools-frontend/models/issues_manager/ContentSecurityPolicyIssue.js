@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 import * as i18n from '../../core/i18n/i18n.js';
-import { Issue, IssueCategory, IssueKind } from './Issue.js';
+import { Issue } from './Issue.js';
 import { resolveLazyDescription, } from './MarkdownIssueDescription.js';
 const UIStrings = {
     /**
@@ -39,7 +39,7 @@ export class ContentSecurityPolicyIssue extends Issue {
         this.#issueDetails = issueDetails;
     }
     getCategory() {
-        return IssueCategory.ContentSecurityPolicy;
+        return "ContentSecurityPolicy" /* IssueCategory.CONTENT_SECURITY_POLICY */;
     }
     primaryKey() {
         return JSON.stringify(this.#issueDetails, [
@@ -66,9 +66,9 @@ export class ContentSecurityPolicyIssue extends Issue {
     }
     getKind() {
         if (this.#issueDetails.isReportOnly) {
-            return IssueKind.Improvement;
+            return "Improvement" /* IssueKind.IMPROVEMENT */;
         }
-        return IssueKind.PageError;
+        return "PageError" /* IssueKind.PAGE_ERROR */;
     }
     static fromInspectorIssue(issuesModel, inspectorIssue) {
         const cspDetails = inspectorIssue.details.contentSecurityPolicyIssueDetails;

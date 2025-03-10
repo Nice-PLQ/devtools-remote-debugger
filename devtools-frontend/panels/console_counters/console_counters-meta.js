@@ -15,10 +15,6 @@ UI.Toolbar.registerToolbarItem({
         return ConsoleCounters.WarningErrorCounter.WarningErrorCounter.instance();
     },
     order: 1,
-    location: UI.Toolbar.ToolbarItemLocation.MAIN_TOOLBAR_RIGHT,
-    showLabel: undefined,
-    condition: undefined,
-    separator: undefined,
-    actionId: undefined,
+    location: "main-toolbar-right" /* UI.Toolbar.ToolbarItemLocation.MAIN_TOOLBAR_RIGHT */,
 });
 //# sourceMappingURL=console_counters-meta.js.map

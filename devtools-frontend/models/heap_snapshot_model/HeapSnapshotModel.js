@@ -32,6 +32,7 @@ export const HeapSnapshotProgressEvent = {
     BrokenSnapshot: 'BrokenSnapshot',
 };
 export const baseSystemDistance = 100000000;
+export const baseUnreachableDistance = baseSystemDistance * 2;
 export class AllocationNodeCallers {
     nodesWithSingleCaller;
     branchingCallers;
@@ -91,6 +92,7 @@ export class Node {
     canBeQueried;
     detachedDOMTreeNode;
     isAddedNotRemoved;
+    ignored;
     constructor(id, name, distance, nodeIndex, retainedSize, selfSize, type) {
         this.id = id;
         this.name = name;
@@ -102,6 +104,7 @@ export class Node {
         this.canBeQueried = false;
         this.detachedDOMTreeNode = false;
         this.isAddedNotRemoved = null;
+        this.ignored = false;
     }
 }
 export class Edge {
@@ -123,23 +126,25 @@ export class Aggregate {
     distance;
     self;
     maxRet;
-    type;
     name;
     idxs;
     constructor() {
     }
 }
 export class AggregateForDiff {
+    name;
     indexes;
     ids;
     selfSizes;
     constructor() {
+        this.name = '';
         this.indexes = [];
         this.ids = [];
         this.selfSizes = [];
     }
 }
 export class Diff {
+    name;
     addedCount;
     removedCount;
     addedSize;
@@ -148,7 +153,8 @@ export class Diff {
     addedIndexes;
     countDelta;
     sizeDelta;
-    constructor() {
+    constructor(name) {
+        this.name = name;
         this.addedCount = 0;
         this.removedCount = 0;
         this.addedSize = 0;
@@ -158,6 +164,7 @@ export class Diff {
     }
 }
 export class DiffForClass {
+    name;
     addedCount;
     removedCount;
     addedSize;
@@ -218,28 +225,18 @@ export class StaticData {
         this.maxJSObjectId = maxJSObjectId;
     }
 }
-export class Statistics {
-    total;
-    v8heap;
-    native;
-    code;
-    jsArrays;
-    strings;
-    system;
-    constructor() {
-    }
-}
 export class NodeFilter {
     minNodeId;
     maxNodeId;
     allocationNodeId;
+    filterName;
     constructor(minNodeId, maxNodeId) {
         this.minNodeId = minNodeId;
         this.maxNodeId = maxNodeId;
     }
     equals(o) {
         return this.minNodeId === o.minNodeId && this.maxNodeId === o.maxNodeId &&
-            this.allocationNodeId === o.allocationNodeId;
+            this.allocationNodeId === o.allocationNodeId && this.filterName === o.filterName;
     }
 }
 export class SearchConfig {

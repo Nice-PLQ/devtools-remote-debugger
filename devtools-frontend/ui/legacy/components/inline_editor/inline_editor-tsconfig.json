@@ -37,13 +37,8 @@
     "../../../../../../../../front_end/ui/legacy/components/inline_editor/CSSAngleEditor.ts",
     "../../../../../../../../front_end/ui/legacy/components/inline_editor/CSSAngleSwatch.ts",
     "../../../../../../../../front_end/ui/legacy/components/inline_editor/CSSAngleUtils.ts",
-    "../../../../../../../../front_end/ui/legacy/components/inline_editor/CSSAnimationModel.ts",
-    "../../../../../../../../front_end/ui/legacy/components/inline_editor/CSSLength.ts",
-    "../../../../../../../../front_end/ui/legacy/components/inline_editor/CSSLengthUtils.ts",
     "../../../../../../../../front_end/ui/legacy/components/inline_editor/CSSLinearEasingModel.ts",
     "../../../../../../../../front_end/ui/legacy/components/inline_editor/CSSShadowEditor.ts",
-    "../../../../../../../../front_end/ui/legacy/components/inline_editor/CSSShadowModel.ts",
-    "../../../../../../../../front_end/ui/legacy/components/inline_editor/ColorMixModel.ts",
     "../../../../../../../../front_end/ui/legacy/components/inline_editor/ColorMixSwatch.ts",
     "../../../../../../../../front_end/ui/legacy/components/inline_editor/ColorSwatch.ts",
     "../../../../../../../../front_end/ui/legacy/components/inline_editor/FontEditor.ts",
@@ -55,8 +50,8 @@
     "../../../../../../../../front_end/ui/legacy/components/inline_editor/Swatches.ts",
     "../../../../../../../../front_end/legacy/legacy-defs.d.ts",
     "../../../../../../../../front_end/global_typings/global_defs.d.ts",
-    "../../../../../../../../front_end/global_typings/request_idle_callback.d.ts",
-    "../../../../../../../../node_modules/@types/filesystem/index.d.ts"
+    "../../../../../../../../node_modules/@types/filesystem/index.d.ts",
+    "../../../../../../../../node_modules/@types/wicg-task-scheduling/index.d.ts"
   ],
   "references": [
     {
@@ -81,6 +76,12 @@
       "path": "../../../../panels/css_overview/bundle-tsconfig.json"
     },
     {
+      "path": "../../../../third_party/codemirror.next/bundle-tsconfig.json"
+    },
+    {
+      "path": "../../../components/buttons/bundle-tsconfig.json"
+    },
+    {
       "path": "../../../components/helpers/bundle-tsconfig.json"
     },
     {
@@ -90,7 +91,10 @@
       "path": "../utils/bundle-tsconfig.json"
     },
     {
-      "path": "../../../lit-html/bundle-tsconfig.json"
+      "path": "../../../lit/bundle-tsconfig.json"
+    },
+    {
+      "path": "../../../visual_logging/bundle-tsconfig.json"
     }
   ]
 }

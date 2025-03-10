@@ -29,8 +29,7 @@
  */
 import * as Common from '../../core/common/common.js';
 import { UISourceCode } from './UISourceCode.js';
-// TODO(crbug.com/1167717): Make this a const enum again
-// eslint-disable-next-line rulesdir/const_enum, @typescript-eslint/naming-convention
+/* eslint-disable @typescript-eslint/naming-convention -- Used by web_tests. */
 export var projectTypes;
 (function (projectTypes) {
     projectTypes["Debugger"] = "debugger";
@@ -40,6 +39,7 @@ export var projectTypes;
     projectTypes["ContentScripts"] = "contentscripts";
     projectTypes["Service"] = "service";
 })(projectTypes || (projectTypes = {}));
+/* eslint-enable @typescript-eslint/naming-convention */
 export class ProjectStore {
     workspaceInternal;
     idInternal;
@@ -110,6 +110,9 @@ export class ProjectStore {
     }
     deleteFile(_uiSourceCode) {
     }
+    deleteDirectoryRecursively(_path) {
+        return Promise.resolve(false);
+    }
     remove() {
     }
     indexContent(_progress) {
@@ -166,7 +169,9 @@ export class WorkspaceImpl extends Common.ObjectWrapper.ObjectWrapper {
         const result = [];
         for (const project of this.projectsInternal.values()) {
             if (project.type() === type) {
-                result.push(...project.uiSourceCodes());
+                for (const uiSourceCode of project.uiSourceCodes()) {
+                    result.push(uiSourceCode);
+                }
             }
         }
         return result;
@@ -195,7 +200,9 @@ export class WorkspaceImpl extends Common.ObjectWrapper.ObjectWrapper {
     uiSourceCodes() {
         const result = [];
         for (const project of this.projectsInternal.values()) {
-            result.push(...project.uiSourceCodes());
+            for (const uiSourceCode of project.uiSourceCodes()) {
+                result.push(uiSourceCode);
+            }
         }
         return result;
     }
@@ -206,10 +213,9 @@ export class WorkspaceImpl extends Common.ObjectWrapper.ObjectWrapper {
         return this.hasResourceContentTrackingExtensionsInternal;
     }
 }
-// TODO(crbug.com/1167717): Make this a const enum again
-// eslint-disable-next-line rulesdir/const_enum
 export var Events;
 (function (Events) {
+    /* eslint-disable @typescript-eslint/naming-convention -- Used by web_tests. */
     Events["UISourceCodeAdded"] = "UISourceCodeAdded";
     Events["UISourceCodeRemoved"] = "UISourceCodeRemoved";
     Events["UISourceCodeRenamed"] = "UISourceCodeRenamed";
@@ -218,5 +224,6 @@ export var Events;
     Events["WorkingCopyCommittedByUser"] = "WorkingCopyCommittedByUser";
     Events["ProjectAdded"] = "ProjectAdded";
     Events["ProjectRemoved"] = "ProjectRemoved";
+    /* eslint-enable @typescript-eslint/naming-convention */
 })(Events || (Events = {}));
 //# sourceMappingURL=WorkspaceImpl.js.map

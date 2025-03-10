@@ -2,9 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 import * as ComponentHelpers from '../../../../../front_end/ui/components/helpers/helpers.js';
-import * as LitHtml from '../../../../../front_end/ui/lit-html/lit-html.js';
-import * as FrontendHelpers from '../../../../../test/unittests/front_end/helpers/EnvironmentHelpers.js'; // eslint-disable-line rulesdir/es_modules_import
+import * as Lit from '../../../../../front_end/ui/lit/lit.js';
 import * as RecorderComponents from '../../../../panels/recorder/components/components.js';
+import * as FrontendHelpers from '../../../../testing/EnvironmentHelpers.js';
+const { html } = Lit;
 await ComponentHelpers.ComponentServerSetup.setup();
 await FrontendHelpers.initializeGlobalVars();
 const container = document.getElementById('container');
@@ -50,21 +51,24 @@ function litRender(template) {
     div.style.margin = '10px';
     div.style.flexDirection = 'row-reverse';
     container?.appendChild(div);
-    LitHtml.render(template, div); // eslint-disable-line
+    Lit.render(template, div);
 }
-litRender(LitHtml.html `
-    <${RecorderComponents.SelectButton.SelectButton.litTagName} .items=${items} .value=${items[0].value}></${RecorderComponents.SelectButton.SelectButton.litTagName}>`);
-litRender(LitHtml.html `
-    <${RecorderComponents.SelectButton.SelectButton.litTagName} .disabled=${true} .items=${items} .value=${items[0].value}></${RecorderComponents.SelectButton.SelectButton.litTagName}>`);
-litRender(LitHtml.html `
-    <${RecorderComponents.SelectButton.SelectButton.litTagName}
-    .variant=${"secondary" /* RecorderComponents.SelectButton.Variant.SECONDARY */}
-    .items=${replayItems}
-    .value=${replayItems[0].value}></${RecorderComponents.SelectButton.SelectButton.litTagName}>`);
-litRender(LitHtml.html `
-    <${RecorderComponents.SelectButton.SelectButton.litTagName}
-    .disabled=${true}
-    .variant=${"secondary" /* RecorderComponents.SelectButton.Variant.SECONDARY */}
-    .items=${replayItems}
-    .value=${replayItems[2].value}></${RecorderComponents.SelectButton.SelectButton.litTagName}>`);
+litRender(html `
+    <devtools-select-button .items=${items} .value=${items[0].value}></devtools-select-button>`);
+litRender(html `
+    <devtools-select-button .disabled=${true} .items=${items} .value=${items[0].value}>
+    </devtools-select-button>`);
+litRender(html `
+    <devtools-select-button
+      .variant=${"outlined" /* RecorderComponents.SelectButton.Variant.OUTLINED */}
+      .items=${replayItems}
+      .value=${replayItems[0].value}>
+    </devtools-select-button>`);
+litRender(html `
+    <devtools-select-button
+      .disabled=${true}
+      .variant=${"outlined" /* RecorderComponents.SelectButton.Variant.OUTLINED */}
+      .items=${replayItems}
+      .value=${replayItems[2].value}>
+    </devtools-select-button>`);
 //# sourceMappingURL=basic.js.map

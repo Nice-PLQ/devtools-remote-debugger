@@ -4,6 +4,7 @@
         "outDir": "."
     },
     "files": [
+        "JSONEditor.css.js",
         "protocolMonitor.css.js"
     ]
 }

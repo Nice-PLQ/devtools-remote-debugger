@@ -9,7 +9,7 @@ import * as Components from '../../ui/legacy/components/utils/utils.js';
 import * as UI from '../../ui/legacy/legacy.js';
 import * as Workspace from '../workspace/workspace.js';
 import { FileSystemWorkspaceBinding } from './FileSystemWorkspaceBinding.js';
-import { HEADERS_FILENAME, NetworkPersistenceManager } from './NetworkPersistenceManager.js';
+import { NetworkPersistenceManager } from './NetworkPersistenceManager.js';
 import { Events, PersistenceImpl } from './PersistenceImpl.js';
 const UIStrings = {
     /**
@@ -42,11 +42,11 @@ export class PersistenceUtils {
     static iconForUISourceCode(uiSourceCode) {
         const binding = PersistenceImpl.instance().binding(uiSourceCode);
         if (binding) {
-            if (!binding.fileSystem.url().startsWith('file://')) {
+            if (!Common.ParsedURL.schemeIs(binding.fileSystem.url(), 'file:')) {
                 return null;
             }
             const icon = new IconButton.Icon.Icon();
-            icon.data = { iconName: 'document', color: 'var(--icon-default)', width: '16px', height: '16px' };
+            icon.data = { iconName: 'document', color: 'var(--icon-default)', width: '14px', height: '14px' };
             UI.Tooltip.Tooltip.install(icon, PersistenceUtils.tooltipForUISourceCode(binding.network));
             if (NetworkPersistenceManager.instance().project() === binding.fileSystem.project()) {
                 icon.classList.add('dot', 'purple');
@@ -57,19 +57,17 @@ export class PersistenceUtils {
             return icon;
         }
         if (uiSourceCode.project().type() !== Workspace.Workspace.projectTypes.FileSystem ||
-            !uiSourceCode.url().startsWith('file://')) {
+            !Common.ParsedURL.schemeIs(uiSourceCode.url(), 'file:')) {
             return null;
         }
-        if (uiSourceCode.url().endsWith(HEADERS_FILENAME)) {
-            if (NetworkPersistenceManager.instance().hasMatchingNetworkUISourceCodeForHeaderOverridesFile(uiSourceCode)) {
-                const icon = new IconButton.Icon.Icon();
-                icon.data = { iconName: 'document', color: 'var(--icon-default)', width: '16px', height: '16px' };
-                icon.classList.add('dot', 'purple');
-                return icon;
-            }
+        if (NetworkPersistenceManager.instance().isActiveHeaderOverrides(uiSourceCode)) {
+            const icon = new IconButton.Icon.Icon();
+            icon.data = { iconName: 'document', color: 'var(--icon-default)', width: '14px', height: '14px' };
+            icon.classList.add('dot', 'purple');
+            return icon;
         }
         const icon = new IconButton.Icon.Icon();
-        icon.data = { iconName: 'document', color: 'var(--icon-default)', width: '16px', height: '16px' };
+        icon.data = { iconName: 'document', color: 'var(--icon-default)', width: '14px', height: '14px' };
         UI.Tooltip.Tooltip.install(icon, PersistenceUtils.tooltipForUISourceCode(uiSourceCode));
         return icon;
     }
@@ -82,7 +80,7 @@ export class LinkDecorator extends Common.ObjectWrapper.ObjectWrapper {
     }
     bindingChanged(event) {
         const binding = event.data;
-        this.dispatchEventToListeners(Components.Linkifier.LinkDecorator.Events.LinkIconChanged, binding.network);
+        this.dispatchEventToListeners("LinkIconChanged" /* Components.Linkifier.LinkDecorator.Events.LINK_ICON_CHANGED */, binding.network);
     }
     linkIcon(uiSourceCode) {
         return PersistenceUtils.iconForUISourceCode(uiSourceCode);

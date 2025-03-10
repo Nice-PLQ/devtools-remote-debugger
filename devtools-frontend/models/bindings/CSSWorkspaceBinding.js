@@ -182,6 +182,9 @@ export class ModelInfo {
         await Promise.all(promises);
         this.#locations.deleteAll(header);
     }
+    addSourceMap(sourceUrl, sourceMapUrl) {
+        this.#stylesSourceMapping.addSourceMap(sourceUrl, sourceMapUrl);
+    }
     rawLocationToUILocation(rawLocation) {
         let uiLocation = null;
         uiLocation = uiLocation || this.#sassSourceMapping.rawLocationToUILocation(rawLocation);

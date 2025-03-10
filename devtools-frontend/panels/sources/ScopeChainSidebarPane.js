@@ -1,14 +1,13 @@
 // Copyright 2021 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
-import * as Host from '../../core/host/host.js';
 import * as i18n from '../../core/i18n/i18n.js';
 import * as SDK from '../../core/sdk/sdk.js';
 import * as SourceMapScopes from '../../models/source_map_scopes/source_map_scopes.js';
-import * as LinearMemoryInspector from '../../ui/components/linear_memory_inspector/linear_memory_inspector.js';
 import * as ObjectUI from '../../ui/legacy/components/object_ui/object_ui.js';
 import * as Components from '../../ui/legacy/components/utils/utils.js';
 import * as UI from '../../ui/legacy/legacy.js';
+import * as VisualLogging from '../../ui/visual_logging/visual_logging.js';
 import scopeChainSidebarPaneStyles from './scopeChainSidebarPane.css.js';
 const UIStrings = {
     /**
@@ -32,18 +31,6 @@ const UIStrings = {
      *@description Text that refers to closure as a programming term
      */
     closure: 'Closure',
-    /**
-     *@description Text in Scope Chain Sidebar Pane of the Sources panel
-     */
-    exception: 'Exception',
-    /**
-     *@description Text in Scope Chain Sidebar Pane of the Sources panel
-     */
-    returnValue: 'Return value',
-    /**
-     *@description A context menu item in the Scope View of the Sources Panel
-     */
-    revealInMemoryInspectorPanel: 'Reveal in Memory Inspector panel',
 };
 const str_ = i18n.i18n.registerUIStrings('panels/sources/ScopeChainSidebarPane.ts', UIStrings);
 const i18nString = i18n.i18n.getLocalizedString.bind(undefined, str_);
@@ -53,10 +40,14 @@ export class ScopeChainSidebarPane extends UI.Widget.VBox {
     expandController;
     linkifier;
     infoElement;
-    #scopesScript = null;
+    #scopeChainModel = null;
     constructor() {
         super(true);
+        this.registerRequiredCSS(scopeChainSidebarPaneStyles);
+        this.contentElement.setAttribute('jslog', `${VisualLogging.section('sources.scope-chain')}`);
         this.treeOutline = new ObjectUI.ObjectPropertiesSection.ObjectPropertiesSectionsTreeOutline();
+        this.treeOutline.registerRequiredCSS(scopeChainSidebarPaneStyles);
+        this.treeOutline.hideOverflow();
         this.treeOutline.setShowSelectionOnKeyboardFocus(/* show */ true);
         this.expandController =
             new ObjectUI.ObjectPropertiesSection.ObjectPropertiesSectionsTreeExpandController(this.treeOutline);
@@ -64,8 +55,7 @@ export class ScopeChainSidebarPane extends UI.Widget.VBox {
         this.infoElement = document.createElement('div');
         this.infoElement.className = 'gray-info-message';
         this.infoElement.tabIndex = -1;
-        SDK.TargetManager.TargetManager.instance().addModelListener(SDK.DebuggerModel.DebuggerModel, SDK.DebuggerModel.Events.DebugInfoAttached, this.debugInfoAttached, this);
-        void this.update();
+        this.flavorChanged(UI.Context.Context.instance().flavor(SDK.DebuggerModel.CallFrame));
     }
     static instance() {
         if (!scopeChainSidebarPaneInstance) {
@@ -73,8 +63,22 @@ export class ScopeChainSidebarPane extends UI.Widget.VBox {
         }
         return scopeChainSidebarPaneInstance;
     }
-    flavorChanged(_object) {
-        void this.update();
+    flavorChanged(callFrame) {
+        this.#scopeChainModel?.dispose();
+        this.#scopeChainModel = null;
+        this.linkifier.reset();
+        this.contentElement.removeChildren();
+        this.contentElement.appendChild(this.infoElement);
+        if (callFrame) {
+            // Resolving the scope may take a while to complete, so indicate to the user that something
+            // is happening (see https://crbug.com/1162416).
+            this.infoElement.textContent = i18nString(UIStrings.loading);
+            this.#scopeChainModel = new SourceMapScopes.ScopeChainModel.ScopeChainModel(callFrame);
+            this.#scopeChainModel.addEventListener("ScopeChainUpdated" /* SourceMapScopes.ScopeChainModel.Events.SCOPE_CHAIN_UPDATED */, event => this.buildScopeTreeOutline(event.data), this);
+        }
+        else {
+            this.infoElement.textContent = i18nString(UIStrings.notPaused);
+        }
     }
     focus() {
         if (this.hasFocus()) {
@@ -84,80 +88,33 @@ export class ScopeChainSidebarPane extends UI.Widget.VBox {
             this.treeOutline.forceSelect();
         }
     }
-    sourceMapAttached(event) {
-        if (event.data.client === this.#scopesScript) {
-            void this.update();
-        }
-    }
-    setScopeSourceMapSubscription(callFrame) {
-        const oldScript = this.#scopesScript;
-        this.#scopesScript = callFrame?.script ?? null;
-        // Shortcut for the case when we are listening to the same model.
-        if (oldScript?.debuggerModel === this.#scopesScript?.debuggerModel) {
-            return;
-        }
-        if (oldScript) {
-            oldScript.debuggerModel.sourceMapManager().removeEventListener(SDK.SourceMapManager.Events.SourceMapAttached, this.sourceMapAttached, this);
-        }
-        if (this.#scopesScript) {
-            this.#scopesScript.debuggerModel.sourceMapManager().addEventListener(SDK.SourceMapManager.Events.SourceMapAttached, this.sourceMapAttached, this);
-        }
-    }
-    debugInfoAttached(event) {
-        if (event.data === this.#scopesScript) {
-            void this.update();
-        }
-    }
-    async update() {
-        // The `resolveThisObject(callFrame)` and `resolveScopeChain(callFrame)` calls
-        // below may take a while to complete, so indicate to the user that something
-        // is happening (see https://crbug.com/1162416).
-        this.infoElement.textContent = i18nString(UIStrings.loading);
+    buildScopeTreeOutline(eventScopeChain) {
+        const { scopeChain } = eventScopeChain;
+        this.treeOutline.removeChildren();
         this.contentElement.removeChildren();
-        this.contentElement.appendChild(this.infoElement);
-        this.linkifier.reset();
-        const callFrame = UI.Context.Context.instance().flavor(SDK.DebuggerModel.CallFrame);
-        this.setScopeSourceMapSubscription(callFrame);
-        const [thisObject, scopeChain] = await Promise.all([
-            SourceMapScopes.NamesResolver.resolveThisObject(callFrame),
-            SourceMapScopes.NamesResolver.resolveScopeChain(callFrame),
-        ]);
-        // By now the developer might have moved on, and we don't want to show stale
-        // scope information, so check again that we're still on the same CallFrame.
-        if (callFrame === UI.Context.Context.instance().flavor(SDK.DebuggerModel.CallFrame)) {
-            const details = UI.Context.Context.instance().flavor(SDK.DebuggerModel.DebuggerPausedDetails);
-            this.treeOutline.removeChildren();
-            if (!details || !callFrame || !scopeChain) {
-                this.infoElement.textContent = i18nString(UIStrings.notPaused);
-                return;
+        this.contentElement.appendChild(this.treeOutline.element);
+        let foundLocalScope = false;
+        for (const [i, scope] of scopeChain.entries()) {
+            if (scope.type() === "local" /* Protocol.Debugger.ScopeType.Local */) {
+                foundLocalScope = true;
             }
-            this.contentElement.removeChildren();
-            this.contentElement.appendChild(this.treeOutline.element);
-            let foundLocalScope = false;
-            for (let i = 0; i < scopeChain.length; ++i) {
-                const scope = scopeChain[i];
-                const extraProperties = this.extraPropertiesForScope(scope, details, callFrame, thisObject, i === 0);
-                if (scope.type() === "local" /* Protocol.Debugger.ScopeType.Local */) {
-                    foundLocalScope = true;
-                }
-                const section = this.createScopeSectionTreeElement(scope, extraProperties);
-                if (scope.type() === "global" /* Protocol.Debugger.ScopeType.Global */) {
-                    section.collapse();
-                }
-                else if (!foundLocalScope || scope.type() === "local" /* Protocol.Debugger.ScopeType.Local */) {
-                    section.expand();
-                }
-                this.treeOutline.appendChild(section);
-                if (i === 0) {
-                    section.select(/* omitFocus */ true);
-                }
+            const section = this.createScopeSectionTreeElement(scope);
+            if (scope.type() === "global" /* Protocol.Debugger.ScopeType.Global */) {
+                section.collapse();
             }
-            this.sidebarPaneUpdatedForTest();
+            else if (!foundLocalScope || scope.type() === "local" /* Protocol.Debugger.ScopeType.Local */) {
+                section.expand();
+            }
+            this.treeOutline.appendChild(section);
+            if (i === 0) {
+                section.select(/* omitFocus */ true);
+            }
         }
+        this.sidebarPaneUpdatedForTest();
     }
-    createScopeSectionTreeElement(scope, extraProperties) {
+    createScopeSectionTreeElement(scope) {
         let emptyPlaceholder = null;
-        if (scope.type() === "local" /* Protocol.Debugger.ScopeType.Local */ || "closure" /* Protocol.Debugger.ScopeType.Closure */) {
+        if (scope.type() === "local" /* Protocol.Debugger.ScopeType.Local */ || scope.type() === "closure" /* Protocol.Debugger.ScopeType.Closure */) {
             emptyPlaceholder = i18nString(UIStrings.noVariables);
         }
         let title = scope.typeName();
@@ -186,65 +143,14 @@ export class ScopeChainSidebarPane extends UI.Widget.VBox {
         }
         titleElement.createChild('div', 'scope-chain-sidebar-pane-section-subtitle').textContent = subtitle;
         titleElement.createChild('div', 'scope-chain-sidebar-pane-section-title').textContent = title;
-        const section = new ObjectUI.ObjectPropertiesSection.RootElement(SourceMapScopes.NamesResolver.resolveScopeInObject(scope), this.linkifier, emptyPlaceholder, 0 /* ObjectUI.ObjectPropertiesSection.ObjectPropertiesMode.All */, extraProperties);
+        const section = new ObjectUI.ObjectPropertiesSection.RootElement(scope.object(), this.linkifier, emptyPlaceholder, 0 /* ObjectUI.ObjectPropertiesSection.ObjectPropertiesMode.ALL */, scope.extraProperties());
         section.title = titleElement;
         section.listItemElement.classList.add('scope-chain-sidebar-pane-section');
         section.listItemElement.setAttribute('aria-label', title);
         this.expandController.watchSection(title + (subtitle ? ':' + subtitle : ''), section);
         return section;
     }
-    extraPropertiesForScope(scope, details, callFrame, thisObject, isFirstScope) {
-        if (scope.type() !== "local" /* Protocol.Debugger.ScopeType.Local */ || callFrame.script.isWasm()) {
-            return [];
-        }
-        const extraProperties = [];
-        if (thisObject) {
-            extraProperties.push(new SDK.RemoteObject.RemoteObjectProperty('this', thisObject, undefined, undefined, undefined, undefined, undefined, /* synthetic */ true));
-        }
-        if (isFirstScope) {
-            const exception = details.exception();
-            if (exception) {
-                extraProperties.push(new SDK.RemoteObject.RemoteObjectProperty(i18nString(UIStrings.exception), exception, undefined, undefined, undefined, undefined, undefined, 
-                /* synthetic */ true));
-            }
-            const returnValue = callFrame.returnValue();
-            if (returnValue) {
-                extraProperties.push(new SDK.RemoteObject.RemoteObjectProperty(i18nString(UIStrings.returnValue), returnValue, undefined, undefined, undefined, undefined, undefined, 
-                /* synthetic */ true, callFrame.setReturnValue.bind(callFrame)));
-            }
-        }
-        return extraProperties;
-    }
     sidebarPaneUpdatedForTest() {
-    }
-    wasShown() {
-        super.wasShown();
-        this.treeOutline.registerCSSFiles([scopeChainSidebarPaneStyles]);
-        this.registerCSSFiles([scopeChainSidebarPaneStyles]);
-    }
-}
-let openLinearMemoryInspectorInstance;
-export class OpenLinearMemoryInspector extends UI.Widget.VBox {
-    static instance(opts = { forceNew: null }) {
-        const { forceNew } = opts;
-        if (!openLinearMemoryInspectorInstance || forceNew) {
-            openLinearMemoryInspectorInstance = new OpenLinearMemoryInspector();
-        }
-        return openLinearMemoryInspectorInstance;
-    }
-    appendApplicableItems(event, contextMenu, target) {
-        if (target instanceof ObjectUI.ObjectPropertiesSection.ObjectPropertyTreeElement) {
-            if (target.property && target.property.value &&
-                LinearMemoryInspector.LinearMemoryInspectorController.isMemoryObjectProperty(target.property.value)) {
-                const expression = target.path();
-                contextMenu.debugSection().appendItem(i18nString(UIStrings.revealInMemoryInspectorPanel), this.openMemoryInspector.bind(this, expression, target.property.value));
-            }
-        }
-    }
-    async openMemoryInspector(expression, obj) {
-        const controller = LinearMemoryInspector.LinearMemoryInspectorController.LinearMemoryInspectorController.instance();
-        Host.userMetrics.linearMemoryInspectorRevealedFrom(Host.UserMetrics.LinearMemoryInspectorRevealedFrom.ContextMenu);
-        void controller.openInspectorView(obj, /* address */ undefined, expression);
     }
 }
 //# sourceMappingURL=ScopeChainSidebarPane.js.map

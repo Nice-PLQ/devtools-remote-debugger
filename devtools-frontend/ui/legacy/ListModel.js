@@ -9,8 +9,6 @@ export class ListModel extends Common.ObjectWrapper.ObjectWrapper {
         super();
         this.items = items || [];
     }
-    // TODO(crbug.com/1172300) Ignored during the jsdoc to ts migration
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     [Symbol.iterator]() {
         return this.items[Symbol.iterator]();
     }
@@ -85,13 +83,7 @@ export class ListModel extends Common.ObjectWrapper.ObjectWrapper {
         return this.items.some(callback);
     }
     replaced(index, removed, inserted, keepSelectedIndex) {
-        this.dispatchEventToListeners(Events.ItemsReplaced, { index, removed, inserted, keepSelectedIndex });
+        this.dispatchEventToListeners("ItemsReplaced" /* Events.ITEMS_REPLACED */, { index, removed, inserted, keepSelectedIndex });
     }
 }
-// TODO(crbug.com/1167717): Make this a const enum again
-// eslint-disable-next-line rulesdir/const_enum
-export var Events;
-(function (Events) {
-    Events["ItemsReplaced"] = "ItemsReplaced";
-})(Events || (Events = {}));
 //# sourceMappingURL=ListModel.js.map

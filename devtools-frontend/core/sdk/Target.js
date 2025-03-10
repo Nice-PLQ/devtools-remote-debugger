@@ -16,10 +16,22 @@ export class Target extends ProtocolClient.InspectorBackend.TargetBase {
     #idInternal;
     #modelByConstructor;
     #isSuspended;
+    /**
+     * Generally when a target crashes we don't need to know, with one exception.
+     * If a target crashes during the recording of a performance trace, after the
+     * trace when we try to resume() it, it will fail because it has crashed. This
+     * causes the performance panel to freeze (see crbug.com/333989070). So we
+     * mark the target as crashed so we can exit without trying to resume it. In
+     * `ChildTargetManager` we will mark a target as "un-crashed" when we get the
+     * `targetInfoChanged` event. This helps ensure we can deal with cases where
+     * the page crashes, but a reload fixes it and the targets get restored (see
+     * crbug.com/387258086).
+     */
+    #hasCrashed = false;
     #targetInfoInternal;
     #creatingModels;
     constructor(targetManager, id, name, type, parentTarget, sessionId, suspended, connection, targetInfo) {
-        const needsNodeJSPatching = type === Type.Node;
+        const needsNodeJSPatching = type === Type.NODE;
         super(needsNodeJSPatching, parentTarget, sessionId, connection);
         this.#targetManagerInternal = targetManager;
         this.#nameInternal = name;
@@ -27,48 +39,54 @@ export class Target extends ProtocolClient.InspectorBackend.TargetBase {
         this.#inspectedURLName = '';
         this.#capabilitiesMask = 0;
         switch (type) {
-            case Type.Frame:
-                this.#capabilitiesMask = Capability.Browser | Capability.Storage | Capability.DOM | Capability.JS |
-                    Capability.Log | Capability.Network | Capability.Target | Capability.Tracing | Capability.Emulation |
-                    Capability.Input | Capability.Inspector | Capability.Audits | Capability.WebAuthn | Capability.IO |
-                    Capability.Media;
-                if (parentTarget?.type() !== Type.Frame) {
+            case Type.FRAME:
+                this.#capabilitiesMask = 1 /* Capability.BROWSER */ | 8192 /* Capability.STORAGE */ | 2 /* Capability.DOM */ | 4 /* Capability.JS */ |
+                    8 /* Capability.LOG */ | 16 /* Capability.NETWORK */ | 32 /* Capability.TARGET */ | 128 /* Capability.TRACING */ | 256 /* Capability.EMULATION */ |
+                    1024 /* Capability.INPUT */ | 2048 /* Capability.INSPECTOR */ | 32768 /* Capability.AUDITS */ | 65536 /* Capability.WEB_AUTHN */ | 131072 /* Capability.IO */ |
+                    262144 /* Capability.MEDIA */ | 524288 /* Capability.EVENT_BREAKPOINTS */;
+                if (parentTarget?.type() !== Type.FRAME) {
                     // This matches backend exposing certain capabilities only for the main frame.
                     this.#capabilitiesMask |=
-                        Capability.DeviceEmulation | Capability.ScreenCapture | Capability.Security | Capability.ServiceWorker;
-                    if (targetInfo?.url.startsWith('chrome-extension://')) {
-                        this.#capabilitiesMask &= ~Capability.Security;
+                        4096 /* Capability.DEVICE_EMULATION */ | 64 /* Capability.SCREEN_CAPTURE */ | 512 /* Capability.SECURITY */ | 16384 /* Capability.SERVICE_WORKER */;
+                    if (Common.ParsedURL.schemeIs(targetInfo?.url, 'chrome-extension:')) {
+                        this.#capabilitiesMask &= ~512 /* Capability.SECURITY */;
                     }
                     // TODO(dgozman): we report service workers for the whole frame tree on the main frame,
                     // while we should be able to only cover the subtree corresponding to the target.
                 }
                 break;
             case Type.ServiceWorker:
-                this.#capabilitiesMask = Capability.JS | Capability.Log | Capability.Network | Capability.Target |
-                    Capability.Inspector | Capability.IO;
-                if (parentTarget?.type() !== Type.Frame) {
-                    this.#capabilitiesMask |= Capability.Browser;
+                this.#capabilitiesMask = 4 /* Capability.JS */ | 8 /* Capability.LOG */ | 16 /* Capability.NETWORK */ | 32 /* Capability.TARGET */ |
+                    2048 /* Capability.INSPECTOR */ | 131072 /* Capability.IO */ | 524288 /* Capability.EVENT_BREAKPOINTS */;
+                if (parentTarget?.type() !== Type.FRAME) {
+                    this.#capabilitiesMask |= 1 /* Capability.BROWSER */;
                 }
                 break;
-            case Type.SharedWorker:
-                this.#capabilitiesMask = Capability.JS | Capability.Log | Capability.Network | Capability.Target |
-                    Capability.IO | Capability.Media | Capability.Inspector;
+            case Type.SHARED_WORKER:
+                this.#capabilitiesMask = 4 /* Capability.JS */ | 8 /* Capability.LOG */ | 16 /* Capability.NETWORK */ | 32 /* Capability.TARGET */ |
+                    131072 /* Capability.IO */ | 262144 /* Capability.MEDIA */ | 2048 /* Capability.INSPECTOR */ | 524288 /* Capability.EVENT_BREAKPOINTS */;
+                break;
+            case Type.SHARED_STORAGE_WORKLET:
+                this.#capabilitiesMask = 4 /* Capability.JS */ | 8 /* Capability.LOG */ | 2048 /* Capability.INSPECTOR */ | 524288 /* Capability.EVENT_BREAKPOINTS */;
                 break;
             case Type.Worker:
-                this.#capabilitiesMask = Capability.JS | Capability.Log | Capability.Network | Capability.Target |
-                    Capability.IO | Capability.Media | Capability.Emulation;
+                this.#capabilitiesMask = 4 /* Capability.JS */ | 8 /* Capability.LOG */ | 16 /* Capability.NETWORK */ | 32 /* Capability.TARGET */ |
+                    131072 /* Capability.IO */ | 262144 /* Capability.MEDIA */ | 256 /* Capability.EMULATION */ | 524288 /* Capability.EVENT_BREAKPOINTS */;
                 break;
-            case Type.Node:
-                this.#capabilitiesMask = Capability.JS;
+            case Type.WORKLET:
+                this.#capabilitiesMask = 4 /* Capability.JS */ | 8 /* Capability.LOG */ | 524288 /* Capability.EVENT_BREAKPOINTS */ | 16 /* Capability.NETWORK */;
                 break;
-            case Type.AuctionWorklet:
-                this.#capabilitiesMask = Capability.JS | Capability.EventBreakpoints;
+            case Type.NODE:
+                this.#capabilitiesMask = 4 /* Capability.JS */ | 16 /* Capability.NETWORK */;
                 break;
-            case Type.Browser:
-                this.#capabilitiesMask = Capability.Target | Capability.IO;
+            case Type.AUCTION_WORKLET:
+                this.#capabilitiesMask = 4 /* Capability.JS */ | 524288 /* Capability.EVENT_BREAKPOINTS */;
                 break;
-            case Type.Tab:
-                this.#capabilitiesMask = Capability.Target;
+            case Type.BROWSER:
+                this.#capabilitiesMask = 32 /* Capability.TARGET */ | 131072 /* Capability.IO */;
+                break;
+            case Type.TAB:
+                this.#capabilitiesMask = 32 /* Capability.TARGET */ | 128 /* Capability.TRACING */;
                 break;
         }
         this.#typeInternal = type;
@@ -114,7 +132,7 @@ export class Target extends ProtocolClient.InspectorBackend.TargetBase {
     }
     markAsNodeJSForTest() {
         super.markAsNodeJSForTest();
-        this.#typeInternal = Type.Node;
+        this.#typeInternal = Type.NODE;
     }
     targetManager() {
         return this.#targetManagerInternal;
@@ -135,7 +153,7 @@ export class Target extends ProtocolClient.InspectorBackend.TargetBase {
         let lastTarget = null;
         let currentTarget = this;
         do {
-            if (currentTarget.type() !== Type.Tab && currentTarget.type() !== Type.Browser) {
+            if (currentTarget.type() !== Type.TAB && currentTarget.type() !== Type.BROWSER) {
                 lastTarget = currentTarget;
             }
             currentTarget = currentTarget.parentTarget();
@@ -153,7 +171,7 @@ export class Target extends ProtocolClient.InspectorBackend.TargetBase {
         if (!this.#modelByConstructor.get(modelClass)) {
             const info = SDKModel.registeredModels.get(modelClass);
             if (info === undefined) {
-                throw 'Model class is not registered @' + new Error().stack;
+                throw new Error('Model class is not registered');
             }
             if ((this.#capabilitiesMask & info.capabilities) === info.capabilities) {
                 const model = new modelClass(this);
@@ -180,11 +198,31 @@ export class Target extends ProtocolClient.InspectorBackend.TargetBase {
             this.#targetManagerInternal.onNameChange(this);
         }
     }
+    hasCrashed() {
+        return this.#hasCrashed;
+    }
+    setHasCrashed(isCrashed) {
+        const wasCrashed = this.#hasCrashed;
+        this.#hasCrashed = isCrashed;
+        // If the target has now been restored, check to see if it needs resuming.
+        // This ensures that if a target crashes whilst suspended, it is resumed
+        // when it is recovered.
+        // If the target is not suspended, resume() is a no-op, so it's safe to call.
+        if (wasCrashed && !isCrashed) {
+            void this.resume();
+        }
+    }
     async suspend(reason) {
         if (this.#isSuspended) {
             return;
         }
         this.#isSuspended = true;
+        // If the target has crashed, we will not attempt to suspend all the
+        // models, but we still mark it as suspended so we correctly track the
+        // state.
+        if (this.#hasCrashed) {
+            return;
+        }
         await Promise.all(Array.from(this.models().values(), m => m.preSuspendModel(reason)));
         await Promise.all(Array.from(this.models().values(), m => m.suspendModel(reason)));
     }
@@ -193,6 +231,9 @@ export class Target extends ProtocolClient.InspectorBackend.TargetBase {
             return;
         }
         this.#isSuspended = false;
+        if (this.#hasCrashed) {
+            return;
+        }
         await Promise.all(Array.from(this.models().values(), m => m.resumeModel()));
         await Promise.all(Array.from(this.models().values(), m => m.postResumeModel()));
     }
@@ -206,43 +247,19 @@ export class Target extends ProtocolClient.InspectorBackend.TargetBase {
         return this.#targetInfoInternal;
     }
 }
-// TODO(crbug.com/1167717): Make this a const enum again
-// eslint-disable-next-line rulesdir/const_enum
 export var Type;
 (function (Type) {
-    Type["Frame"] = "frame";
+    Type["FRAME"] = "frame";
+    // eslint-disable-next-line @typescript-eslint/naming-convention -- Used by web_tests.
     Type["ServiceWorker"] = "service-worker";
+    // eslint-disable-next-line @typescript-eslint/naming-convention -- Used by web_tests.
     Type["Worker"] = "worker";
-    Type["SharedWorker"] = "shared-worker";
-    Type["Node"] = "node";
-    Type["Browser"] = "browser";
-    Type["AuctionWorklet"] = "auction-worklet";
-    Type["Tab"] = "tab";
+    Type["SHARED_WORKER"] = "shared-worker";
+    Type["SHARED_STORAGE_WORKLET"] = "shared-storage-worklet";
+    Type["NODE"] = "node";
+    Type["BROWSER"] = "browser";
+    Type["AUCTION_WORKLET"] = "auction-worklet";
+    Type["WORKLET"] = "worklet";
+    Type["TAB"] = "tab";
 })(Type || (Type = {}));
-// TODO(crbug.com/1167717): Make this a const enum again
-// eslint-disable-next-line rulesdir/const_enum
-export var Capability;
-(function (Capability) {
-    Capability[Capability["Browser"] = 1] = "Browser";
-    Capability[Capability["DOM"] = 2] = "DOM";
-    Capability[Capability["JS"] = 4] = "JS";
-    Capability[Capability["Log"] = 8] = "Log";
-    Capability[Capability["Network"] = 16] = "Network";
-    Capability[Capability["Target"] = 32] = "Target";
-    Capability[Capability["ScreenCapture"] = 64] = "ScreenCapture";
-    Capability[Capability["Tracing"] = 128] = "Tracing";
-    Capability[Capability["Emulation"] = 256] = "Emulation";
-    Capability[Capability["Security"] = 512] = "Security";
-    Capability[Capability["Input"] = 1024] = "Input";
-    Capability[Capability["Inspector"] = 2048] = "Inspector";
-    Capability[Capability["DeviceEmulation"] = 4096] = "DeviceEmulation";
-    Capability[Capability["Storage"] = 8192] = "Storage";
-    Capability[Capability["ServiceWorker"] = 16384] = "ServiceWorker";
-    Capability[Capability["Audits"] = 32768] = "Audits";
-    Capability[Capability["WebAuthn"] = 65536] = "WebAuthn";
-    Capability[Capability["IO"] = 131072] = "IO";
-    Capability[Capability["Media"] = 262144] = "Media";
-    Capability[Capability["EventBreakpoints"] = 524288] = "EventBreakpoints";
-    Capability[Capability["None"] = 0] = "None";
-})(Capability || (Capability = {}));
 //# sourceMappingURL=Target.js.map

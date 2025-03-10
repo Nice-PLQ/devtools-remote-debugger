@@ -10,15 +10,15 @@
         "frameDetailsReportView.css.js",
         "interestGroupAccessGrid.css.js",
         "originTrialTokenRows.css.js",
+        "originTrialTreeView.css.js",
         "permissionsPolicySection.css.js",
         "protocolHandlersView.css.js",
         "reportingApiGrid.css.js",
+        "serviceWorkerRouterView.css.js",
         "sharedStorageAccessGrid.css.js",
         "sharedStorageMetadataView.css.js",
-        "sharedStorageMetadataViewResetBudgetButton.css.js",
         "stackTraceLinkButton.css.js",
         "stackTraceRow.css.js",
-        "trustTokensView.css.js",
-        "trustTokensViewDeleteButton.css.js"
+        "trustTokensView.css.js"
     ]
 }

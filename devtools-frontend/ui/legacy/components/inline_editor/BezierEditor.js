@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 import * as Common from '../../../../core/common/common.js';
+import * as VisualLogging from '../../../visual_logging/visual_logging.js';
 import * as UI from '../../legacy.js';
 import { AnimationTimingModel } from './AnimationTimingModel.js';
 import { AnimationTimingUI, PresetUI } from './AnimationTimingUI.js';
@@ -23,15 +24,19 @@ export class BezierEditor extends Common.ObjectWrapper.eventMixin(UI.Widget.VBox
     debouncedStartPreviewAnimation;
     constructor(model) {
         super(true);
+        this.registerRequiredCSS(bezierEditorStyles);
         this.model = model;
         this.contentElement.tabIndex = 0;
+        this.contentElement.setAttribute('jslog', `${VisualLogging.dialog('bezierEditor').parent('mapped').track({ keydown: 'Enter|Escape' })}`);
         this.setDefaultFocusedElement(this.contentElement);
         this.element.style.overflowY = 'auto';
         // Preview UI
         this.previewElement = this.contentElement.createChild('div', 'bezier-preview-container');
+        this.previewElement.setAttribute('jslog', `${VisualLogging.preview().track({ click: true })}`);
         this.previewElement.createChild('div', 'bezier-preview-animation');
         this.previewElement.addEventListener('click', this.startPreviewAnimation.bind(this));
         this.previewOnion = this.contentElement.createChild('div', 'bezier-preview-onion');
+        this.previewOnion.setAttribute('jslog', `${VisualLogging.preview().track({ click: true })}`);
         this.previewOnion.addEventListener('click', this.startPreviewAnimation.bind(this));
         this.outerContainer = this.contentElement.createChild('div', 'bezier-container');
         // Presets UI
@@ -59,12 +64,15 @@ export class BezierEditor extends Common.ObjectWrapper.eventMixin(UI.Widget.VBox
                 this.debouncedStartPreviewAnimation();
             },
         });
+        this.animationTimingUI.element().setAttribute('jslog', `${VisualLogging.bezierCurveEditor().track({ click: true, drag: true })}`);
         this.outerContainer.appendChild(this.animationTimingUI.element());
         this.header = this.contentElement.createChild('div', 'bezier-header');
         const minus = this.createPresetModifyIcon(this.header, 'bezier-preset-minus', 'M 12 6 L 8 10 L 12 14');
-        const plus = this.createPresetModifyIcon(this.header, 'bezier-preset-plus', 'M 8 6 L 12 10 L 8 14');
         minus.addEventListener('click', this.presetModifyClicked.bind(this, false));
+        minus.setAttribute('jslog', `${VisualLogging.action('bezier.prev-preset').track({ click: true })}`);
+        const plus = this.createPresetModifyIcon(this.header, 'bezier-preset-plus', 'M 8 6 L 12 10 L 8 14');
         plus.addEventListener('click', this.presetModifyClicked.bind(this, true));
+        plus.setAttribute('jslog', `${VisualLogging.action('bezier.next-preset').track({ click: true })}`);
         this.label = this.header.createChild('span', 'source-code bezier-display-value');
     }
     setModel(model) {
@@ -73,7 +81,6 @@ export class BezierEditor extends Common.ObjectWrapper.eventMixin(UI.Widget.VBox
         this.updateUI();
     }
     wasShown() {
-        this.registerCSSFiles([bezierEditorStyles]);
         this.unselectPresets();
         // Check if bezier matches a preset
         for (const category of this.presetCategories) {
@@ -89,7 +96,7 @@ export class BezierEditor extends Common.ObjectWrapper.eventMixin(UI.Widget.VBox
     }
     onchange() {
         this.updateUI();
-        this.dispatchEventToListeners(Events.BezierChanged, this.model.asCSSText());
+        this.dispatchEventToListeners("BezierChanged" /* Events.BEZIER_CHANGED */, this.model.asCSSText());
     }
     updateUI() {
         const labelText = this.selectedCategory ? this.selectedCategory.presets[this.selectedCategory.presetIndex].name :
@@ -104,6 +111,7 @@ export class BezierEditor extends Common.ObjectWrapper.eventMixin(UI.Widget.VBox
         }
         const presetElement = document.createElement('div');
         presetElement.classList.add('bezier-preset-category');
+        presetElement.setAttribute('jslog', `${VisualLogging.bezierPresetCategory().track({ click: true }).context(presetGroup[0].name)}`);
         const iconElement = UI.UIUtils.createSVGChild(presetElement, 'svg', 'bezier-preset monospace');
         const category = { presets: presetGroup, presetIndex: 0, icon: presetElement };
         this.presetUI.draw(pivot, iconElement);
@@ -181,12 +189,6 @@ export class BezierEditor extends Common.ObjectWrapper.eventMixin(UI.Widget.VBox
         }
     }
 }
-// TODO(crbug.com/1167717): Make this a const enum again
-// eslint-disable-next-line rulesdir/const_enum
-export var Events;
-(function (Events) {
-    Events["BezierChanged"] = "BezierChanged";
-})(Events || (Events = {}));
 export const Presets = [
     [
         { name: 'linear', value: 'linear' },

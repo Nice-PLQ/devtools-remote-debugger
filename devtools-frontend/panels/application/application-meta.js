@@ -2,9 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 import * as Common from '../../core/common/common.js';
+import * as i18n from '../../core/i18n/i18n.js';
 import * as SDK from '../../core/sdk/sdk.js';
 import * as UI from '../../ui/legacy/legacy.js';
-import * as i18n from '../../core/i18n/i18n.js';
+import * as PreloadingHelper from './preloading/helper/helper.js';
 const UIStrings = {
     /**
      *@description Text in Application Panel Sidebar of the Application panel
@@ -63,21 +64,21 @@ UI.ViewManager.registerViewExtension({
     tags: [i18nLazyString(UIStrings.pwa)],
 });
 UI.ActionRegistration.registerActionExtension({
-    category: UI.ActionRegistration.ActionCategory.RESOURCES,
+    category: "RESOURCES" /* UI.ActionRegistration.ActionCategory.RESOURCES */,
     actionId: 'resources.clear',
     title: i18nLazyString(UIStrings.clearSiteData),
     async loadActionDelegate() {
         const Resources = await loadResourcesModule();
-        return Resources.StorageView.ActionDelegate.instance();
+        return new Resources.StorageView.ActionDelegate();
     },
 });
 UI.ActionRegistration.registerActionExtension({
-    category: UI.ActionRegistration.ActionCategory.RESOURCES,
+    category: "RESOURCES" /* UI.ActionRegistration.ActionCategory.RESOURCES */,
     actionId: 'resources.clear-incl-third-party-cookies',
     title: i18nLazyString(UIStrings.clearSiteDataIncludingThirdparty),
     async loadActionDelegate() {
         const Resources = await loadResourcesModule();
-        return Resources.StorageView.ActionDelegate.instance();
+        return new Resources.StorageView.ActionDelegate();
     },
 });
 UI.ActionRegistration.registerActionExtension({
@@ -91,9 +92,9 @@ UI.ActionRegistration.registerActionExtension({
     },
     async loadActionDelegate() {
         const Resources = await loadResourcesModule();
-        return Resources.BackgroundServiceView.ActionDelegate.instance();
+        return new Resources.BackgroundServiceView.ActionDelegate();
     },
-    category: UI.ActionRegistration.ActionCategory.BACKGROUND_SERVICES,
+    category: "BACKGROUND_SERVICES" /* UI.ActionRegistration.ActionCategory.BACKGROUND_SERVICES */,
     options: [
         {
             value: true,
@@ -106,11 +107,11 @@ UI.ActionRegistration.registerActionExtension({
     ],
     bindings: [
         {
-            platform: "windows,linux" /* UI.ActionRegistration.Platforms.WindowsLinux */,
+            platform: "windows,linux" /* UI.ActionRegistration.Platforms.WINDOWS_LINUX */,
             shortcut: 'Ctrl+E',
         },
         {
-            platform: "mac" /* UI.ActionRegistration.Platforms.Mac */,
+            platform: "mac" /* UI.ActionRegistration.Platforms.MAC */,
             shortcut: 'Meta+E',
         },
     ],
@@ -124,7 +125,7 @@ Common.Revealer.registerRevealer({
     destination: Common.Revealer.RevealerDestination.APPLICATION_PANEL,
     async loadRevealer() {
         const Resources = await loadResourcesModule();
-        return Resources.ResourcesPanel.ResourceRevealer.instance();
+        return new Resources.ResourcesPanel.ResourceRevealer();
     },
 });
 Common.Revealer.registerRevealer({
@@ -136,7 +137,27 @@ Common.Revealer.registerRevealer({
     destination: Common.Revealer.RevealerDestination.APPLICATION_PANEL,
     async loadRevealer() {
         const Resources = await loadResourcesModule();
-        return Resources.ResourcesPanel.FrameDetailsRevealer.instance();
+        return new Resources.ResourcesPanel.FrameDetailsRevealer();
+    },
+});
+Common.Revealer.registerRevealer({
+    contextTypes() {
+        return [PreloadingHelper.PreloadingForward.RuleSetView];
+    },
+    destination: Common.Revealer.RevealerDestination.APPLICATION_PANEL,
+    async loadRevealer() {
+        const Resources = await loadResourcesModule();
+        return new Resources.ResourcesPanel.RuleSetViewRevealer();
+    },
+});
+Common.Revealer.registerRevealer({
+    contextTypes() {
+        return [PreloadingHelper.PreloadingForward.AttemptViewWithFilter];
+    },
+    destination: Common.Revealer.RevealerDestination.APPLICATION_PANEL,
+    async loadRevealer() {
+        const Resources = await loadResourcesModule();
+        return new Resources.ResourcesPanel.AttemptViewWithFilterRevealer();
     },
 });
 //# sourceMappingURL=application-meta.js.map

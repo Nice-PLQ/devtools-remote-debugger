@@ -29,10 +29,7 @@
  */
 import * as Common from '../../core/common/common.js';
 import * as WasmParser from '../../third_party/wasmparser/wasmparser.js';
-export function dissambleWASM(params, 
-// TODO(crbug.com/1172300) Ignored during the jsdoc to ts migration)
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-postMessage) {
+export function dissambleWASM(params, postMessage) {
     try {
         const dataBuffer = Common.Base64.decode(params.content);
         let parser = new WasmParser.WasmParser.BinaryReader();

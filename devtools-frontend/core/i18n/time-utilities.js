@@ -1,80 +1,158 @@
 // Copyright 2021 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
-import { getLocalizedString, registerUIStrings } from './i18nImpl.js';
-const UIStrings = {
-    /**
-     *@description μs is the short form of micro-seconds and the placeholder is a number
-     *@example {2} PH1
-     */
-    fmms: '{PH1} μs',
-    /**
-     *@description ms is the short form of milli-seconds and the placeholder is a decimal number
-     *@example {2.14} PH1
-     */
-    fms: '{PH1} ms',
-    /**
-     *@description s is short for seconds and the placeholder is a decimal number
-     *@example {2.14} PH1
-     */
-    fs: '{PH1} s',
-    /**
-     *@description min is short for minutes and the placeholder is a decimal number
-     *@example {2.2} PH1
-     */
-    fmin: '{PH1} min',
-    /**
-     *@description hrs is short for hours and the placeholder is a decimal number
-     *@example {2.2} PH1
-     */
-    fhrs: '{PH1} hrs',
-    /**
-     *@description days formatting and the placeholder is a decimal number
-     *@example {2.2} PH1
-     */
-    fdays: '{PH1} days',
-};
-const str_ = registerUIStrings('core/i18n/time-utilities.ts', UIStrings);
-const i18nString = getLocalizedString.bind(undefined, str_);
-export const preciseMillisToString = function (ms, precision) {
-    precision = precision || 0;
-    return i18nString(UIStrings.fms, { PH1: ms.toFixed(precision) });
-};
-export const millisToString = function (ms, higherResolution) {
+/**
+ * @fileoverview Uses Intl.NumberFormat.
+ * @see go/cpq:i18n-units-design
+ */
+import * as Platform from '../platform/platform.js';
+import { defineFormatter } from './NumberFormatter.js';
+const narrowMillisecondsInteger = defineFormatter({
+    style: 'unit',
+    unit: 'millisecond',
+    unitDisplay: 'narrow',
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+});
+const longMilliseconds = defineFormatter({
+    style: 'unit',
+    unit: 'millisecond',
+    unitDisplay: 'long',
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+});
+const narrowMicrosecondsInteger = defineFormatter({
+    style: 'unit',
+    unit: 'microsecond',
+    unitDisplay: 'narrow',
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+});
+const narrowMillisecondsDecimal = defineFormatter({
+    style: 'unit',
+    unit: 'millisecond',
+    unitDisplay: 'narrow',
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+});
+const narrowSecondsDecimal = defineFormatter({
+    style: 'unit',
+    unit: 'second',
+    unitDisplay: 'narrow',
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+});
+const shortMinutesDecimal = defineFormatter({
+    style: 'unit',
+    unit: 'minute',
+    unitDisplay: 'short',
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 1,
+});
+const shortHoursDecimal = defineFormatter({
+    style: 'unit',
+    unit: 'hour',
+    unitDisplay: 'short',
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 1,
+});
+const longDaysDecimal = defineFormatter({
+    style: 'unit',
+    unit: 'day',
+    unitDisplay: 'long',
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 1,
+});
+export function formatMicroSecondsTime(time) {
+    return millisToString(Platform.Timing.microSecondsToMilliSeconds(time), true);
+}
+export function formatMicroSecondsAsSeconds(time) {
+    const milliseconds = Platform.Timing.microSecondsToMilliSeconds(time);
+    const seconds = Platform.Timing.milliSecondsToSeconds(milliseconds);
+    return narrowSecondsDecimal.format(seconds);
+}
+export function formatPartsMicroSecondsAsSeconds(time) {
+    const milliseconds = Platform.Timing.microSecondsToMilliSeconds(time);
+    const seconds = Platform.Timing.milliSecondsToSeconds(milliseconds);
+    return narrowSecondsDecimal.formatToParts(seconds);
+}
+export function formatMicroSecondsAsMillisFixed(time) {
+    const milliseconds = Platform.Timing.microSecondsToMilliSeconds(time);
+    return narrowMillisecondsInteger.format(milliseconds);
+}
+export function formatPartsMicroSecondsAsMillisFixed(time) {
+    const milliseconds = Platform.Timing.microSecondsToMilliSeconds(time);
+    return narrowMillisecondsInteger.formatToParts(milliseconds);
+}
+export function formatMicroSecondsAsMillisFixedExpanded(time) {
+    const milliseconds = Platform.Timing.microSecondsToMilliSeconds(time);
+    return longMilliseconds.format(milliseconds);
+}
+/**
+ * @param higherResolution if true, the output may show as microsends or as milliseconds with a fractional component
+ */
+export function millisToString(ms, higherResolution) {
     if (!isFinite(ms)) {
         return '-';
     }
-    if (ms === 0) {
-        return '0';
-    }
     if (higherResolution && ms < 0.1) {
-        return i18nString(UIStrings.fmms, { PH1: (ms * 1000).toFixed(0) });
+        return narrowMicrosecondsInteger.format(ms * 1000);
     }
     if (higherResolution && ms < 1000) {
-        return i18nString(UIStrings.fms, { PH1: (ms).toFixed(2) });
+        return narrowMillisecondsDecimal.format(ms);
     }
     if (ms < 1000) {
-        return i18nString(UIStrings.fms, { PH1: (ms).toFixed(0) });
+        return narrowMillisecondsInteger.format(ms);
     }
     const seconds = ms / 1000;
     if (seconds < 60) {
-        return i18nString(UIStrings.fs, { PH1: (seconds).toFixed(2) });
+        return narrowSecondsDecimal.format(seconds);
     }
     const minutes = seconds / 60;
     if (minutes < 60) {
-        return i18nString(UIStrings.fmin, { PH1: (minutes).toFixed(1) });
+        return shortMinutesDecimal.format(minutes);
     }
     const hours = minutes / 60;
     if (hours < 24) {
-        return i18nString(UIStrings.fhrs, { PH1: (hours).toFixed(1) });
+        return shortHoursDecimal.format(hours);
     }
     const days = hours / 24;
-    return i18nString(UIStrings.fdays, { PH1: (days).toFixed(1) });
-};
-export const secondsToString = function (seconds, higherResolution) {
+    return longDaysDecimal.format(days);
+}
+const preciseMillisToStringFormattersCache = new Map();
+export function preciseMillisToString(ms, precision = 0) {
+    let formatter = preciseMillisToStringFormattersCache.get(precision);
+    if (!formatter) {
+        formatter = defineFormatter({
+            style: 'unit',
+            unit: 'millisecond',
+            unitDisplay: 'narrow',
+            minimumFractionDigits: precision,
+            maximumFractionDigits: precision,
+        });
+        preciseMillisToStringFormattersCache.set(precision, formatter);
+    }
+    return formatter.format(ms);
+}
+const preciseSecondsToStringFormattersCache = new Map();
+export function preciseSecondsToString(ms, precision = 0) {
+    let formatter = preciseSecondsToStringFormattersCache.get(precision);
+    if (!formatter) {
+        formatter = defineFormatter({
+            style: 'unit',
+            unit: 'second',
+            unitDisplay: 'narrow',
+            minimumFractionDigits: precision,
+            maximumFractionDigits: precision,
+        });
+        preciseSecondsToStringFormattersCache.set(precision, formatter);
+    }
+    return formatter.format(ms);
+}
+export function secondsToString(seconds, higherResolution) {
     if (!isFinite(seconds)) {
         return '-';
     }
     return millisToString(seconds * 1000, higherResolution);
-};
+}
 //# sourceMappingURL=time-utilities.js.map

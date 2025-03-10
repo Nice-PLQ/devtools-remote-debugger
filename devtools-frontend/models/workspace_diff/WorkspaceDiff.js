@@ -3,19 +3,19 @@
 // found in the LICENSE file.
 import * as Common from '../../core/common/common.js';
 import * as Host from '../../core/host/host.js';
+import * as Root from '../../core/root/root.js';
 import * as Diff from '../../third_party/diff/diff.js';
 import * as FormatterModule from '../formatter/formatter.js';
 import * as Persistence from '../persistence/persistence.js';
+import * as TextUtils from '../text_utils/text_utils.js';
 import * as Workspace from '../workspace/workspace.js';
 export class WorkspaceDiffImpl extends Common.ObjectWrapper.ObjectWrapper {
-    uiSourceCodeDiffs;
-    loadingUISourceCodes;
-    modifiedUISourceCodesInternal;
+    #persistence = Persistence.Persistence.PersistenceImpl.instance();
+    #diffs = new WeakMap();
+    loadingUISourceCodes = new Map();
+    #modified = new Set();
     constructor(workspace) {
         super();
-        this.uiSourceCodeDiffs = new WeakMap();
-        this.loadingUISourceCodes = new Map();
-        this.modifiedUISourceCodesInternal = new Set();
         workspace.addEventListener(Workspace.Workspace.Events.WorkingCopyChanged, this.uiSourceCodeChanged, this);
         workspace.addEventListener(Workspace.Workspace.Events.WorkingCopyCommitted, this.uiSourceCodeChanged, this);
         workspace.addEventListener(Workspace.Workspace.Events.UISourceCodeAdded, this.uiSourceCodeAdded, this);
@@ -23,26 +23,23 @@ export class WorkspaceDiffImpl extends Common.ObjectWrapper.ObjectWrapper {
         workspace.addEventListener(Workspace.Workspace.Events.ProjectRemoved, this.projectRemoved, this);
         workspace.uiSourceCodes().forEach(this.updateModifiedState.bind(this));
     }
-    requestDiff(uiSourceCode, diffRequestOptions) {
-        return this.uiSourceCodeDiff(uiSourceCode).requestDiff(diffRequestOptions);
+    requestDiff(uiSourceCode) {
+        return this.uiSourceCodeDiff(uiSourceCode).requestDiff();
     }
     subscribeToDiffChange(uiSourceCode, callback, thisObj) {
-        this.uiSourceCodeDiff(uiSourceCode).addEventListener(UISourceCodeDiffEvents.DiffChanged, callback, thisObj);
+        this.uiSourceCodeDiff(uiSourceCode).addEventListener("DiffChanged" /* UISourceCodeDiffEvents.DIFF_CHANGED */, callback, thisObj);
     }
     unsubscribeFromDiffChange(uiSourceCode, callback, thisObj) {
-        this.uiSourceCodeDiff(uiSourceCode).removeEventListener(UISourceCodeDiffEvents.DiffChanged, callback, thisObj);
+        this.uiSourceCodeDiff(uiSourceCode).removeEventListener("DiffChanged" /* UISourceCodeDiffEvents.DIFF_CHANGED */, callback, thisObj);
     }
     modifiedUISourceCodes() {
-        return Array.from(this.modifiedUISourceCodesInternal);
-    }
-    isUISourceCodeModified(uiSourceCode) {
-        return this.modifiedUISourceCodesInternal.has(uiSourceCode) || this.loadingUISourceCodes.has(uiSourceCode);
+        return Array.from(this.#modified);
     }
     uiSourceCodeDiff(uiSourceCode) {
-        let diff = this.uiSourceCodeDiffs.get(uiSourceCode);
+        let diff = this.#diffs.get(uiSourceCode);
         if (!diff) {
             diff = new UISourceCodeDiff(uiSourceCode);
-            this.uiSourceCodeDiffs.set(uiSourceCode, diff);
+            this.#diffs.set(uiSourceCode, diff);
         }
         return diff;
     }
@@ -66,7 +63,7 @@ export class WorkspaceDiffImpl extends Common.ObjectWrapper.ObjectWrapper {
     }
     removeUISourceCode(uiSourceCode) {
         this.loadingUISourceCodes.delete(uiSourceCode);
-        const uiSourceCodeDiff = this.uiSourceCodeDiffs.get(uiSourceCode);
+        const uiSourceCodeDiff = this.#diffs.get(uiSourceCode);
         if (uiSourceCodeDiff) {
             uiSourceCodeDiff.dispose = true;
         }
@@ -74,23 +71,37 @@ export class WorkspaceDiffImpl extends Common.ObjectWrapper.ObjectWrapper {
     }
     markAsUnmodified(uiSourceCode) {
         this.uiSourceCodeProcessedForTest();
-        if (this.modifiedUISourceCodesInternal.delete(uiSourceCode)) {
-            this.dispatchEventToListeners("ModifiedStatusChanged" /* Events.ModifiedStatusChanged */, { uiSourceCode, isModified: false });
+        if (this.#modified.delete(uiSourceCode)) {
+            this.dispatchEventToListeners("ModifiedStatusChanged" /* Events.MODIFIED_STATUS_CHANGED */, { uiSourceCode, isModified: false });
         }
     }
     markAsModified(uiSourceCode) {
         this.uiSourceCodeProcessedForTest();
-        if (this.modifiedUISourceCodesInternal.has(uiSourceCode)) {
+        if (this.#modified.has(uiSourceCode)) {
             return;
         }
-        this.modifiedUISourceCodesInternal.add(uiSourceCode);
-        this.dispatchEventToListeners("ModifiedStatusChanged" /* Events.ModifiedStatusChanged */, { uiSourceCode, isModified: true });
+        this.#modified.add(uiSourceCode);
+        this.dispatchEventToListeners("ModifiedStatusChanged" /* Events.MODIFIED_STATUS_CHANGED */, { uiSourceCode, isModified: true });
     }
     uiSourceCodeProcessedForTest() {
     }
+    #shouldTrack(uiSourceCode) {
+        // We track differences for all Network resources.
+        if (uiSourceCode.project().type() === Workspace.Workspace.projectTypes.Network) {
+            return true;
+        }
+        // Additionally we also track differences for FileSystem resources that don't have
+        // a binding (as part of the kDevToolsImprovedWorkspaces feature).
+        if (uiSourceCode.project().type() === Workspace.Workspace.projectTypes.FileSystem &&
+            this.#persistence.binding(uiSourceCode) === null &&
+            Root.Runtime.hostConfig.devToolsImprovedWorkspaces?.enabled) {
+            return true;
+        }
+        return false;
+    }
     async updateModifiedState(uiSourceCode) {
         this.loadingUISourceCodes.delete(uiSourceCode);
-        if (uiSourceCode.project().type() !== Workspace.Workspace.projectTypes.Network) {
+        if (!this.#shouldTrack(uiSourceCode)) {
             this.markAsUnmodified(uiSourceCode);
             return;
         }
@@ -160,25 +171,28 @@ export class UISourceCodeDiff extends Common.ObjectWrapper.ObjectWrapper {
             if (this.dispose) {
                 return;
             }
-            this.dispatchEventToListeners(UISourceCodeDiffEvents.DiffChanged);
+            this.dispatchEventToListeners("DiffChanged" /* UISourceCodeDiffEvents.DIFF_CHANGED */);
             this.pendingChanges = null;
         }
     }
-    requestDiff(diffRequestOptions) {
+    requestDiff() {
         if (!this.requestDiffPromise) {
-            this.requestDiffPromise = this.innerRequestDiff(diffRequestOptions);
+            this.requestDiffPromise = this.innerRequestDiff();
         }
         return this.requestDiffPromise;
     }
     async originalContent() {
         const originalNetworkContent = Persistence.NetworkPersistenceManager.NetworkPersistenceManager.instance().originalContentForUISourceCode(this.uiSourceCode);
         if (originalNetworkContent) {
-            return originalNetworkContent;
+            return await originalNetworkContent;
         }
         const content = await this.uiSourceCode.project().requestFileContent(this.uiSourceCode);
-        return content.content || ('error' in content && content.error) || '';
+        if (TextUtils.ContentData.ContentData.isError(content)) {
+            return content.error;
+        }
+        return content.asDeferedContent().content;
     }
-    async innerRequestDiff({ shouldFormatDiff }) {
+    async innerRequestDiff() {
         if (this.dispose) {
             return null;
         }
@@ -203,17 +217,11 @@ export class UISourceCodeDiff extends Common.ObjectWrapper.ObjectWrapper {
         if (this.dispose) {
             return null;
         }
-        if (current === null || baseline === null) {
-            return null;
-        }
-        let formattedCurrentMapping;
-        if (shouldFormatDiff) {
-            baseline = (await FormatterModule.ScriptFormatter.format(this.uiSourceCode.contentType(), this.uiSourceCode.mimeType(), baseline))
-                .formattedContent;
-            const formatCurrentResult = await FormatterModule.ScriptFormatter.format(this.uiSourceCode.contentType(), this.uiSourceCode.mimeType(), current);
-            current = formatCurrentResult.formattedContent;
-            formattedCurrentMapping = formatCurrentResult.formattedMapping;
-        }
+        baseline = (await FormatterModule.ScriptFormatter.format(this.uiSourceCode.contentType(), this.uiSourceCode.mimeType(), baseline))
+            .formattedContent;
+        const formatCurrentResult = await FormatterModule.ScriptFormatter.format(this.uiSourceCode.contentType(), this.uiSourceCode.mimeType(), current);
+        current = formatCurrentResult.formattedContent;
+        const formattedCurrentMapping = formatCurrentResult.formattedMapping;
         const reNewline = /\r\n?|\n/;
         const diff = Diff.Diff.DiffWrapper.lineDiff(baseline.split(reNewline), current.split(reNewline));
         return {
@@ -222,26 +230,12 @@ export class UISourceCodeDiff extends Common.ObjectWrapper.ObjectWrapper {
         };
     }
 }
-// TODO(crbug.com/1167717): Make this a const enum again
-// eslint-disable-next-line rulesdir/const_enum
-export var UISourceCodeDiffEvents;
-(function (UISourceCodeDiffEvents) {
-    UISourceCodeDiffEvents["DiffChanged"] = "DiffChanged";
-})(UISourceCodeDiffEvents || (UISourceCodeDiffEvents = {}));
-// TODO(crbug.com/1172300) Ignored during the jsdoc to ts migration
-// eslint-disable-next-line @typescript-eslint/naming-convention
-let _instance = null;
+let workspaceDiffImplInstance = null;
 export function workspaceDiff() {
-    if (!_instance) {
-        _instance = new WorkspaceDiffImpl(Workspace.Workspace.WorkspaceImpl.instance());
+    if (!workspaceDiffImplInstance) {
+        workspaceDiffImplInstance = new WorkspaceDiffImpl(Workspace.Workspace.WorkspaceImpl.instance());
     }
-    return _instance;
-}
-export class DiffUILocation {
-    uiSourceCode;
-    constructor(uiSourceCode) {
-        this.uiSourceCode = uiSourceCode;
-    }
+    return workspaceDiffImplInstance;
 }
 export const UpdateTimeout = 200;
 //# sourceMappingURL=WorkspaceDiff.js.map

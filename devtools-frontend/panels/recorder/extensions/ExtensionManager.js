@@ -18,18 +18,18 @@ export class ExtensionManager extends Common.ObjectWrapper.ObjectWrapper {
     }
     attach() {
         const pluginManager = Extensions.RecorderPluginManager.RecorderPluginManager.instance();
-        pluginManager.addEventListener(Extensions.RecorderPluginManager.Events.PluginAdded, this.#handlePlugin);
-        pluginManager.addEventListener(Extensions.RecorderPluginManager.Events.PluginRemoved, this.#handlePlugin);
-        pluginManager.addEventListener(Extensions.RecorderPluginManager.Events.ViewRegistered, this.#handleView);
+        pluginManager.addEventListener("pluginAdded" /* Extensions.RecorderPluginManager.Events.PLUGIN_ADDED */, this.#handlePlugin);
+        pluginManager.addEventListener("pluginRemoved" /* Extensions.RecorderPluginManager.Events.PLUGIN_REMOVED */, this.#handlePlugin);
+        pluginManager.addEventListener("viewRegistered" /* Extensions.RecorderPluginManager.Events.VIEW_REGISTERED */, this.#handleView);
         for (const descriptor of pluginManager.views()) {
             this.#handleView({ data: descriptor });
         }
     }
     detach() {
         const pluginManager = Extensions.RecorderPluginManager.RecorderPluginManager.instance();
-        pluginManager.removeEventListener(Extensions.RecorderPluginManager.Events.PluginAdded, this.#handlePlugin);
-        pluginManager.removeEventListener(Extensions.RecorderPluginManager.Events.PluginRemoved, this.#handlePlugin);
-        pluginManager.removeEventListener(Extensions.RecorderPluginManager.Events.ViewRegistered, this.#handleView);
+        pluginManager.removeEventListener("pluginAdded" /* Extensions.RecorderPluginManager.Events.PLUGIN_ADDED */, this.#handlePlugin);
+        pluginManager.removeEventListener("pluginRemoved" /* Extensions.RecorderPluginManager.Events.PLUGIN_REMOVED */, this.#handlePlugin);
+        pluginManager.removeEventListener("viewRegistered" /* Extensions.RecorderPluginManager.Events.VIEW_REGISTERED */, this.#handleView);
         this.#views.clear();
     }
     extensions() {
@@ -43,7 +43,7 @@ export class ExtensionManager extends Common.ObjectWrapper.ObjectWrapper {
         return view;
     }
     #handlePlugin = () => {
-        this.dispatchEventToListeners(Events.ExtensionsUpdated, this.extensions());
+        this.dispatchEventToListeners("extensionsUpdated" /* Events.EXTENSIONS_UPDATED */, this.extensions());
     };
     #handleView = (event) => {
         const descriptor = event.data;
@@ -90,10 +90,4 @@ class ExtensionIframe {
         return this.#iframe;
     }
 }
-// TODO(crbug.com/1167717): Make this a const enum again
-// eslint-disable-next-line rulesdir/const_enum
-export var Events;
-(function (Events) {
-    Events["ExtensionsUpdated"] = "extensionsUpdated";
-})(Events || (Events = {}));
 //# sourceMappingURL=ExtensionManager.js.map

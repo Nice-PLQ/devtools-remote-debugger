@@ -4,6 +4,7 @@
         "outDir": "."
     },
     "files": [
+        "buttonDialog.css.js",
         "dialog.css.js",
         "shortcutDialog.css.js"
     ]

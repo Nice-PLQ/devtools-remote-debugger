@@ -1,6 +1,7 @@
 // Copyright 2017 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
+import '../../legacy.js';
 import * as Common from '../../../../core/common/common.js';
 import * as Host from '../../../../core/host/host.js';
 import * as i18n from '../../../../core/i18n/i18n.js';
@@ -109,16 +110,16 @@ export class ContrastDetails extends Common.ObjectWrapper.ObjectWrapper {
         this.contrastValueBubble = contrastValueRowContents.createChild('span', 'contrast-details-value');
         this.contrastValue = this.contrastValueBubble.createChild('span');
         this.contrastValueBubbleIcons = [];
-        this.contrastValueBubbleIcons.push(this.contrastValueBubble.appendChild(UI.Icon.Icon.create('checkmark')));
-        this.contrastValueBubbleIcons.push(this.contrastValueBubble.appendChild(UI.Icon.Icon.create('check-double')));
-        this.contrastValueBubbleIcons.push(this.contrastValueBubble.appendChild(UI.Icon.Icon.create('clear')));
+        this.contrastValueBubbleIcons.push(this.contrastValueBubble.appendChild(IconButton.Icon.create('checkmark')));
+        this.contrastValueBubbleIcons.push(this.contrastValueBubble.appendChild(IconButton.Icon.create('check-double')));
+        this.contrastValueBubbleIcons.push(this.contrastValueBubble.appendChild(IconButton.Icon.create('clear')));
         this.contrastValueBubbleIcons.forEach(button => button.addEventListener('click', (event) => {
             ContrastDetails.showHelp();
             event.consume(false);
         }));
-        const expandToolbar = new UI.Toolbar.Toolbar('expand', contrastValueRowContents);
+        const expandToolbar = contrastValueRowContents.createChild('devtools-toolbar', 'expand');
         this.expandButton = new UI.Toolbar.ToolbarButton(i18nString(UIStrings.showMore), 'chevron-down');
-        this.expandButton.addEventListener(UI.Toolbar.ToolbarButton.Events.Click, this.expandButtonClicked.bind(this));
+        this.expandButton.addEventListener("Click" /* UI.Toolbar.ToolbarButton.Events.CLICK */, this.expandButtonClicked.bind(this));
         UI.ARIAUtils.setExpanded(this.expandButton.element, false);
         expandToolbar.appendToolbarItem(this.expandButton);
         this.expandedDetails = this.elementInternal.createChild('div', 'expanded-details');
@@ -133,13 +134,13 @@ export class ContrastDetails extends Common.ObjectWrapper.ObjectWrapper {
         this.chooseBgColor = this.expandedDetails.createChild('div', 'contrast-choose-bg-color');
         this.chooseBgColor.textContent = i18nString(UIStrings.pickBackgroundColor);
         const bgColorContainer = this.expandedDetails.createChild('div', 'background-color');
-        const pickerToolbar = new UI.Toolbar.Toolbar('spectrum-eye-dropper', bgColorContainer);
+        const pickerToolbar = bgColorContainer.createChild('devtools-toolbar', 'spectrum-eye-dropper');
         this.bgColorPickerButton = new UI.Toolbar.ToolbarToggle(i18nString(UIStrings.toggleBackgroundColorPicker), 'color-picker', 'color-picker-filled');
-        this.bgColorPickerButton.addEventListener(UI.Toolbar.ToolbarButton.Events.Click, this.toggleBackgroundColorPickerInternal.bind(this, undefined, true));
+        this.bgColorPickerButton.addEventListener("Click" /* UI.Toolbar.ToolbarButton.Events.CLICK */, this.toggleBackgroundColorPickerInternal.bind(this, undefined, true));
         pickerToolbar.appendToolbarItem(this.bgColorPickerButton);
         this.bgColorPickedBound = this.bgColorPicked.bind(this);
         this.bgColorSwatch = new Swatch(bgColorContainer);
-        this.contrastInfo.addEventListener("ContrastInfoUpdated" /* ContrastInfoEvents.ContrastInfoUpdated */, this.update.bind(this));
+        this.contrastInfo.addEventListener("ContrastInfoUpdated" /* ContrastInfoEvents.CONTRAST_INFO_UPDATED */, this.update.bind(this));
     }
     showNoContrastInfoAvailableMessage() {
         this.noContrastInfoAvailable.classList.remove('hidden');
@@ -176,11 +177,7 @@ export class ContrastDetails extends Common.ObjectWrapper.ObjectWrapper {
     }
     createFixColorButton(parent, suggestedColor) {
         const button = parent.createChild('button', 'contrast-fix-button');
-        const originalColorFormat = this.contrastInfo.colorFormat();
-        const colorFormat = originalColorFormat && originalColorFormat !== "nickname" /* Common.Color.Format.Nickname */ ?
-            originalColorFormat :
-            "hexa" /* Common.Color.Format.HEXA */;
-        const formattedColor = suggestedColor.asString(colorFormat);
+        const formattedColor = suggestedColor.asString(this.contrastInfo.colorFormat());
         const suggestedColorString = formattedColor ? formattedColor + ' ' : '';
         const label = i18nString(UIStrings.useSuggestedColorStoFixLow, { PH1: suggestedColorString });
         UI.ARIAUtils.setLabel(button, label);
@@ -197,7 +194,7 @@ export class ContrastDetails extends Common.ObjectWrapper.ObjectWrapper {
         }
         this.setVisible(true);
         this.hideNoContrastInfoAvailableMessage();
-        const isAPCAEnabled = Root.Runtime.experiments.isEnabled('APCA');
+        const isAPCAEnabled = Root.Runtime.experiments.isEnabled('apca');
         const fgColor = this.contrastInfo.color();
         const bgColor = this.contrastInfo.bgColor();
         if (isAPCAEnabled) {
@@ -370,18 +367,17 @@ export class ContrastDetails extends Common.ObjectWrapper.ObjectWrapper {
         return this.expandedInternal;
     }
     backgroundColorPickerEnabled() {
-        return this.bgColorPickerButton.toggled();
+        return this.bgColorPickerButton.isToggled();
     }
     toggleBackgroundColorPicker(enabled) {
         this.toggleBackgroundColorPickerInternal(enabled, false);
     }
     toggleBackgroundColorPickerInternal(enabled, shouldTriggerEvent = true) {
         if (enabled === undefined) {
-            enabled = !this.bgColorPickerButton.toggled();
+            enabled = this.bgColorPickerButton.isToggled();
         }
-        this.bgColorPickerButton.setToggled(enabled);
         if (shouldTriggerEvent) {
-            this.dispatchEventToListeners("BackgroundColorPickerWillBeToggled" /* Events.BackgroundColorPickerWillBeToggled */, enabled);
+            this.dispatchEventToListeners("BackgroundColorPickerWillBeToggled" /* Events.BACKGROUND_COLOR_PICKER_WILL_BE_TOGGLED */, enabled);
         }
         Host.InspectorFrontendHost.InspectorFrontendHostInstance.setEyeDropperActive(enabled);
         if (enabled) {

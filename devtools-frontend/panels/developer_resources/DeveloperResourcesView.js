@@ -1,17 +1,19 @@
 // Copyright (c) 2016 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
+import '../../ui/legacy/legacy.js';
 import * as i18n from '../../core/i18n/i18n.js';
 import * as Platform from '../../core/platform/platform.js';
 import * as SDK from '../../core/sdk/sdk.js';
 import * as UI from '../../ui/legacy/legacy.js';
+import * as VisualLogging from '../../ui/visual_logging/visual_logging.js';
 import { DeveloperResourcesListView } from './DeveloperResourcesListView.js';
 import developerResourcesViewStyles from './developerResourcesView.css.js';
 const UIStrings = {
     /**
      *@description Placeholder for a search field in a toolbar
      */
-    enterTextToSearchTheUrlAndError: 'Enter text to search the URL and Error columns',
+    filterByText: 'Filter by URL and error',
     /**
      * @description Tooltip for a checkbox in the toolbar of the developer resources view. The
      * inspected target is the webpage that DevTools is debugging/inspecting/attached to.
@@ -35,9 +37,28 @@ const UIStrings = {
      * total. Resources are files related to the webpage.
      */
     resources: '{n, plural, =1 {# resource} other {# resources}}',
+    /**
+     * @description Nnumber of resource(s) match
+     */
+    numberOfResourceMatch: '{n, plural, =1 {# resource matches} other {# resources match}}',
+    /**
+     * @description No resource matches
+     */
+    noResourceMatches: 'No resource matches',
 };
 const str_ = i18n.i18n.registerUIStrings('panels/developer_resources/DeveloperResourcesView.ts', UIStrings);
 const i18nString = i18n.i18n.getLocalizedString.bind(undefined, str_);
+export class DeveloperResourcesRevealer {
+    async reveal(resourceInitiatorKey) {
+        const loader = SDK.PageResourceLoader.PageResourceLoader.instance();
+        const resource = loader.getResourcesLoaded().get(resourceInitiatorKey.key);
+        if (resource) {
+            await UI.ViewManager.ViewManager.instance().showView('developer-resources');
+            const developerResourcesView = await UI.ViewManager.ViewManager.instance().view('developer-resources').widget();
+            return await developerResourcesView.select(resource);
+        }
+    }
+}
 export class DeveloperResourcesView extends UI.ThrottledWidget.ThrottledWidget {
     textFilterRegExp;
     filterInput;
@@ -48,32 +69,48 @@ export class DeveloperResourcesView extends UI.ThrottledWidget.ThrottledWidget {
     loader;
     constructor() {
         super(true);
+        this.registerRequiredCSS(developerResourcesViewStyles);
+        this.element.setAttribute('jslog', `${VisualLogging.panel('developer-resources').track({ resize: true })}`);
         const toolbarContainer = this.contentElement.createChild('div', 'developer-resource-view-toolbar-container');
-        const toolbar = new UI.Toolbar.Toolbar('developer-resource-view-toolbar', toolbarContainer);
+        toolbarContainer.setAttribute('jslog', `${VisualLogging.toolbar()}`);
+        toolbarContainer.role = 'toolbar';
+        const toolbar = toolbarContainer.createChild('devtools-toolbar', 'developer-resource-view-toolbar');
+        toolbar.role = 'presentation';
         this.textFilterRegExp = null;
-        const accessiblePlaceholder = ''; // Indicates that ToobarInput should use the placeholder as ARIA label.
-        this.filterInput =
-            new UI.Toolbar.ToolbarInput(i18nString(UIStrings.enterTextToSearchTheUrlAndError), accessiblePlaceholder, 1);
-        this.filterInput.addEventListener(UI.Toolbar.ToolbarInput.Event.TextChanged, this.onFilterChanged, this);
+        this.filterInput = new UI.Toolbar.ToolbarFilter(i18nString(UIStrings.filterByText), 1);
+        this.filterInput.addEventListener("TextChanged" /* UI.Toolbar.ToolbarInput.Event.TEXT_CHANGED */, this.onFilterChanged, this);
         toolbar.appendToolbarItem(this.filterInput);
         const loadThroughTarget = SDK.PageResourceLoader.getLoadThroughTargetSetting();
         const loadThroughTargetCheckbox = new UI.Toolbar.ToolbarSettingCheckbox(loadThroughTarget, i18nString(UIStrings.loadHttpsDeveloperResources), i18nString(UIStrings.enableLoadingThroughTarget));
         toolbar.appendToolbarItem(loadThroughTargetCheckbox);
         this.coverageResultsElement = this.contentElement.createChild('div', 'developer-resource-view-results');
-        this.listView = new DeveloperResourcesListView(this.isVisible.bind(this));
+        this.listView = new DeveloperResourcesListView();
         this.listView.show(this.coverageResultsElement);
         this.statusToolbarElement = this.contentElement.createChild('div', 'developer-resource-view-toolbar-summary');
         this.statusMessageElement = this.statusToolbarElement.createChild('div', 'developer-resource-view-message');
         this.loader = SDK.PageResourceLoader.PageResourceLoader.instance();
-        this.loader.addEventListener(SDK.PageResourceLoader.Events.Update, this.update, this);
+        this.loader.addEventListener("Update" /* SDK.PageResourceLoader.Events.UPDATE */, this.update, this);
+        this.update();
     }
     async doUpdate() {
+        const selectedItem = this.listView.selectedItem();
         this.listView.reset();
-        this.listView.update(this.loader.getResourcesLoaded().values());
+        this.listView.items = this.loader.getScopedResourcesLoaded().values();
+        if (selectedItem) {
+            this.listView.select(selectedItem);
+        }
         this.updateStats();
     }
+    async select(resource) {
+        await this.lastUpdatePromise;
+        this.listView.select(resource);
+    }
+    async selectedItem() {
+        await this.lastUpdatePromise;
+        return this.listView.selectedItem();
+    }
     updateStats() {
-        const { loading, resources } = this.loader.getNumberOfResources();
+        const { loading, resources } = this.loader.getScopedNumberOfResources();
         if (loading > 0) {
             this.statusMessageElement.textContent =
                 i18nString(UIStrings.resourcesCurrentlyLoading, { PH1: resources, PH2: loading });
@@ -82,22 +119,30 @@ export class DeveloperResourcesView extends UI.ThrottledWidget.ThrottledWidget {
             this.statusMessageElement.textContent = i18nString(UIStrings.resources, { n: resources });
         }
     }
-    isVisible(item) {
-        return !this.textFilterRegExp || this.textFilterRegExp.test(item.url) ||
-            this.textFilterRegExp.test(item.errorMessage || '');
-    }
     onFilterChanged() {
         if (!this.listView) {
             return;
         }
         const text = this.filterInput.value();
         this.textFilterRegExp = text ? Platform.StringUtilities.createPlainTextSearchRegex(text, 'i') : null;
-        this.listView.updateFilterAndHighlight(this.textFilterRegExp);
+        if (this.textFilterRegExp) {
+            this.listView.updateFilterAndHighlight([
+                { key: 'url,error-message', regex: this.textFilterRegExp, negative: false },
+            ]);
+        }
+        else {
+            this.listView.updateFilterAndHighlight([]);
+        }
         this.updateStats();
-    }
-    wasShown() {
-        super.wasShown();
-        this.registerCSSFiles([developerResourcesViewStyles]);
+        const numberOfResourceMatch = this.listView.getNumberOfVisibleItems();
+        let resourceMatch = '';
+        if (numberOfResourceMatch === 0) {
+            resourceMatch = i18nString(UIStrings.noResourceMatches);
+        }
+        else {
+            resourceMatch = i18nString(UIStrings.numberOfResourceMatch, { n: numberOfResourceMatch });
+        }
+        UI.ARIAUtils.alert(resourceMatch);
     }
 }
 //# sourceMappingURL=DeveloperResourcesView.js.map

@@ -2,13 +2,17 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 import '../../../ui/legacy/legacy.js';
+import '../../../ui/components/icon_button/icon_button.js';
 import * as i18n from '../../../core/i18n/i18n.js';
 import * as Buttons from '../../../ui/components/buttons/buttons.js';
-import * as ComponentHelpers from '../../../ui/components/helpers/helpers.js';
-import * as LitHtml from '../../../ui/lit-html/lit-html.js';
+import * as Lit from '../../../ui/lit/lit.js';
+import * as VisualLogging from '../../../ui/visual_logging/visual_logging.js';
 import * as Extensions from '../extensions/extensions.js';
-import * as IconButton from '../../../ui/components/icon_button/icon_button.js';
-import extensionViewStyles from './extensionView.css.js';
+import extensionViewStylesRaw from './extensionView.css.js';
+// TODO(crbug.com/391381439): Fully migrate off of constructed style sheets.
+const extensionViewStyles = new CSSStyleSheet();
+extensionViewStyles.replaceSync(extensionViewStylesRaw.cssContent);
+const { html } = Lit;
 const UIStrings = {
     /**
      * @description The button label that closes the panel that shows the extension content inside the Recorder panel.
@@ -27,12 +31,13 @@ export class ClosedEvent extends Event {
         super(ClosedEvent.eventName, { bubbles: true, composed: true });
     }
 }
-const extensionIcon = new URL('../images/extension_icon.svg', import.meta.url)
-    .toString();
 export class ExtensionView extends HTMLElement {
-    static litTagName = LitHtml.literal `devtools-recorder-extension-view`;
     #shadow = this.attachShadow({ mode: 'open' });
     #descriptor;
+    constructor() {
+        super();
+        this.setAttribute('jslog', `${VisualLogging.section('extension-view')}`);
+    }
     connectedCallback() {
         this.#shadow.adoptedStyleSheets = [extensionViewStyles];
         this.#render();
@@ -57,37 +62,35 @@ export class ExtensionView extends HTMLElement {
         }
         const iframe = Extensions.ExtensionManager.ExtensionManager.instance().getView(this.#descriptor.id).frame();
         // clang-format off
-        LitHtml.render(LitHtml.html `
+        Lit.render(html `
         <div class="extension-view">
           <header>
             <div class="title">
-              <${IconButton.Icon.Icon.litTagName}
+              <devtools-icon
                 class="icon"
                 title=${i18nString(UIStrings.extension)}
-                .data=${{
-            iconPath: extensionIcon,
-            color: 'var(--color-text-secondary)',
-        }}>
-              </${IconButton.Icon.Icon.litTagName}>
+                name="extension">
+              </devtools-icon>
               ${this.#descriptor.title}
             </div>
-            <${Buttons.Button.Button.litTagName}
+            <devtools-button
               title=${i18nString(UIStrings.closeView)}
+              jslog=${VisualLogging.close().track({ click: true })}
               .data=${{
-            variant: "round" /* Buttons.Button.Variant.ROUND */,
-            size: "TINY" /* Buttons.Button.Size.TINY */,
+            variant: "icon" /* Buttons.Button.Variant.ICON */,
+            size: "SMALL" /* Buttons.Button.Size.SMALL */,
             iconName: 'cross',
         }}
               @click=${this.#closeView}
-            ></${Buttons.Button.Button.litTagName}>
+            ></devtools-button>
           </header>
           <main>
             ${iframe}
-          <main>
+          </main>
       </div>
     `, this.#shadow, { host: this });
         // clang-format on
     }
 }
-ComponentHelpers.CustomElements.defineComponent('devtools-recorder-extension-view', ExtensionView);
+customElements.define('devtools-recorder-extension-view', ExtensionView);
 //# sourceMappingURL=ExtensionView.js.map

@@ -1,7 +1,6 @@
 // Copyright 2023 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
-/* eslint-disable rulesdir/es_modules_import */
 import { createTextContent, } from '../../../../third_party/puppeteer/package/lib/esm/puppeteer/injected/TextContent.js';
 import { textQuerySelectorAll, } from '../../../../third_party/puppeteer/package/lib/esm/puppeteer/injected/TextQuerySelector.js';
 const MINIMUM_TEXT_LENGTH = 12;

@@ -35,7 +35,7 @@ UI.ViewManager.registerViewExtension({
     order: 100,
     async loadView() {
         const Media = await loadMediaModule();
-        return Media.MainView.MainView.instance();
+        return new Media.MainView.MainView();
     },
     tags: [
         i18nLazyString(UIStrings.media),

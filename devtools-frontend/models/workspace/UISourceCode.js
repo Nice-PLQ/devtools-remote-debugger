@@ -56,7 +56,6 @@ export class UISourceCode extends Common.ObjectWrapper.ObjectWrapper {
     decorations = new Map();
     hasCommitsInternal;
     messagesInternal;
-    contentLoadedInternal;
     contentInternal;
     forceLoadOnCheckContentInternal;
     checkingContent;
@@ -95,7 +94,6 @@ export class UISourceCode extends Common.ObjectWrapper.ObjectWrapper {
         this.requestContentPromise = null;
         this.hasCommitsInternal = false;
         this.messagesInternal = null;
-        this.contentLoadedInternal = false;
         this.contentInternal = null;
         this.forceLoadOnCheckContentInternal = false;
         this.checkingContent = false;
@@ -144,17 +142,14 @@ export class UISourceCode extends Common.ObjectWrapper.ObjectWrapper {
         return this.projectInternal.canRename();
     }
     rename(newName) {
-        let fulfill;
-        const promise = new Promise(x => {
-            fulfill = x;
-        });
+        const { resolve, promise } = Promise.withResolvers();
         this.projectInternal.rename(this, newName, innerCallback.bind(this));
         return promise;
         function innerCallback(success, newName, newURL, newContentType) {
             if (success) {
                 this.updateName(newName, newURL, newContentType);
             }
-            fulfill(success);
+            resolve(success);
         }
     }
     remove() {
@@ -173,7 +168,7 @@ export class UISourceCode extends Common.ObjectWrapper.ObjectWrapper {
             this.contentTypeInternal = contentType;
         }
         this.dispatchEventToListeners(Events.TitleChanged, this);
-        this.project().workspace().dispatchEventToListeners(WorkspaceImplEvents.UISourceCodeRenamed, { oldURL: oldURL, uiSourceCode: this });
+        this.project().workspace().dispatchEventToListeners(WorkspaceImplEvents.UISourceCodeRenamed, { oldURL, uiSourceCode: this });
     }
     contentURL() {
         return this.url();
@@ -184,31 +179,31 @@ export class UISourceCode extends Common.ObjectWrapper.ObjectWrapper {
     project() {
         return this.projectInternal;
     }
-    requestContent({ cachedWasmOnly } = {}) {
+    requestContentData({ cachedWasmOnly } = {}) {
         if (this.requestContentPromise) {
             return this.requestContentPromise;
         }
-        if (this.contentLoadedInternal) {
+        if (this.contentInternal) {
             return Promise.resolve(this.contentInternal);
         }
         if (cachedWasmOnly && this.mimeType() === 'application/wasm') {
-            return Promise.resolve({ content: '', isEncoded: false, wasmDisassemblyInfo: new Common.WasmDisassembly.WasmDisassembly([], [], []) });
+            return Promise.resolve(new TextUtils.WasmDisassembly.WasmDisassembly([], [], []));
         }
         this.requestContentPromise = this.requestContentImpl();
         return this.requestContentPromise;
     }
+    async requestContent(options = {}) {
+        return TextUtils.ContentData.ContentData.asDeferredContent(await this.requestContentData(options));
+    }
     async requestContentImpl() {
+        if (this.contentInternal) {
+            throw new Error('Called UISourceCode#requestContentImpl even though content is available for ' + this.urlInternal);
+        }
         try {
-            const content = await this.projectInternal.requestFileContent(this);
-            if (!this.contentLoadedInternal) {
-                this.contentLoadedInternal = true;
-                this.contentInternal = content;
-                this.contentEncodedInternal = content.isEncoded;
-            }
+            this.contentInternal = await this.projectInternal.requestFileContent(this);
         }
         catch (err) {
-            this.contentLoadedInternal = true;
-            this.contentInternal = { content: null, error: err ? String(err) : '', isEncoded: false };
+            this.contentInternal = { error: err ? String(err) : '' };
         }
         return this.contentInternal;
     }
@@ -218,15 +213,22 @@ export class UISourceCode extends Common.ObjectWrapper.ObjectWrapper {
         }
         return content.isEncoded && content.content ? window.atob(content.content) : content.content;
     }
+    /** Only used to compare whether content changed */
+    #unsafeDecodeContentData(content) {
+        if (!content || TextUtils.ContentData.ContentData.isError(content)) {
+            return null;
+        }
+        return content.createdFromBase64 ? window.atob(content.base64) : content.text;
+    }
     async checkContentUpdated() {
-        if (!this.contentLoadedInternal && !this.forceLoadOnCheckContentInternal) {
+        if (!this.contentInternal && !this.forceLoadOnCheckContentInternal) {
             return;
         }
         if (!this.projectInternal.canSetFileContent() || this.checkingContent) {
             return;
         }
         this.checkingContent = true;
-        const updatedContent = await this.projectInternal.requestFileContent(this);
+        const updatedContent = TextUtils.ContentData.ContentData.asDeferredContent(await this.projectInternal.requestFileContent(this));
         if ('error' in updatedContent) {
             return;
         }
@@ -240,7 +242,7 @@ export class UISourceCode extends Common.ObjectWrapper.ObjectWrapper {
         if (this.lastAcceptedContent === updatedContent.content) {
             return;
         }
-        if (this.#decodeContent(this.contentInternal) === this.#decodeContent(updatedContent)) {
+        if (this.#unsafeDecodeContentData(this.contentInternal) === this.#decodeContent(updatedContent)) {
             this.lastAcceptedContent = null;
             return;
         }
@@ -270,8 +272,8 @@ export class UISourceCode extends Common.ObjectWrapper.ObjectWrapper {
     }
     contentCommitted(content, committedByUser) {
         this.lastAcceptedContent = null;
-        this.contentInternal = { content, isEncoded: false };
-        this.contentLoadedInternal = true;
+        this.contentInternal =
+            new TextUtils.ContentData.ContentData(content, Boolean(this.contentEncodedInternal), this.mimeType());
         this.requestContentPromise = null;
         this.hasCommitsInternal = true;
         this.innerResetWorkingCopy();
@@ -292,17 +294,20 @@ export class UISourceCode extends Common.ObjectWrapper.ObjectWrapper {
         return this.workingCopyContent().content || '';
     }
     workingCopyContent() {
+        return this.workingCopyContentData().asDeferedContent();
+    }
+    workingCopyContentData() {
         if (this.workingCopyGetter) {
             this.workingCopyInternal = this.workingCopyGetter();
             this.workingCopyGetter = null;
         }
-        if (this.isDirty()) {
-            return { content: this.workingCopyInternal, isEncoded: false };
+        const contentData = this.contentInternal ?
+            TextUtils.ContentData.ContentData.contentDataOrEmpty(this.contentInternal) :
+            TextUtils.ContentData.EMPTY_TEXT_CONTENT_DATA;
+        if (this.workingCopyInternal !== null) {
+            return new TextUtils.ContentData.ContentData(this.workingCopyInternal, /* isBase64 */ false, contentData.mimeType);
         }
-        if (this.contentInternal) {
-            return this.contentInternal;
-        }
-        return { content: '', isEncoded: false };
+        return contentData;
     }
     resetWorkingCopy() {
         this.innerResetWorkingCopy();
@@ -360,6 +365,9 @@ export class UISourceCode extends Common.ObjectWrapper.ObjectWrapper {
     isUnconditionallyIgnoreListed() {
         return this.isUnconditionallyIgnoreListedInternal;
     }
+    isFetchXHR() {
+        return [Common.ResourceType.resourceTypes.XHR, Common.ResourceType.resourceTypes.Fetch].includes(this.contentType());
+    }
     /**
      * Unconditionally ignore list this UISourcecode, ignoring any user
      * setting. We use this to mark breakpoint/logpoint condition scripts for now.
@@ -371,20 +379,22 @@ export class UISourceCode extends Common.ObjectWrapper.ObjectWrapper {
         return Common.ParsedURL.ParsedURL.extractExtension(this.nameInternal);
     }
     content() {
-        return this.contentInternal?.content || '';
+        if (!this.contentInternal || 'error' in this.contentInternal) {
+            return '';
+        }
+        return this.contentInternal.text;
     }
     loadError() {
         return (this.contentInternal && 'error' in this.contentInternal && this.contentInternal.error) || null;
     }
     searchInContent(query, caseSensitive, isRegex) {
-        const content = this.content();
-        if (!content) {
+        if (!this.contentInternal || 'error' in this.contentInternal) {
             return this.projectInternal.searchInFileContent(this, query, caseSensitive, isRegex);
         }
-        return Promise.resolve(TextUtils.TextUtils.performSearchInContent(content, query, caseSensitive, isRegex));
+        return Promise.resolve(TextUtils.TextUtils.performSearchInContentData(this.contentInternal, query, caseSensitive, isRegex));
     }
     contentLoaded() {
-        return this.contentLoadedInternal;
+        return Boolean(this.contentInternal);
     }
     uiLocation(lineNumber, columnNumber) {
         return new UILocation(this, lineNumber, columnNumber);
@@ -435,16 +445,16 @@ export class UISourceCode extends Common.ObjectWrapper.ObjectWrapper {
         return this.disableEditInternal;
     }
 }
-// TODO(crbug.com/1167717): Make this a const enum again
-// eslint-disable-next-line rulesdir/const_enum
 export var Events;
 (function (Events) {
+    /* eslint-disable @typescript-eslint/naming-convention -- Used by web_tests. */
     Events["WorkingCopyChanged"] = "WorkingCopyChanged";
     Events["WorkingCopyCommitted"] = "WorkingCopyCommitted";
     Events["TitleChanged"] = "TitleChanged";
     Events["MessageAdded"] = "MessageAdded";
     Events["MessageRemoved"] = "MessageRemoved";
     Events["DecorationChanged"] = "DecorationChanged";
+    /* eslint-enable @typescript-eslint/naming-convention */
 })(Events || (Events = {}));
 export class UILocation {
     uiSourceCode;
@@ -487,9 +497,6 @@ export class UILocation {
     lineId() {
         return this.uiSourceCode.project().id() + ':' + this.uiSourceCode.url() + ':' + this.lineNumber;
     }
-    toUIString() {
-        return this.uiSourceCode.url() + ':' + (this.lineNumber + 1);
-    }
     static comparator(location1, location2) {
         return location1.compareTo(location2);
     }
@@ -512,6 +519,19 @@ export class UILocation {
             return 1;
         }
         return this.columnNumber - other.columnNumber;
+    }
+}
+/**
+ * A text range inside a specific {@link UISourceCode}.
+ *
+ * We use a class instead of an interface so we can implement a revealer for it.
+ */
+export class UILocationRange {
+    uiSourceCode;
+    range;
+    constructor(uiSourceCode, range) {
+        this.uiSourceCode = uiSourceCode;
+        this.range = range;
     }
 }
 /**
@@ -550,35 +570,6 @@ export class Message {
     }
     isEqual(another) {
         return this.text() === another.text() && this.level() === another.level() && this.range.equal(another.range);
-    }
-}
-(function (Message) {
-    // TODO(crbug.com/1167717): Make this a const enum again
-    // eslint-disable-next-line rulesdir/const_enum
-    let Level;
-    (function (Level) {
-        Level["Error"] = "Error";
-        Level["Issue"] = "Issue";
-        Level["Warning"] = "Warning";
-    })(Level = Message.Level || (Message.Level = {}));
-})(Message || (Message = {}));
-export class LineMarker {
-    rangeInternal;
-    typeInternal;
-    dataInternal;
-    constructor(range, type, data) {
-        this.rangeInternal = range;
-        this.typeInternal = type;
-        this.dataInternal = data;
-    }
-    range() {
-        return this.rangeInternal;
-    }
-    type() {
-        return this.typeInternal;
-    }
-    data() {
-        return this.dataInternal;
     }
 }
 export class UISourceCodeMetadata {

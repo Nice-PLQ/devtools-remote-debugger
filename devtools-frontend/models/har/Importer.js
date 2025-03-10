@@ -2,7 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 import * as Common from '../../core/common/common.js';
+import * as Platform from '../../core/platform/platform.js';
 import * as SDK from '../../core/sdk/sdk.js';
+import * as TextUtils from '../text_utils/text_utils.js';
 export class Importer {
     static requestsFromHARLog(log) {
         const pages = new Map();
@@ -20,7 +22,7 @@ export class Importer {
             const initiatorEntry = entry.customInitiator();
             if (initiatorEntry) {
                 initiator = {
-                    type: initiatorEntry.type,
+                    type: (initiatorEntry.type),
                     url: initiatorEntry.url,
                     lineNumber: initiatorEntry.lineNumber,
                     requestId: initiatorEntry.requestId,
@@ -56,7 +58,7 @@ export class Importer {
         else {
             request.setRequestFormData(false, null);
         }
-        request.connectionId = entry.connection || '';
+        request.connectionId = entry.customAsString('connectionId') || '';
         request.requestMethod = entry.request.method;
         request.setRequestHeaders(entry.request.headers);
         // Response data.
@@ -92,18 +94,16 @@ export class Importer {
             request.setFromDiskCache();
         }
         const contentText = entry.response.content.text;
-        const contentData = {
-            error: null,
-            content: contentText ? contentText : null,
-            encoded: entry.response.content.encoding === 'base64',
-        };
-        request.setContentDataProvider(async () => contentData);
+        const isBase64 = entry.response.content.encoding === 'base64';
+        const { mimeType, charset } = Platform.MimeType.parseContentType(entry.response.content.mimeType);
+        request.setContentDataProvider(async () => new TextUtils.ContentData.ContentData(contentText ?? '', isBase64, mimeType ?? '', charset ?? undefined));
         // Timing data.
         Importer.setupTiming(request, issueTime, entry.time, entry.timings);
         // Meta data.
-        request.setRemoteAddress(entry.serverIPAddress || '', 80); // Har does not support port numbers.
+        request.setRemoteAddress(entry.serverIPAddress || '', Number(entry.connection) || 80);
         request.setResourceType(Importer.getResourceType(request, entry, pageLoad));
         const priority = entry.customAsString('priority');
+        // @ts-expect-error This accesses the globalThis['Protocol'] where the enum is an actual JS object and not just a TS const enum.
         if (priority && Protocol.Network.ResourcePriority.hasOwnProperty(priority)) {
             request.setPriority(priority);
         }
@@ -123,8 +123,27 @@ export class Importer {
                     continue;
                 }
                 const mask = message.type === SDK.NetworkRequest.WebSocketFrameType.Send;
-                request.addFrame({ time: message.time, text: message.data, opCode: message.opcode, mask: mask, type: message.type });
+                request.addFrame({ time: message.time, text: message.data, opCode: message.opcode, mask, type: message.type });
             }
+        }
+        // Restore Service Worker related response.
+        request.fetchedViaServiceWorker = Boolean(entry.response.custom.get('fetchedViaServiceWorker'));
+        const serviceWorkerResponseSource = entry.response.customAsString('serviceWorkerResponseSource');
+        if (serviceWorkerResponseSource) {
+            // Should consist with the `Protocol.Network.ServiceWorkerResponseSource` enum class.
+            const sources = new Set([
+                "cache-storage" /* Protocol.Network.ServiceWorkerResponseSource.CacheStorage */,
+                "fallback-code" /* Protocol.Network.ServiceWorkerResponseSource.FallbackCode */,
+                "http-cache" /* Protocol.Network.ServiceWorkerResponseSource.HttpCache */,
+                "network" /* Protocol.Network.ServiceWorkerResponseSource.Network */,
+            ]);
+            if (sources.has(serviceWorkerResponseSource)) {
+                request.setServiceWorkerResponseSource(serviceWorkerResponseSource);
+            }
+        }
+        const responseCacheStorageCacheName = entry.response.customAsString('responseCacheStorageCacheName');
+        if (responseCacheStorageCacheName) {
+            request.setResponseCacheStorageCacheName(responseCacheStorageCacheName);
         }
         request.finished = true;
     }
@@ -160,6 +179,13 @@ export class Importer {
         let lastEntry = timings.blocked && (timings.blocked >= 0) ? timings.blocked : 0;
         const proxy = timings.customAsNumber('blocked_proxy') || -1;
         const queueing = timings.customAsNumber('blocked_queueing') || -1;
+        // `blocked_queueing` should be excluded from `lastEntry`
+        // (`timings.blocked`) here because it should be taken into account
+        // by `timing.requestTime`, and other subsequent timings are
+        // calculated based on the accumulated `lastEntry`.
+        if (lastEntry > 0 && queueing > 0) {
+            lastEntry -= queueing;
+        }
         // SSL is part of connect for both HAR and Chrome's format so subtract it here.
         const ssl = timings.ssl && (timings.ssl >= 0) ? timings.ssl : 0;
         if (timings.connect && (timings.connect > 0)) {
@@ -177,10 +203,10 @@ export class Importer {
             // Now update lastEntry to add ssl timing back in (see comment above).
             sslStart: timings.ssl && (timings.ssl >= 0) ? lastEntry : -1,
             sslEnd: accumulateTime(timings.ssl),
-            workerStart: -1,
-            workerReady: -1,
-            workerFetchStart: -1,
-            workerRespondWithSettled: -1,
+            workerStart: timings.customAsNumber('workerStart') || -1,
+            workerReady: timings.customAsNumber('workerReady') || -1,
+            workerFetchStart: timings.customAsNumber('workerFetchStart') || -1,
+            workerRespondWithSettled: timings.customAsNumber('workerRespondWithSettled') || -1,
             sendStart: timings.send >= 0 ? lastEntry : -1,
             sendEnd: accumulateTime(timings.send),
             pushStart: 0,

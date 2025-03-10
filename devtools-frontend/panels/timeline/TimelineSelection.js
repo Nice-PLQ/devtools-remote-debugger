@@ -1,51 +1,46 @@
 // Copyright 2023 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
-import * as SDK from '../../core/sdk/sdk.js';
-import * as TimelineModel from '../../models/timeline_model/timeline_model.js';
-import * as TraceEngine from '../../models/trace/trace.js';
-const SelectionRangeSymbol = Symbol('SelectionRange');
-export class TimelineSelection {
-    startTime;
-    endTime;
-    object;
-    constructor(startTime, endTime, object) {
-        this.startTime = startTime;
-        this.endTime = endTime;
-        this.object = object;
+import * as Platform from '../../core/platform/platform.js';
+import * as Trace from '../../models/trace/trace.js';
+export function selectionFromEvent(event) {
+    return {
+        event,
+    };
+}
+export function selectionFromRangeMicroSeconds(min, max) {
+    return {
+        bounds: Trace.Helpers.Timing.traceWindowFromMicroSeconds(min, max),
+    };
+}
+export function selectionFromRangeMilliSeconds(min, max) {
+    return {
+        bounds: Trace.Helpers.Timing.traceWindowFromMilliSeconds(min, max),
+    };
+}
+export function selectionIsEvent(selection) {
+    return Boolean(selection && 'event' in selection);
+}
+export function selectionIsRange(selection) {
+    return Boolean(selection && 'bounds' in selection);
+}
+export function rangeForSelection(selection) {
+    if (selectionIsRange(selection)) {
+        return selection.bounds;
     }
-    static isFrameObject(object) {
-        return object instanceof TimelineModel.TimelineFrameModel.TimelineFrame;
+    if (selectionIsEvent(selection)) {
+        const timings = Trace.Helpers.Timing.eventTimingsMicroSeconds(selection.event);
+        return Trace.Helpers.Timing.traceWindowFromMicroSeconds(timings.startTime, timings.endTime);
     }
-    static fromFrame(frame) {
-        return new TimelineSelection(TraceEngine.Types.Timing.MilliSeconds(frame.startTime), TraceEngine.Types.Timing.MilliSeconds(frame.endTime), frame);
+    Platform.assertNever(selection, 'Unknown selection type');
+}
+export function selectionsEqual(s1, s2) {
+    if (selectionIsEvent(s1) && selectionIsEvent(s2)) {
+        return s1.event === s2.event;
     }
-    static isNetworkRequestSelection(object) {
-        return object instanceof TimelineModel.TimelineModel.NetworkRequest;
+    if (selectionIsRange(s1) && selectionIsRange(s2)) {
+        return Trace.Helpers.Timing.windowsEqual(s1.bounds, s2.bounds);
     }
-    static fromNetworkRequest(request) {
-        return new TimelineSelection(TraceEngine.Types.Timing.MilliSeconds(request.startTime), TraceEngine.Types.Timing.MilliSeconds(request.endTime || request.startTime), request);
-    }
-    static isTraceEventSelection(object) {
-        if (object instanceof SDK.TracingModel.Event) {
-            return true;
-        }
-        // Sadly new trace events are just raw objects, so now we have to confirm it is a trace event by ruling everything else out.
-        if (TimelineSelection.isFrameObject(object) || TimelineSelection.isRangeSelection(object) ||
-            TimelineSelection.isNetworkRequestSelection(object)) {
-            return false;
-        }
-        return SDK.TracingModel.eventIsFromNewEngine(object);
-    }
-    static fromTraceEvent(event) {
-        const { startTime, endTime } = SDK.TracingModel.timesForEventInMilliseconds(event);
-        return new TimelineSelection(startTime, TraceEngine.Types.Timing.MilliSeconds(endTime || (startTime + 1)), event);
-    }
-    static isRangeSelection(object) {
-        return object === SelectionRangeSymbol;
-    }
-    static fromRange(startTime, endTime) {
-        return new TimelineSelection(TraceEngine.Types.Timing.MilliSeconds(startTime), TraceEngine.Types.Timing.MilliSeconds(endTime), SelectionRangeSymbol);
-    }
+    return false;
 }
 //# sourceMappingURL=TimelineSelection.js.map

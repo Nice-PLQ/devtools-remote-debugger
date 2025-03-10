@@ -30,15 +30,20 @@
 import * as Common from '../../core/common/common.js';
 import * as Host from '../../core/host/host.js';
 import * as i18n from '../../core/i18n/i18n.js';
-import * as Root from '../../core/root/root.js';
-import * as SourceFrame from '../../ui/legacy/components/source_frame/source_frame.js';
 import * as TextUtils from '../../models/text_utils/text_utils.js';
+import * as SourceFrame from '../../ui/legacy/components/source_frame/source_frame.js';
 import * as UI from '../../ui/legacy/legacy.js';
+import * as VisualLogging from '../../ui/visual_logging/visual_logging.js';
+import { BinaryResourceView } from './BinaryResourceView.js';
 const UIStrings = {
+    /**
+     *@description Text in Request Response View of the Network panel if no preview can be shown
+     */
+    noPreview: 'Nothing to preview',
     /**
      *@description Text in Request Response View of the Network panel
      */
-    thisRequestHasNoResponseData: 'This request has no response data available.',
+    thisRequestHasNoResponseData: 'This request has no response data available',
     /**
      *@description Text in Request Preview View of the Network panel
      */
@@ -52,45 +57,35 @@ export class RequestResponseView extends UI.Widget.VBox {
     constructor(request) {
         super();
         this.element.classList.add('request-view');
+        this.element.setAttribute('jslog', `${VisualLogging.pane('response').track({ resize: true })}`);
         this.request = request;
         this.contentViewPromise = null;
     }
-    static hasTextContent(request, contentData) {
-        const mimeType = request.mimeType || '';
-        let resourceType = Common.ResourceType.ResourceType.fromMimeType(mimeType);
-        if (resourceType === Common.ResourceType.resourceTypes.Other) {
-            resourceType = request.contentType();
-        }
-        if (resourceType === Common.ResourceType.resourceTypes.Image) {
-            return mimeType.startsWith('image/svg');
-        }
-        if (resourceType.isTextType()) {
-            return true;
-        }
-        if (contentData.error) {
-            return false;
-        }
-        if (resourceType === Common.ResourceType.resourceTypes.Other) {
-            return Boolean(contentData.content) && !contentData.encoded;
-        }
-        return false;
-    }
-    static async sourceViewForRequest(request) {
+    static #sourceViewForRequest(request, contentData) {
         let sourceView = requestToSourceView.get(request);
         if (sourceView !== undefined) {
             return sourceView;
         }
-        const contentData = await request.contentData();
-        if (!RequestResponseView.hasTextContent(request, contentData)) {
-            requestToSourceView.delete(request);
-            return null;
+        let mimeType;
+        // If the main document is of type JSON (or any JSON subtype), do not use the more generic canonical MIME type,
+        // which would prevent the JSON from being pretty-printed. See https://crbug.com/406900
+        if (Common.ResourceType.ResourceType.simplifyContentType(request.mimeType) === 'application/json') {
+            mimeType = request.mimeType;
         }
-        const mimeType = request.resourceType().canonicalMimeType() || request.mimeType;
-        const mediaType = Common.ResourceType.ResourceType.mediaTypeForMetrics(mimeType, request.resourceType().isFromSourceMap(), TextUtils.TextUtils.isMinified(contentData.content ?? ''));
+        else {
+            mimeType = request.resourceType().canonicalMimeType() || request.mimeType;
+        }
+        const isWasm = contentData.mimeType === 'application/wasm';
+        const isMinified = isWasm || !contentData.isTextContent ? false : TextUtils.TextUtils.isMinified(contentData.content().text);
+        const mediaType = Common.ResourceType.ResourceType.mediaTypeForMetrics(mimeType, request.resourceType().isFromSourceMap(), isMinified, false, false);
         Host.userMetrics.networkPanelResponsePreviewOpened(mediaType);
-        const autoPrettyPrint = Root.Runtime.experiments.isEnabled('sourcesPrettyPrint');
-        sourceView =
-            SourceFrame.ResourceSourceFrame.ResourceSourceFrame.createSearchableView(request, mimeType, autoPrettyPrint);
+        if (contentData.isTextContent || isWasm) {
+            // Note: Even though WASM is binary data, the source view will disassemble it and show a text representation.
+            sourceView = SourceFrame.ResourceSourceFrame.ResourceSourceFrame.createSearchableView(request, mimeType);
+        }
+        else {
+            sourceView = new BinaryResourceView(contentData, request.url(), request.resourceType());
+        }
         requestToSourceView.set(request, sourceView);
         return sourceView;
     }
@@ -109,26 +104,20 @@ export class RequestResponseView extends UI.Widget.VBox {
         return responseView;
     }
     async createPreview() {
-        const contentData = await this.request.contentData();
-        const sourceView = await RequestResponseView.sourceViewForRequest(this.request);
-        if ((!contentData.content || !sourceView) && !contentData.error) {
-            return new UI.EmptyWidget.EmptyWidget(i18nString(UIStrings.thisRequestHasNoResponseData));
+        const contentData = await this.request.requestStreamingContent();
+        if (TextUtils.StreamingContentData.isError(contentData)) {
+            return new UI.EmptyWidget.EmptyWidget(i18nString(UIStrings.failedToLoadResponseData), contentData.error);
         }
-        if (contentData.content && sourceView) {
-            return sourceView;
+        const sourceView = RequestResponseView.#sourceViewForRequest(this.request, contentData);
+        if (!sourceView || this.request.statusCode === 204) {
+            return new UI.EmptyWidget.EmptyWidget(i18nString(UIStrings.noPreview), i18nString(UIStrings.thisRequestHasNoResponseData));
         }
-        if (contentData.error) {
-            return new UI.EmptyWidget.EmptyWidget(i18nString(UIStrings.failedToLoadResponseData) + ': ' + contentData.error);
-        }
-        if (this.request.statusCode === 204) {
-            return new UI.EmptyWidget.EmptyWidget(i18nString(UIStrings.thisRequestHasNoResponseData));
-        }
-        return new UI.EmptyWidget.EmptyWidget(i18nString(UIStrings.failedToLoadResponseData));
+        return sourceView;
     }
-    async revealLine(line) {
+    async revealPosition(position) {
         const view = await this.doShowPreview();
         if (view instanceof SourceFrame.ResourceSourceFrame.SearchableContainer) {
-            void view.revealPosition(line);
+            void view.revealPosition(position);
         }
     }
 }

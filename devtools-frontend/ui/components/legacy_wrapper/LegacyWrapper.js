@@ -1,7 +1,7 @@
 // Copyright 2023 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
-// eslint-disable-next-line rulesdir/check_component_naming
+import * as VisualLogging from '../../visual_logging/visual_logging.js';
 export class WrappableComponent extends HTMLElement {
     wrapper = null;
     async render() {
@@ -11,16 +11,18 @@ export class WrappableComponent extends HTMLElement {
     willHide() {
     }
 }
-export function legacyWrapper(base, component) {
+export function legacyWrapper(base, component, jsLogContext) {
     return new class extends base {
         #component;
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         constructor(..._args) {
-            super(/* isWebComponent=*/ true);
+            super(/* useShadowDom=*/ true);
             this.#component = component;
             this.#component.wrapper = this;
             void this.#component.render();
             this.contentElement.appendChild(this.#component);
+            if (jsLogContext) {
+                this.element.setAttribute('jslog', `${VisualLogging.pane().context(jsLogContext)}`);
+            }
         }
         wasShown() {
             this.#component.wasShown();
@@ -29,7 +31,7 @@ export function legacyWrapper(base, component) {
         willHide() {
             this.#component.willHide();
         }
-        async doUpdate() {
+        async performUpdate() {
             await this.#component.render();
         }
         getComponent() {

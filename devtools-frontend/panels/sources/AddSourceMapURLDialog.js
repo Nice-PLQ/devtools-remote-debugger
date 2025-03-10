@@ -24,31 +24,30 @@ export class AddDebugInfoURLDialog extends UI.Widget.HBox {
     input;
     dialog;
     callback;
-    constructor(label, callback) {
-        super(/* isWebComponent */ true);
+    constructor(label, jslogContext, callback) {
+        super(/* useShadowDom */ true);
+        this.registerRequiredCSS(dialogStyles);
         this.contentElement.createChild('label').textContent = label;
-        this.input = UI.UIUtils.createInput('add-source-map', 'text');
+        this.input = UI.UIUtils.createInput('add-source-map', 'text', 'url');
         this.input.addEventListener('keydown', this.onKeyDown.bind(this), false);
         this.contentElement.appendChild(this.input);
-        const addButton = UI.UIUtils.createTextButton(i18nString(UIStrings.add), this.apply.bind(this));
+        const addButton = UI.UIUtils.createTextButton(i18nString(UIStrings.add), this.apply.bind(this), {
+            jslogContext: 'add',
+        });
         this.contentElement.appendChild(addButton);
-        this.dialog = new UI.Dialog.Dialog();
-        this.dialog.setSizeBehavior("MeasureContent" /* UI.GlassPane.SizeBehavior.MeasureContent */);
+        this.dialog = new UI.Dialog.Dialog(jslogContext);
+        this.dialog.setSizeBehavior("MeasureContent" /* UI.GlassPane.SizeBehavior.MEASURE_CONTENT */);
         this.dialog.setDefaultFocusedElement(this.input);
         this.callback = callback;
     }
     static createAddSourceMapURLDialog(callback) {
-        return new AddDebugInfoURLDialog(i18nString(UIStrings.sourceMapUrl), callback);
+        return new AddDebugInfoURLDialog(i18nString(UIStrings.sourceMapUrl), 'add-source-map-url', callback);
     }
     static createAddDWARFSymbolsURLDialog(callback) {
-        return new AddDebugInfoURLDialog(i18nString(UIStrings.debugInfoUrl), callback);
+        return new AddDebugInfoURLDialog(i18nString(UIStrings.debugInfoUrl), 'add-debug-info-url', callback);
     }
     show() {
         super.show(this.dialog.contentElement);
-        // UI.Dialog extends GlassPane and overrides the `show` method with a wider
-        // accepted type. However, TypeScript uses the supertype declaration to
-        // determine the full type, which requires a `!Document`.
-        // @ts-ignore
         this.dialog.show();
     }
     done(value) {
@@ -63,10 +62,6 @@ export class AddDebugInfoURLDialog extends UI.Widget.HBox {
             event.consume(true);
             this.apply();
         }
-    }
-    wasShown() {
-        super.wasShown();
-        this.registerCSSFiles([dialogStyles]);
     }
 }
 //# sourceMappingURL=AddSourceMapURLDialog.js.map

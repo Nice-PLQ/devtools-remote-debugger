@@ -4,6 +4,7 @@
         "outDir": "."
     },
     "files": [
-        "button.css.js"
+        "button.css.js",
+        "textButton.css.js"
     ]
 }

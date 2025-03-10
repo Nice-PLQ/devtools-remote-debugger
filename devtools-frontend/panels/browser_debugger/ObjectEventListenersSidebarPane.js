@@ -1,92 +1,81 @@
 // Copyright 2015 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
-import * as EventListeners from '../event_listeners/event_listeners.js';
-import * as i18n from '../../core/i18n/i18n.js';
 import * as SDK from '../../core/sdk/sdk.js';
+import * as Buttons from '../../ui/components/buttons/buttons.js';
 import * as UI from '../../ui/legacy/legacy.js';
-const UIStrings = {
-    /**
-     *@description Label for a button in the sources panel that refreshes the list of global event listeners.
-     */
-    refreshGlobalListeners: 'Refresh global listeners',
-};
-const str_ = i18n.i18n.registerUIStrings('panels/browser_debugger/ObjectEventListenersSidebarPane.ts', UIStrings);
-const i18nString = i18n.i18n.getLocalizedString.bind(undefined, str_);
-let objectEventListenersSidebarPaneInstance;
-export class ObjectEventListenersSidebarPane extends UI.Widget.VBox {
-    #refreshButton;
-    #eventListenersView;
+import * as VisualLogging from '../../ui/visual_logging/visual_logging.js';
+import * as EventListeners from '../event_listeners/event_listeners.js';
+export class ObjectEventListenersSidebarPane extends UI.ThrottledWidget.ThrottledWidget {
     #lastRequestedContext;
+    // TODO(bmeurer): This is only public for web tests.
+    eventListenersView;
     constructor() {
         super();
-        this.#refreshButton = new UI.Toolbar.ToolbarButton(i18nString(UIStrings.refreshGlobalListeners), 'refresh');
-        this.#refreshButton.addEventListener(UI.Toolbar.ToolbarButton.Events.Click, this.refreshClick, this);
-        this.#refreshButton.setEnabled(false);
-        this.#eventListenersView = new EventListeners.EventListenersView.EventListenersView(this.update.bind(this), /* enableDefaultTreeFocus */ true);
-        this.#eventListenersView.show(this.element);
-        this.setDefaultFocusedChild(this.#eventListenersView);
-    }
-    static instance() {
-        if (!objectEventListenersSidebarPaneInstance) {
-            objectEventListenersSidebarPaneInstance = new ObjectEventListenersSidebarPane();
-        }
-        return objectEventListenersSidebarPaneInstance;
-    }
-    get eventListenersView() {
-        return this.#eventListenersView;
+        this.contentElement.setAttribute('jslog', `${VisualLogging.section('sources.global-listeners')}`);
+        this.eventListenersView = new EventListeners.EventListenersView.EventListenersView(this.update.bind(this), /* enableDefaultTreeFocus */ true);
+        this.eventListenersView.show(this.element);
+        this.setDefaultFocusedChild(this.eventListenersView);
+        this.update();
     }
     toolbarItems() {
-        return [this.#refreshButton];
+        const refreshButton = UI.Toolbar.Toolbar.createActionButton('browser-debugger.refresh-global-event-listeners');
+        refreshButton.setSize("SMALL" /* Buttons.Button.Size.SMALL */);
+        return [refreshButton];
     }
-    update() {
+    async doUpdate() {
         if (this.#lastRequestedContext) {
             this.#lastRequestedContext.runtimeModel.releaseObjectGroup(objectGroupName);
             this.#lastRequestedContext = undefined;
         }
+        const windowObjects = [];
         const executionContext = UI.Context.Context.instance().flavor(SDK.RuntimeModel.ExecutionContext);
-        if (!executionContext) {
-            this.#eventListenersView.reset();
-            this.#eventListenersView.addEmptyHolderIfNeeded();
-            return;
+        if (executionContext) {
+            this.#lastRequestedContext = executionContext;
+            const result = await executionContext.evaluate({
+                expression: 'self',
+                objectGroup: objectGroupName,
+                includeCommandLineAPI: false,
+                silent: true,
+                returnByValue: false,
+                generatePreview: false,
+            }, 
+            /* userGesture */ false, 
+            /* awaitPromise */ false);
+            if (!('error' in result) && !result.exceptionDetails) {
+                windowObjects.push(result.object);
+            }
         }
-        this.#lastRequestedContext = executionContext;
-        void Promise.all([this.windowObjectInContext(executionContext)])
-            .then(this.#eventListenersView.addObjects.bind(this.#eventListenersView));
+        await this.eventListenersView.addObjects(windowObjects);
     }
     wasShown() {
         super.wasShown();
         UI.Context.Context.instance().addFlavorChangeListener(SDK.RuntimeModel.ExecutionContext, this.update, this);
-        this.#refreshButton.setEnabled(true);
-        this.update();
+        UI.Context.Context.instance().setFlavor(ObjectEventListenersSidebarPane, this);
     }
     willHide() {
-        super.willHide();
+        UI.Context.Context.instance().setFlavor(ObjectEventListenersSidebarPane, null);
         UI.Context.Context.instance().removeFlavorChangeListener(SDK.RuntimeModel.ExecutionContext, this.update, this);
-        this.#refreshButton.setEnabled(false);
+        super.willHide();
+        if (this.#lastRequestedContext) {
+            this.#lastRequestedContext.runtimeModel.releaseObjectGroup(objectGroupName);
+            this.#lastRequestedContext = undefined;
+        }
     }
-    windowObjectInContext(executionContext) {
-        return executionContext
-            .evaluate({
-            expression: 'self',
-            objectGroup: objectGroupName,
-            includeCommandLineAPI: false,
-            silent: true,
-            returnByValue: false,
-            generatePreview: false,
-        }, 
-        /* userGesture */ false, 
-        /* awaitPromise */ false)
-            .then(result => {
-            if ('error' in result || result.exceptionDetails) {
-                return null;
+}
+export class ActionDelegate {
+    handleAction(context, actionId) {
+        switch (actionId) {
+            case 'browser-debugger.refresh-global-event-listeners': {
+                const eventListenersSidebarPane = context.flavor(ObjectEventListenersSidebarPane);
+                if (eventListenersSidebarPane) {
+                    eventListenersSidebarPane.update();
+                    return true;
+                }
+                return false;
             }
-            return result.object;
-        });
-    }
-    refreshClick(event) {
-        event.data.consume();
-        this.update();
+        }
+        return false;
     }
 }
 export const objectGroupName = 'object-event-listeners-sidebar-pane';

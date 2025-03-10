@@ -1,1 +1,1 @@
-{"compilerOptions":{"composite":true,"outDir":".","baseUrl":".","rootDir":"../../../../../../../front_end/panels/recorder/util"},"files":["../../../../../../../front_end/panels/recorder/util/util.ts"],"references":[{"path":"./util-tsconfig.json"},{"path":"../../../core/platform/bundle-tsconfig.json"}]}
+{"compilerOptions":{"composite":true,"outDir":".","baseUrl":".","rootDir":"../../../../../../../front_end/panels/recorder/util"},"files":["../../../../../../../front_end/panels/recorder/util/util.ts"],"references":[{"path":"./util-tsconfig.json"}]}

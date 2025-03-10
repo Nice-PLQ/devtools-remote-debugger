@@ -1,7 +1,6 @@
 // Copyright 2017 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
-/* eslint-disable @typescript-eslint/no-explicit-any */
 function getNodeData(node) {
     return node
         .data;
@@ -118,6 +117,7 @@ export class Fragment {
         }
         return { template, binds };
     }
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     static render(template, values) {
         const content = template.template.ownerDocument.importNode(template.template.content, true);
         const resultElement = (content.firstChild === content.lastChild ? content.firstChild : content);
@@ -166,6 +166,7 @@ export class Fragment {
         }
         return result;
     }
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     static nodeForValue(value) {
         if (value instanceof Node) {
             return value;

@@ -3,14 +3,13 @@
 // found in the LICENSE file.
 /* eslint-disable @typescript-eslint/naming-convention */
 import * as Platform from '../../../../core/platform/platform.js';
-import { Events } from './DataGrid.js';
 import { ViewportDataGrid, ViewportDataGridNode } from './ViewportDataGrid.js';
 export class SortableDataGrid extends ViewportDataGrid {
     sortingFunction;
     constructor(dataGridParameters) {
         super(dataGridParameters);
         this.sortingFunction = SortableDataGrid.TrivialComparator;
-        this.setRootNode(new SortableDataGridNode());
+        this.setRootNode((new SortableDataGridNode()));
     }
     static TrivialComparator(_a, _b) {
         return 0;
@@ -33,6 +32,12 @@ export class SortableDataGrid extends ViewportDataGrid {
         return aString < bString ? -1 : (aString > bString ? 1 : 0);
     }
     static Comparator(comparator, reverseMode, a, b) {
+        if (a.isCreationNode && !b.isCreationNode) {
+            return 1;
+        }
+        if (!a.isCreationNode && b.isCreationNode) {
+            return -1;
+        }
         return reverseMode ? comparator(b, a) : comparator(a, b);
     }
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -62,7 +67,7 @@ export class SortableDataGrid extends ViewportDataGrid {
         for (let i = 0; i < length; ++i) {
             rootNode.appendChild(nodes[i]);
         }
-        dataGrid.addEventListener(Events.SortingChanged, sortDataGrid);
+        dataGrid.addEventListener("SortingChanged" /* Events.SORTING_CHANGED */, sortDataGrid);
         function sortDataGrid() {
             const nodes = dataGrid.rootNode().children;
             const sortColumnId = dataGrid.sortColumnId();

@@ -1,10 +1,11 @@
 // Copyright 2023 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
-import { SDKModel } from './SDKModel.js';
-import { Capability } from './Target.js';
-import { TargetManager } from './TargetManager.js';
+import { MapWithDefault } from '../common/MapWithDefault.js';
+import { assertNotNullOrUndefined } from '../platform/platform.js';
 import { Events as ResourceTreeModelEvents, ResourceTreeModel, } from './ResourceTreeModel.js';
+import { SDKModel } from './SDKModel.js';
+import { TargetManager } from './TargetManager.js';
 // Holds preloading related information.
 //
 // - SpeculationRule rule sets
@@ -16,13 +17,11 @@ export class PreloadingModel extends SDKModel {
     targetJustAttached = true;
     lastPrimaryPageModel = null;
     documents = new Map();
-    getFeatureFlagsPromise;
     constructor(target) {
         super(target);
         target.registerPreloadDispatcher(new PreloadDispatcher(this));
         this.agent = target.preloadAgent();
         void this.agent.invoke_enable();
-        this.getFeatureFlagsPromise = this.getFeatureFlags();
         const targetInfo = target.targetInfo();
         if (targetInfo !== undefined && targetInfo.subtype === 'prerender') {
             this.lastPrimaryPageModel = TargetManager.instance().primaryPageTarget()?.model(PreloadingModel) || null;
@@ -67,6 +66,21 @@ export class PreloadingModel extends SDKModel {
     getAllRuleSets() {
         return this.currentDocument()?.ruleSets.getAll() || [];
     }
+    getPreloadCountsByRuleSetId() {
+        const countsByRuleSetId = new Map();
+        for (const { value } of this.getRepresentativePreloadingAttempts(null)) {
+            for (const ruleSetId of [null, ...value.ruleSetIds]) {
+                if (countsByRuleSetId.get(ruleSetId) === undefined) {
+                    countsByRuleSetId.set(ruleSetId, new Map());
+                }
+                const countsByStatus = countsByRuleSetId.get(ruleSetId);
+                assertNotNullOrUndefined(countsByStatus);
+                const i = countsByStatus.get(value.status) || 0;
+                countsByStatus.set(value.status, i + 1);
+            }
+        }
+        return countsByRuleSetId;
+    }
     // Returns a preloading attempt of the current page.
     //
     // Returns reference. Don't save returned values.
@@ -83,18 +97,18 @@ export class PreloadingModel extends SDKModel {
     //
     // Returns array of pairs of id and reference. Don't save returned references.
     // Returned values may or may not be updated as the time grows.
-    getPreloadingAttempts(ruleSetId) {
+    getRepresentativePreloadingAttempts(ruleSetId) {
         const document = this.currentDocument();
         if (document === null) {
             return [];
         }
-        return document.preloadingAttempts.getAll(ruleSetId, document.sources);
+        return document.preloadingAttempts.getAllRepresentative(ruleSetId, document.sources);
     }
     // Returs preloading attempts of the previousPgae.
     //
     // Returns array of pairs of id and reference. Don't save returned references.
     // Returned values may or may not be updated as the time grows.
-    getPreloadingAttemptsOfPreviousPage() {
+    getRepresentativePreloadingAttemptsOfPreviousPage() {
         if (this.loaderIds.length <= 1) {
             return [];
         }
@@ -102,18 +116,40 @@ export class PreloadingModel extends SDKModel {
         if (document === undefined) {
             return [];
         }
-        return document.preloadingAttempts.getAll(null, document.sources);
+        return document.preloadingAttempts.getAllRepresentative(null, document.sources);
+    }
+    // Precondition: `pipelineId` should exists.
+    // Postcondition: The return value is not empty.
+    getPipelineById(pipelineId) {
+        const document = this.currentDocument();
+        if (document === null) {
+            return null;
+        }
+        return document.preloadingAttempts.getPipeline(pipelineId, document.sources);
+    }
+    // Returns attemtps that are sit in the same preload pipeline.
+    getPipeline(attempt) {
+        let pipelineNullable = null;
+        if (attempt.pipelineId !== null) {
+            pipelineNullable = this.getPipelineById(attempt.pipelineId);
+        }
+        if (pipelineNullable === null) {
+            const pipeline = new Map();
+            pipeline.set(attempt.action, attempt);
+            return new PreloadPipeline(pipeline);
+        }
+        return new PreloadPipeline(pipelineNullable);
     }
     onPrimaryPageChanged(event) {
         const { frame, type } = event.data;
         // Model of prerendered page's target will hands over. Do nothing for the initiator page.
-        if (this.lastPrimaryPageModel === null && type === "Activation" /* PrimaryPageChangeType.Activation */) {
+        if (this.lastPrimaryPageModel === null && type === "Activation" /* PrimaryPageChangeType.ACTIVATION */) {
             return;
         }
-        if (this.lastPrimaryPageModel !== null && type !== "Activation" /* PrimaryPageChangeType.Activation */) {
+        if (this.lastPrimaryPageModel !== null && type !== "Activation" /* PrimaryPageChangeType.ACTIVATION */) {
             return;
         }
-        if (this.lastPrimaryPageModel !== null && type === "Activation" /* PrimaryPageChangeType.Activation */) {
+        if (this.lastPrimaryPageModel !== null && type === "Activation" /* PrimaryPageChangeType.ACTIVATION */) {
             // Hand over from the model of the last primary page.
             this.loaderIds = this.lastPrimaryPageModel.loaderIds;
             for (const [loaderId, prev] of this.lastPrimaryPageModel.documents.entries()) {
@@ -135,7 +171,7 @@ export class PreloadingModel extends SDKModel {
                 this.documents.delete(loaderId);
             }
         }
-        this.dispatchEventToListeners(Events.ModelUpdated);
+        this.dispatchEventToListeners("ModelUpdated" /* Events.MODEL_UPDATED */);
     }
     onRuleSetUpdated(event) {
         const ruleSet = event.ruleSet;
@@ -147,14 +183,14 @@ export class PreloadingModel extends SDKModel {
         }
         this.ensureDocumentPreloadingData(loaderId);
         this.documents.get(loaderId)?.ruleSets.upsert(ruleSet);
-        this.dispatchEventToListeners(Events.ModelUpdated);
+        this.dispatchEventToListeners("ModelUpdated" /* Events.MODEL_UPDATED */);
     }
     onRuleSetRemoved(event) {
         const id = event.id;
         for (const document of this.documents.values()) {
             document.ruleSets.delete(id);
         }
-        this.dispatchEventToListeners(Events.ModelUpdated);
+        this.dispatchEventToListeners("ModelUpdated" /* Events.MODEL_UPDATED */);
     }
     onPreloadingAttemptSourcesUpdated(event) {
         const loaderId = event.loaderId;
@@ -165,19 +201,27 @@ export class PreloadingModel extends SDKModel {
         }
         document.sources.update(event.preloadingAttemptSources);
         document.preloadingAttempts.maybeRegisterNotTriggered(document.sources);
-        this.dispatchEventToListeners(Events.ModelUpdated);
+        document.preloadingAttempts.cleanUpRemovedAttempts(document.sources);
+        this.dispatchEventToListeners("ModelUpdated" /* Events.MODEL_UPDATED */);
     }
     onPrefetchStatusUpdated(event) {
+        // We ignore this event to avoid reinserting an attempt after it was removed by
+        // onPreloadingAttemptSourcesUpdated.
+        if (event.prefetchStatus === "PrefetchEvictedAfterCandidateRemoved" /* Protocol.Preload.PrefetchStatus.PrefetchEvictedAfterCandidateRemoved */) {
+            return;
+        }
         const loaderId = event.key.loaderId;
         this.ensureDocumentPreloadingData(loaderId);
         const attempt = {
             action: "Prefetch" /* Protocol.Preload.SpeculationAction.Prefetch */,
             key: event.key,
+            pipelineId: event.pipelineId,
             status: convertPreloadingStatus(event.status),
             prefetchStatus: event.prefetchStatus || null,
+            requestId: event.requestId,
         };
         this.documents.get(loaderId)?.preloadingAttempts.upsert(attempt);
-        this.dispatchEventToListeners(Events.ModelUpdated);
+        this.dispatchEventToListeners("ModelUpdated" /* Events.MODEL_UPDATED */);
     }
     onPrerenderStatusUpdated(event) {
         const loaderId = event.key.loaderId;
@@ -185,42 +229,20 @@ export class PreloadingModel extends SDKModel {
         const attempt = {
             action: "Prerender" /* Protocol.Preload.SpeculationAction.Prerender */,
             key: event.key,
+            pipelineId: event.pipelineId,
             status: convertPreloadingStatus(event.status),
             prerenderStatus: event.prerenderStatus || null,
+            disallowedMojoInterface: event.disallowedMojoInterface || null,
+            mismatchedHeaders: event.mismatchedHeaders || null,
         };
         this.documents.get(loaderId)?.preloadingAttempts.upsert(attempt);
-        this.dispatchEventToListeners(Events.ModelUpdated);
+        this.dispatchEventToListeners("ModelUpdated" /* Events.MODEL_UPDATED */);
     }
-    async getFeatureFlags() {
-        const preloadingHoldbackPromise = this.target().systemInfo().invoke_getFeatureState({
-            featureState: 'PreloadingHoldback',
-        });
-        const prerender2HoldbackPromise = this.target().systemInfo().invoke_getFeatureState({
-            featureState: 'PrerenderHoldback',
-        });
-        return {
-            preloadingHoldback: (await preloadingHoldbackPromise).featureEnabled,
-            prerender2Holdback: (await prerender2HoldbackPromise).featureEnabled,
-        };
-    }
-    async onPreloadEnabledStateUpdated(event) {
-        const featureFlags = await this.getFeatureFlagsPromise;
-        const warnings = {
-            featureFlagPreloadingHoldback: featureFlags.preloadingHoldback,
-            featureFlagPrerender2Holdback: featureFlags.prerender2Holdback,
-            ...event,
-        };
-        this.dispatchEventToListeners(Events.WarningsUpdated, warnings);
+    onPreloadEnabledStateUpdated(event) {
+        this.dispatchEventToListeners("WarningsUpdated" /* Events.WARNINGS_UPDATED */, event);
     }
 }
-SDKModel.register(PreloadingModel, { capabilities: Capability.DOM, autostart: false });
-// TODO(crbug.com/1167717): Make this a const enum again
-// eslint-disable-next-line rulesdir/const_enum
-export var Events;
-(function (Events) {
-    Events["ModelUpdated"] = "ModelUpdated";
-    Events["WarningsUpdated"] = "WarningsUpdated";
-})(Events || (Events = {}));
+SDKModel.register(PreloadingModel, { capabilities: 2 /* Capability.DOM */, autostart: false });
 class PreloadDispatcher {
     model;
     constructor(model) {
@@ -237,8 +259,6 @@ class PreloadDispatcher {
     }
     prefetchStatusUpdated(event) {
         this.model.onPrefetchStatusUpdated(event);
-    }
-    prerenderAttemptCompleted(_) {
     }
     prerenderStatusUpdated(event) {
         this.model.onPrerenderStatusUpdated(event);
@@ -290,17 +310,17 @@ class RuleSetRegistry {
 function convertPreloadingStatus(status) {
     switch (status) {
         case "Pending" /* Protocol.Preload.PreloadingStatus.Pending */:
-            return "Pending" /* PreloadingStatus.Pending */;
+            return "Pending" /* PreloadingStatus.PENDING */;
         case "Running" /* Protocol.Preload.PreloadingStatus.Running */:
-            return "Running" /* PreloadingStatus.Running */;
+            return "Running" /* PreloadingStatus.RUNNING */;
         case "Ready" /* Protocol.Preload.PreloadingStatus.Ready */:
-            return "Ready" /* PreloadingStatus.Ready */;
+            return "Ready" /* PreloadingStatus.READY */;
         case "Success" /* Protocol.Preload.PreloadingStatus.Success */:
-            return "Success" /* PreloadingStatus.Success */;
+            return "Success" /* PreloadingStatus.SUCCESS */;
         case "Failure" /* Protocol.Preload.PreloadingStatus.Failure */:
-            return "Failure" /* PreloadingStatus.Failure */;
+            return "Failure" /* PreloadingStatus.FAILURE */;
         case "NotSupported" /* Protocol.Preload.PreloadingStatus.NotSupported */:
-            return "NotSupported" /* PreloadingStatus.NotSupported */;
+            return "NotSupported" /* PreloadingStatus.NOT_SUPPORTED */;
     }
     throw new Error('unreachable');
 }
@@ -328,8 +348,52 @@ function makePreloadingAttemptId(key) {
     }
     return `${key.loaderId}:${action}:${key.url}:${targetHint}`;
 }
+export class PreloadPipeline {
+    inner;
+    constructor(inner) {
+        if (inner.size === 0) {
+            throw new Error('unreachable');
+        }
+        this.inner = inner;
+    }
+    static newFromAttemptsForTesting(attempts) {
+        const inner = new Map();
+        for (const attempt of attempts) {
+            inner.set(attempt.action, attempt);
+        }
+        return new PreloadPipeline(inner);
+    }
+    getOriginallyTriggered() {
+        const attempt = this.getPrerender() || this.getPrefetch();
+        assertNotNullOrUndefined(attempt);
+        return attempt;
+    }
+    getPrefetch() {
+        return this.inner.get("Prefetch" /* Protocol.Preload.SpeculationAction.Prefetch */) || null;
+    }
+    getPrerender() {
+        return this.inner.get("Prerender" /* Protocol.Preload.SpeculationAction.Prerender */) || null;
+    }
+    // Returns attempts in the order: prefetch < prerender.
+    getAttempts() {
+        const ret = [];
+        const prefetch = this.getPrefetch();
+        if (prefetch !== null) {
+            ret.push(prefetch);
+        }
+        const prerender = this.getPrerender();
+        if (prerender !== null) {
+            ret.push(prerender);
+        }
+        if (ret.length === 0) {
+            throw new Error('unreachable');
+        }
+        return ret;
+    }
+}
 class PreloadingAttemptRegistry {
     map = new Map();
+    pipelines = new MapWithDefault();
     enrich(attempt, source) {
         let ruleSetIds = [];
         let nodeIds = [];
@@ -343,6 +407,36 @@ class PreloadingAttemptRegistry {
             nodeIds,
         };
     }
+    // Returns true iff the attempt is triggered by a SpecRules, not automatically derived.
+    //
+    // In some cases, browsers automatically triggers preloads. For example, Chrome triggers prefetch
+    // ahead of prerender to prevent multiple fetches in case that the prerender failed due to, e.g.
+    // use of forbidden mojo APIs. Such prefetch and prerender sit in the same preload pipeline.
+    //
+    // We regard them as not representative and only show the representative ones to represent
+    // pipelines.
+    isAttemptRepresentative(attempt) {
+        function getSortKey(action) {
+            switch (action) {
+                case "Prefetch" /* Protocol.Preload.SpeculationAction.Prefetch */:
+                    return 0;
+                case "Prerender" /* Protocol.Preload.SpeculationAction.Prerender */:
+                    return 1;
+            }
+        }
+        // Attempt with status `NOT_TRIGGERED` is a representative of a pipeline.
+        if (attempt.pipelineId === null) {
+            return true;
+        }
+        // Attempt with the strongest action in pipeline is a representative of a pipeline.
+        // Order: prefetch < prerender.
+        const pipeline = this.pipelines.get(attempt.pipelineId);
+        assertNotNullOrUndefined(pipeline);
+        if (pipeline.size === 0) {
+            throw new Error('unreachable');
+        }
+        return [...pipeline.keys()].every(action => getSortKey(action) <= getSortKey(attempt.action));
+    }
     // Returns reference. Don't save returned values.
     // Returned values may or may not be updated as the time grows.
     getById(id, sources) {
@@ -352,20 +446,55 @@ class PreloadingAttemptRegistry {
         }
         return this.enrich(attempt, sources.getById(id));
     }
-    // Returs preloading attempts that triggered by the rule set with `ruleSetId`.
+    // Returns representative preloading attempts that triggered by the rule set with `ruleSetId`.
     // `ruleSetId === null` means "do not filter".
     //
     // Returns reference. Don't save returned values.
     // Returned values may or may not be updated as the time grows.
-    getAll(ruleSetId, sources) {
+    getAllRepresentative(ruleSetId, sources) {
         return [...this.map.entries()]
             .map(([id, value]) => ({ id, value: this.enrich(value, sources.getById(id)) }))
-            .filter(({ value }) => !ruleSetId || value.ruleSetIds.includes(ruleSetId));
+            .filter(({ value }) => !ruleSetId || value.ruleSetIds.includes(ruleSetId))
+            .filter(({ value }) => this.isAttemptRepresentative(value));
+    }
+    getPipeline(pipelineId, sources) {
+        const pipeline = this.pipelines.get(pipelineId);
+        if (pipeline === undefined || pipeline.size === 0) {
+            return null;
+        }
+        const map = {};
+        for (const [id, attempt] of this.map.entries()) {
+            map[id] = attempt;
+        }
+        return new Map(pipeline.entries().map(([action, id]) => {
+            const attempt = this.getById(id, sources);
+            assertNotNullOrUndefined(attempt);
+            return [action, attempt];
+        }));
     }
     upsert(attempt) {
         const id = makePreloadingAttemptId(attempt.key);
         this.map.set(id, attempt);
+        if (attempt.pipelineId !== null) {
+            this.pipelines.getOrInsertComputed(attempt.pipelineId, () => new Map()).set(attempt.action, id);
+        }
     }
+    reconstructPipelines() {
+        this.pipelines.clear();
+        for (const [id, attempt] of this.map.entries()) {
+            if (attempt.pipelineId === null) {
+                continue;
+            }
+            const pipeline = this.pipelines.getOrInsertComputed(attempt.pipelineId, () => new Map());
+            pipeline.set(attempt.action, id);
+        }
+    }
+    // Speculation rules emits a CDP event Preload.preloadingAttemptSourcesUpdated
+    // and an IPC SpeculationHost::UpdateSpeculationCandidates. The latter emits
+    // Preload.prefetch/prerenderAttemptUpdated for each preload attempt triggered.
+    // In general, "Not triggered to triggered" period is short (resp. long) for
+    // eager (resp. non-eager) preloads. For not yet emitted ones, we fill
+    // "Not triggered" preload attempts and show them.
     maybeRegisterNotTriggered(sources) {
         for (const [id, { key }] of sources.entries()) {
             if (this.map.get(id) !== undefined) {
@@ -377,27 +506,43 @@ class PreloadingAttemptRegistry {
                     attempt = {
                         action: "Prefetch" /* Protocol.Preload.SpeculationAction.Prefetch */,
                         key,
-                        status: "NotTriggered" /* PreloadingStatus.NotTriggered */,
+                        pipelineId: null,
+                        status: "NotTriggered" /* PreloadingStatus.NOT_TRIGGERED */,
                         prefetchStatus: null,
+                        // Fill invalid request id.
+                        requestId: '',
                     };
                     break;
                 case "Prerender" /* Protocol.Preload.SpeculationAction.Prerender */:
                     attempt = {
                         action: "Prerender" /* Protocol.Preload.SpeculationAction.Prerender */,
                         key,
-                        status: "NotTriggered" /* PreloadingStatus.NotTriggered */,
+                        pipelineId: null,
+                        status: "NotTriggered" /* PreloadingStatus.NOT_TRIGGERED */,
                         prerenderStatus: null,
+                        disallowedMojoInterface: null,
+                        mismatchedHeaders: null,
                     };
                     break;
             }
             this.map.set(id, attempt);
         }
     }
+    // Removes keys in `this.map` that are not in `sources`. This is used to
+    // remove attempts that no longer have a matching speculation rule.
+    cleanUpRemovedAttempts(sources) {
+        const keysToRemove = Array.from(this.map.keys()).filter(key => !sources.getById(key));
+        for (const key of keysToRemove) {
+            this.map.delete(key);
+        }
+        this.reconstructPipelines();
+    }
     mergePrevious(prev) {
         for (const [id, attempt] of this.map.entries()) {
             prev.map.set(id, attempt);
         }
         this.map = prev.map;
+        this.reconstructPipelines();
     }
 }
 class SourceRegistry {

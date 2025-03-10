@@ -1,7 +1,6 @@
 // Copyright 2021 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
-import * as Root from '../../../core/root/root.js';
 import * as SDK from '../../../core/sdk/sdk.js';
 import * as Bindings from '../../../models/bindings/bindings.js';
 import * as JavaScriptMetaData from '../../../models/javascript_metadata/javascript_metadata.js';
@@ -21,12 +20,11 @@ export async function completeInContext(textBefore, query, force = false) {
         extensions: CodeMirror.javascript.javascriptLanguage,
     });
     const result = await javascriptCompletionSource(new CodeMirror.CompletionContext(state, state.doc.length, force));
-    return result ?
-        result.options.filter((o) => o.label.startsWith(query)).map((o) => ({
-            text: o.label,
-            priority: 100 + (o.boost || 0),
-            isSecondary: o.type === 'secondary',
-        })) :
+    return result ? result.options.filter(o => o.label.startsWith(query)).map(o => ({
+        text: o.label,
+        priority: 100 + (o.boost || 0),
+        isSecondary: o.type === 'secondary',
+    })) :
         [];
 }
 class CompletionSet {
@@ -100,17 +98,17 @@ export function getQueryType(tree, pos, doc) {
     }
     if (node.name === 'PropertyName' || node.name === 'PrivatePropertyName') {
         return parent?.name !== 'MemberExpression' ? null :
-            { type: 1 /* QueryType.PropertyName */, from: node.from, relatedNode: parent };
+            { type: 1 /* QueryType.PROPERTY_NAME */, from: node.from, relatedNode: parent };
     }
     if (node.name === 'VariableName' ||
         // Treat alphabetic keywords as variables
         !node.firstChild && node.to - node.from < 20 && !/[^a-z]/.test(doc.sliceString(node.from, node.to))) {
-        return { type: 0 /* QueryType.Expression */, from: node.from };
+        return { type: 0 /* QueryType.EXPRESSION */, from: node.from };
     }
     if (node.name === 'String') {
         const parent = node.parent;
         return parent?.name === 'MemberExpression' && parent.childBefore(node.from)?.name === '[' ?
-            { type: 2 /* QueryType.PropertyExpression */, from: node.from, relatedNode: parent } :
+            { type: 2 /* QueryType.PROPERTY_EXPRESSION */, from: node.from, relatedNode: parent } :
             null;
     }
     // Enter unfinished nodes before the position.
@@ -122,10 +120,10 @@ export function getQueryType(tree, pos, doc) {
     if (node.name === 'MemberExpression') {
         const before = node.childBefore(Math.min(pos, node.to));
         if (before?.name === '[') {
-            return { type: 2 /* QueryType.PropertyExpression */, relatedNode: node };
+            return { type: 2 /* QueryType.PROPERTY_EXPRESSION */, relatedNode: node };
         }
         if (before?.name === '.' || before?.name === '?.') {
-            return { type: 1 /* QueryType.PropertyName */, relatedNode: node };
+            return { type: 1 /* QueryType.PROPERTY_NAME */, relatedNode: node };
         }
     }
     if (node.name === '(') {
@@ -139,26 +137,26 @@ export function getQueryType(tree, pos, doc) {
                 if (propertyExpression && doc.sliceString(propertyExpression.from, propertyExpression.to) === 'get') {
                     // map
                     const potentiallyMapObject = callReceiver?.firstChild;
-                    return { type: 3 /* QueryType.PotentiallyRetrievingFromMap */, relatedNode: potentiallyMapObject || undefined };
+                    return { type: 3 /* QueryType.POTENTIALLY_RETRIEVING_FROM_MAP */, relatedNode: potentiallyMapObject || undefined };
                 }
             }
         }
     }
-    return { type: 0 /* QueryType.Expression */ };
+    return { type: 0 /* QueryType.EXPRESSION */ };
 }
 export async function javascriptCompletionSource(cx) {
     const query = getQueryType(CodeMirror.syntaxTree(cx.state), cx.pos, cx.state.doc);
-    if (!query || query.from === undefined && !cx.explicit && query.type === 0 /* QueryType.Expression */) {
+    if (!query || query.from === undefined && !cx.explicit && query.type === 0 /* QueryType.EXPRESSION */) {
         return null;
     }
     const script = getExecutionContext()?.debuggerModel.selectedCallFrame()?.script;
     if (script &&
-        Bindings.DebuggerWorkspaceBinding.DebuggerWorkspaceBinding.instance().pluginManager?.hasPluginForScript(script)) {
+        Bindings.DebuggerWorkspaceBinding.DebuggerWorkspaceBinding.instance().pluginManager.hasPluginForScript(script)) {
         return null;
     }
     let result;
     let quote = undefined;
-    if (query.type === 0 /* QueryType.Expression */) {
+    if (query.type === 0 /* QueryType.EXPRESSION */) {
         const [scope, global] = await Promise.all([
             completeExpressionInScope(),
             completeExpressionGlobal(),
@@ -173,9 +171,9 @@ export async function javascriptCompletionSource(cx) {
             result = global;
         }
     }
-    else if (query.type === 1 /* QueryType.PropertyName */ || query.type === 2 /* QueryType.PropertyExpression */) {
+    else if (query.type === 1 /* QueryType.PROPERTY_NAME */ || query.type === 2 /* QueryType.PROPERTY_EXPRESSION */) {
         const objectExpr = query.relatedNode.getChild('Expression');
-        if (query.type === 2 /* QueryType.PropertyExpression */) {
+        if (query.type === 2 /* QueryType.PROPERTY_EXPRESSION */) {
             quote = query.from === undefined ? '\'' : cx.state.sliceDoc(query.from, query.from + 1);
         }
         if (!objectExpr) {
@@ -183,7 +181,7 @@ export async function javascriptCompletionSource(cx) {
         }
         result = await completeProperties(cx.state.sliceDoc(objectExpr.from, objectExpr.to), quote, cx.state.sliceDoc(cx.pos, cx.pos + 1) === ']');
     }
-    else if (query.type === 3 /* QueryType.PotentiallyRetrievingFromMap */) {
+    else if (query.type === 3 /* QueryType.POTENTIALLY_RETRIEVING_FROM_MAP */) {
         const potentialMapObject = query.relatedNode;
         if (!potentialMapObject) {
             return null;
@@ -215,6 +213,7 @@ async function evaluateExpression(context, expression, group) {
         generatePreview: false,
         throwOnSideEffect: true,
         timeout: 500,
+        replMode: true,
     }, false, false);
     if ('error' in result || result.exceptionDetails || !result.object) {
         return null;
@@ -285,7 +284,7 @@ async function completeProperties(expression, quoted, hasBracket = false) {
     if (!quoted) {
         const cached = cache.get(expression);
         if (cached) {
-            return cached;
+            return await cached;
         }
     }
     const context = getExecutionContext();
@@ -296,7 +295,7 @@ async function completeProperties(expression, quoted, hasBracket = false) {
     if (!quoted) {
         cache.set(expression, result);
     }
-    return result;
+    return await result;
 }
 async function completePropertiesInner(expression, context, quoted, hasBracket = false) {
     const result = new CompletionSet();
@@ -327,7 +326,7 @@ async function completePropertiesInner(expression, context, quoted, hasBracket =
         const isFunction = object.type === 'function';
         for (const prop of properties.properties || []) {
             if (!prop.symbol && !(isFunction && (prop.name === 'arguments' || prop.name === 'caller')) &&
-                (!prop.private || expression === 'this') && (quoted || SPAN_IDENT.test(prop.name))) {
+                (quoted || SPAN_IDENT.test(prop.name))) {
                 const label = quoted ? quoted + prop.name.replaceAll('\\', '\\\\').replaceAll(quoted, '\\' + quoted) + quoted : prop.name;
                 const apply = (quoted && !hasBracket) ? `${label}]` : undefined;
                 const boost = 2 * Number(prop.isOwn) + 1 * Number(prop.enumerable);
@@ -345,12 +344,7 @@ async function completeExpressionInScope() {
     if (!selectedFrame) {
         return result;
     }
-    const scopeObjectForScope = (scope) => 
-    // TODO(crbug.com/1444349): Inline into `map` call below when experiment is removed.
-    Root.Runtime.experiments.isEnabled('evaluateExpressionsWithSourceMaps') ?
-        SourceMapScopes.NamesResolver.resolveScopeInObject(scope) :
-        scope.object();
-    const scopes = await Promise.all(selectedFrame.scopeChain().map(scope => scopeObjectForScope(scope).getAllProperties(false, false)));
+    const scopes = await Promise.all(selectedFrame.scopeChain().map(scope => SourceMapScopes.NamesResolver.resolveScopeInObject(scope).getAllProperties(false, false)));
     for (const scope of scopes) {
         for (const property of scope.properties || []) {
             result.add({
@@ -365,7 +359,7 @@ async function completeExpressionGlobal() {
     const cache = PropertyCache.instance();
     const cached = cache.get('');
     if (cached) {
-        return cached;
+        return await cached;
     }
     const context = getExecutionContext();
     if (!context) {
@@ -384,7 +378,7 @@ async function completeExpressionGlobal() {
         });
     });
     cache.set('', fetchNames);
-    return fetchNames;
+    return await fetchNames;
 }
 export async function isExpressionComplete(expression) {
     const currentExecutionContext = UI.Context.Context.instance().flavor(SDK.RuntimeModel.ExecutionContext);
@@ -392,7 +386,7 @@ export async function isExpressionComplete(expression) {
         return true;
     }
     const result = await currentExecutionContext.runtimeModel.compileScript(expression, '', false, currentExecutionContext.id);
-    if (!result || !result.exceptionDetails || !result.exceptionDetails.exception) {
+    if (!result?.exceptionDetails?.exception) {
         return true;
     }
     const description = result.exceptionDetails.exception.description;
@@ -455,14 +449,15 @@ async function getArgumentsForExpression(callee, doc) {
         if (!first || callee.name !== 'MemberExpression') {
             return null;
         }
-        return evaluateExpression(context, doc.sliceString(first.from, first.to), 'argumentsHint');
+        return await evaluateExpression(context, doc.sliceString(first.from, first.to), 'argumentsHint');
     };
-    return getArgumentsForFunctionValue(result, objGetter, expression)
+    return await getArgumentsForFunctionValue(result, objGetter, expression)
         .finally(() => context.runtimeModel.releaseObjectGroup('argumentsHint'));
 }
 export function argumentsList(input) {
     function parseParamList(cursor) {
-        while (cursor.name !== 'ParamList' && cursor.nextSibling()) {
+        while (cursor.name !== 'ParamList') {
+            cursor.nextSibling();
         }
         const parameters = [];
         if (cursor.name === 'ParamList' && cursor.firstChild()) {
@@ -518,8 +513,9 @@ export function argumentsList(input) {
                     if (!cursor.firstChild()) {
                         throw new Error(`${cursor.name} rule is expected to have children`);
                     }
-                    while (cursor.nextSibling() && cursor.name !== 'ClassBody') {
-                    }
+                    do {
+                        cursor.nextSibling();
+                    } while (cursor.name !== 'ClassBody');
                     if (cursor.name === 'ClassBody' && cursor.firstChild()) {
                         do {
                             if (cursor.name === 'MethodDeclaration' && cursor.firstChild()) {
@@ -558,7 +554,7 @@ async function getArgumentsForFunctionValue(object, receiverObjGetter, functionN
     }
     const javaScriptMetadata = JavaScriptMetaData.JavaScriptMetadata.JavaScriptMetadataImpl.instance();
     const descriptionRegexResult = /^function ([^(]*)\(/.exec(description);
-    const name = descriptionRegexResult && descriptionRegexResult[1] || functionName;
+    const name = descriptionRegexResult?.[1] || functionName;
     if (!name) {
         return null;
     }
@@ -619,7 +615,7 @@ async function prototypesFromObject(object) {
     return await object.callFunctionJSON(function () {
         const result = [];
         for (let object = this; object; object = Object.getPrototypeOf(object)) {
-            if (typeof object === 'object' && object.constructor && object.constructor.name) {
+            if (typeof object === 'object' && object.constructor?.name) {
                 result[result.length] = object.constructor.name;
             }
         }

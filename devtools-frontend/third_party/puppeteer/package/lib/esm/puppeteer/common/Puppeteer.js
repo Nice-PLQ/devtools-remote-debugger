@@ -1,20 +1,10 @@
 /**
- * Copyright 2017 Google Inc. All rights reserved.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * @license
+ * Copyright 2017 Google Inc.
+ * SPDX-License-Identifier: Apache-2.0
  */
-import { _connectToCDPBrowser, } from './BrowserConnector.js';
-import { customQueryHandlers } from './CustomQueryHandler.js';
+import { _connectToBrowser } from './BrowserConnector.js';
+import { customQueryHandlers, } from './CustomQueryHandler.js';
 /**
  * The main Puppeteer class.
  *
@@ -27,6 +17,13 @@ import { customQueryHandlers } from './CustomQueryHandler.js';
  */
 export class Puppeteer {
     /**
+     * Operations for {@link CustomQueryHandler | custom query handlers}. See
+     * {@link CustomQueryHandlerRegistry}.
+     *
+     * @internal
+     */
+    static customQueryHandlers = customQueryHandlers;
+    /**
      * Registers a {@link CustomQueryHandler | custom query handler}.
      *
      * @remarks
@@ -37,7 +34,9 @@ export class Puppeteer {
      * @example
      *
      * ```
-     * puppeteer.registerCustomQueryHandler('text', { … });
+     * import {Puppeteer}, puppeteer from 'puppeteer';
+     *
+     * Puppeteer.registerCustomQueryHandler('text', { … });
      * const aHandle = await page.$('text/…');
      * ```
      *
@@ -72,11 +71,15 @@ export class Puppeteer {
     /**
      * @internal
      */
+    _isPuppeteerCore;
+    /**
+     * @internal
+     */
+    _changedBrowsers = false;
+    /**
+     * @internal
+     */
     constructor(settings) {
-        /**
-         * @internal
-         */
-        this._changedProduct = false;
         this._isPuppeteerCore = settings.isPuppeteerCore;
         this.connect = this.connect.bind(this);
     }
@@ -89,14 +92,7 @@ export class Puppeteer {
      * @returns Promise which resolves to browser instance.
      */
     connect(options) {
-        return _connectToCDPBrowser(options);
+        return _connectToBrowser(options);
     }
 }
-/**
- * Operations for {@link CustomQueryHandler | custom query handlers}. See
- * {@link CustomQueryHandlerRegistry}.
- *
- * @internal
- */
-Puppeteer.customQueryHandlers = customQueryHandlers;
 //# sourceMappingURL=Puppeteer.js.map

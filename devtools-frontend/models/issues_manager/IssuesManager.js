@@ -2,24 +2,30 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 import * as Common from '../../core/common/common.js';
+import * as Root from '../../core/root/root.js';
 import * as SDK from '../../core/sdk/sdk.js';
 import { AttributionReportingIssue } from './AttributionReportingIssue.js';
 import { BounceTrackingIssue } from './BounceTrackingIssue.js';
 import { ClientHintIssue } from './ClientHintIssue.js';
 import { ContentSecurityPolicyIssue } from './ContentSecurityPolicyIssue.js';
+import { CookieDeprecationMetadataIssue } from './CookieDeprecationMetadataIssue.js';
+import { CookieIssue } from './CookieIssue.js';
 import { CorsIssue } from './CorsIssue.js';
 import { CrossOriginEmbedderPolicyIssue, isCrossOriginEmbedderPolicyIssue } from './CrossOriginEmbedderPolicyIssue.js';
 import { DeprecationIssue } from './DeprecationIssue.js';
 import { FederatedAuthRequestIssue } from './FederatedAuthRequestIssue.js';
-import { FederatedAuthUserInfoRequestIssue } from './FederatedAuthUserInfoRequestIssue.js';
 import { GenericIssue } from './GenericIssue.js';
 import { HeavyAdIssue } from './HeavyAdIssue.js';
 import { LowTextContrastIssue } from './LowTextContrastIssue.js';
 import { MixedContentIssue } from './MixedContentIssue.js';
+import { PartitioningBlobURLIssue } from './PartitioningBlobURLIssue.js';
+import { PropertyRuleIssue } from './PropertyRuleIssue.js';
 import { QuirksModeIssue } from './QuirksModeIssue.js';
-import { CookieIssue } from './CookieIssue.js';
+import { SelectElementAccessibilityIssue } from './SelectElementAccessibilityIssue.js';
 import { SharedArrayBufferIssue } from './SharedArrayBufferIssue.js';
+import { SharedDictionaryIssue } from './SharedDictionaryIssue.js';
 import { SourceFrameIssuesManager } from './SourceFrameIssuesManager.js';
+import { SRIMessageSignatureIssue } from './SRIMessageSignatureIssue.js';
 import { StylesheetLoadingIssue } from './StylesheetLoadingIssue.js';
 let issuesManagerInstance = null;
 function createIssuesForBlockedByResponseIssue(issuesModel, inspectorIssue) {
@@ -54,6 +60,10 @@ const issueCodeHandlers = new Map([
     [
         "SharedArrayBufferIssue" /* Protocol.Audits.InspectorIssueCode.SharedArrayBufferIssue */,
         SharedArrayBufferIssue.fromInspectorIssue,
+    ],
+    [
+        "SharedDictionaryIssue" /* Protocol.Audits.InspectorIssueCode.SharedDictionaryIssue */,
+        SharedDictionaryIssue.fromInspectorIssue,
     ],
     [
         "LowTextContrastIssue" /* Protocol.Audits.InspectorIssueCode.LowTextContrastIssue */,
@@ -96,15 +106,31 @@ const issueCodeHandlers = new Map([
         StylesheetLoadingIssue.fromInspectorIssue,
     ],
     [
-        "FederatedAuthUserInfoRequestIssue" /* Protocol.Audits.InspectorIssueCode.FederatedAuthUserInfoRequestIssue */,
-        FederatedAuthUserInfoRequestIssue.fromInspectorIssue,
+        "PartitioningBlobURLIssue" /* Protocol.Audits.InspectorIssueCode.PartitioningBlobURLIssue */,
+        PartitioningBlobURLIssue.fromInspectorIssue,
+    ],
+    [
+        "PropertyRuleIssue" /* Protocol.Audits.InspectorIssueCode.PropertyRuleIssue */,
+        PropertyRuleIssue.fromInspectorIssue,
+    ],
+    [
+        "CookieDeprecationMetadataIssue" /* Protocol.Audits.InspectorIssueCode.CookieDeprecationMetadataIssue */,
+        CookieDeprecationMetadataIssue.fromInspectorIssue,
+    ],
+    [
+        "SelectElementAccessibilityIssue" /* Protocol.Audits.InspectorIssueCode.SelectElementAccessibilityIssue */,
+        SelectElementAccessibilityIssue.fromInspectorIssue,
+    ],
+    [
+        "SRIMessageSignatureIssue" /* Protocol.Audits.InspectorIssueCode.SRIMessageSignatureIssue */,
+        SRIMessageSignatureIssue.fromInspectorIssue,
     ],
 ]);
 /**
  * Each issue reported by the backend can result in multiple `Issue` instances.
  * Handlers are simple functions hard-coded into a map.
  */
-function createIssuesFromProtocolIssue(issuesModel, inspectorIssue) {
+export function createIssuesFromProtocolIssue(issuesModel, inspectorIssue) {
     const handler = issueCodeHandlers.get(inspectorIssue.code);
     if (handler) {
         return handler(issuesModel, inspectorIssue);
@@ -117,7 +143,7 @@ export function defaultHideIssueByCodeSetting() {
     return setting;
 }
 export function getHideIssueByCodeSetting() {
-    return Common.Settings.Settings.instance().createSetting('HideIssueByCodeSetting-Experiment-2021', defaultHideIssueByCodeSetting());
+    return Common.Settings.Settings.instance().createSetting('hide-issue-by-code-setting-experiment-2021', defaultHideIssueByCodeSetting());
 }
 /**
  * The `IssuesManager` is the central storage for issues. It collects issues from all the
@@ -138,9 +164,9 @@ export class IssuesManager extends Common.ObjectWrapper.ObjectWrapper {
     #filteredIssues = new Map();
     #issueCounts = new Map();
     #hiddenIssueCount = new Map();
-    #hasSeenPrimaryPageChanged = false;
     #issuesById = new Map();
     #issuesByOutermostTarget = new Map();
+    #thirdPartyCookiePhaseoutIssueMessageSent = false;
     constructor(showThirdPartyIssuesSetting, hideIssueSetting) {
         super();
         this.showThirdPartyIssuesSetting = showThirdPartyIssuesSetting;
@@ -148,8 +174,8 @@ export class IssuesManager extends Common.ObjectWrapper.ObjectWrapper {
         new SourceFrameIssuesManager(this);
         SDK.TargetManager.TargetManager.instance().observeModels(SDK.IssuesModel.IssuesModel, this);
         SDK.TargetManager.TargetManager.instance().addModelListener(SDK.ResourceTreeModel.ResourceTreeModel, SDK.ResourceTreeModel.Events.PrimaryPageChanged, this.#onPrimaryPageChanged, this);
-        SDK.FrameManager.FrameManager.instance().addEventListener(SDK.FrameManager.Events.FrameAddedToTarget, this.#onFrameAddedToTarget, this);
-        // issueFilter uses the 'showThirdPartyIssues' setting. Clients of IssuesManager need
+        SDK.FrameManager.FrameManager.instance().addEventListener("FrameAddedToTarget" /* SDK.FrameManager.Events.FRAME_ADDED_TO_TARGET */, this.#onFrameAddedToTarget, this);
+        // issueFilter uses the 'show-third-party-issues' setting. Clients of IssuesManager need
         // a full update when the setting changes to get an up-to-date issues list.
         this.showThirdPartyIssuesSetting?.addChangeListener(() => this.#updateFilteredIssues());
         this.hideIssueSetting?.addChangeListener(() => this.#updateFilteredIssues());
@@ -177,33 +203,28 @@ export class IssuesManager extends Common.ObjectWrapper.ObjectWrapper {
     static removeInstance() {
         issuesManagerInstance = null;
     }
-    /**
-     * Once we have seen at least one `PrimaryPageChanged` event, we can be reasonably sure
-     * that we also collected issues that were reported during the navigation to the current
-     * page. If we haven't seen a main frame navigated, we might have missed issues that arose
-     * during navigation.
-     */
-    reloadForAccurateInformationRequired() {
-        return !this.#hasSeenPrimaryPageChanged;
-    }
     #onPrimaryPageChanged(event) {
-        const { frame } = event.data;
+        const { frame, type } = event.data;
         const keptIssues = new Map();
         for (const [key, issue] of this.#allIssues.entries()) {
             if (issue.isAssociatedWithRequestId(frame.loaderId)) {
                 keptIssues.set(key, issue);
+                // Keep issues for prerendered target alive in case of prerender-activation.
             }
-            // Keep BounceTrackingIssues alive for non-user-initiated navigations.
-            if (issue.code() === "BounceTrackingIssue" /* Protocol.Audits.InspectorIssueCode.BounceTrackingIssue */) {
+            else if ((type === "Activation" /* SDK.ResourceTreeModel.PrimaryPageChangeType.ACTIVATION */) &&
+                (frame.resourceTreeModel().target() === issue.model()?.target())) {
+                keptIssues.set(key, issue);
+                // Keep BounceTrackingIssues alive for non-user-initiated navigations.
+            }
+            else if (issue.code() === "BounceTrackingIssue" /* Protocol.Audits.InspectorIssueCode.BounceTrackingIssue */ ||
+                issue.code() === "CookieIssue" /* Protocol.Audits.InspectorIssueCode.CookieIssue */) {
                 const networkManager = frame.resourceTreeModel().target().model(SDK.NetworkManager.NetworkManager);
-                if (networkManager?.requestForLoaderId(frame.loaderId)?.hasUserGesture() ===
-                    false) {
+                if (networkManager?.requestForLoaderId(frame.loaderId)?.hasUserGesture() === false) {
                     keptIssues.set(key, issue);
                 }
             }
         }
         this.#allIssues = keptIssues;
-        this.#hasSeenPrimaryPageChanged = true;
         this.#updateFilteredIssues();
     }
     #onFrameAddedToTarget(event) {
@@ -217,7 +238,7 @@ export class IssuesManager extends Common.ObjectWrapper.ObjectWrapper {
         }
     }
     modelAdded(issuesModel) {
-        const listener = issuesModel.addEventListener("IssueAdded" /* SDK.IssuesModel.Events.IssueAdded */, this.#onIssueAddedEvent, this);
+        const listener = issuesModel.addEventListener("IssueAdded" /* SDK.IssuesModel.Events.ISSUE_ADDED */, this.#onIssueAddedEvent, this);
         this.#eventListeners.set(issuesModel, listener);
     }
     modelRemoved(issuesModel) {
@@ -228,9 +249,22 @@ export class IssuesManager extends Common.ObjectWrapper.ObjectWrapper {
     }
     #onIssueAddedEvent(event) {
         const { issuesModel, inspectorIssue } = event.data;
+        const isPrivacyUiEnabled = Root.Runtime.hostConfig.devToolsPrivacyUI?.enabled;
         const issues = createIssuesFromProtocolIssue(issuesModel, inspectorIssue);
         for (const issue of issues) {
             this.addIssue(issuesModel, issue);
+            const message = issue.maybeCreateConsoleMessage();
+            if (!message) {
+                continue;
+            }
+            // Only show one message for third-party cookie phaseout issues if the new privacy ui is enabled
+            const is3rdPartyCookiePhaseoutIssue = CookieIssue.getSubCategory(issue.code()) === "ThirdPartyPhaseoutCookie" /* CookieIssueSubCategory.THIRD_PARTY_PHASEOUT_COOKIE */;
+            if (!is3rdPartyCookiePhaseoutIssue || !isPrivacyUiEnabled || !this.#thirdPartyCookiePhaseoutIssueMessageSent) {
+                issuesModel.target().model(SDK.ConsoleModel.ConsoleModel)?.addMessage(message);
+            }
+            if (is3rdPartyCookiePhaseoutIssue && isPrivacyUiEnabled) {
+                this.#thirdPartyCookiePhaseoutIssueMessageSent = true;
+            }
         }
     }
     addIssue(issuesModel, issue) {
@@ -264,11 +298,11 @@ export class IssuesManager extends Common.ObjectWrapper.ObjectWrapper {
             if (issue.isHidden()) {
                 this.#hiddenIssueCount.set(issue.getKind(), 1 + (this.#hiddenIssueCount.get(issue.getKind()) || 0));
             }
-            this.dispatchEventToListeners("IssueAdded" /* Events.IssueAdded */, { issuesModel, issue });
+            this.dispatchEventToListeners("IssueAdded" /* Events.ISSUE_ADDED */, { issuesModel, issue });
         }
         // Always fire the "count" event even if the issue was filtered out.
         // The result of `hasOnlyThirdPartyIssues` could still change.
-        this.dispatchEventToListeners("IssuesCountUpdated" /* Events.IssuesCountUpdated */);
+        this.dispatchEventToListeners("IssuesCountUpdated" /* Events.ISSUES_COUNT_UPDATED */);
     }
     issues() {
         return this.#filteredIssues.values();
@@ -310,8 +344,8 @@ export class IssuesManager extends Common.ObjectWrapper.ObjectWrapper {
         // IssueStatus is set in hidden issues menu.
         // In case a user wants to hide a specific issue, the issue code is added to "code" section
         // of our setting and its value is set to IssueStatus.Hidden. Then issue then gets hidden.
-        if (values && values[code]) {
-            if (values[code] === "Hidden" /* IssueStatus.Hidden */) {
+        if (values?.[code]) {
+            if (values[code] === "Hidden" /* IssueStatus.HIDDEN */) {
                 issue.setHidden(true);
                 return;
             }
@@ -324,6 +358,7 @@ export class IssuesManager extends Common.ObjectWrapper.ObjectWrapper {
         this.#issueCounts.clear();
         this.#issuesById.clear();
         this.#hiddenIssueCount.clear();
+        this.#thirdPartyCookiePhaseoutIssueMessageSent = false;
         const values = this.hideIssueSetting?.get();
         for (const [key, issue] of this.#allIssues) {
             if (this.#issueFilter(issue)) {
@@ -339,8 +374,8 @@ export class IssuesManager extends Common.ObjectWrapper.ObjectWrapper {
                 }
             }
         }
-        this.dispatchEventToListeners("FullUpdateRequired" /* Events.FullUpdateRequired */);
-        this.dispatchEventToListeners("IssuesCountUpdated" /* Events.IssuesCountUpdated */);
+        this.dispatchEventToListeners("FullUpdateRequired" /* Events.FULL_UPDATE_REQUIRED */);
+        this.dispatchEventToListeners("IssuesCountUpdated" /* Events.ISSUES_COUNT_UPDATED */);
     }
     unhideAllIssues() {
         for (const issue of this.#allIssues.values()) {
@@ -352,7 +387,7 @@ export class IssuesManager extends Common.ObjectWrapper.ObjectWrapper {
         return this.#issuesById.get(id);
     }
 }
-// @ts-ignore
+// @ts-expect-error
 globalThis.addIssueForTest = (issue) => {
     const mainTarget = SDK.TargetManager.TargetManager.instance().primaryPageTarget();
     const issuesModel = mainTarget?.model(SDK.IssuesModel.IssuesModel);

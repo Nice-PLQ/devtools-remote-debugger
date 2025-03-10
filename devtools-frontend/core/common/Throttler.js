@@ -20,7 +20,7 @@ export class Throttler {
             this.#scheduleResolve = fulfill;
         });
     }
-    processCompleted() {
+    #processCompleted() {
         this.#lastCompleteTime = this.getTime();
         this.#isRunningProcess = false;
         if (this.#process) {
@@ -34,6 +34,9 @@ export class Throttler {
     get process() {
         return this.#process;
     }
+    get processCompleted() {
+        return this.#process ? this.#schedulePromise : null;
+    }
     onTimeout() {
         this.#processTimeout = undefined;
         this.#asSoonAsPossible = false;
@@ -41,20 +44,21 @@ export class Throttler {
         void Promise.resolve()
             .then(this.#process)
             .catch(console.error.bind(console))
-            .then(this.processCompleted.bind(this))
+            .then(this.#processCompleted.bind(this))
             .then(this.#scheduleResolve);
         this.#schedulePromise = new Promise(fulfill => {
             this.#scheduleResolve = fulfill;
         });
         this.#process = null;
     }
-    schedule(process, asSoonAsPossible) {
+    schedule(process, scheduling = "Default" /* Scheduling.DEFAULT */) {
         // Deliberately skip previous #process.
         this.#process = process;
         // Run the first scheduled task instantly.
         const hasScheduledTasks = Boolean(this.#processTimeout) || this.#isRunningProcess;
         const okToFire = this.getTime() - this.#lastCompleteTime > this.#timeout;
-        asSoonAsPossible = Boolean(asSoonAsPossible) || (!hasScheduledTasks && okToFire);
+        const asSoonAsPossible = scheduling === "AsSoonAsPossible" /* Scheduling.AS_SOON_AS_POSSIBLE */ ||
+            (scheduling === "Default" /* Scheduling.DEFAULT */ && !hasScheduledTasks && okToFire);
         const forceTimerUpdate = asSoonAsPossible && !this.#asSoonAsPossible;
         this.#asSoonAsPossible = this.#asSoonAsPossible || asSoonAsPossible;
         this.innerSchedule(forceTimerUpdate);

@@ -5,6 +5,7 @@ import * as i18n from '../../core/i18n/i18n.js';
 import * as SDK from '../../core/sdk/sdk.js';
 import * as TreeOutline from '../../ui/components/tree_outline/tree_outline.js';
 import * as UI from '../../ui/legacy/legacy.js';
+import * as VisualLogging from '../../ui/visual_logging/visual_logging.js';
 import { ElementsPanel } from './ElementsPanel.js';
 import layersWidgetStyles from './layersWidget.css.js';
 const UIStrings = {
@@ -27,7 +28,9 @@ export class LayersWidget extends UI.Widget.Widget {
     layerTreeComponent = new TreeOutline.TreeOutline.TreeOutline();
     constructor() {
         super(true);
+        this.registerRequiredCSS(layersWidgetStyles);
         this.contentElement.className = 'styles-layers-pane';
+        this.contentElement.setAttribute('jslog', `${VisualLogging.pane('css-layers')}`);
         UI.UIUtils.createTextChild(this.contentElement.createChild('div'), i18nString(UIStrings.cssLayersTitle));
         this.contentElement.appendChild(this.layerTreeComponent);
         UI.Context.Context.instance().addFlavorChangeListener(SDK.DOMModel.DOMNode, this.update, this);
@@ -44,9 +47,8 @@ export class LayersWidget extends UI.Widget.Widget {
             this.cssModel.addEventListener(SDK.CSSModel.Events.StyleSheetChanged, this.update, this);
         }
     }
-    async wasShown() {
+    wasShown() {
         super.wasShown();
-        this.registerCSSFiles([layersWidgetStyles]);
         return this.update();
     }
     async update() {
@@ -93,7 +95,7 @@ export class LayersWidget extends UI.Widget.Widget {
             ElementsPanel.instance().showToolbarPane(this, ButtonProvider.instance().item());
         }
         await this.update();
-        return this.layerTreeComponent.expandToAndSelectTreeNodeId('implicit outer layer.' + layerName);
+        return await this.layerTreeComponent.expandToAndSelectTreeNodeId('implicit outer layer.' + layerName);
     }
     static instance(opts = { forceNew: null }) {
         const { forceNew } = opts;
@@ -109,8 +111,9 @@ export class ButtonProvider {
     constructor() {
         this.button = new UI.Toolbar.ToolbarToggle(i18nString(UIStrings.toggleCSSLayers), 'layers', 'layers-filled');
         this.button.setVisible(false);
-        this.button.addEventListener(UI.Toolbar.ToolbarButton.Events.Click, this.clicked, this);
+        this.button.addEventListener("Click" /* UI.Toolbar.ToolbarButton.Events.CLICK */, this.clicked, this);
         this.button.element.classList.add('monospace');
+        this.button.element.setAttribute('jslog', `${VisualLogging.toggleSubpane('css-layers').track({ click: true })}`);
     }
     static instance(opts = { forceNew: null }) {
         const { forceNew } = opts;

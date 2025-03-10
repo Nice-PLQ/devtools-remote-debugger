@@ -1,11 +1,13 @@
 // Copyright 2023 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
-import * as ComponentHelpers from '../../../ui/components/helpers/helpers.js';
-import * as LitHtml from '../../../ui/lit-html/lit-html.js';
-import timelineSectionStyles from './timelineSection.css.js';
+import * as Lit from '../../../ui/lit/lit.js';
+import timelineSectionStylesRaw from './timelineSection.css.js';
+// TODO(crbug.com/391381439): Fully migrate off of constructed style sheets.
+const timelineSectionStyles = new CSSStyleSheet();
+timelineSectionStyles.replaceSync(timelineSectionStylesRaw.cssContent);
+const { html } = Lit;
 export class TimelineSection extends HTMLElement {
-    static litTagName = LitHtml.literal `devtools-timeline-section`;
     #isEndOfGroup = false;
     #isStartOfGroup = false;
     #isFirstSection = false;
@@ -37,8 +39,8 @@ export class TimelineSection extends HTMLElement {
             'is-selected': this.#isSelected,
         };
         // clang-format off
-        LitHtml.render(LitHtml.html `
-      <div class=${LitHtml.Directives.classMap(classes)}>
+        Lit.render(html `
+      <div class=${Lit.Directives.classMap(classes)}>
         <div class="overlay"></div>
         <div class="icon"><slot name="icon"></slot></div>
         <svg width="24" height="100%" class="bar">
@@ -50,5 +52,5 @@ export class TimelineSection extends HTMLElement {
         // clang-format on
     }
 }
-ComponentHelpers.CustomElements.defineComponent('devtools-timeline-section', TimelineSection);
+customElements.define('devtools-timeline-section', TimelineSection);
 //# sourceMappingURL=TimelineSection.js.map

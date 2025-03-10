@@ -29,12 +29,13 @@ UI.ViewManager.registerViewExtension({
     order: 30,
     async loadView() {
         const Emulation = await loadEmulationModule();
-        return Emulation.DevicesSettingsTab.DevicesSettingsTab.instance();
+        return new Emulation.DevicesSettingsTab.DevicesSettingsTab();
     },
     id: 'devices',
     settings: [
-        'standardEmulatedDeviceList',
-        'customEmulatedDeviceList',
+        'standard-emulated-device-list',
+        'custom-emulated-device-list',
     ],
+    iconName: 'devices',
 });
 //# sourceMappingURL=emulation-meta.js.map

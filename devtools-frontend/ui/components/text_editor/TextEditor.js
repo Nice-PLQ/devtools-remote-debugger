@@ -5,19 +5,16 @@ import * as Common from '../../../core/common/common.js';
 import * as WindowBoundsService from '../../../services/window_bounds/window_bounds.js';
 import * as CodeMirror from '../../../third_party/codemirror.next/codemirror.next.js';
 import * as ThemeSupport from '../../legacy/theme_support/theme_support.js';
-import * as LitHtml from '../../lit-html/lit-html.js';
 import * as CodeHighlighter from '../code_highlighter/code_highlighter.js';
-import * as ComponentHelpers from '../helpers/helpers.js';
 import { baseConfiguration, dummyDarkTheme, dynamicSetting, DynamicSetting, themeSelection } from './config.js';
 import { toLineColumn, toOffset } from './position.js';
 export class TextEditor extends HTMLElement {
-    static litTagName = LitHtml.literal `devtools-text-editor`;
     #shadow = this.attachShadow({ mode: 'open' });
     #activeEditor = undefined;
     #dynamicSettings = DynamicSetting.none;
     #activeSettingListeners = [];
     #pendingState;
-    #lastScrollPos = { left: 0, top: 0, changed: false };
+    #lastScrollSnapshot;
     #resizeTimeout = -1;
     #resizeListener = () => {
         if (this.#resizeTimeout < 0) {
@@ -33,7 +30,7 @@ export class TextEditor extends HTMLElement {
     constructor(pendingState) {
         super();
         this.#pendingState = pendingState;
-        this.#shadow.adoptedStyleSheets = [CodeHighlighter.Style.default];
+        this.#shadow.createChild('style').textContent = CodeHighlighter.codeHighlighterStyles.cssContent;
     }
     #createEditor() {
         this.#activeEditor = new CodeMirror.EditorView({
@@ -42,20 +39,18 @@ export class TextEditor extends HTMLElement {
             root: this.#shadow,
             dispatch: (tr, view) => {
                 view.update([tr]);
+                this.#maybeDispatchInput(tr);
                 if (tr.reconfigured) {
                     this.#ensureSettingListeners();
                 }
             },
+            scrollTo: this.#lastScrollSnapshot,
         });
-        this.#restoreScrollPosition(this.#activeEditor);
-        this.#activeEditor.scrollDOM.addEventListener('scroll', event => {
+        this.#activeEditor.scrollDOM.addEventListener('scroll', () => {
             if (!this.#activeEditor) {
                 return;
             }
-            this.#saveScrollPosition(this.#activeEditor, {
-                scrollLeft: event.target.scrollLeft,
-                scrollTop: event.target.scrollTop,
-            });
+            this.#lastScrollSnapshot = this.#activeEditor.scrollSnapshot();
             this.scrollEventHandledToSaveScrollPositionForTest();
         });
         this.#ensureSettingListeners();
@@ -93,55 +88,6 @@ export class TextEditor extends HTMLElement {
             this.#ensureSettingListeners();
         }
     }
-    #restoreScrollPosition(editor) {
-        // Only restore scroll position if the scroll position
-        // has already changed. This check is needed because
-        // we only want to restore scroll for the text editors
-        // that are itself scrollable which, when scrolled,
-        // triggers 'scroll' event from `scrollDOM` meaning that
-        // it contains a scrollable `scrollDOM` that is scrolled.
-        if (!this.#lastScrollPos.changed) {
-            return;
-        }
-        // Instead of reaching to the internal DOM node
-        // of CodeMirror `scrollDOM` and setting the scroll
-        // position directly via `scrollLeft` and `scrollTop`
-        // we're using the public `scrollIntoView` effect.
-        // However, this effect doesn't provide a way to
-        // scroll to the given rectangle position.
-        // So, as a "workaround", we're instructing it to scroll to
-        // the start of the page with last scroll position margins
-        // from the sides.
-        editor.dispatch({
-            effects: CodeMirror.EditorView.scrollIntoView(0, {
-                x: 'start',
-                xMargin: -this.#lastScrollPos.left,
-                y: 'start',
-                yMargin: -this.#lastScrollPos.top,
-            }),
-        });
-    }
-    // `scrollIntoView` starts the scrolling from the start of the `line`
-    // not the content area and there is a padding between the
-    // sides and initial character of the line. So, we're saving
-    // the last scroll position with this margin taken into account.
-    #saveScrollPosition(editor, { scrollLeft, scrollTop }) {
-        const contentRect = editor.contentDOM.getBoundingClientRect();
-        // In some cases `editor.coordsAtPos(0)` can return `null`
-        // (maybe, somehow, the editor is not visible yet).
-        // So, in that case, we don't take margins from the sides
-        // into account by setting `coordsAtZero` rectangle
-        // to be the same with `contentRect`.
-        const coordsAtZero = editor.coordsAtPos(0) ?? {
-            top: contentRect.top,
-            left: contentRect.left,
-            bottom: contentRect.bottom,
-            right: contentRect.right,
-        };
-        this.#lastScrollPos.left = scrollLeft + (contentRect.left - coordsAtZero.left);
-        this.#lastScrollPos.top = scrollTop + (contentRect.top - coordsAtZero.top);
-        this.#lastScrollPos.changed = true;
-    }
     scrollEventHandledToSaveScrollPositionForTest() {
     }
     connectedCallback() {
@@ -149,7 +95,7 @@ export class TextEditor extends HTMLElement {
             this.#createEditor();
         }
         else {
-            this.#restoreScrollPosition(this.#activeEditor);
+            this.#activeEditor.dispatch({ effects: this.#lastScrollSnapshot });
         }
     }
     disconnectedCallback() {
@@ -169,7 +115,9 @@ export class TextEditor extends HTMLElement {
         }
     }
     #ensureSettingListeners() {
-        const dynamicSettings = this.#activeEditor ? this.#activeEditor.state.facet(dynamicSetting) : DynamicSetting.none;
+        const dynamicSettings = this.#activeEditor ?
+            this.#activeEditor.state.facet(dynamicSetting) :
+            DynamicSetting.none;
         if (dynamicSettings === this.#dynamicSettings) {
             return;
         }
@@ -178,7 +126,6 @@ export class TextEditor extends HTMLElement {
             setting.removeChangeListener(listener);
         }
         this.#activeSettingListeners = [];
-        const settings = Common.Settings.Settings.instance();
         for (const dynamicSetting of dynamicSettings) {
             const handler = ({ data }) => {
                 const change = dynamicSetting.sync(this.state, data);
@@ -186,7 +133,7 @@ export class TextEditor extends HTMLElement {
                     this.#activeEditor.dispatch({ effects: change });
                 }
             };
-            const setting = settings.moduleSetting(dynamicSetting.settingName);
+            const setting = Common.Settings.Settings.instance().moduleSetting(dynamicSetting.settingName);
             setting.addChangeListener(handler);
             this.#activeSettingListeners.push([setting, handler]);
         }
@@ -197,6 +144,13 @@ export class TextEditor extends HTMLElement {
             this.#devtoolsResizeObserver.observe(devtoolsElement);
         }
         window.addEventListener('resize', this.#resizeListener);
+    }
+    #maybeDispatchInput(transaction) {
+        const userEvent = transaction.annotation(CodeMirror.Transaction.userEvent);
+        const inputType = userEvent ? CODE_MIRROR_USER_EVENT_TO_INPUT_EVENT_TYPE.get(userEvent) : null;
+        if (inputType) {
+            this.dispatchEvent(new InputEvent('input', { inputType }));
+        }
     }
     revealPosition(selection, highlight = true) {
         const view = this.#activeEditor;
@@ -221,8 +175,16 @@ export class TextEditor extends HTMLElement {
         }
         const editorRect = view.scrollDOM.getBoundingClientRect();
         const targetPos = view.coordsAtPos(selection.main.head);
-        if (!targetPos || targetPos.top < editorRect.top || targetPos.bottom > editorRect.bottom) {
+        if (!selection.main.empty) {
+            // If the caller provided an actual range, we use the default 'nearest' on both axis.
+            // Otherwise we 'center' on an axis to provide more context around the single point.
+            effects.push(CodeMirror.EditorView.scrollIntoView(selection.main));
+        }
+        else if (!targetPos || targetPos.top < editorRect.top || targetPos.bottom > editorRect.bottom) {
             effects.push(CodeMirror.EditorView.scrollIntoView(selection.main, { y: 'center' }));
+        }
+        else if (targetPos.left < editorRect.left || targetPos.right > editorRect.right) {
+            effects.push(CodeMirror.EditorView.scrollIntoView(selection.main, { x: 'center' }));
         }
         view.dispatch({
             selection,
@@ -242,7 +204,7 @@ export class TextEditor extends HTMLElement {
         return toOffset(this.state.doc, pos);
     }
 }
-ComponentHelpers.CustomElements.defineComponent('devtools-text-editor', TextEditor);
+customElements.define('devtools-text-editor', TextEditor);
 // Line highlighting
 const clearHighlightedLine = CodeMirror.StateEffect.define();
 const setHighlightedLine = CodeMirror.StateEffect.define();
@@ -266,4 +228,18 @@ const highlightedLineState = CodeMirror.StateField.define({
     },
     provide: field => CodeMirror.EditorView.decorations.from(field, value => value),
 });
+const CODE_MIRROR_USER_EVENT_TO_INPUT_EVENT_TYPE = new Map([
+    ['input.type', 'insertText'],
+    ['input.type.compose', 'insertCompositionText'],
+    ['input.paste', 'insertFromPaste'],
+    ['input.drop', 'insertFromDrop'],
+    ['input.complete', 'insertReplacementText'],
+    ['delete.selection', 'deleteContent'],
+    ['delete.forward', 'deleteContentForward'],
+    ['delete.backward', 'deleteContentBackward'],
+    ['delete.cut', 'deleteByCut'],
+    ['move.drop', 'deleteByDrag'],
+    ['undo', 'historyUndo'],
+    ['redo', 'historyRedo'],
+]);
 //# sourceMappingURL=TextEditor.js.map

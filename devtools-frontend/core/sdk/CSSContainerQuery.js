@@ -7,6 +7,7 @@ export class CSSContainerQuery extends CSSQuery {
     name;
     physicalAxes;
     logicalAxes;
+    queriesScrollState;
     static parseContainerQueriesPayload(cssModel, payload) {
         return payload.map(cq => new CSSContainerQuery(cssModel, cq));
     }
@@ -21,12 +22,13 @@ export class CSSContainerQuery extends CSSQuery {
         this.name = payload.name;
         this.physicalAxes = payload.physicalAxes;
         this.logicalAxes = payload.logicalAxes;
+        this.queriesScrollState = payload.queriesScrollState;
     }
     active() {
         return true;
     }
     async getContainerForNode(nodeId) {
-        const containerNode = await this.cssModel.domModel().getContainerForNode(nodeId, this.name, this.physicalAxes, this.logicalAxes);
+        const containerNode = await this.cssModel.domModel().getContainerForNode(nodeId, this.name, this.physicalAxes, this.logicalAxes, this.queriesScrollState);
         if (!containerNode) {
             return;
         }
@@ -44,19 +46,17 @@ export class CSSContainerQueryContainer {
             return;
         }
         const containerType = styles.get('container-type');
-        const contain = styles.get('contain');
         const writingMode = styles.get('writing-mode');
-        if (!containerType || !contain || !writingMode) {
+        if (!containerType || !writingMode) {
             return;
         }
-        // The final queried axes are the union of both properties.
-        const queryAxis = getQueryAxis(`${containerType} ${contain}`);
+        const queryAxis = getQueryAxisFromContainerType(`${containerType}`);
         const physicalAxis = getPhysicalAxisFromQueryAxis(queryAxis, writingMode);
         let width, height;
-        if (physicalAxis === "Both" /* PhysicalAxis.Both */ || physicalAxis === "Horizontal" /* PhysicalAxis.Horizontal */) {
+        if (physicalAxis === "Both" /* PhysicalAxis.BOTH */ || physicalAxis === "Horizontal" /* PhysicalAxis.HORIZONTAL */) {
             width = styles.get('width');
         }
-        if (physicalAxis === "Both" /* PhysicalAxis.Both */ || physicalAxis === "Vertical" /* PhysicalAxis.Vertical */) {
+        if (physicalAxis === "Both" /* PhysicalAxis.BOTH */ || physicalAxis === "Vertical" /* PhysicalAxis.VERTICAL */) {
             height = styles.get('height');
         }
         return {
@@ -67,39 +67,31 @@ export class CSSContainerQueryContainer {
         };
     }
 }
-export const getQueryAxis = (propertyValue) => {
+export const getQueryAxisFromContainerType = (propertyValue) => {
     const segments = propertyValue.split(' ');
     let isInline = false;
-    let isBlock = false;
     for (const segment of segments) {
         if (segment === 'size') {
-            return "size" /* QueryAxis.Both */;
+            return "size" /* QueryAxis.BOTH */;
         }
         isInline = isInline || segment === 'inline-size';
-        isBlock = isBlock || segment === 'block-size';
-    }
-    if (isInline && isBlock) {
-        return "size" /* QueryAxis.Both */;
     }
     if (isInline) {
-        return "inline-size" /* QueryAxis.Inline */;
+        return "inline-size" /* QueryAxis.INLINE */;
     }
-    if (isBlock) {
-        return "block-size" /* QueryAxis.Block */;
-    }
-    return "" /* QueryAxis.None */;
+    return "" /* QueryAxis.NONE */;
 };
 export const getPhysicalAxisFromQueryAxis = (queryAxis, writingMode) => {
     const isVerticalWritingMode = writingMode.startsWith('vertical');
     switch (queryAxis) {
-        case "" /* QueryAxis.None */:
-            return "" /* PhysicalAxis.None */;
-        case "size" /* QueryAxis.Both */:
-            return "Both" /* PhysicalAxis.Both */;
-        case "inline-size" /* QueryAxis.Inline */:
-            return isVerticalWritingMode ? "Vertical" /* PhysicalAxis.Vertical */ : "Horizontal" /* PhysicalAxis.Horizontal */;
-        case "block-size" /* QueryAxis.Block */:
-            return isVerticalWritingMode ? "Horizontal" /* PhysicalAxis.Horizontal */ : "Vertical" /* PhysicalAxis.Vertical */;
+        case "" /* QueryAxis.NONE */:
+            return "" /* PhysicalAxis.NONE */;
+        case "size" /* QueryAxis.BOTH */:
+            return "Both" /* PhysicalAxis.BOTH */;
+        case "inline-size" /* QueryAxis.INLINE */:
+            return isVerticalWritingMode ? "Vertical" /* PhysicalAxis.VERTICAL */ : "Horizontal" /* PhysicalAxis.HORIZONTAL */;
+        case "block-size" /* QueryAxis.BLOCK */:
+            return isVerticalWritingMode ? "Horizontal" /* PhysicalAxis.HORIZONTAL */ : "Vertical" /* PhysicalAxis.VERTICAL */;
     }
 };
 //# sourceMappingURL=CSSContainerQuery.js.map

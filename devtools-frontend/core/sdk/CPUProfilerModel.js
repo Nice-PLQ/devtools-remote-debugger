@@ -29,7 +29,6 @@
  */
 import * as i18n from '../i18n/i18n.js';
 import { DebuggerModel, Location } from './DebuggerModel.js';
-import { Capability } from './Target.js';
 import { SDKModel } from './SDKModel.js';
 const UIStrings = {
     /**
@@ -41,7 +40,6 @@ const UIStrings = {
 const str_ = i18n.i18n.registerUIStrings('core/sdk/CPUProfilerModel.ts', UIStrings);
 const i18nString = i18n.i18n.getLocalizedString.bind(undefined, str_);
 export class CPUProfilerModel extends SDKModel {
-    #isRecording;
     #nextAnonymousConsoleProfileNumber;
     #anonymousConsoleProfileIdToTitle;
     #profilerAgent;
@@ -50,7 +48,6 @@ export class CPUProfilerModel extends SDKModel {
     registeredConsoleProfileMessages = [];
     constructor(target) {
         super(target);
-        this.#isRecording = false;
         this.#nextAnonymousConsoleProfileNumber = 1;
         this.#anonymousConsoleProfileIdToTitle = new Map();
         this.#profilerAgent = target.profilerAgent();
@@ -71,7 +68,7 @@ export class CPUProfilerModel extends SDKModel {
             this.#anonymousConsoleProfileIdToTitle.set(id, title);
         }
         const eventData = this.createEventDataFrom(id, location, title);
-        this.dispatchEventToListeners(Events.ConsoleProfileStarted, eventData);
+        this.dispatchEventToListeners("ConsoleProfileStarted" /* Events.CONSOLE_PROFILE_STARTED */, eventData);
     }
     consoleProfileFinished({ id, location, profile, title }) {
         if (!title) {
@@ -83,7 +80,7 @@ export class CPUProfilerModel extends SDKModel {
             cpuProfile: profile,
         };
         this.registeredConsoleProfileMessages.push(eventData);
-        this.dispatchEventToListeners(Events.ConsoleProfileFinished, eventData);
+        this.dispatchEventToListeners("ConsoleProfileFinished" /* Events.CONSOLE_PROFILE_FINISHED */, eventData);
     }
     createEventDataFrom(id, scriptLocation, title) {
         const debuggerLocation = Location.fromPayload(this.#debuggerModelInternal, scriptLocation);
@@ -95,17 +92,12 @@ export class CPUProfilerModel extends SDKModel {
             cpuProfilerModel: this,
         };
     }
-    isRecordingProfile() {
-        return this.#isRecording;
-    }
     startRecording() {
-        this.#isRecording = true;
         const intervalUs = 100;
         void this.#profilerAgent.invoke_setSamplingInterval({ interval: intervalUs });
         return this.#profilerAgent.invoke_start();
     }
     stopRecording() {
-        this.#isRecording = false;
         return this.#profilerAgent.invoke_stop().then(response => response.profile || null);
     }
     startPreciseCoverage(jsCoveragePerBlock, preciseCoverageDeltaUpdateCallback) {
@@ -116,8 +108,8 @@ export class CPUProfilerModel extends SDKModel {
     }
     async takePreciseCoverage() {
         const r = await this.#profilerAgent.invoke_takePreciseCoverage();
-        const timestamp = (r && r.timestamp) || 0;
-        const coverage = (r && r.result) || [];
+        const timestamp = (r?.timestamp) || 0;
+        const coverage = (r?.result) || [];
         return { timestamp, coverage };
     }
     stopPreciseCoverage() {
@@ -126,16 +118,9 @@ export class CPUProfilerModel extends SDKModel {
     }
     preciseCoverageDeltaUpdate({ timestamp, occasion, result }) {
         if (this.#preciseCoverageDeltaUpdateCallback) {
-            this.#preciseCoverageDeltaUpdateCallback(timestamp, occasion, result);
+            void this.#preciseCoverageDeltaUpdateCallback(timestamp, occasion, result);
         }
     }
 }
-// TODO(crbug.com/1167717): Make this a const enum again
-// eslint-disable-next-line rulesdir/const_enum
-export var Events;
-(function (Events) {
-    Events["ConsoleProfileStarted"] = "ConsoleProfileStarted";
-    Events["ConsoleProfileFinished"] = "ConsoleProfileFinished";
-})(Events || (Events = {}));
-SDKModel.register(CPUProfilerModel, { capabilities: Capability.JS, autostart: true });
+SDKModel.register(CPUProfilerModel, { capabilities: 4 /* Capability.JS */, autostart: true });
 //# sourceMappingURL=CPUProfilerModel.js.map

@@ -30,6 +30,7 @@
   },
   "files": [
     "../../../../../../front_end/models/persistence/Automapping.ts",
+    "../../../../../../front_end/models/persistence/AutomaticFileSystemManager.ts",
     "../../../../../../front_end/models/persistence/EditFileSystemView.ts",
     "../../../../../../front_end/models/persistence/FileSystemWorkspaceBinding.ts",
     "../../../../../../front_end/models/persistence/IsolatedFileSystem.ts",
@@ -42,8 +43,8 @@
     "../../../../../../front_end/models/persistence/WorkspaceSettingsTab.ts",
     "../../../../../../front_end/legacy/legacy-defs.d.ts",
     "../../../../../../front_end/global_typings/global_defs.d.ts",
-    "../../../../../../front_end/global_typings/request_idle_callback.d.ts",
-    "../../../../../../node_modules/@types/filesystem/index.d.ts"
+    "../../../../../../node_modules/@types/filesystem/index.d.ts",
+    "../../../../../../node_modules/@types/wicg-task-scheduling/index.d.ts"
   ],
   "references": [
     {
@@ -71,10 +72,16 @@
       "path": "../breakpoints/bundle-tsconfig.json"
     },
     {
+      "path": "../project_settings/bundle-tsconfig.json"
+    },
+    {
       "path": "../text_utils/bundle-tsconfig.json"
     },
     {
       "path": "../workspace/bundle-tsconfig.json"
+    },
+    {
+      "path": "../../ui/components/cards/bundle-tsconfig.json"
     },
     {
       "path": "../../ui/legacy/bundle-tsconfig.json"

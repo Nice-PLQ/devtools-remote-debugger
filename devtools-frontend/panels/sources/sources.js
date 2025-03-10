@@ -4,6 +4,7 @@
 import * as AddSourceMapURLDialog from './AddSourceMapURLDialog.js';
 import * as BreakpointEditDialog from './BreakpointEditDialog.js';
 import * as CallStackSidebarPane from './CallStackSidebarPane.js';
+import * as CategorizedBreakpointL10n from './CategorizedBreakpointL10n.js';
 import * as CoveragePlugin from './CoveragePlugin.js';
 import * as CSSPlugin from './CSSPlugin.js';
 import * as DebuggerPausedMessage from './DebuggerPausedMessage.js';
@@ -29,5 +30,5 @@ import * as TabbedEditorContainer from './TabbedEditorContainer.js';
 import * as ThreadsSidebarPane from './ThreadsSidebarPane.js';
 import * as UISourceCodeFrame from './UISourceCodeFrame.js';
 import * as WatchExpressionsSidebarPane from './WatchExpressionsSidebarPane.js';
-export { AddSourceMapURLDialog, BreakpointEditDialog, CallStackSidebarPane, CoveragePlugin, CSSPlugin, DebuggerPausedMessage, DebuggerPlugin, EditingLocationHistoryManager, FilePathScoreFunction, FilteredUISourceCodeListProvider, GoToLineQuickOpen, InplaceFormatterEditorAction, NavigatorView, OpenFileQuickOpen, OutlineQuickOpen, Plugin, ResourceOriginPlugin, ScopeChainSidebarPane, SearchSourcesView, SnippetsPlugin, SourcesNavigator, SourcesPanel, SourcesSearchScope, SourcesView, TabbedEditorContainer, ThreadsSidebarPane, UISourceCodeFrame, WatchExpressionsSidebarPane, };
+export { AddSourceMapURLDialog, BreakpointEditDialog, CallStackSidebarPane, CategorizedBreakpointL10n, CoveragePlugin, CSSPlugin, DebuggerPausedMessage, DebuggerPlugin, EditingLocationHistoryManager, FilePathScoreFunction, FilteredUISourceCodeListProvider, GoToLineQuickOpen, InplaceFormatterEditorAction, NavigatorView, OpenFileQuickOpen, OutlineQuickOpen, Plugin, ResourceOriginPlugin, ScopeChainSidebarPane, SearchSourcesView, SnippetsPlugin, SourcesNavigator, SourcesPanel, SourcesSearchScope, SourcesView, TabbedEditorContainer, ThreadsSidebarPane, UISourceCodeFrame, WatchExpressionsSidebarPane, };
 //# sourceMappingURL=sources.js.map

@@ -4,22 +4,24 @@
 import * as Common from '../../core/common/common.js';
 import * as i18n from '../../core/i18n/i18n.js';
 import * as SDK from '../../core/sdk/sdk.js';
+import * as Buttons from '../../ui/components/buttons/buttons.js';
 import * as ObjectUI from '../../ui/legacy/components/object_ui/object_ui.js';
-/* eslint-disable rulesdir/es_modules_import */
+/* eslint-disable rulesdir/es-modules-import */
 import objectValueStyles from '../../ui/legacy/components/object_ui/objectValue.css.js';
 import * as Components from '../../ui/legacy/components/utils/utils.js';
 import * as UI from '../../ui/legacy/legacy.js';
-import eventListenersViewStyles from './eventListenersView.css.js';
+import * as VisualLogging from '../../ui/visual_logging/visual_logging.js';
 import { frameworkEventListeners } from './EventListenersUtils.js';
+import eventListenersViewStyles from './eventListenersView.css.js';
 const UIStrings = {
     /**
      *@description Empty holder text content in Event Listeners View of the Event Listener Debugging pane in the Sources panel
      */
     noEventListeners: 'No event listeners',
     /**
-     *@description Label for an item to remove something
+     *@description Empty holder text content in Event Listeners View of the Event Listener Debugging pane in the Elements panel
      */
-    remove: 'Remove',
+    eventListenersExplanation: 'On this page you will find registered event listeners',
     /**
      *@description Delete button title in Event Listeners View of the Event Listener Debugging pane in the Sources panel
      */
@@ -35,7 +37,7 @@ const UIStrings = {
     /**
      *@description A context menu item to reveal a node in the DOM tree of the Elements Panel
      */
-    revealInElementsPanel: 'Reveal in Elements panel',
+    openInElementsPanel: 'Open in Elements panel',
     /**
      *@description Text in Event Listeners Widget of the Elements panel
      */
@@ -52,18 +54,20 @@ export class EventListenersView extends UI.Widget.VBox {
     treeItemMap;
     constructor(changeCallback, enableDefaultTreeFocus = false) {
         super();
+        this.registerRequiredCSS(eventListenersViewStyles);
         this.changeCallback = changeCallback;
         this.enableDefaultTreeFocus = enableDefaultTreeFocus;
+        this.emptyHolder = this.element.createChild('div', 'placeholder hidden');
+        this.emptyHolder.createChild('span', 'gray-info-message').textContent = i18nString(UIStrings.noEventListeners);
+        const emptyWidget = new UI.EmptyWidget.EmptyWidget(i18nString(UIStrings.noEventListeners), i18nString(UIStrings.eventListenersExplanation));
+        emptyWidget.show(this.emptyHolder);
         this.treeOutline = new UI.TreeOutline.TreeOutlineInShadow();
         this.treeOutline.setComparator(EventListenersTreeElement.comparator);
-        this.treeOutline.element.classList.add('monospace');
+        this.treeOutline.element.classList.add('event-listener-tree', 'monospace');
         this.treeOutline.setShowSelectionOnKeyboardFocus(true);
         this.treeOutline.setFocusable(true);
+        this.treeOutline.registerRequiredCSS(eventListenersViewStyles, objectValueStyles);
         this.element.appendChild(this.treeOutline.element);
-        this.emptyHolder = document.createElement('div');
-        this.emptyHolder.classList.add('gray-info-message');
-        this.emptyHolder.textContent = i18nString(UIStrings.noEventListeners);
-        this.emptyHolder.tabIndex = -1;
         this.linkifier = new Components.Linkifier.Linkifier();
         this.treeItemMap = new Map();
     }
@@ -71,7 +75,7 @@ export class EventListenersView extends UI.Widget.VBox {
         if (!this.enableDefaultTreeFocus) {
             return;
         }
-        if (!this.emptyHolder.parentNode) {
+        if (!this.emptyHolder.classList.contains('hidden')) {
             this.treeOutline.forceSelect();
         }
         else {
@@ -108,7 +112,7 @@ export class EventListenersView extends UI.Widget.VBox {
             if (!frameworkEventListenersObject.internalHandlers) {
                 return;
             }
-            return frameworkEventListenersObject.internalHandlers.object()
+            return await frameworkEventListenersObject.internalHandlers.object()
                 .callFunctionJSON(isInternalEventListener, eventListeners.map(handlerArgument))
                 .then(setIsInternal);
             function handlerArgument(listener) {
@@ -154,10 +158,10 @@ export class EventListenersView extends UI.Widget.VBox {
                 const objectListenerElement = listenerElement;
                 const listenerOrigin = objectListenerElement.eventListener().origin();
                 let hidden = false;
-                if (listenerOrigin === SDK.DOMDebuggerModel.EventListener.Origin.FrameworkUser && !showFramework) {
+                if (listenerOrigin === "FrameworkUser" /* SDK.DOMDebuggerModel.EventListener.Origin.FRAMEWORK_USER */ && !showFramework) {
                     hidden = true;
                 }
-                if (listenerOrigin === SDK.DOMDebuggerModel.EventListener.Origin.Framework && showFramework) {
+                if (listenerOrigin === "Framework" /* SDK.DOMDebuggerModel.EventListener.Origin.FRAMEWORK */ && showFramework) {
                     hidden = true;
                 }
                 if (!showPassive && objectListenerElement.eventListener().passive()) {
@@ -180,7 +184,7 @@ export class EventListenersView extends UI.Widget.VBox {
             treeItem.hidden = true;
             this.treeOutline.appendChild(treeItem);
         }
-        this.emptyHolder.remove();
+        this.emptyHolder.classList.add('hidden');
         return treeItem;
     }
     addEmptyHolderIfNeeded() {
@@ -193,8 +197,8 @@ export class EventListenersView extends UI.Widget.VBox {
                 firstVisibleChild = eventType;
             }
         }
-        if (allHidden && !this.emptyHolder.parentNode) {
-            this.element.appendChild(this.emptyHolder);
+        if (allHidden && this.emptyHolder.classList.contains('hidden')) {
+            this.emptyHolder.classList.remove('hidden');
         }
         if (firstVisibleChild) {
             firstVisibleChild.select(true /* omitFocus */);
@@ -209,10 +213,6 @@ export class EventListenersView extends UI.Widget.VBox {
         this.linkifier.reset();
     }
     eventListenersArrivedForTest() {
-    }
-    wasShown() {
-        super.wasShown();
-        this.treeOutline.registerCSSFiles([eventListenersViewStyles, objectValueStyles]);
     }
 }
 export class EventListenersTreeElement extends UI.TreeOutline.TreeElement {
@@ -267,8 +267,13 @@ export class ObjectEventListenerBar extends UI.TreeOutline.TreeElement {
         this.valueTitle = propertyValue.element;
         title.appendChild(this.valueTitle);
         if (this.eventListenerInternal.canRemove()) {
-            const deleteButton = title.createChild('span', 'event-listener-button');
-            deleteButton.textContent = i18nString(UIStrings.remove);
+            const deleteButton = new Buttons.Button.Button();
+            deleteButton.data = {
+                variant: "icon" /* Buttons.Button.Variant.ICON */,
+                size: "MICRO" /* Buttons.Button.Size.MICRO */,
+                iconName: 'bin',
+                jslogContext: 'delete-event-listener',
+            };
             UI.Tooltip.Tooltip.install(deleteButton, i18nString(UIStrings.deleteEventListener));
             deleteButton.addEventListener('click', event => {
                 this.removeListener();
@@ -277,8 +282,9 @@ export class ObjectEventListenerBar extends UI.TreeOutline.TreeElement {
             title.appendChild(deleteButton);
         }
         if (this.eventListenerInternal.isScrollBlockingType() && this.eventListenerInternal.canTogglePassive()) {
-            const passiveButton = title.createChild('span', 'event-listener-button');
+            const passiveButton = title.createChild('button', 'event-listener-button');
             passiveButton.textContent = i18nString(UIStrings.togglePassive);
+            passiveButton.setAttribute('jslog', `${VisualLogging.action('passive').track({ click: true })}`);
             UI.Tooltip.Tooltip.install(passiveButton, i18nString(UIStrings.toggleWhetherEventListenerIs));
             passiveButton.addEventListener('click', event => {
                 this.togglePassiveListener();
@@ -295,10 +301,14 @@ export class ObjectEventListenerBar extends UI.TreeOutline.TreeElement {
                 menu.appendApplicableItems(linkElement);
             }
             if (object.subtype === 'node') {
-                menu.defaultSection().appendItem(i18nString(UIStrings.revealInElementsPanel), () => Common.Revealer.reveal(object));
+                menu.defaultSection().appendItem(i18nString(UIStrings.openInElementsPanel), () => Common.Revealer.reveal(object), { jslogContext: 'reveal-in-elements' });
             }
-            menu.defaultSection().appendItem(i18nString(UIStrings.deleteEventListener), this.removeListener.bind(this), !this.eventListenerInternal.canRemove());
-            menu.defaultSection().appendCheckboxItem(i18nString(UIStrings.passive), this.togglePassiveListener.bind(this), this.eventListenerInternal.passive(), !this.eventListenerInternal.canTogglePassive());
+            menu.defaultSection().appendItem(i18nString(UIStrings.deleteEventListener), this.removeListener.bind(this), { disabled: !this.eventListenerInternal.canRemove(), jslogContext: 'delete-event-listener' });
+            menu.defaultSection().appendCheckboxItem(i18nString(UIStrings.passive), this.togglePassiveListener.bind(this), {
+                checked: this.eventListenerInternal.passive(),
+                disabled: !this.eventListenerInternal.canTogglePassive(),
+                jslogContext: 'passive',
+            });
             void menu.show();
         });
     }

@@ -9,7 +9,7 @@ let performanceInstance;
 export class Performance {
     helper;
     constructor() {
-        this.helper = new Helper(SourceFrame.SourceFrame.DecoratorType.PERFORMANCE);
+        this.helper = new Helper("performance" /* SourceFrame.SourceFrame.DecoratorType.PERFORMANCE */);
     }
     static instance(opts = { forceNew: null }) {
         const { forceNew } = opts;
@@ -21,8 +21,7 @@ export class Performance {
     reset() {
         this.helper.reset();
     }
-    appendLegacyCPUProfile(profile) {
-        const target = profile.target();
+    appendLegacyCPUProfile(profile, target) {
         const nodesToGo = [profile.profileHead];
         const sampleDuration = (profile.profileEndTime - profile.profileStartTime) / profile.totalHitCount;
         while (nodesToGo.length) {
@@ -45,13 +44,12 @@ export class Performance {
             }
         }
     }
-    appendCPUProfile(profile) {
+    appendCPUProfile(profile, target) {
         if (!profile.lines) {
-            this.appendLegacyCPUProfile(profile);
+            this.appendLegacyCPUProfile(profile, target);
             this.helper.scheduleUpdate();
             return;
         }
-        const target = profile.target();
         if (!profile.samples) {
             return;
         }
@@ -78,7 +76,7 @@ let memoryInstance;
 export class Memory {
     helper;
     constructor() {
-        this.helper = new Helper(SourceFrame.SourceFrame.DecoratorType.MEMORY);
+        this.helper = new Helper("memory" /* SourceFrame.SourceFrame.DecoratorType.MEMORY */);
     }
     static instance(opts = { forceNew: null }) {
         const { forceNew } = opts;
@@ -166,7 +164,7 @@ export class Helper {
                             debuggerModel.createRawLocationByURL(scriptIdOrUrl, line, 0) :
                             debuggerModel.createRawLocationByScriptId(String(scriptIdOrUrl), line, 0);
                         if (rawLocation) {
-                            pending.push(workspaceBinding.rawLocationToUILocation(rawLocation).then((uiLocation) => {
+                            pending.push(workspaceBinding.rawLocationToUILocation(rawLocation).then(uiLocation => {
                                 if (uiLocation) {
                                     let lineMap = decorationsBySource.get(uiLocation.uiSourceCode);
                                     if (!lineMap) {

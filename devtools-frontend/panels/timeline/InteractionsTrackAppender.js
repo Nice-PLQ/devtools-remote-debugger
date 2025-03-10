@@ -1,9 +1,9 @@
-// Copyright 2023 The Chromium Authors. All rights reserved.
-// Use of this source code is governed by a BSD-style license that can be
-// found in the LICENSE file.
-import * as TraceEngine from '../../models/trace/trace.js';
 import * as i18n from '../../core/i18n/i18n.js';
-import { buildGroupStyle, buildTrackHeader, getFormattedTime } from './AppenderUtils.js';
+import * as Trace from '../../models/trace/trace.js';
+import * as PerfUI from '../../ui/legacy/components/perf_ui/perf_ui.js';
+import { buildGroupStyle, buildTrackHeader } from './AppenderUtils.js';
+import * as Components from './components/components.js';
+import * as Utils from './utils/utils.js';
 const UIStrings = {
     /**
      *@description Text in Timeline Flame Chart Data Provider of the Performance panel
@@ -12,18 +12,15 @@ const UIStrings = {
 };
 const str_ = i18n.i18n.registerUIStrings('panels/timeline/InteractionsTrackAppender.ts', UIStrings);
 const i18nString = i18n.i18n.getLocalizedString.bind(undefined, str_);
-const LONG_INTERACTION_THRESHOLD = TraceEngine.Helpers.Timing.millisecondsToMicroseconds(TraceEngine.Types.Timing.MilliSeconds(200));
 export class InteractionsTrackAppender {
     appenderName = 'Interactions';
     #colorGenerator;
     #compatibilityBuilder;
-    #flameChartData;
-    #traceParsedData;
-    constructor(compatibilityBuilder, flameChartData, traceParsedData, colorGenerator) {
+    #parsedTrace;
+    constructor(compatibilityBuilder, parsedTrace, colorGenerator) {
         this.#compatibilityBuilder = compatibilityBuilder;
         this.#colorGenerator = colorGenerator;
-        this.#flameChartData = flameChartData;
-        this.#traceParsedData = traceParsedData;
+        this.#parsedTrace = parsedTrace;
     }
     /**
      * Appends into the flame chart data the data corresponding to the
@@ -35,7 +32,7 @@ export class InteractionsTrackAppender {
      * appended the track's events.
      */
     appendTrackAtLevel(trackStartLevel, expanded) {
-        if (this.#traceParsedData.UserInteractions.interactionEvents.length === 0) {
+        if (this.#parsedTrace.UserInteractions.interactionEvents.length === 0) {
             return trackStartLevel;
         }
         this.#appendTrackHeaderAtLevel(trackStartLevel, expanded);
@@ -51,9 +48,10 @@ export class InteractionsTrackAppender {
      * appended.
      */
     #appendTrackHeaderAtLevel(currentLevel, expanded) {
-        const trackIsCollapsible = this.#traceParsedData.UserInteractions.interactionEvents.length > 0;
-        const style = buildGroupStyle({ shareHeaderLine: false, collapsible: trackIsCollapsible });
-        const group = buildTrackHeader(currentLevel, i18nString(UIStrings.interactions), style, /* selectable= */ true, expanded);
+        const trackIsCollapsible = this.#parsedTrace.UserInteractions.interactionEvents.length > 0;
+        const style = buildGroupStyle({ collapsible: trackIsCollapsible, useDecoratorsForOverview: true });
+        const group = buildTrackHeader("interactions" /* VisualLoggingTrackName.INTERACTIONS */, currentLevel, i18nString(UIStrings.interactions), style, 
+        /* selectable= */ true, expanded);
         this.#compatibilityBuilder.registerTrackForGroup(group, this);
     }
     /**
@@ -66,27 +64,36 @@ export class InteractionsTrackAppender {
      * interactions (the first available level to append more data).
      */
     #appendInteractionsAtLevel(trackStartLevel) {
-        const interactions = this.#traceParsedData.UserInteractions.interactionEventsWithNoNesting;
-        const newLevel = this.#compatibilityBuilder.appendEventsAtLevel(interactions, trackStartLevel, this);
-        for (let i = 0; i < interactions.length; ++i) {
-            const eventDurationMicroSeconds = interactions[i].dur || TraceEngine.Types.Timing.MicroSeconds(0);
-            if (eventDurationMicroSeconds <= LONG_INTERACTION_THRESHOLD) {
-                continue;
+        const { interactionEventsWithNoNesting, interactionsOverThreshold } = this.#parsedTrace.UserInteractions;
+        const addCandyStripeToLongInteraction = (event, index) => {
+            // Each interaction that we drew that is over the INP threshold needs to be
+            // candy-striped.
+            const overThreshold = interactionsOverThreshold.has(event);
+            if (!overThreshold) {
+                return;
             }
-            const index = this.#compatibilityBuilder.indexForEvent(interactions[i]);
             if (index !== undefined) {
-                this.#addCandyStripingForLongInteraction(index);
+                this.#addCandyStripeAndWarningForLongInteraction(event, index);
             }
-        }
+        };
+        // Render all top level interactions (see UserInteractionsHandler for an explanation on the nesting) onto the track.
+        const newLevel = this.#compatibilityBuilder.appendEventsAtLevel(interactionEventsWithNoNesting, trackStartLevel, this, addCandyStripeToLongInteraction);
         return newLevel;
     }
-    #addCandyStripingForLongInteraction(eventIndex) {
-        const decorationsForEvent = this.#flameChartData.entryDecorations[eventIndex] || [];
+    #addCandyStripeAndWarningForLongInteraction(entry, eventIndex) {
+        const decorationsForEvent = this.#compatibilityBuilder.getFlameChartTimelineData().entryDecorations[eventIndex] || [];
         decorationsForEvent.push({
-            type: 'CANDY',
-            startAtTime: LONG_INTERACTION_THRESHOLD,
+            type: "CANDY" /* PerfUI.FlameChart.FlameChartDecorationType.CANDY */,
+            startAtTime: Trace.Handlers.ModelHandlers.UserInteractions.LONG_INTERACTION_THRESHOLD,
+            // Interaction events have whiskers, so we do not want to candy stripe
+            // the entire duration. The box represents processing duration, so we only
+            // candystripe up to the end of processing.
+            endAtTime: entry.processingEnd,
+        }, {
+            type: "WARNING_TRIANGLE" /* PerfUI.FlameChart.FlameChartDecorationType.WARNING_TRIANGLE */,
+            customEndTime: entry.processingEnd,
         });
-        this.#flameChartData.entryDecorations[eventIndex] = decorationsForEvent;
+        this.#compatibilityBuilder.getFlameChartTimelineData().entryDecorations[eventIndex] = decorationsForEvent;
     }
     /*
       ------------------------------------------------------------------------------------
@@ -98,50 +105,20 @@ export class InteractionsTrackAppender {
      * Gets the color an event added by this appender should be rendered with.
      */
     colorForEvent(event) {
-        let idForColorGeneration = this.titleForEvent(event);
-        if (TraceEngine.Types.TraceEvents.isSyntheticInteractionEvent(event)) {
+        let idForColorGeneration = Utils.EntryName.nameForEntry(event, this.#parsedTrace);
+        if (Trace.Types.Events.isSyntheticInteraction(event)) {
             // Append the ID so that we vary the colours, ensuring that two events of
             // the same type are coloured differently.
             idForColorGeneration += event.interactionId;
         }
         return this.#colorGenerator.colorForID(idForColorGeneration);
     }
-    /**
-     * Gets the title an event added by this appender should be rendered with.
-     */
-    titleForEvent(event) {
-        if (TraceEngine.Types.TraceEvents.isSyntheticInteractionEvent(event)) {
-            return titleForInteractionEvent(event);
+    setPopoverInfo(event, info) {
+        if (Trace.Types.Events.isSyntheticInteraction(event)) {
+            const breakdown = new Components.InteractionBreakdown.InteractionBreakdown();
+            breakdown.entry = event;
+            info.additionalElements.push(breakdown);
         }
-        return event.name;
     }
-    /**
-     * Returns the info shown when an event added by this appender
-     * is hovered in the timeline.
-     */
-    highlightedEntryInfo(event) {
-        const title = this.titleForEvent(event);
-        return { title, formattedTime: getFormattedTime(event.dur) };
-    }
-}
-/**
- * Return the title to use for a given interaction event.
- * Exported so the title in the DetailsView can re-use the same logic
- **/
-export function titleForInteractionEvent(event) {
-    const category = TraceEngine.Handlers.ModelHandlers.UserInteractions.categoryOfInteraction(event);
-    // Because we hide nested interactions, we do not want to show the
-    // specific type of the interaction that was not hidden, so instead we
-    // show just the category of that interaction.
-    if (category === 'OTHER') {
-        return 'Other';
-    }
-    if (category === 'KEYBOARD') {
-        return 'Keyboard';
-    }
-    if (category === 'POINTER') {
-        return 'Pointer';
-    }
-    return event.type;
 }
 //# sourceMappingURL=InteractionsTrackAppender.js.map

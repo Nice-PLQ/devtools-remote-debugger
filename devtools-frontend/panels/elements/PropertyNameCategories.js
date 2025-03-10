@@ -3,16 +3,16 @@
 // found in the LICENSE file.
 import * as SDK from '../../core/sdk/sdk.js';
 export const DefaultCategoryOrder = [
-    "Layout" /* Category.Layout */,
-    "Text" /* Category.Text */,
-    "Appearance" /* Category.Appearance */,
-    "Animation" /* Category.Animation */,
-    "CSS Variables" /* Category.CSSVariables */,
-    "Grid" /* Category.Grid */,
-    "Flex" /* Category.Flex */,
-    "Table" /* Category.Table */,
-    "Generated Content" /* Category.GeneratedContent */,
-    "Other" /* Category.Other */,
+    "Layout" /* Category.LAYOUT */,
+    "Text" /* Category.TEXT */,
+    "Appearance" /* Category.APPEARANCE */,
+    "Animation" /* Category.ANIMATION */,
+    "CSS Variables" /* Category.CSS_VARIABLES */,
+    "Grid" /* Category.GRID */,
+    "Flex" /* Category.FLEX */,
+    "Table" /* Category.TABLE */,
+    "Generated Content" /* Category.GENERATED_CONTENT */,
+    "Other" /* Category.OTHER */,
 ];
 // These categories are manually updated for now. In the future
 // we can try to find a way to automatically categorize them
@@ -20,7 +20,7 @@ export const DefaultCategoryOrder = [
 // https://crbug.com/1117405
 const CategorizedProperties = new Map([
     [
-        "Layout" /* Category.Layout */,
+        "Layout" /* Category.LAYOUT */,
         [
             'display', 'margin', 'padding', 'height', 'width', 'position',
             'top', 'right', 'bottom', 'left', 'z-index', 'float',
@@ -32,7 +32,7 @@ const CategorizedProperties = new Map([
         ],
     ],
     [
-        "Text" /* Category.Text */,
+        "Text" /* Category.TEXT */,
         [
             'font',
             'font-family',
@@ -67,7 +67,7 @@ const CategorizedProperties = new Map([
         ],
     ],
     [
-        "Appearance" /* Category.Appearance */,
+        "Appearance" /* Category.APPEARANCE */,
         [
             'color',
             'outline',
@@ -85,7 +85,7 @@ const CategorizedProperties = new Map([
         ],
     ],
     [
-        "Animation" /* Category.Animation */,
+        "Animation" /* Category.ANIMATION */,
         [
             'animation',
             'animation-delay',
@@ -104,7 +104,7 @@ const CategorizedProperties = new Map([
         ],
     ],
     [
-        "Grid" /* Category.Grid */,
+        "Grid" /* Category.GRID */,
         [
             'grid',
             'grid-column',
@@ -116,7 +116,7 @@ const CategorizedProperties = new Map([
         ],
     ],
     [
-        "Flex" /* Category.Flex */,
+        "Flex" /* Category.FLEX */,
         [
             'flex',
             'order',
@@ -126,7 +126,7 @@ const CategorizedProperties = new Map([
         ],
     ],
     [
-        "Table" /* Category.Table */,
+        "Table" /* Category.TABLE */,
         [
             'border-collapse',
             'border-spacing',
@@ -136,7 +136,7 @@ const CategorizedProperties = new Map([
         ],
     ],
     [
-        "Generated Content" /* Category.GeneratedContent */,
+        "Generated Content" /* Category.GENERATED_CONTENT */,
         [
             'content',
             'quotes',
@@ -160,7 +160,7 @@ const matchCategoriesByPropertyName = (propertyName) => {
         return CategoriesByPropertyName.get(propertyName);
     }
     if (propertyName.startsWith('--')) {
-        return ["CSS Variables" /* Category.CSSVariables */];
+        return ["CSS Variables" /* Category.CSS_VARIABLES */];
     }
     return [];
 };
@@ -188,6 +188,6 @@ export const categorizePropertyName = (propertyName) => {
             }
         }
     }
-    return ["Other" /* Category.Other */];
+    return ["Other" /* Category.OTHER */];
 };
 //# sourceMappingURL=PropertyNameCategories.js.map

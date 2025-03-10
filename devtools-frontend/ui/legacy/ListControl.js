@@ -2,16 +2,16 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 import * as Platform from '../../core/platform/platform.js';
+import * as VisualLogging from '../visual_logging/visual_logging.js';
 import * as ARIAUtils from './ARIAUtils.js';
-import { Events as ListModelEvents } from './ListModel.js';
 import { measurePreferredSize } from './UIUtils.js';
-// TODO(crbug.com/1167717): Make this a const enum again
-// eslint-disable-next-line rulesdir/const_enum
 export var ListMode;
 (function (ListMode) {
+    /* eslint-disable @typescript-eslint/naming-convention -- Used by web_tests. */
     ListMode["NonViewport"] = "UI.ListMode.NonViewport";
     ListMode["EqualHeightItems"] = "UI.ListMode.EqualHeightItems";
     ListMode["VariousHeightItems"] = "UI.ListMode.VariousHeightItems";
+    /* eslint-enable @typescript-eslint/naming-convention */
 })(ListMode || (ListMode = {}));
 export class ListControl {
     element;
@@ -41,7 +41,7 @@ export class ListControl {
         this.topHeight = 0;
         this.bottomHeight = 0;
         this.model = model;
-        this.model.addEventListener(ListModelEvents.ItemsReplaced, this.replacedItemsInRange, this);
+        this.model.addEventListener("ItemsReplaced" /* ListModelEvents.ITEMS_REPLACED */, this.replacedItemsInRange, this);
         this.itemToElement = new Map();
         this.selectedIndexInternal = -1;
         this.selectedItemInternal = null;
@@ -63,9 +63,9 @@ export class ListControl {
     setModel(model) {
         this.itemToElement.clear();
         const length = this.model.length;
-        this.model.removeEventListener(ListModelEvents.ItemsReplaced, this.replacedItemsInRange, this);
+        this.model.removeEventListener("ItemsReplaced" /* ListModelEvents.ITEMS_REPLACED */, this.replacedItemsInRange, this);
         this.model = model;
-        this.model.addEventListener(ListModelEvents.ItemsReplaced, this.replacedItemsInRange, this);
+        this.model.addEventListener("ItemsReplaced" /* ListModelEvents.ITEMS_REPLACED */, this.replacedItemsInRange, this);
         this.invalidateRange(0, length);
     }
     replacedItemsInRange(event) {
@@ -74,7 +74,7 @@ export class ListControl {
         const to = from + data.removed.length;
         const keepSelectedIndex = data.keepSelectedIndex;
         const oldSelectedItem = this.selectedItemInternal;
-        const oldSelectedElement = oldSelectedItem ? (this.itemToElement.get(oldSelectedItem) || null) : null;
+        const oldSelectedElement = oldSelectedItem !== null ? (this.itemToElement.get(oldSelectedItem) || null) : null;
         for (let i = 0; i < data.removed.length; i++) {
             this.itemToElement.delete(data.removed[i]);
         }
@@ -261,7 +261,7 @@ export class ListControl {
     }
     onClick(event) {
         const item = this.itemForNode(event.target);
-        if (item && this.delegate.isItemSelectable(item)) {
+        if (item !== null && this.delegate.isItemSelectable(item)) {
             this.selectItem(item);
         }
     }
@@ -291,7 +291,7 @@ export class ListControl {
     }
     indexAtOffset(offset) {
         if (this.mode === ListMode.NonViewport) {
-            throw 'There should be no offset conversions in non-viewport mode';
+            throw new Error('There should be no offset conversions in non-viewport mode');
         }
         if (!this.model.length || offset < 0) {
             return 0;
@@ -309,6 +309,9 @@ export class ListControl {
         let element = this.itemToElement.get(item);
         if (!element) {
             element = this.delegate.createElementForItem(item);
+            if (!element.hasAttribute('jslog')) {
+                element.setAttribute('jslog', `${VisualLogging.item().track({ click: true, keydown: 'ArrowUp|ArrowDown|PageUp|PageDown' })}`);
+            }
             this.itemToElement.set(item, element);
             this.updateElementARIA(element, index);
         }
@@ -363,16 +366,12 @@ export class ListControl {
         const newItem = this.selectedItemInternal;
         const newElement = this.selectedIndexInternal !== -1 ? this.elementAtIndex(index) : null;
         this.delegate.selectedItemChanged(oldItem, newItem, oldElement, newElement);
-        if (!this.delegate.updateSelectedItemARIA(oldElement, newElement)) {
+        if (!this.delegate.updateSelectedItemARIA((oldElement), newElement)) {
             if (oldElement) {
                 ARIAUtils.setSelected(oldElement, false);
             }
             if (newElement) {
                 ARIAUtils.setSelected(newElement, true);
-                const text = newElement.textContent;
-                if (text) {
-                    ARIAUtils.alert(text);
-                }
             }
             ARIAUtils.setActiveDescendant(this.element, newElement);
         }

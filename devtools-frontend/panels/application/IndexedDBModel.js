@@ -137,8 +137,8 @@ export class IndexedDBModel extends SDK.SDKModel.SDKModel {
         }
         void this.indexedDBAgent.invoke_enable();
         if (this.storageBucketModel) {
-            this.storageBucketModel.addEventListener("BucketAdded" /* SDK.StorageBucketsModel.Events.BucketAdded */, this.storageBucketAdded, this);
-            this.storageBucketModel.addEventListener("BucketRemoved" /* SDK.StorageBucketsModel.Events.BucketRemoved */, this.storageBucketRemoved, this);
+            this.storageBucketModel.addEventListener("BucketAdded" /* SDK.StorageBucketsModel.Events.BUCKET_ADDED */, this.storageBucketAdded, this);
+            this.storageBucketModel.addEventListener("BucketRemoved" /* SDK.StorageBucketsModel.Events.BUCKET_REMOVED */, this.storageBucketRemoved, this);
             for (const { bucket } of this.storageBucketModel.getBuckets()) {
                 this.addStorageBucket(bucket);
             }
@@ -253,10 +253,10 @@ export class IndexedDBModel extends SDK.SDKModel.SDKModel {
         return result;
     }
     databaseAddedForStorageBucket(databaseId) {
-        this.dispatchEventToListeners(Events.DatabaseAdded, { model: this, databaseId: databaseId });
+        this.dispatchEventToListeners(Events.DatabaseAdded, { model: this, databaseId });
     }
     databaseRemovedForStorageBucket(databaseId) {
-        this.dispatchEventToListeners(Events.DatabaseRemoved, { model: this, databaseId: databaseId });
+        this.dispatchEventToListeners(Events.DatabaseRemoved, { model: this, databaseId });
     }
     async loadDatabaseNamesByStorageBucket(storageBucket) {
         const { storageKey } = storageBucket;
@@ -299,7 +299,7 @@ export class IndexedDBModel extends SDK.SDKModel.SDKModel {
             }
             databaseModel.objectStores.set(objectStoreModel.name, objectStoreModel);
         }
-        this.dispatchEventToListeners(Events.DatabaseLoaded, { model: this, database: databaseModel, entriesUpdated: entriesUpdated });
+        this.dispatchEventToListeners(Events.DatabaseLoaded, { model: this, database: databaseModel, entriesUpdated });
     }
     loadObjectStoreData(databaseId, objectStoreName, idbKeyRange, skipCount, pageSize, callback) {
         void this.requestData(databaseId, databaseId.name, objectStoreName, '', idbKeyRange, skipCount, pageSize, callback);
@@ -374,8 +374,10 @@ export class IndexedDBModel extends SDK.SDKModel.SDKModel {
         const storageBucket = this.storageBucketModel?.getBucketById(bucketId)?.bucket;
         if (storageBucket) {
             const databaseId = new DatabaseId(storageBucket, databaseName);
-            this.dispatchEventToListeners(Events.IndexedDBContentUpdated, { databaseId: databaseId, objectStoreName: objectStoreName, model: this });
+            this.dispatchEventToListeners(Events.IndexedDBContentUpdated, { databaseId, objectStoreName, model: this });
         }
+    }
+    attributionReportingTriggerRegistered(_event) {
     }
     cacheStorageListUpdated(_event) {
     }
@@ -383,23 +385,29 @@ export class IndexedDBModel extends SDK.SDKModel.SDKModel {
     }
     interestGroupAccessed(_event) {
     }
+    interestGroupAuctionEventOccurred(_event) {
+    }
+    interestGroupAuctionNetworkRequestCreated(_event) {
+    }
     sharedStorageAccessed(_event) {
     }
     storageBucketCreatedOrUpdated(_event) {
     }
     storageBucketDeleted(_event) {
     }
+    attributionReportingSourceRegistered(_event) {
+    }
 }
-SDK.SDKModel.SDKModel.register(IndexedDBModel, { capabilities: SDK.Target.Capability.Storage, autostart: false });
-// TODO(crbug.com/1167717): Make this a const enum again
-// eslint-disable-next-line rulesdir/const_enum
+SDK.SDKModel.SDKModel.register(IndexedDBModel, { capabilities: 8192 /* SDK.Target.Capability.STORAGE */, autostart: false });
 export var Events;
 (function (Events) {
+    /* eslint-disable @typescript-eslint/naming-convention -- Used by web_tests. */
     Events["DatabaseAdded"] = "DatabaseAdded";
     Events["DatabaseRemoved"] = "DatabaseRemoved";
     Events["DatabaseLoaded"] = "DatabaseLoaded";
     Events["DatabaseNamesRefreshed"] = "DatabaseNamesRefreshed";
     Events["IndexedDBContentUpdated"] = "IndexedDBContentUpdated";
+    /* eslint-enable @typescript-eslint/naming-convention */
 })(Events || (Events = {}));
 export class Entry {
     key;
@@ -417,6 +425,9 @@ export class DatabaseId {
     constructor(storageBucket, name) {
         this.storageBucket = storageBucket;
         this.name = name;
+    }
+    inBucket(storageBucket) {
+        return this.storageBucket.name === storageBucket.name;
     }
     equals(databaseId) {
         return this.name === databaseId.name && this.storageBucket.name === databaseId.storageBucket.name &&

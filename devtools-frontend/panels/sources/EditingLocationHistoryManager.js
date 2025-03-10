@@ -39,7 +39,7 @@ export class EditingLocationHistoryManager {
         this.sourcesView = sourcesView;
     }
     trackSourceFrameCursorJumps(sourceFrame) {
-        sourceFrame.addEventListener("EditorUpdate" /* SourceFrame.SourceFrame.Events.EditorUpdate */, event => this.onEditorUpdate(event.data, sourceFrame));
+        sourceFrame.addEventListener("EditorUpdate" /* SourceFrame.SourceFrame.Events.EDITOR_UPDATE */, event => this.onEditorUpdate(event.data, sourceFrame));
     }
     onEditorUpdate(update, sourceFrame) {
         if (update.docChanged) {
@@ -47,7 +47,7 @@ export class EditingLocationHistoryManager {
         }
         const prevPos = update.startState.selection.main;
         const newPos = update.state.selection.main;
-        const isJump = !this.revealing && prevPos.anchor !== newPos.anchor && update.transactions.some((tr) => {
+        const isJump = !this.revealing && prevPos.anchor !== newPos.anchor && update.transactions.some(tr => {
             return Boolean(tr.isUserEvent('select.pointer') || tr.isUserEvent('select.reveal') || tr.isUserEvent('select.search'));
         });
         if (isJump) {

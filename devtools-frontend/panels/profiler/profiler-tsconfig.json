@@ -30,9 +30,9 @@
   },
   "files": [
     "../../../../../../front_end/panels/profiler/BottomUpProfileDataGrid.ts",
-    "../../../../../../front_end/panels/profiler/CPUProfileFlameChart.ts",
-    "../../../../../../front_end/panels/profiler/CPUProfileView.ts",
     "../../../../../../front_end/panels/profiler/ChildrenProvider.ts",
+    "../../../../../../front_end/panels/profiler/HeapDetachedElementsDataGrid.ts",
+    "../../../../../../front_end/panels/profiler/HeapDetachedElementsView.ts",
     "../../../../../../front_end/panels/profiler/HeapProfileView.ts",
     "../../../../../../front_end/panels/profiler/HeapProfilerPanel.ts",
     "../../../../../../front_end/panels/profiler/HeapSnapshotDataGrids.ts",
@@ -44,6 +44,7 @@
     "../../../../../../front_end/panels/profiler/LiveHeapProfileView.ts",
     "../../../../../../front_end/panels/profiler/ModuleUIStrings.ts",
     "../../../../../../front_end/panels/profiler/ProfileDataGrid.ts",
+    "../../../../../../front_end/panels/profiler/ProfileFlameChartDataProvider.ts",
     "../../../../../../front_end/panels/profiler/ProfileHeader.ts",
     "../../../../../../front_end/panels/profiler/ProfileLauncherView.ts",
     "../../../../../../front_end/panels/profiler/ProfileSidebarTreeElement.ts",
@@ -53,8 +54,8 @@
     "../../../../../../front_end/panels/profiler/TopDownProfileDataGrid.ts",
     "../../../../../../front_end/legacy/legacy-defs.d.ts",
     "../../../../../../front_end/global_typings/global_defs.d.ts",
-    "../../../../../../front_end/global_typings/request_idle_callback.d.ts",
-    "../../../../../../node_modules/@types/filesystem/index.d.ts"
+    "../../../../../../node_modules/@types/filesystem/index.d.ts",
+    "../../../../../../node_modules/@types/wicg-task-scheduling/index.d.ts"
   ],
   "references": [
     {
@@ -76,10 +77,16 @@
       "path": "../../models/bindings/bundle-tsconfig.json"
     },
     {
+      "path": "../../models/cpu_profile/bundle-tsconfig.json"
+    },
+    {
       "path": "../../models/heap_snapshot_model/bundle-tsconfig.json"
     },
     {
       "path": "../../models/workspace/bundle-tsconfig.json"
+    },
+    {
+      "path": "../elements/bundle-tsconfig.json"
     },
     {
       "path": "../settings/bundle-tsconfig.json"

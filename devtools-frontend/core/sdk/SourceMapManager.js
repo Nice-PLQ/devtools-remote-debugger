@@ -3,22 +3,22 @@
 // found in the LICENSE file.
 import * as Common from '../common/common.js';
 import * as Platform from '../platform/platform.js';
-import { Type } from './Target.js';
-import { Events as TargetManagerEvents, TargetManager } from './TargetManager.js';
 import { PageResourceLoader } from './PageResourceLoader.js';
 import { parseSourceMap, SourceMap } from './SourceMap.js';
+import { Type } from './Target.js';
 export class SourceMapManager extends Common.ObjectWrapper.ObjectWrapper {
     #target;
     #isEnabled;
     #clientData;
     #sourceMaps;
+    #attachingClient;
     constructor(target) {
         super();
         this.#target = target;
         this.#isEnabled = true;
+        this.#attachingClient = null;
         this.#clientData = new Map();
         this.#sourceMaps = new Map();
-        TargetManager.instance().addEventListener(TargetManagerEvents.InspectedURLChanged, this.inspectedURLChanged, this);
     }
     setEnabled(isEnabled) {
         if (isEnabled === this.#isEnabled) {
@@ -37,7 +37,7 @@ export class SourceMapManager extends Common.ObjectWrapper.ObjectWrapper {
         }
     }
     static getBaseUrl(target) {
-        while (target && target.type() !== Type.Frame) {
+        while (target && target.type() !== Type.FRAME) {
             target = target.parentTarget();
         }
         return target?.inspectedURL() ?? Platform.DevToolsPath.EmptyUrlString;
@@ -45,19 +45,6 @@ export class SourceMapManager extends Common.ObjectWrapper.ObjectWrapper {
     static resolveRelativeSourceURL(target, url) {
         url = Common.ParsedURL.ParsedURL.completeURL(SourceMapManager.getBaseUrl(target), url) ?? url;
         return url;
-    }
-    inspectedURLChanged(event) {
-        if (event.data !== this.#target) {
-            return;
-        }
-        // We need this copy, because `this.#clientData` is getting modified
-        // in the loop body and trying to iterate over it at the same time
-        // leads to an infinite loop.
-        const clientData = [...this.#clientData.entries()];
-        for (const [client, { relativeSourceURL, relativeSourceMapURL }] of clientData) {
-            this.detachSourceMap(client);
-            this.attachSourceMap(client, relativeSourceURL, relativeSourceMapURL);
-        }
     }
     sourceMapForClient(client) {
         return this.#clientData.get(client)?.sourceMap;
@@ -81,7 +68,7 @@ export class SourceMapManager extends Common.ObjectWrapper.ObjectWrapper {
         if (!relativeSourceMapURL) {
             return;
         }
-        const clientData = {
+        let clientData = {
             relativeSourceURL,
             relativeSourceMapURL,
             sourceMap: undefined,
@@ -93,28 +80,58 @@ export class SourceMapManager extends Common.ObjectWrapper.ObjectWrapper {
             const sourceURL = SourceMapManager.resolveRelativeSourceURL(this.#target, relativeSourceURL);
             const sourceMapURL = Common.ParsedURL.ParsedURL.completeURL(sourceURL, relativeSourceMapURL);
             if (sourceMapURL) {
+                if (this.#attachingClient) {
+                    // This should not happen
+                    console.error('Attaching source map may cancel previously attaching source map');
+                }
+                this.#attachingClient = client;
                 this.dispatchEventToListeners(Events.SourceMapWillAttach, { client });
-                const initiator = client.createPageResourceLoadInitiator();
-                clientData.sourceMapPromise =
-                    loadSourceMap(sourceMapURL, initiator)
-                        .then(payload => {
-                        const sourceMap = new SourceMap(sourceURL, sourceMapURL, payload);
-                        if (this.#clientData.get(client) === clientData) {
-                            clientData.sourceMap = sourceMap;
-                            this.#sourceMaps.set(sourceMap, client);
-                            this.dispatchEventToListeners(Events.SourceMapAttached, { client, sourceMap });
-                        }
-                        return sourceMap;
-                    }, error => {
-                        Common.Console.Console.instance().warn(`DevTools failed to load source map: ${error.message}`);
-                        if (this.#clientData.get(client) === clientData) {
-                            this.dispatchEventToListeners(Events.SourceMapFailedToAttach, { client });
-                        }
-                        return undefined;
-                    });
+                if (this.#attachingClient === client) {
+                    this.#attachingClient = null;
+                    const initiator = client.createPageResourceLoadInitiator();
+                    clientData.sourceMapPromise =
+                        loadSourceMap(sourceMapURL, initiator)
+                            .then(payload => {
+                            const sourceMap = new SourceMap(sourceURL, sourceMapURL, payload);
+                            if (this.#clientData.get(client) === clientData) {
+                                clientData.sourceMap = sourceMap;
+                                this.#sourceMaps.set(sourceMap, client);
+                                this.dispatchEventToListeners(Events.SourceMapAttached, { client, sourceMap });
+                            }
+                            return sourceMap;
+                        }, () => {
+                            if (this.#clientData.get(client) === clientData) {
+                                this.dispatchEventToListeners(Events.SourceMapFailedToAttach, { client });
+                            }
+                            return undefined;
+                        });
+                }
+                else {
+                    // Assume cancelAttachSourceMap was called.
+                    if (this.#attachingClient) {
+                        // This should not happen
+                        console.error('Cancelling source map attach because another source map is attaching');
+                    }
+                    clientData = null;
+                    this.dispatchEventToListeners(Events.SourceMapFailedToAttach, { client });
+                }
             }
         }
-        this.#clientData.set(client, clientData);
+        if (clientData) {
+            this.#clientData.set(client, clientData);
+        }
+    }
+    cancelAttachSourceMap(client) {
+        if (client === this.#attachingClient) {
+            this.#attachingClient = null;
+            // This should not happen.
+        }
+        else if (this.#attachingClient) {
+            console.error('cancel attach source map requested but a different source map was being attached');
+        }
+        else {
+            console.error('cancel attach source map requested but no source map was being attached');
+        }
     }
     detachSourceMap(client) {
         const clientData = this.#clientData.get(client);
@@ -134,11 +151,8 @@ export class SourceMapManager extends Common.ObjectWrapper.ObjectWrapper {
             this.dispatchEventToListeners(Events.SourceMapFailedToAttach, { client });
         }
     }
-    dispose() {
-        TargetManager.instance().removeEventListener(TargetManagerEvents.InspectedURLChanged, this.inspectedURLChanged, this);
-    }
 }
-async function loadSourceMap(url, initiator) {
+export async function loadSourceMap(url, initiator) {
     try {
         const { content } = await PageResourceLoader.instance().loadResource(url, initiator);
         return parseSourceMap(content);
@@ -147,13 +161,23 @@ async function loadSourceMap(url, initiator) {
         throw new Error(`Could not load content for ${url}: ${cause.message}`, { cause });
     }
 }
-// TODO(crbug.com/1167717): Make this a const enum again
-// eslint-disable-next-line rulesdir/const_enum
+export async function tryLoadSourceMap(url, initiator) {
+    try {
+        const { content } = await PageResourceLoader.instance().loadResource(url, initiator);
+        return parseSourceMap(content);
+    }
+    catch (cause) {
+        console.error(`Could not load content for ${url}: ${cause.message}`, { cause });
+        return null;
+    }
+}
 export var Events;
 (function (Events) {
+    /* eslint-disable @typescript-eslint/naming-convention -- Used by web_tests. */
     Events["SourceMapWillAttach"] = "SourceMapWillAttach";
     Events["SourceMapFailedToAttach"] = "SourceMapFailedToAttach";
     Events["SourceMapAttached"] = "SourceMapAttached";
     Events["SourceMapDetached"] = "SourceMapDetached";
+    /* eslint-enable @typescript-eslint/naming-convention */
 })(Events || (Events = {}));
 //# sourceMappingURL=SourceMapManager.js.map

@@ -32,6 +32,7 @@
  * Contains diff method based on Javascript Diff Algorithm By John Resig
  * http://ejohn.org/files/jsdiff.js (released under the MIT license).
  */
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-nocheck This file is not checked by TypeScript Compiler as it has a lot of legacy code.
 import * as Platform from '../platform/platform.js';
 Node.prototype.traverseNextTextNode = function (stayWithin) {
@@ -39,7 +40,7 @@ Node.prototype.traverseNextTextNode = function (stayWithin) {
     if (!node) {
         return null;
     }
-    const nonTextTags = { 'STYLE': 1, 'SCRIPT': 1, '#document-fragment': 1 };
+    const nonTextTags = { STYLE: 1, SCRIPT: 1, '#document-fragment': 1 };
     while (node && (node.nodeType !== Node.TEXT_NODE || nonTextTags[node.parentNode ? node.parentNode.nodeName : ''])) {
         node = node.traverseNextNode(stayWithin);
     }
@@ -154,15 +155,14 @@ self.createTextNode = function (data) {
 self.createDocumentFragment = function () {
     return document.createDocumentFragment();
 };
-Element.prototype.createChild = function (elementName, className, customElementType) {
-    const element = document.createElement(elementName, { is: customElementType });
+DocumentFragment.prototype.createChild = Element.prototype.createChild = function (elementName, className) {
+    const element = document.createElement(elementName);
     if (className) {
         element.className = className;
     }
     this.appendChild(element);
     return element;
 };
-DocumentFragment.prototype.createChild = Element.prototype.createChild;
 self.AnchorBox = class {
     constructor(x, y, width, height) {
         this.x = x || 0;
@@ -219,7 +219,7 @@ Node.prototype.deepTextContent = function () {
 Node.prototype.childTextNodes = function () {
     let node = this.traverseNextTextNode(this);
     const result = [];
-    const nonTextTags = { 'STYLE': 1, 'SCRIPT': 1, '#document-fragment': 1 };
+    const nonTextTags = { STYLE: 1, SCRIPT: 1, '#document-fragment': 1 };
     while (node) {
         if (!nonTextTags[node.parentNode ? node.parentNode.nodeName : '']) {
             result.push(node);
@@ -290,7 +290,7 @@ Node.prototype.traversePreviousNode = function (stayWithin) {
         return null;
     }
     let node = this.previousSibling;
-    while (node && node.lastChild) {
+    while (node?.lastChild) {
         node = node.lastChild;
     }
     if (node) {
@@ -343,32 +343,4 @@ self.onInvokeElement = function (element, callback) {
         return originalToggle.call(this, token, Boolean(force));
     };
 })();
-export const originalAppendChild = Element.prototype.appendChild;
-export const originalInsertBefore = Element.prototype.insertBefore;
-export const originalRemoveChild = Element.prototype.removeChild;
-export const originalRemoveChildren = Element.prototype.removeChildren;
-Element.prototype.appendChild = function (child) {
-    if (child.__widget && child.parentElement !== this) {
-        throw new Error('Attempt to add widget via regular DOM operation.');
-    }
-    return originalAppendChild.call(this, child);
-};
-Element.prototype.insertBefore = function (child, anchor) {
-    if (child.__widget && child.parentElement !== this) {
-        throw new Error('Attempt to add widget via regular DOM operation.');
-    }
-    return originalInsertBefore.call(this, child, anchor);
-};
-Element.prototype.removeChild = function (child) {
-    if (child.__widgetCounter || child.__widget) {
-        throw new Error('Attempt to remove element containing widget via regular DOM operation');
-    }
-    return originalRemoveChild.call(this, child);
-};
-Element.prototype.removeChildren = function () {
-    if (this.__widgetCounter) {
-        throw new Error('Attempt to remove element containing widget via regular DOM operation');
-    }
-    originalRemoveChildren.call(this);
-};
 //# sourceMappingURL=DOMExtension.js.map

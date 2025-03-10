@@ -2,5 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 import * as NamesResolver from './NamesResolver.js';
-export { NamesResolver };
+import * as ScopeChainModel from './ScopeChainModel.js';
+import * as ScopeTreeCache from './ScopeTreeCache.js';
+export { NamesResolver, ScopeChainModel, ScopeTreeCache, };
 //# sourceMappingURL=source_map_scopes.js.map

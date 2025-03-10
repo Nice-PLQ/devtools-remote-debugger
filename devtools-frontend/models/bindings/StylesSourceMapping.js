@@ -29,6 +29,7 @@
  */
 import * as Common from '../../core/common/common.js';
 import * as SDK from '../../core/sdk/sdk.js';
+import * as TextUtils from '../text_utils/text_utils.js';
 import * as Workspace from '../workspace/workspace.js';
 import { ContentProviderBasedProject } from './ContentProviderBasedProject.js';
 import { NetworkProject } from './NetworkProject.js';
@@ -50,6 +51,9 @@ export class StylesSourceMapping {
             this.#cssModel.addEventListener(SDK.CSSModel.Events.StyleSheetRemoved, this.styleSheetRemoved, this),
             this.#cssModel.addEventListener(SDK.CSSModel.Events.StyleSheetChanged, this.styleSheetChanged, this),
         ];
+    }
+    addSourceMap(sourceUrl, sourceMapUrl) {
+        this.#styleFiles.get(sourceUrl)?.addSourceMap(sourceUrl, sourceMapUrl);
     }
     rawLocationToUILocation(rawLocation) {
         const header = rawLocation.header();
@@ -197,21 +201,21 @@ export class StyleFile {
             return;
         }
         const mirrorContentBound = this.mirrorContent.bind(this, header, true /* majorChange */);
-        void this.#throttler.schedule(mirrorContentBound, false /* asSoonAsPossible */);
+        void this.#throttler.schedule(mirrorContentBound, "Default" /* Common.Throttler.Scheduling.DEFAULT */);
     }
     workingCopyCommitted() {
         if (this.#isAddingRevision) {
             return;
         }
         const mirrorContentBound = this.mirrorContent.bind(this, this.uiSourceCode, true /* majorChange */);
-        void this.#throttler.schedule(mirrorContentBound, true /* asSoonAsPossible */);
+        void this.#throttler.schedule(mirrorContentBound, "AsSoonAsPossible" /* Common.Throttler.Scheduling.AS_SOON_AS_POSSIBLE */);
     }
     workingCopyChanged() {
         if (this.#isAddingRevision) {
             return;
         }
         const mirrorContentBound = this.mirrorContent.bind(this, this.uiSourceCode, false /* majorChange */);
-        void this.#throttler.schedule(mirrorContentBound, false /* asSoonAsPossible */);
+        void this.#throttler.schedule(mirrorContentBound, "Default" /* Common.Throttler.Scheduling.DEFAULT */);
     }
     async mirrorContent(fromProvider, majorChange) {
         if (this.#terminated) {
@@ -223,8 +227,7 @@ export class StyleFile {
             newContent = this.uiSourceCode.workingCopy();
         }
         else {
-            const deferredContent = await fromProvider.requestContent();
-            newContent = deferredContent.content;
+            newContent = TextUtils.ContentData.ContentData.textOr(await fromProvider.requestContentData(), null);
         }
         if (newContent === null || this.#terminated) {
             this.styleFileSyncedForTest();
@@ -260,28 +263,41 @@ export class StyleFile {
     }
     contentURL() {
         console.assert(this.headers.size > 0);
-        return this.headers.values().next().value.originalContentProvider().contentURL();
+        return this.#firstHeader().originalContentProvider().contentURL();
     }
     contentType() {
         console.assert(this.headers.size > 0);
-        return this.headers.values().next().value.originalContentProvider().contentType();
+        return this.#firstHeader().originalContentProvider().contentType();
     }
     requestContent() {
         console.assert(this.headers.size > 0);
-        return this.headers.values().next().value.originalContentProvider().requestContent();
+        return this.#firstHeader().originalContentProvider().requestContent();
+    }
+    requestContentData() {
+        console.assert(this.headers.size > 0);
+        return this.#firstHeader().originalContentProvider().requestContentData();
     }
     searchInContent(query, caseSensitive, isRegex) {
         console.assert(this.headers.size > 0);
-        return this.headers.values().next().value.originalContentProvider().searchInContent(query, caseSensitive, isRegex);
+        return this.#firstHeader().originalContentProvider().searchInContent(query, caseSensitive, isRegex);
     }
-    // TODO(crbug.com/1172300) Ignored during the jsdoc to ts migration)
-    // eslint-disable-next-line @typescript-eslint/naming-convention
+    #firstHeader() {
+        console.assert(this.headers.size > 0);
+        return this.headers.values().next().value;
+    }
     static updateTimeout = 200;
     getHeaders() {
         return this.headers;
     }
     getUiSourceCode() {
         return this.uiSourceCode;
+    }
+    addSourceMap(sourceUrl, sourceMapUrl) {
+        const sourceMapManager = this.#cssModel.sourceMapManager();
+        this.headers.forEach(header => {
+            sourceMapManager.detachSourceMap(header);
+            sourceMapManager.attachSourceMap(header, sourceUrl, sourceMapUrl);
+        });
     }
 }
 //# sourceMappingURL=StylesSourceMapping.js.map

@@ -1,19 +1,19 @@
 // Copyright 2021 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
-import * as LitHtml from '../../lit-html/lit-html.js';
+import * as Lit from '../../lit/lit.js';
 /**
- * Provides a hook to get a callback when a LitHtml node is rendered into the DOM:
+ * Provides a hook to get a callback when a Lit node is rendered into the DOM:
  * @example
  *
  * ```
  * <p on-render=${nodeRenderedCallback(node => ...)}>
  * ```
  */
-class NodeRenderedCallback extends LitHtml.Directive.Directive {
+class NodeRenderedCallback extends Lit.Directive.Directive {
     constructor(partInfo) {
         super(partInfo);
-        if (partInfo.type !== LitHtml.Directive.PartType.ATTRIBUTE) {
+        if (partInfo.type !== Lit.Directive.PartType.ATTRIBUTE) {
             throw new Error('Node rendered callback directive must be used as an attribute.');
         }
     }
@@ -29,5 +29,5 @@ class NodeRenderedCallback extends LitHtml.Directive.Directive {
     render(_callback) {
     }
 }
-export const nodeRenderedCallback = LitHtml.Directive.directive(NodeRenderedCallback);
+export const nodeRenderedCallback = Lit.Directive.directive(NodeRenderedCallback);
 //# sourceMappingURL=directives.js.map

@@ -3,9 +3,9 @@
 // found in the LICENSE file.
 // @ts-nocheck This file is not checked by TypeScript as it has a lot of legacy code.
 import * as Common from '../../core/common/common.js'; // eslint-disable-line no-unused-vars
-import * as Platform from '../../core/platform/platform.js';
-import * as ProtocolClientModule from '../../core/protocol_client/protocol_client.js';
+import * as ProtocolClient from '../../core/protocol_client/protocol_client.js';
 import * as Root from '../../core/root/root.js';
+import * as SDK from '../../core/sdk/sdk.js';
 import * as Bindings from '../../models/bindings/bindings.js';
 import * as Workspace from '../../models/workspace/workspace.js';
 import * as CodeHighlighter from '../../ui/components/code_highlighter/code_highlighter.js';
@@ -14,15 +14,6 @@ import * as UI from '../../ui/legacy/legacy.js';
  * @fileoverview using private properties isn't a Closure violation in tests.
  */
 /* eslint-disable no-console */
-self.Platform = self.Platform || {};
-self.Platform.StringUtilities = Platform.StringUtilities;
-self.Platform.MapUtilities = Platform.MapUtilities;
-self.Platform.ArrayUtilities = Platform.ArrayUtilities;
-self.Platform.DOMUtilities = Platform.DOMUtilities;
-self.createPlainTextSearchRegex = Platform.StringUtilities.createPlainTextSearchRegex;
-String.sprintf = Platform.StringUtilities.sprintf;
-String.regexSpecialCharacters = Platform.StringUtilities.regexSpecialCharacters;
-String.caseInsensetiveComparator = Platform.StringUtilities.caseInsensetiveComparator;
 /**
  * @return {boolean}
  */
@@ -59,7 +50,7 @@ self['onerror'] = (message, source, lineno, colno, error) => {
 };
 (() => {
     self.addEventListener('unhandledrejection', event => {
-        addResult(`PROMISE FAILURE: ${event.reason.stack}`);
+        addResult(`PROMISE FAILURE: ${event.reason.stack ?? event.reason}`);
         completeTest();
     });
 })();
@@ -231,49 +222,6 @@ export function selectTextInTextNode(textNode, start, end) {
     selection.addRange(range);
     return textNode;
 }
-const mappingForLayoutTests = new Map([
-    ['panels/animation', 'animation'],
-    ['panels/browser_debugger', 'browser_debugger'],
-    ['panels/changes', 'changes'],
-    ['panels/console', 'console'],
-    ['panels/elements', 'elements'],
-    ['panels/emulation', 'emulation'],
-    ['panels/mobile_throttling', 'mobile_throttling'],
-    ['panels/network', 'network'],
-    ['panels/profiler', 'profiler'],
-    ['panels/application', 'resources'],
-    ['panels/search', 'search'],
-    ['panels/sources', 'sources'],
-    ['panels/snippets', 'snippets'],
-    ['panels/settings', 'settings'],
-    ['panels/timeline', 'timeline'],
-    ['panels/web_audio', 'web_audio'],
-    ['models/persistence', 'persistence'],
-    ['models/workspace_diff', 'workspace_diff'],
-    ['entrypoints/main', 'main'],
-    ['third_party/diff', 'diff'],
-    ['ui/legacy/components/inline_editor', 'inline_editor'],
-    ['ui/legacy/components/data_grid', 'data_grid'],
-    ['ui/legacy/components/perf_ui', 'perf_ui'],
-    ['ui/legacy/components/source_frame', 'source_frame'],
-    ['ui/legacy/components/color_picker', 'color_picker'],
-    ['ui/legacy/components/cookie_table', 'cookie_table'],
-    ['ui/legacy/components/quick_open', 'quick_open'],
-    ['ui/legacy/components/utils', 'components'],
-]);
-/**
- * @param {string} module
- * @return {!Promise<void>}
- */
-export async function loadLegacyModule(module) {
-    let containingFolder = module;
-    for (const [remappedFolder, originalFolder] of mappingForLayoutTests.entries()) {
-        if (originalFolder === module) {
-            containingFolder = remappedFolder;
-        }
-    }
-    await import(`../../${containingFolder}/${containingFolder.split('/').reverse()[0]}-legacy.js`);
-}
 /**
  * @param {string} panel
  * @return {!Promise.<?UI.Panel.Panel>}
@@ -291,7 +239,7 @@ export function showPanel(panel) {
  */
 export function createKeyEvent(key, ctrlKey, altKey, shiftKey, metaKey) {
     return new KeyboardEvent('keydown', {
-        key: key,
+        key,
         bubbles: true,
         cancelable: true,
         ctrlKey: Boolean(ctrlKey),
@@ -415,10 +363,19 @@ export function textContentWithLineBreaksTrimmed(node) {
 export function textContentWithoutStyles(node) {
     let buffer = '';
     let currentNode = node;
-    while (currentNode.traverseNextNode(node)) {
+    while (true) {
         currentNode = currentNode.traverseNextNode(node, currentNode.tagName === 'DEVTOOLS-CSS-LENGTH' || currentNode.tagName === 'DEVTOOLS-ICON');
+        if (!currentNode) {
+            break;
+        }
         if (currentNode.nodeType === Node.TEXT_NODE) {
             buffer += currentNode.nodeValue;
+        }
+        else if (currentNode.tagName === 'DEVTOOLS-TOOLTIP') {
+            // <devtools-tooltip> holds popover contents in-line in a slot, so its contents appear in textContent. This is
+            // not what the tests expect, so step over its contents entirely.
+            currentNode =
+                currentNode.lastChild?.traverseNextNode(node)?.traverseNextNode(node) ?? currentNode.traverseNextNode(node);
         }
         else if (currentNode.nodeName === 'STYLE') {
             currentNode = currentNode.traverseNextNode(node);
@@ -446,7 +403,7 @@ export async function evaluateInPage(code, callback) {
 let _evaluateInPageCounter = 0;
 /**
  * @param {string} code
- * @return {!Promise<undefined|{response: (!SDK.RemoteObject|undefined),
+ * @return {!Promise<undefined|{response: (!SDK.RuntimeModel.RemoteObject|undefined),
  *   exceptionDetails: (!Protocol.Runtime.ExceptionDetails|undefined)}>}
  */
 export async function _evaluateInPage(code) {
@@ -464,13 +421,26 @@ export async function _evaluateInPage(code) {
         code += `//# sourceURL=${sourceURL}`;
     }
     const response = await TestRunner.RuntimeAgent.invoke_evaluate({ expression: code, objectGroup: 'console' });
-    const error = response[ProtocolClientModule.InspectorBackend.ProtocolError];
+    const error = response.getError();
     if (error) {
         addResult('Error: ' + error);
         completeTest();
         return;
     }
     return response;
+}
+function logResponseError(response) {
+    let errorMessage = 'Error: ';
+    if (response.getError()) {
+        errorMessage += response.getError();
+    }
+    else if (response.exceptionDetails) {
+        errorMessage += response.exceptionDetails.text;
+        if (response.exceptionDetails.exception) {
+            errorMessage += ' ' + response.exceptionDetails.exception.description;
+        }
+    }
+    addResult(errorMessage);
 }
 /**
  * Doesn't append sourceURL to snippets evaluated in inspected page
@@ -481,11 +451,10 @@ export async function _evaluateInPage(code) {
  */
 export async function evaluateInPageAnonymously(code, userGesture) {
     const response = await TestRunner.RuntimeAgent.invoke_evaluate({ expression: code, objectGroup: 'console', userGesture });
-    if (!response[ProtocolClientModule.InspectorBackend.ProtocolError]) {
+    if (response && !response.exceptionDetails && !response.getError()) {
         return response.result.value;
     }
-    addResult('Error: ' +
-        (response.exceptionDetails && response.exceptionDetails.text || 'exception from evaluateInPageAnonymously.'));
+    logResponseError(response);
     completeTest();
 }
 /**
@@ -501,21 +470,10 @@ export function evaluateInPagePromise(code) {
  */
 export async function evaluateInPageAsync(code) {
     const response = await TestRunner.RuntimeAgent.invoke_evaluate({ expression: code, objectGroup: 'console', includeCommandLineAPI: false, awaitPromise: true });
-    const error = response[ProtocolClientModule.InspectorBackend.ProtocolError];
-    if (!error && !response.exceptionDetails) {
+    if (response && !response.exceptionDetails && !response.getError()) {
         return response.result.value;
     }
-    let errorMessage = 'Error: ';
-    if (error) {
-        errorMessage += error;
-    }
-    else if (response.exceptionDetails) {
-        errorMessage += response.exceptionDetails.text;
-        if (response.exceptionDetails.exception) {
-            errorMessage += ' ' + response.exceptionDetails.exception.description;
-        }
-    }
-    addResult(errorMessage);
+    logResponseError(response);
     completeTest();
 }
 /**
@@ -544,7 +502,7 @@ export function evaluateFunctionInOverlay(func, callback) {
     const mainContext = TestRunner.runtimeModel.executionContexts()[0];
     mainContext
         .evaluate({
-        expression: expression,
+        expression,
         objectGroup: '',
         includeCommandLineAPI: false,
         silent: false,
@@ -567,7 +525,7 @@ export function check(passCondition, failureText) {
  * @param {!Function} callback
  */
 export function deprecatedRunAfterPendingDispatches(callback) {
-    ProtocolClient.test.deprecatedRunAfterPendingDispatches(callback);
+    ProtocolClient.InspectorBackend.test.deprecatedRunAfterPendingDispatches(callback);
 }
 /**
  * This ensures a base tag is set so all DOM references
@@ -675,12 +633,12 @@ export function markStep(title) {
     addResult('\nRunning: ' + title);
 }
 export function startDumpingProtocolMessages() {
-    ProtocolClient.test.dumpProtocol = self.testRunner.logToStderr.bind(self.testRunner);
+    ProtocolClient.InspectorBackend.test.dumpProtocol = self.testRunner.logToStderr.bind(self.testRunner);
 }
 /**
  * @param {string} url
  * @param {string} content
- * @param {!SDK.ResourceTreeFrame} frame
+ * @param {!SDK.ResourceTreeModel.ResourceTreeFrame} frame
  */
 export function addScriptForFrame(url, content, frame) {
     content += '\n//# sourceURL=' + url;
@@ -895,12 +853,12 @@ export function waitForEvent(eventName, obj, condition) {
     });
 }
 /**
- * @param {function(!SDK.Target):boolean} filter
- * @return {!Promise<!SDK.Target>}
+ * @param {function(!SDK.Target.Target):boolean} filter
+ * @return {!Promise<!SDK.Target.Target>}
  */
 export function waitForTarget(filter) {
     filter = filter || (target => true);
-    for (const target of self.SDK.targetManager.targets()) {
+    for (const target of SDK.TargetManager.TargetManager.instance().targets()) {
         if (filter(target)) {
             return Promise.resolve(target);
         }
@@ -909,35 +867,35 @@ export function waitForTarget(filter) {
         const observer = /** @type {!SDK.TargetManager.Observer} */ ({
             targetAdded: function (target) {
                 if (filter(target)) {
-                    self.SDK.targetManager.unobserveTargets(observer);
+                    SDK.TargetManager.TargetManager.instance().unobserveTargets(observer);
                     fulfill(target);
                 }
             },
             targetRemoved: function () { },
         });
-        self.SDK.targetManager.observeTargets(observer);
+        SDK.TargetManager.TargetManager.instance().observeTargets(observer);
     });
 }
 /**
- * @param {!SDK.Target} targetToRemove
- * @return {!Promise<!SDK.Target>}
+ * @param {!SDK.Target.Target} targetToRemove
+ * @return {!Promise<!SDK.Target.Target>}
  */
 export function waitForTargetRemoved(targetToRemove) {
     return new Promise(fulfill => {
         const observer = /** @type {!SDK.TargetManager.Observer} */ ({
             targetRemoved: function (target) {
                 if (target === targetToRemove) {
-                    self.SDK.targetManager.unobserveTargets(observer);
+                    SDK.TargetManager.TargetManager.instance().unobserveTargets(observer);
                     fulfill(target);
                 }
             },
             targetAdded: function () { },
         });
-        self.SDK.targetManager.observeTargets(observer);
+        SDK.TargetManager.TargetManager.instance().observeTargets(observer);
     });
 }
 /**
- * @param {!SDK.RuntimeModel} runtimeModel
+ * @param {!SDK.RuntimeModel.RuntimeModel} runtimeModel
  * @return {!Promise}
  */
 export function waitForExecutionContext(runtimeModel) {
@@ -947,7 +905,7 @@ export function waitForExecutionContext(runtimeModel) {
     return runtimeModel.once(SDK.RuntimeModel.Events.ExecutionContextCreated);
 }
 /**
- * @param {!SDK.ExecutionContext} context
+ * @param {!SDK.RuntimeModel.ExecutionContext} context
  * @return {!Promise}
  */
 export function waitForExecutionContextDestroyed(context) {
@@ -1030,7 +988,7 @@ export function pageLoaded() {
     _handlePageLoaded();
 }
 export async function _handlePageLoaded() {
-    await waitForExecutionContext(/** @type {!SDK.RuntimeModel} */ (TestRunner.runtimeModel));
+    await waitForExecutionContext(/** @type {!SDK.RuntimeModel.RuntimeModel} */ (TestRunner.runtimeModel));
     if (_pageLoadedCallback) {
         const callback = _pageLoadedCallback;
         _pageLoadedCallback = undefined;
@@ -1159,7 +1117,7 @@ export function hideInspectorView() {
     UI.InspectorView.InspectorView.instance().element.setAttribute('style', 'display:none !important');
 }
 /**
- * @return {?SDK.ResourceTreeFrame}
+ * @return {?SDK.ResourceTreeModel.ResourceTreeFrame}
  */
 export function mainFrame() {
     return TestRunner.resourceTreeModel.mainFrame;
@@ -1234,18 +1192,18 @@ export function waitForUISourceCode(urlSuffix, projectType) {
         }
         return true;
     }
-    for (const uiSourceCode of self.Workspace.workspace.uiSourceCodes()) {
+    for (const uiSourceCode of Workspace.Workspace.WorkspaceImpl.instance().uiSourceCodes()) {
         if (urlSuffix && matches(uiSourceCode)) {
             return Promise.resolve(uiSourceCode);
         }
     }
-    return waitForEvent(Workspace.Workspace.Events.UISourceCodeAdded, self.Workspace.workspace, matches);
+    return waitForEvent(Workspace.Workspace.Events.UISourceCodeAdded, Workspace.Workspace.WorkspaceImpl.instance(), matches);
 }
 /**
  * @param {!Function} callback
  */
 export function waitForUISourceCodeRemoved(callback) {
-    self.Workspace.workspace.once(Workspace.Workspace.Events.UISourceCodeRemoved).then(callback);
+    Workspace.Workspace.WorkspaceImpl.instance().once(Workspace.Workspace.Events.UISourceCodeRemoved).then(callback);
 }
 /**
  * @param {string=} url
@@ -1390,7 +1348,6 @@ TestRunner.waitForUISourceCode = waitForUISourceCode;
 TestRunner.waitForUISourceCodeRemoved = waitForUISourceCodeRemoved;
 TestRunner.url = url;
 TestRunner.dumpSyntaxHighlight = dumpSyntaxHighlight;
-TestRunner.loadLegacyModule = loadLegacyModule;
 TestRunner.evaluateInPageRemoteObject = evaluateInPageRemoteObject;
 TestRunner.evaluateInPage = evaluateInPage;
 TestRunner.evaluateInPageAnonymously = evaluateInPageAnonymously;

@@ -1,43 +1,34 @@
 /**
- * Copyright 2017 Google Inc. All rights reserved.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * @license
+ * Copyright 2017 Google Inc.
+ * SPDX-License-Identifier: Apache-2.0
  */
+import { firstValueFrom, from, merge, raceWith, } from '../../third_party/rxjs/rxjs.js';
 import { EventEmitter } from '../common/EventEmitter.js';
+import { debugError, fromEmitterEvent, filterAsync, timeout, } from '../common/util.js';
+import { asyncDisposeSymbol, disposeSymbol } from '../util/disposable.js';
+import { Mutex } from '../util/Mutex.js';
 /**
- * BrowserContexts provide a way to operate multiple independent browser
- * sessions. When a browser is launched, it has a single BrowserContext used by
- * default. The method {@link Browser.newPage | Browser.newPage} creates a page
- * in the default browser context.
+ * {@link BrowserContext} represents individual user contexts within a
+ * {@link Browser | browser}.
  *
- * @remarks
+ * When a {@link Browser | browser} is launched, it has at least one default
+ * {@link BrowserContext | browser context}. Others can be created
+ * using {@link Browser.createBrowserContext}. Each context has isolated storage
+ * (cookies/localStorage/etc.)
  *
- * The Browser class extends from Puppeteer's {@link EventEmitter} class and
- * will emit various events which are documented in the
- * {@link BrowserContextEmittedEvents} enum.
+ * {@link BrowserContext} {@link EventEmitter | emits} various events which are
+ * documented in the {@link BrowserContextEvent} enum.
  *
- * If a page opens another page, e.g. with a `window.open` call, the popup will
- * belong to the parent page's browser context.
+ * If a {@link Page | page} opens another {@link Page | page}, e.g. using
+ * `window.open`, the popup will belong to the parent {@link Page.browserContext
+ * | page's browser context}.
  *
- * Puppeteer allows creation of "incognito" browser contexts with
- * {@link Browser.createIncognitoBrowserContext | Browser.createIncognitoBrowserContext}
- * method. "Incognito" browser contexts don't write any browsing data to disk.
- *
- * @example
+ * @example Creating a new {@link BrowserContext | browser context}:
  *
  * ```ts
- * // Create a new incognito browser context
- * const context = await browser.createIncognitoBrowserContext();
+ * // Create a new browser context
+ * const context = await browser.createBrowserContext();
  * // Create a new page inside context.
  * const page = await context.newPage();
  * // ... do stuff with page ...
@@ -45,6 +36,13 @@ import { EventEmitter } from '../common/EventEmitter.js';
  * // Dispose context once it's no longer needed.
  * await context.close();
  * ```
+ *
+ * @remarks
+ *
+ * In Chrome all non-default contexts are incognito,
+ * and {@link Browser.defaultBrowserContext | default browser context}
+ * might be incognito if you provide the `--incognito` argument when launching
+ * the browser.
  *
  * @public
  */
@@ -56,76 +54,81 @@ export class BrowserContext extends EventEmitter {
         super();
     }
     /**
-     * An array of all active targets inside the browser context.
+     * If defined, indicates an ongoing screenshot opereation.
      */
-    targets() {
-        throw new Error('Not implemented');
-    }
-    waitForTarget() {
-        throw new Error('Not implemented');
+    #pageScreenshotMutex;
+    #screenshotOperationsCount = 0;
+    /**
+     * @internal
+     */
+    startScreenshot() {
+        const mutex = this.#pageScreenshotMutex || new Mutex();
+        this.#pageScreenshotMutex = mutex;
+        this.#screenshotOperationsCount++;
+        return mutex.acquire(() => {
+            this.#screenshotOperationsCount--;
+            if (this.#screenshotOperationsCount === 0) {
+                // Remove the mutex to indicate no ongoing screenshot operation.
+                this.#pageScreenshotMutex = undefined;
+            }
+        });
     }
     /**
-     * An array of all pages inside the browser context.
-     *
-     * @returns Promise which resolves to an array of all open pages.
-     * Non visible pages, such as `"background_page"`, will not be listed here.
-     * You can find them using {@link Target.page | the target page}.
+     * @internal
      */
-    pages() {
-        throw new Error('Not implemented');
+    waitForScreenshotOperations() {
+        return this.#pageScreenshotMutex?.acquire();
     }
     /**
-     * Returns whether BrowserContext is incognito.
-     * The default browser context is the only non-incognito browser context.
+     * Waits until a {@link Target | target} matching the given `predicate`
+     * appears and returns it.
      *
-     * @remarks
-     * The default browser context cannot be closed.
-     */
-    isIncognito() {
-        throw new Error('Not implemented');
-    }
-    overridePermissions() {
-        throw new Error('Not implemented');
-    }
-    /**
-     * Clears all permission overrides for the browser context.
+     * This will look all open {@link BrowserContext | browser contexts}.
      *
-     * @example
+     * @example Finding a target for a page opened via `window.open`:
      *
      * ```ts
-     * const context = browser.defaultBrowserContext();
-     * context.overridePermissions('https://example.com', ['clipboard-read']);
-     * // do stuff ..
-     * context.clearPermissionOverrides();
+     * await page.evaluate(() => window.open('https://www.example.com/'));
+     * const newWindowTarget = await browserContext.waitForTarget(
+     *   target => target.url() === 'https://www.example.com/',
+     * );
      * ```
      */
-    clearPermissionOverrides() {
-        throw new Error('Not implemented');
+    async waitForTarget(predicate, options = {}) {
+        const { timeout: ms = 30000 } = options;
+        return await firstValueFrom(merge(fromEmitterEvent(this, "targetcreated" /* BrowserContextEvent.TargetCreated */), fromEmitterEvent(this, "targetchanged" /* BrowserContextEvent.TargetChanged */), from(this.targets())).pipe(filterAsync(predicate), raceWith(timeout(ms))));
     }
     /**
-     * Creates a new page in the browser context.
+     * Removes cookie in the browser context
+     * @param cookies - {@link Cookie | cookie} to remove
      */
-    newPage() {
-        throw new Error('Not implemented');
+    async deleteCookie(...cookies) {
+        return await this.setCookie(...cookies.map(cookie => {
+            return {
+                ...cookie,
+                expires: 1,
+            };
+        }));
     }
     /**
-     * The browser this browser context belongs to.
+     * Whether this {@link BrowserContext | browser context} is closed.
      */
-    browser() {
-        throw new Error('Not implemented');
+    get closed() {
+        return !this.browser().browserContexts().includes(this);
     }
     /**
-     * Closes the browser context. All the targets that belong to the browser context
-     * will be closed.
-     *
-     * @remarks
-     * Only incognito browser contexts can be closed.
+     * Identifier for this {@link BrowserContext | browser context}.
      */
-    close() {
-        throw new Error('Not implemented');
-    }
     get id() {
         return undefined;
+    }
+    /** @internal */
+    [disposeSymbol]() {
+        return void this.close().catch(debugError);
+    }
+    /** @internal */
+    [asyncDisposeSymbol]() {
+        return this.close();
     }
 }
 //# sourceMappingURL=BrowserContext.js.map

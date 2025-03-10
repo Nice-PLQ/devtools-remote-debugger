@@ -2,19 +2,19 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 import * as Platform from '../../../core/platform/platform.js';
-import * as LitHtml from '../../lit-html/lit-html.js';
+import * as Lit from '../../lit/lit.js';
 export function isExpandableNode(node) {
     return 'children' in node;
 }
 /**
- * This is a custom lit-html directive that lets us track the DOM nodes that Lit
+ * This is a custom lit directive that lets us track the DOM nodes that Lit
  * creates and maps them to the tree node that was given to us. This means we
  * can navigate between real DOM node and structural tree node easily in code.
  */
-class TrackDOMNodeToTreeNode extends LitHtml.Directive.Directive {
+class TrackDOMNodeToTreeNode extends Lit.Directive.Directive {
     constructor(partInfo) {
         super(partInfo);
-        if (partInfo.type !== LitHtml.Directive.PartType.ATTRIBUTE) {
+        if (partInfo.type !== Lit.Directive.PartType.ATTRIBUTE) {
             throw new Error('TrackDOMNodeToTreeNode directive must be used as an attribute.');
         }
     }
@@ -37,7 +37,7 @@ class TrackDOMNodeToTreeNode extends LitHtml.Directive.Directive {
     render(_weakmap, _treeNode) {
     }
 }
-export const trackDOMNodeToTreeNode = LitHtml.Directive.directive(TrackDOMNodeToTreeNode);
+export const trackDOMNodeToTreeNode = Lit.Directive.directive(TrackDOMNodeToTreeNode);
 /**
  * Finds the next sibling of the node's parent, recursing up the tree if
  * required.

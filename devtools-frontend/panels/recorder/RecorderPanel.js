@@ -2,13 +2,15 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 import * as UI from '../../ui/legacy/legacy.js';
+import * as VisualLogging from '../../ui/visual_logging/visual_logging.js';
 import { RecorderController } from './RecorderController.js';
 let recorderPanelInstance;
 export class RecorderPanel extends UI.Panel.Panel {
-    static panelName = 'chrome_recorder';
+    static panelName = 'chrome-recorder';
     #controller;
     constructor() {
         super(RecorderPanel.panelName);
+        this.element.setAttribute('jslog', `${VisualLogging.panel('chrome-recorder').track({ resize: true })}`);
         this.#controller = new RecorderController();
         this.contentElement.append(this.#controller);
         this.contentElement.style.minWidth = '400px';
@@ -35,15 +37,7 @@ export class RecorderPanel extends UI.Panel.Panel {
         return this.#controller.isActionPossible(actionId);
     }
 }
-let recorderActionDelegateInstance;
 export class ActionDelegate {
-    static instance(opts = { forceNew: null }) {
-        const { forceNew } = opts;
-        if (!recorderActionDelegateInstance || forceNew) {
-            recorderActionDelegateInstance = new ActionDelegate();
-        }
-        return recorderActionDelegateInstance;
-    }
     handleAction(_context, actionId) {
         void (async () => {
             await UI.ViewManager.ViewManager.instance().showView(RecorderPanel.panelName);

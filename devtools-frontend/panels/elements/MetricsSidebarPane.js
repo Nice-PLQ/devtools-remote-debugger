@@ -32,6 +32,7 @@ import * as Common from '../../core/common/common.js';
 import * as Platform from '../../core/platform/platform.js';
 import * as SDK from '../../core/sdk/sdk.js';
 import * as UI from '../../ui/legacy/legacy.js';
+import * as VisualLogging from '../../ui/visual_logging/visual_logging.js';
 import { ElementsSidebarPane } from './ElementsSidebarPane.js';
 import metricsSidebarPaneStyles from './metricsSidebarPane.css.js';
 export class MetricsSidebarPane extends ElementsSidebarPane {
@@ -41,13 +42,15 @@ export class MetricsSidebarPane extends ElementsSidebarPane {
     highlightMode;
     boxElements;
     isEditingMetrics;
-    constructor() {
-        super();
+    constructor(computedStyleModel) {
+        super(computedStyleModel);
+        this.registerRequiredCSS(metricsSidebarPaneStyles);
         this.originalPropertyData = null;
         this.previousPropertyDataCandidate = null;
         this.inlineStyle = null;
         this.highlightMode = '';
         this.boxElements = [];
+        this.contentElement.setAttribute('jslog', `${VisualLogging.pane('styles-metrics')}`);
     }
     doUpdate() {
         // "style" attribute might have changed. Update metrics unless they are being edited
@@ -151,6 +154,11 @@ export class MetricsSidebarPane extends ElementsSidebarPane {
             value = value.replace(/px$/, '');
             value = Platform.NumberUtilities.toFixedIfFloating(value);
             element.textContent = value;
+            element.setAttribute('jslog', `${VisualLogging.value(propertyName).track({
+                dblclick: true,
+                keydown: 'Enter|Escape|ArrowUp|ArrowDown|PageUp|PageDown',
+                change: true,
+            })}`);
             element.addEventListener('dblclick', this.startEditing.bind(this, element, name, propertyName, style), false);
             return element;
         }
@@ -234,15 +242,26 @@ export class MetricsSidebarPane extends ElementsSidebarPane {
             boxElement.className = `${name} highlighted`;
             const backgroundColor = boxColors[i].asString("rgba" /* Common.Color.Format.RGBA */) || '';
             boxElement.style.backgroundColor = backgroundColor;
+            boxElement.setAttribute('jslog', `${VisualLogging.metricsBox().context(name).track({ hover: true })}`);
             boxElement.addEventListener('mouseover', this.highlightDOMNode.bind(this, true, name === 'position' ? 'all' : name), false);
             this.boxElements.push({ element: boxElement, name, backgroundColor });
             if (name === 'content') {
                 const widthElement = document.createElement('span');
                 widthElement.textContent = getContentAreaWidthPx(style);
                 widthElement.addEventListener('dblclick', this.startEditing.bind(this, widthElement, 'width', 'width', style), false);
+                widthElement.setAttribute('jslog', `${VisualLogging.value('width').track({
+                    dblclick: true,
+                    keydown: 'Enter|Escape|ArrowUp|ArrowDown|PageUp|PageDown',
+                    change: true,
+                })}`);
                 const heightElement = document.createElement('span');
                 heightElement.textContent = getContentAreaHeightPx(style);
                 heightElement.addEventListener('dblclick', this.startEditing.bind(this, heightElement, 'height', 'height', style), false);
+                heightElement.setAttribute('jslog', `${VisualLogging.value('height').track({
+                    dblclick: true,
+                    keydown: 'Enter|Escape|ArrowUp|ArrowDown|PageUp|PageDown',
+                    change: true,
+                })}`);
                 const timesElement = document.createElement('span');
                 timesElement.textContent = ' × ';
                 boxElement.appendChild(widthElement);
@@ -397,10 +416,6 @@ export class MetricsSidebarPane extends ElementsSidebarPane {
     editingCommitted(element, userInput, previousContent, context) {
         this.editingEnded(element, context);
         this.applyUserInput(element, userInput, previousContent, context, true);
-    }
-    wasShown() {
-        super.wasShown();
-        this.registerCSSFiles([metricsSidebarPaneStyles]);
     }
 }
 //# sourceMappingURL=MetricsSidebarPane.js.map

@@ -30,13 +30,20 @@ export function* arrayOfObjectsJsonGenerator(arrayOfObjects) {
     yield '\n]';
 }
 /**
- * Generates a JSON representation of traceData line-by-line for a nicer printed
+ * Generates a JSON representation of the TraceObject file line-by-line for a nicer printed
  * version with one trace event per line.
  */
 export function* traceJsonGenerator(traceEvents, metadata) {
-    yield '{"traceEvents": ';
+    // Ensure that enhancedTraceVersion is placed at the top of metadata. See `maximumTraceFileLengthToDetermineEnhancedTraces`
+    if (metadata?.enhancedTraceVersion) {
+        metadata = {
+            enhancedTraceVersion: metadata.enhancedTraceVersion,
+            ...metadata,
+        };
+    }
+    yield `{"metadata": ${JSON.stringify(metadata || {}, null, 2)}`;
+    yield ',\n"traceEvents": ';
     yield* arrayOfObjectsJsonGenerator(traceEvents);
-    yield `,\n"metadata": ${JSON.stringify(metadata || {}, null, 2)}`;
     yield '}\n';
 }
 /**

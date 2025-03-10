@@ -1,7 +1,6 @@
 // Copyright 2020 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
-import * as Common from '../../core/common/common.js';
 import * as i18n from '../../core/i18n/i18n.js';
 import * as Root from '../../core/root/root.js';
 import * as SDK from '../../core/sdk/sdk.js';
@@ -33,10 +32,6 @@ const UIStrings = {
      */
     startStopRecording: 'Start/stop recording',
     /**
-     *@description Title of a setting under the Performance category in Settings
-     */
-    showNativeFunctions: 'Show native functions in JS Profile',
-    /**
      *@description Command for shwoing the profiler tab
      */
     showMemory: 'Show Memory',
@@ -44,6 +39,22 @@ const UIStrings = {
      *@description Command for showing the 'Live Heap Profile' tool in the bottom drawer
      */
     showLiveHeapProfile: 'Show Live Heap Profile',
+    /**
+     *@description Tooltip text that appears when hovering over the largeicon clear button in the Profiles Panel of a profiler tool
+     */
+    clearAllProfiles: 'Clear all profiles',
+    /**
+     *@description Tooltip text that appears when hovering over the largeicon download button
+     */
+    saveProfile: 'Save profile…',
+    /**
+     *@description Tooltip text that appears when hovering over the largeicon load button
+     */
+    loadProfile: 'Load profile…',
+    /**
+     *@description Command for deleting a profile in the Profiler panel
+     */
+    deleteProfile: 'Delete profile',
 };
 const str_ = i18n.i18n.registerUIStrings('panels/profiler/profiler-meta.ts', UIStrings);
 const i18nLazyString = i18n.i18n.getLazilyComputedLocalizedString.bind(undefined, str_);
@@ -61,7 +72,7 @@ function maybeRetrieveContextTypes(getClassCallBack) {
 }
 UI.ViewManager.registerViewExtension({
     location: "panel" /* UI.ViewManager.ViewLocationValues.PANEL */,
-    id: 'heap_profiler',
+    id: 'heap-profiler',
     commandPrompt: i18nLazyString(UIStrings.showMemory),
     title: i18nLazyString(UIStrings.memory),
     order: 60,
@@ -72,7 +83,7 @@ UI.ViewManager.registerViewExtension({
 });
 UI.ViewManager.registerViewExtension({
     location: "drawer-view" /* UI.ViewManager.ViewLocationValues.DRAWER_VIEW */,
-    id: 'live_heap_profile',
+    id: 'live-heap-profile',
     commandPrompt: i18nLazyString(UIStrings.showLiveHeapProfile),
     title: i18nLazyString(UIStrings.liveHeapProfile),
     persistence: "closeable" /* UI.ViewManager.ViewPersistence.CLOSEABLE */,
@@ -81,7 +92,7 @@ UI.ViewManager.registerViewExtension({
         const Profiler = await loadProfilerModule();
         return Profiler.LiveHeapProfileView.LiveHeapProfileView.instance();
     },
-    experiment: Root.Runtime.ExperimentName.LIVE_HEAP_PROFILE,
+    experiment: "live-heap-profile" /* Root.Runtime.ExperimentName.LIVE_HEAP_PROFILE */,
 });
 UI.ActionRegistration.registerActionExtension({
     actionId: 'live-heap-profile.toggle-recording',
@@ -91,10 +102,10 @@ UI.ActionRegistration.registerActionExtension({
     toggleWithRedColor: true,
     async loadActionDelegate() {
         const Profiler = await loadProfilerModule();
-        return Profiler.LiveHeapProfileView.ActionDelegate.instance();
+        return new Profiler.LiveHeapProfileView.ActionDelegate();
     },
-    category: UI.ActionRegistration.ActionCategory.MEMORY,
-    experiment: Root.Runtime.ExperimentName.LIVE_HEAP_PROFILE,
+    category: "MEMORY" /* UI.ActionRegistration.ActionCategory.MEMORY */,
+    experiment: "live-heap-profile" /* Root.Runtime.ExperimentName.LIVE_HEAP_PROFILE */,
     options: [
         {
             value: true,
@@ -111,15 +122,15 @@ UI.ActionRegistration.registerActionExtension({
     iconClass: "refresh" /* UI.ActionRegistration.IconClass.REFRESH */,
     async loadActionDelegate() {
         const Profiler = await loadProfilerModule();
-        return Profiler.LiveHeapProfileView.ActionDelegate.instance();
+        return new Profiler.LiveHeapProfileView.ActionDelegate();
     },
-    category: UI.ActionRegistration.ActionCategory.MEMORY,
-    experiment: Root.Runtime.ExperimentName.LIVE_HEAP_PROFILE,
+    category: "MEMORY" /* UI.ActionRegistration.ActionCategory.MEMORY */,
+    experiment: "live-heap-profile" /* Root.Runtime.ExperimentName.LIVE_HEAP_PROFILE */,
     title: i18nLazyString(UIStrings.startRecordingHeapAllocationsAndReload),
 });
 UI.ActionRegistration.registerActionExtension({
     actionId: 'profiler.heap-toggle-recording',
-    category: UI.ActionRegistration.ActionCategory.MEMORY,
+    category: "MEMORY" /* UI.ActionRegistration.ActionCategory.MEMORY */,
     iconClass: "record-start" /* UI.ActionRegistration.IconClass.START_RECORDING */,
     title: i18nLazyString(UIStrings.startStopRecording),
     toggleable: true,
@@ -134,22 +145,86 @@ UI.ActionRegistration.registerActionExtension({
     },
     bindings: [
         {
-            platform: "windows,linux" /* UI.ActionRegistration.Platforms.WindowsLinux */,
+            platform: "windows,linux" /* UI.ActionRegistration.Platforms.WINDOWS_LINUX */,
             shortcut: 'Ctrl+E',
         },
         {
-            platform: "mac" /* UI.ActionRegistration.Platforms.Mac */,
+            platform: "mac" /* UI.ActionRegistration.Platforms.MAC */,
             shortcut: 'Meta+E',
         },
     ],
 });
-Common.Settings.registerSettingExtension({
-    category: Common.Settings.SettingCategory.PERFORMANCE,
-    storageType: Common.Settings.SettingStorageType.Synced,
-    title: i18nLazyString(UIStrings.showNativeFunctions),
-    settingName: 'showNativeFunctionsInJSProfile',
-    settingType: Common.Settings.SettingType.BOOLEAN,
-    defaultValue: true,
+UI.ActionRegistration.registerActionExtension({
+    actionId: 'profiler.clear-all',
+    category: "MEMORY" /* UI.ActionRegistration.ActionCategory.MEMORY */,
+    iconClass: "clear" /* UI.ActionRegistration.IconClass.CLEAR */,
+    contextTypes() {
+        return maybeRetrieveContextTypes(Profiler => [Profiler.ProfilesPanel.ProfilesPanel]);
+    },
+    async loadActionDelegate() {
+        const Profiler = await loadProfilerModule();
+        return new Profiler.ProfilesPanel.ActionDelegate();
+    },
+    title: i18nLazyString(UIStrings.clearAllProfiles),
+});
+UI.ActionRegistration.registerActionExtension({
+    actionId: 'profiler.load-from-file',
+    category: "MEMORY" /* UI.ActionRegistration.ActionCategory.MEMORY */,
+    iconClass: "import" /* UI.ActionRegistration.IconClass.IMPORT */,
+    contextTypes() {
+        return maybeRetrieveContextTypes(Profiler => [Profiler.ProfilesPanel.ProfilesPanel]);
+    },
+    async loadActionDelegate() {
+        const Profiler = await loadProfilerModule();
+        return new Profiler.ProfilesPanel.ActionDelegate();
+    },
+    title: i18nLazyString(UIStrings.loadProfile),
+    bindings: [
+        {
+            platform: "windows,linux" /* UI.ActionRegistration.Platforms.WINDOWS_LINUX */,
+            shortcut: 'Ctrl+O',
+        },
+        {
+            platform: "mac" /* UI.ActionRegistration.Platforms.MAC */,
+            shortcut: 'Meta+O',
+        },
+    ],
+});
+UI.ActionRegistration.registerActionExtension({
+    actionId: 'profiler.save-to-file',
+    category: "MEMORY" /* UI.ActionRegistration.ActionCategory.MEMORY */,
+    iconClass: "download" /* UI.ActionRegistration.IconClass.DOWNLOAD */,
+    contextTypes() {
+        return maybeRetrieveContextTypes(Profiler => [Profiler.ProfileHeader.ProfileHeader]);
+    },
+    async loadActionDelegate() {
+        const Profiler = await loadProfilerModule();
+        return new Profiler.ProfilesPanel.ActionDelegate();
+    },
+    title: i18nLazyString(UIStrings.saveProfile),
+    bindings: [
+        {
+            platform: "windows,linux" /* UI.ActionRegistration.Platforms.WINDOWS_LINUX */,
+            shortcut: 'Ctrl+S',
+        },
+        {
+            platform: "mac" /* UI.ActionRegistration.Platforms.MAC */,
+            shortcut: 'Meta+S',
+        },
+    ],
+});
+UI.ActionRegistration.registerActionExtension({
+    actionId: 'profiler.delete-profile',
+    category: "MEMORY" /* UI.ActionRegistration.ActionCategory.MEMORY */,
+    iconClass: "download" /* UI.ActionRegistration.IconClass.DOWNLOAD */,
+    contextTypes() {
+        return maybeRetrieveContextTypes(Profiler => [Profiler.ProfileHeader.ProfileHeader]);
+    },
+    async loadActionDelegate() {
+        const Profiler = await loadProfilerModule();
+        return new Profiler.ProfilesPanel.ActionDelegate();
+    },
+    title: i18nLazyString(UIStrings.deleteProfile),
 });
 UI.ContextMenu.registerProvider({
     contextTypes() {
@@ -162,5 +237,15 @@ UI.ContextMenu.registerProvider({
         return Profiler.HeapProfilerPanel.HeapProfilerPanel.instance();
     },
     experiment: undefined,
+});
+UI.ContextMenu.registerItem({
+    location: "profilerMenu/default" /* UI.ContextMenu.ItemLocation.PROFILER_MENU_DEFAULT */,
+    actionId: 'profiler.save-to-file',
+    order: 10,
+});
+UI.ContextMenu.registerItem({
+    location: "profilerMenu/default" /* UI.ContextMenu.ItemLocation.PROFILER_MENU_DEFAULT */,
+    actionId: 'profiler.delete-profile',
+    order: 11,
 });
 //# sourceMappingURL=profiler-meta.js.map

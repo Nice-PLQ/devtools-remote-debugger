@@ -1,7 +1,8 @@
 // Copyright 2020 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
-import * as FrontendHelpers from '../../../../../test/unittests/front_end/helpers/EnvironmentHelpers.js';
+import * as Common from '../../../../core/common/common.js';
+import * as FrontendHelpers from '../../../../testing/EnvironmentHelpers.js';
 import * as InlineEditor from '../../../legacy/components/inline_editor/inline_editor.js';
 import * as ComponentHelpers from '../../helpers/helpers.js';
 await ComponentHelpers.ComponentServerSetup.setup();
@@ -13,18 +14,18 @@ function appendExample(swatch) {
 }
 // Simple
 let component = new InlineEditor.ColorSwatch.ColorSwatch();
-component.renderColor('#f06');
+component.renderColor(Common.Color.parse('#f06'));
 appendExample(component);
 // No text next to the swatch
 component = new InlineEditor.ColorSwatch.ColorSwatch();
-component.renderColor('gold');
+component.renderColor(Common.Color.parse('gold'));
 let content = document.createElement('span');
 content.textContent = '';
 component.appendChild(content);
 appendExample(component);
 // Custom content
 component = new InlineEditor.ColorSwatch.ColorSwatch();
-component.renderColor('rebeccapurple');
+component.renderColor(Common.Color.parse('rebeccapurple'));
 content = document.createElement('span');
 content.textContent = 'custom content';
 component.appendChild(content);

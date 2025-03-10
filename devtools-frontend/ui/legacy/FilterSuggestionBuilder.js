@@ -50,7 +50,7 @@ export class FilterSuggestionBuilder {
         }
         let set = this.valuesMap.get(key);
         if (!set) {
-            set = new Set();
+            set = (new Set());
             this.valuesMap.set(key, set);
         }
         set.add(value);

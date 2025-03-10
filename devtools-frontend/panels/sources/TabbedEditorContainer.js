@@ -28,18 +28,17 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 import * as Common from '../../core/common/common.js';
-import * as Host from '../../core/host/host.js';
 import * as i18n from '../../core/i18n/i18n.js';
 import * as Platform from '../../core/platform/platform.js';
 import * as Extensions from '../../models/extensions/extensions.js';
 import * as Persistence from '../../models/persistence/persistence.js';
 import * as TextUtils from '../../models/text_utils/text_utils.js';
 import * as Workspace from '../../models/workspace/workspace.js';
+import * as IconButton from '../../ui/components/icon_button/icon_button.js';
 import * as SourceFrame from '../../ui/legacy/components/source_frame/source_frame.js';
 import * as UI from '../../ui/legacy/legacy.js';
-import * as IconButton from '../../ui/components/icon_button/icon_button.js';
+import * as VisualLogging from '../../ui/visual_logging/visual_logging.js';
 import * as Snippets from '../snippets/snippets.js';
-import * as Bindings from '../../models/bindings/bindings.js';
 import { SourcesView } from './SourcesView.js';
 import { UISourceCodeFrame } from './UISourceCodeFrame.js';
 const UIStrings = {
@@ -83,9 +82,10 @@ export class TabbedEditorContainer extends Common.ObjectWrapper.ObjectWrapper {
         this.tabbedPane.setAllowTabReorder(true, true);
         this.tabbedPane.addEventListener(UI.TabbedPane.Events.TabClosed, this.tabClosed, this);
         this.tabbedPane.addEventListener(UI.TabbedPane.Events.TabSelected, this.tabSelected, this);
+        this.tabbedPane.headerElement().setAttribute('jslog', `${VisualLogging.toolbar('top').track({ keydown: 'ArrowUp|ArrowLeft|ArrowDown|ArrowRight|Enter|Space' })}`);
         Persistence.Persistence.PersistenceImpl.instance().addEventListener(Persistence.Persistence.Events.BindingCreated, this.onBindingCreated, this);
         Persistence.Persistence.PersistenceImpl.instance().addEventListener(Persistence.Persistence.Events.BindingRemoved, this.onBindingRemoved, this);
-        Persistence.NetworkPersistenceManager.NetworkPersistenceManager.instance().addEventListener(Persistence.NetworkPersistenceManager.Events.RequestsForHeaderOverridesFileChanged, this.#onRequestsForHeaderOverridesFileChanged, this);
+        Persistence.NetworkPersistenceManager.NetworkPersistenceManager.instance().addEventListener("RequestsForHeaderOverridesFileChanged" /* Persistence.NetworkPersistenceManager.Events.REQUEST_FOR_HEADER_OVERRIDES_FILE_CHANGED */, this.#onRequestsForHeaderOverridesFileChanged, this);
         this.tabIds = new Map();
         this.files = new Map();
         this.previouslyViewedFilesSetting = setting;
@@ -163,17 +163,6 @@ export class TabbedEditorContainer extends Common.ObjectWrapper.ObjectWrapper {
             Common.EventTarget.fireEvent('source-file-loaded', uiSourceCode.displayName(true));
         }
         else {
-            if (uiSourceCode.project().type() === Workspace.Workspace.projectTypes.Debugger) {
-                const script = Bindings.DefaultScriptMapping.DefaultScriptMapping.scriptForUISourceCode(uiSourceCode);
-                if (script && script.isInlineScript() && !script.hasSourceURL) {
-                    if (script.isModule) {
-                        Host.userMetrics.vmInlineScriptContentShown(0 /* Host.UserMetrics.VMInlineScriptType.MODULE_SCRIPT */);
-                    }
-                    else {
-                        Host.userMetrics.vmInlineScriptContentShown(1 /* Host.UserMetrics.VMInlineScriptType.CLASSIC_SCRIPT */);
-                    }
-                }
-            }
             this.innerShowFile(uiSourceCode, true);
         }
     }
@@ -207,15 +196,15 @@ export class TabbedEditorContainer extends Common.ObjectWrapper.ObjectWrapper {
         if (!this.currentView || !(this.currentView instanceof SourceFrame.SourceFrame.SourceFrameImpl)) {
             return;
         }
-        this.currentView.addEventListener("EditorUpdate" /* SourceFrame.SourceFrame.Events.EditorUpdate */, this.onEditorUpdate, this);
-        this.currentView.addEventListener("EditorScroll" /* SourceFrame.SourceFrame.Events.EditorScroll */, this.onScrollChanged, this);
+        this.currentView.addEventListener("EditorUpdate" /* SourceFrame.SourceFrame.Events.EDITOR_UPDATE */, this.onEditorUpdate, this);
+        this.currentView.addEventListener("EditorScroll" /* SourceFrame.SourceFrame.Events.EDITOR_SCROLL */, this.onScrollChanged, this);
     }
     removeViewListeners() {
         if (!this.currentView || !(this.currentView instanceof SourceFrame.SourceFrame.SourceFrameImpl)) {
             return;
         }
-        this.currentView.removeEventListener("EditorUpdate" /* SourceFrame.SourceFrame.Events.EditorUpdate */, this.onEditorUpdate, this);
-        this.currentView.removeEventListener("EditorScroll" /* SourceFrame.SourceFrame.Events.EditorScroll */, this.onScrollChanged, this);
+        this.currentView.removeEventListener("EditorUpdate" /* SourceFrame.SourceFrame.Events.EDITOR_UPDATE */, this.onEditorUpdate, this);
+        this.currentView.removeEventListener("EditorScroll" /* SourceFrame.SourceFrame.Events.EDITOR_SCROLL */, this.onScrollChanged, this);
     }
     onScrollChanged() {
         if (this.currentView instanceof SourceFrame.SourceFrame.SourceFrameImpl) {
@@ -286,10 +275,10 @@ export class TabbedEditorContainer extends Common.ObjectWrapper.ObjectWrapper {
         const eventData = {
             currentFile: this.currentFileInternal,
             currentView: this.currentView,
-            previousView: previousView,
-            userGesture: userGesture,
+            previousView,
+            userGesture,
         };
-        this.dispatchEventToListeners(Events.EditorSelected, eventData);
+        this.dispatchEventToListeners("EditorSelected" /* Events.EDITOR_SELECTED */, eventData);
     }
     titleForFile(uiSourceCode) {
         const maxDisplayNameLength = 30;
@@ -445,7 +434,7 @@ export class TabbedEditorContainer extends Common.ObjectWrapper.ObjectWrapper {
             const savedScrollLineNumber = this.history.scrollLineNumber(historyItemKey(uiSourceCode));
             this.restoreEditorProperties(view, savedSelectionRange, savedScrollLineNumber);
         }
-        this.tabbedPane.appendTab(tabId, title, view, tooltip, userGesture, undefined, undefined, index);
+        this.tabbedPane.appendTab(tabId, title, view, tooltip, userGesture, undefined, undefined, index, 'editor');
         this.updateFileTitle(uiSourceCode);
         this.addUISourceCodeListeners(uiSourceCode);
         if (uiSourceCode.loadError()) {
@@ -465,13 +454,11 @@ export class TabbedEditorContainer extends Common.ObjectWrapper.ObjectWrapper {
         icon.data = { iconName: 'cross-circle-filled', color: 'var(--icon-error)', width: '14px', height: '14px' };
         UI.Tooltip.Tooltip.install(icon, i18nString(UIStrings.unableToLoadThisContent));
         if (this.tabbedPane.tabView(tabId)) {
-            this.tabbedPane.setTabIcon(tabId, icon);
+            this.tabbedPane.setTrailingTabIcon(tabId, icon);
         }
     }
     restoreEditorProperties(editorView, selection, firstLineNumber) {
-        const sourceFrame = editorView instanceof SourceFrame.SourceFrame.SourceFrameImpl ?
-            editorView :
-            null;
+        const sourceFrame = editorView instanceof SourceFrame.SourceFrame.SourceFrameImpl ? editorView : null;
         if (!sourceFrame) {
             return;
         }
@@ -497,7 +484,7 @@ export class TabbedEditorContainer extends Common.ObjectWrapper.ObjectWrapper {
         this.files.delete(tabId);
         if (uiSourceCode) {
             this.removeUISourceCodeListeners(uiSourceCode);
-            this.dispatchEventToListeners(Events.EditorClosed, uiSourceCode);
+            this.dispatchEventToListeners("EditorClosed" /* Events.EDITOR_CLOSED */, uiSourceCode);
             if (isUserGesture) {
                 this.editorClosedByUserAction(uiSourceCode);
             }
@@ -540,7 +527,7 @@ export class TabbedEditorContainer extends Common.ObjectWrapper.ObjectWrapper {
             else {
                 icon = Persistence.PersistenceUtils.PersistenceUtils.iconForUISourceCode(uiSourceCode);
             }
-            this.tabbedPane.setTabIcon(tabId, icon);
+            this.tabbedPane.setTrailingTabIcon(tabId, icon);
         }
     }
     uiSourceCodeTitleChanged(event) {
@@ -571,19 +558,12 @@ export class TabbedEditorContainer extends Common.ObjectWrapper.ObjectWrapper {
         this.updateFileTitle(uiSourceCode);
     }
     generateTabId() {
-        return 'tab_' + (tabId++);
+        return 'tab-' + (tabId++);
     }
     currentFile() {
         return this.currentFileInternal || null;
     }
 }
-// TODO(crbug.com/1167717): Make this a const enum again
-// eslint-disable-next-line rulesdir/const_enum
-export var Events;
-(function (Events) {
-    Events["EditorSelected"] = "EditorSelected";
-    Events["EditorClosed"] = "EditorClosed";
-})(Events || (Events = {}));
 const MAX_PREVIOUSLY_VIEWED_FILES_COUNT = 30;
 const MAX_SERIALIZABLE_URL_LENGTH = 4096;
 function historyItemKey(uiSourceCode) {
@@ -706,7 +686,6 @@ export class History {
         }
         return serializedHistoryItems;
     }
-    // eslint-disable-next-line rulesdir/prefer_readonly_keyword
     keys() {
         return this.items;
     }

@@ -11,19 +11,20 @@ import * as IconButton from '../../ui/components/icon_button/icon_button.js';
 import * as DataGrid from '../../ui/legacy/components/data_grid/data_grid.js';
 import * as Components from '../../ui/legacy/components/utils/utils.js';
 import * as UI from '../../ui/legacy/legacy.js';
+import * as VisualLogging from '../../ui/visual_logging/visual_logging.js';
 import cssOverviewCompletedViewStyles from './cssOverviewCompletedView.css.js';
 import { CSSOverviewSidebarPanel } from './CSSOverviewSidebarPanel.js';
 const UIStrings = {
     /**
-     *@description Label for the summary in the CSS Overview report
+     *@description Label for the summary in the CSS overview report
      */
     overviewSummary: 'Overview summary',
     /**
-     *@description Title of colors subsection in the CSS Overview Panel
+     *@description Title of colors subsection in the CSS overview panel
      */
     colors: 'Colors',
     /**
-     *@description Title of font info subsection in the CSS Overview Panel
+     *@description Title of font info subsection in the CSS overview panel
      */
     fontInfo: 'Font info',
     /**
@@ -31,7 +32,7 @@ const UIStrings = {
      */
     unusedDeclarations: 'Unused declarations',
     /**
-     *@description Label for the number of media queries in the CSS Overview report
+     *@description Label for the number of media queries in the CSS overview report
      */
     mediaQueries: 'Media queries',
     /**
@@ -39,58 +40,58 @@ const UIStrings = {
      */
     elements: 'Elements',
     /**
-     *@description Label for the number of External stylesheets in the CSS Overview report
+     *@description Label for the number of External stylesheets in the CSS overview report
      */
     externalStylesheets: 'External stylesheets',
     /**
-     *@description Label for the number of inline style elements in the CSS Overview report
+     *@description Label for the number of inline style elements in the CSS overview report
      */
     inlineStyleElements: 'Inline style elements',
     /**
-     *@description Label for the number of style rules in CSS Overview report
+     *@description Label for the number of style rules in CSS overview report
      */
     styleRules: 'Style rules',
     /**
-     *@description Label for the number of type selectors in the CSS Overview report
+     *@description Label for the number of type selectors in the CSS overview report
      */
     typeSelectors: 'Type selectors',
     /**
-     *@description Label for the number of ID selectors in the CSS Overview report
+     *@description Label for the number of ID selectors in the CSS overview report
      */
     idSelectors: 'ID selectors',
     /**
-     *@description Label for the number of class selectors in the CSS Overview report
+     *@description Label for the number of class selectors in the CSS overview report
      */
     classSelectors: 'Class selectors',
     /**
-     *@description Label for the number of universal selectors in the CSS Overview report
+     *@description Label for the number of universal selectors in the CSS overview report
      */
     universalSelectors: 'Universal selectors',
     /**
-     *@description Label for the number of Attribute selectors in the CSS Overview report
+     *@description Label for the number of Attribute selectors in the CSS overview report
      */
     attributeSelectors: 'Attribute selectors',
     /**
-     *@description Label for the number of non-simple selectors in the CSS Overview report
+     *@description Label for the number of non-simple selectors in the CSS overview report
      */
     nonsimpleSelectors: 'Non-simple selectors',
     /**
-     *@description Label for unique background colors in the CSS Overview Panel
+     *@description Label for unique background colors in the CSS overview panel
      *@example {32} PH1
      */
     backgroundColorsS: 'Background colors: {PH1}',
     /**
-     *@description Label for unique text colors in the CSS Overview Panel
+     *@description Label for unique text colors in the CSS overview panel
      *@example {32} PH1
      */
     textColorsS: 'Text colors: {PH1}',
     /**
-     *@description Label for unique fill colors in the CSS Overview Panel
+     *@description Label for unique fill colors in the CSS overview panel
      *@example {32} PH1
      */
     fillColorsS: 'Fill colors: {PH1}',
     /**
-     *@description Label for unique border colors in the CSS Overview Panel
+     *@description Label for unique border colors in the CSS overview panel
      *@example {32} PH1
      */
     borderColorsS: 'Border colors: {PH1}',
@@ -107,7 +108,7 @@ const UIStrings = {
      */
     thereAreNoMediaQueries: 'There are no media queries.',
     /**
-     *@description Title of the Drawer for contrast issues in the CSS Overview Panel
+     *@description Title of the Drawer for contrast issues in the CSS overview panel
      */
     contrastIssues: 'Contrast issues',
     /**
@@ -115,12 +116,12 @@ const UIStrings = {
      */
     nOccurrences: '{n, plural, =1 {# occurrence} other {# occurrences}}',
     /**
-     *@description Section header for contrast issues in the CSS Overview Panel
+     *@description Section header for contrast issues in the CSS overview panel
      *@example {1} PH1
      */
     contrastIssuesS: 'Contrast issues: {PH1}',
     /**
-     *@description Title of the button for a contrast issue in the CSS Overview Panel
+     *@description Title of the button for a contrast issue in the CSS overview panel
      *@example {#333333} PH1
      *@example {#333333} PH2
      *@example {2} PH3
@@ -139,7 +140,7 @@ const UIStrings = {
      */
     apca: 'APCA',
     /**
-     *@description Label for the column in the element list in the CSS Overview report
+     *@description Label for the column in the element list in the CSS overview report
      */
     element: 'Element',
     /**
@@ -155,11 +156,11 @@ const UIStrings = {
      */
     contrastRatio: 'Contrast ratio',
     /**
-     *@description Accessible title of a table in the CSS Overview Elements.
+     *@description Accessible title of a table in the CSS overview elements.
      */
-    cssOverviewElements: 'CSS Overview Elements',
+    cssOverviewElements: 'CSS overview elements',
     /**
-     *@description Title of the button to show the element in the CSS Overview panel
+     *@description Title of the button to show the element in the CSS overview panel
      */
     showElement: 'Show element',
 };
@@ -174,7 +175,8 @@ function getBorderString(color) {
     l = Math.max(0, l - 15);
     return `1px solid hsl(${h}deg ${s}% ${l}%)`;
 }
-export class CSSOverviewCompletedView extends UI.Panel.PanelWithSidebar {
+export class CSSOverviewCompletedView extends UI.Widget.VBox {
+    #splitWidget;
     #controller;
     #formatter;
     #mainContainer;
@@ -188,14 +190,17 @@ export class CSSOverviewCompletedView extends UI.Panel.PanelWithSidebar {
     #data;
     #fragment;
     constructor(controller) {
-        super('css_overview_completed_view');
+        super();
+        this.registerRequiredCSS(cssOverviewCompletedViewStyles);
         this.#controller = controller;
         this.#formatter = new Intl.NumberFormat('en-US');
+        this.#splitWidget = new UI.SplitWidget.SplitWidget(true, false, undefined, 200);
+        this.#splitWidget.show(this.element);
         this.#mainContainer = new UI.SplitWidget.SplitWidget(true, true);
         this.#resultsContainer = new UI.Widget.VBox();
         this.#elementContainer = new DetailsView();
         // If closing the last tab, collapse the sidebar.
-        this.#elementContainer.addEventListener("TabClosed" /* Events.TabClosed */, evt => {
+        this.#elementContainer.addEventListener("TabClosed" /* Events.TAB_CLOSED */, evt => {
             if (evt.data === 0) {
                 this.#mainContainer.setSidebarMinimized(true);
             }
@@ -206,10 +211,11 @@ export class CSSOverviewCompletedView extends UI.Panel.PanelWithSidebar {
         this.#mainContainer.setVertical(false);
         this.#mainContainer.setSecondIsSidebar(true);
         this.#mainContainer.setSidebarMinimized(true);
+        this.#mainContainer.registerRequiredCSS(cssOverviewCompletedViewStyles);
         this.#sideBar = new CSSOverviewSidebarPanel();
         this.#sideBar.setMinimumSize(100, 25);
-        this.splitWidget().setSidebarWidget(this.#sideBar);
-        this.splitWidget().setMainWidget(this.#mainContainer);
+        this.#splitWidget.setSidebarWidget(this.#sideBar);
+        this.#splitWidget.setMainWidget(this.#mainContainer);
         this.#linkifier = new Components.Linkifier.Linkifier(/* maxLinkLength */ 20, /* useLinkDecorator */ true);
         this.#viewMap = new Map();
         this.#sideBar.addItem(i18nString(UIStrings.overviewSummary), 'summary');
@@ -217,19 +223,13 @@ export class CSSOverviewCompletedView extends UI.Panel.PanelWithSidebar {
         this.#sideBar.addItem(i18nString(UIStrings.fontInfo), 'font-info');
         this.#sideBar.addItem(i18nString(UIStrings.unusedDeclarations), 'unused-declarations');
         this.#sideBar.addItem(i18nString(UIStrings.mediaQueries), 'media-queries');
-        this.#sideBar.select('summary');
-        this.#sideBar.addEventListener("ItemSelected" /* SidebarEvents.ItemSelected */, this.#sideBarItemSelected, this);
-        this.#sideBar.addEventListener("Reset" /* SidebarEvents.Reset */, this.#sideBarReset, this);
-        this.#controller.addEventListener("Reset" /* CSSOverViewControllerEvents.Reset */, this.#reset, this);
-        this.#controller.addEventListener("PopulateNodes" /* CSSOverViewControllerEvents.PopulateNodes */, this.#createElementsView, this);
+        this.#sideBar.select('summary', false);
+        this.#sideBar.addEventListener("ItemSelected" /* SidebarEvents.ITEM_SELECTED */, this.#sideBarItemSelected, this);
+        this.#sideBar.addEventListener("Reset" /* SidebarEvents.RESET */, this.#sideBarReset, this);
+        this.#controller.addEventListener("Reset" /* CSSOverViewControllerEvents.RESET */, this.#reset, this);
+        this.#controller.addEventListener("PopulateNodes" /* CSSOverViewControllerEvents.POPULATE_NODES */, this.#createElementsView, this);
         this.#resultsContainer.element.addEventListener('click', this.#onClick.bind(this));
         this.#data = null;
-    }
-    wasShown() {
-        super.wasShown();
-        this.#mainContainer.registerCSSFiles([cssOverviewCompletedViewStyles]);
-        this.registerCSSFiles([cssOverviewCompletedViewStyles]);
-        // TODO(paullewis): update the links in the panels in case source has been .
     }
     initializeModels(target) {
         const cssModel = target.model(SDK.CSSModel.CSSModel);
@@ -248,13 +248,13 @@ export class CSSOverviewCompletedView extends UI.Panel.PanelWithSidebar {
         }
         section.scrollIntoView();
         // Set focus for keyboard invoked event
-        if (!data.isMouseEvent) {
+        if (!data.isMouseEvent && data.key === 'Enter') {
             const focusableElement = section.querySelector('button, [tabindex="0"]');
             focusableElement?.focus();
         }
     }
     #sideBarReset() {
-        this.#controller.dispatchEventToListeners("Reset" /* CSSOverViewControllerEvents.Reset */);
+        this.#controller.dispatchEventToListeners("Reset" /* CSSOverViewControllerEvents.RESET */);
     }
     #reset() {
         this.#resultsContainer.element.removeChildren();
@@ -262,7 +262,7 @@ export class CSSOverviewCompletedView extends UI.Panel.PanelWithSidebar {
         this.#elementContainer.closeTabs();
         this.#viewMap = new Map();
         CSSOverviewCompletedView.pushedNodes.clear();
-        this.#sideBar.select('summary');
+        this.#sideBar.select('summary', false);
     }
     #onClick(evt) {
         if (!evt.target) {
@@ -370,7 +370,7 @@ export class CSSOverviewCompletedView extends UI.Panel.PanelWithSidebar {
                 return;
         }
         evt.consume();
-        this.#controller.dispatchEventToListeners("PopulateNodes" /* CSSOverViewControllerEvents.PopulateNodes */, { payload });
+        this.#controller.dispatchEventToListeners("PopulateNodes" /* CSSOverViewControllerEvents.POPULATE_NODES */, { payload });
         this.#mainContainer.setSidebarMinimized(false);
     }
     async #render(data) {
@@ -529,13 +529,13 @@ export class CSSOverviewCompletedView extends UI.Panel.PanelWithSidebar {
         let view = this.#viewMap.get(id);
         if (!view) {
             if (!this.#domModel || !this.#cssModel) {
-                throw new Error('Unable to initialize CSS Overview, missing models');
+                throw new Error('Unable to initialize CSS overview, missing models');
             }
             view = new ElementDetailsView(this.#controller, this.#domModel, this.#cssModel, this.#linkifier);
             void view.populateNodes(payload.nodes);
             this.#viewMap.set(id, view);
         }
-        this.#elementContainer.appendTab(id, tabTitle, view, true);
+        this.#elementContainer.appendTab(id, tabTitle, view, payload.type);
     }
     #fontInfoToFragment(fontInfo) {
         const fonts = Array.from(fontInfo.entries());
@@ -567,13 +567,15 @@ export class CSSOverviewCompletedView extends UI.Panel.PanelWithSidebar {
             return v2Nodes.length - v1Nodes.length;
         });
         const total = values.reduce((prev, curr) => prev + curr[1].length, 0);
-        return UI.Fragment.Fragment.build `<ul>
+        return UI.Fragment.Fragment.build `<ul aria-label="${type}">
     ${values.map(([title, nodes]) => {
             const width = 100 * nodes.length / total;
             const itemLabel = i18nString(UIStrings.nOccurrences, { n: nodes.length });
             return UI.Fragment.Fragment.build `<li>
         <div class="title">${title}</div>
-        <button data-type="${type}" data-path="${path}" data-${dataLabel}="${title}">
+        <button data-type="${type}" data-path="${path}" data-${dataLabel}="${title}"
+        jslog="${VisualLogging.action().track({ click: true }).context(`css-overview.${type}`)}"
+        aria-label="${title}: ${itemLabel}">
           <div class="details">${itemLabel}</div>
           <div class="bar-container">
             <div class="bar" style="width: ${width}%;"></div>
@@ -604,9 +606,9 @@ export class CSSOverviewCompletedView extends UI.Panel.PanelWithSidebar {
                 minContrastIssue = issue;
             }
         }
-        const color = minContrastIssue.textColor.asString("hexa" /* Common.Color.Format.HEXA */);
-        const backgroundColor = minContrastIssue.backgroundColor.asString("hexa" /* Common.Color.Format.HEXA */);
-        const showAPCA = Root.Runtime.experiments.isEnabled('APCA');
+        const color = (minContrastIssue.textColor.asString("hexa" /* Common.Color.Format.HEXA */));
+        const backgroundColor = (minContrastIssue.backgroundColor.asString("hexa" /* Common.Color.Format.HEXA */));
+        const showAPCA = Root.Runtime.experiments.isEnabled('apca');
         const title = i18nString(UIStrings.textColorSOverSBackgroundResults, {
             PH1: color,
             PH2: backgroundColor,
@@ -615,7 +617,10 @@ export class CSSOverviewCompletedView extends UI.Panel.PanelWithSidebar {
         const blockFragment = UI.Fragment.Fragment.build `<li>
       <button
         title="${title}" aria-label="${title}"
-        data-type="contrast" data-key="${key}" data-section="contrast" class="block" $="color">
+        data-type="contrast" data-key="${key}" data-section="contrast" class="block" $="color"
+        jslog="${VisualLogging.action('css-overview.contrast').track({
+            click: true,
+        })}">
         Text
       </button>
       <div class="block-title">
@@ -661,7 +666,10 @@ export class CSSOverviewCompletedView extends UI.Panel.PanelWithSidebar {
     #colorsToFragment(section, color) {
         const blockFragment = UI.Fragment.Fragment.build `<li>
       <button title=${color} data-type="color" data-color="${color}"
-        data-section="${section}" class="block" $="color"></button>
+        data-section="${section}" class="block" $="color"
+        jslog="${VisualLogging.action('css-overview.color').track({
+            click: true,
+        })}"></button>
       <div class="block-title color-text">${color}</div>
     </li>`;
         const block = blockFragment.$('color');
@@ -686,7 +694,6 @@ export class CSSOverviewCompletedView extends UI.Panel.PanelWithSidebar {
     setOverviewData(data) {
         void this.#render(data);
     }
-    // eslint-disable-next-line @typescript-eslint/naming-convention
     static pushedNodes = new Set();
 }
 export class DetailsView extends Common.ObjectWrapper.eventMixin(UI.Widget.VBox) {
@@ -696,12 +703,12 @@ export class DetailsView extends Common.ObjectWrapper.eventMixin(UI.Widget.VBox)
         this.#tabbedPane = new UI.TabbedPane.TabbedPane();
         this.#tabbedPane.show(this.element);
         this.#tabbedPane.addEventListener(UI.TabbedPane.Events.TabClosed, () => {
-            this.dispatchEventToListeners("TabClosed" /* Events.TabClosed */, this.#tabbedPane.tabIds().length);
+            this.dispatchEventToListeners("TabClosed" /* Events.TAB_CLOSED */, this.#tabbedPane.tabIds().length);
         });
     }
-    appendTab(id, tabTitle, view, isCloseable) {
+    appendTab(id, tabTitle, view, jslogContext) {
         if (!this.#tabbedPane.hasTab(id)) {
-            this.#tabbedPane.appendTab(id, tabTitle, view, undefined, undefined, isCloseable);
+            this.#tabbedPane.appendTab(id, tabTitle, view, undefined, undefined, /* isCloseable */ true, undefined, undefined, jslogContext);
         }
         this.#tabbedPane.selectTab(id);
     }
@@ -724,7 +731,7 @@ export class ElementDetailsView extends UI.Widget.Widget {
         this.#linkifier = linkifier;
         this.#elementGridColumns = [
             {
-                id: 'nodeId',
+                id: 'node-id',
                 title: i18nString(UIStrings.element),
                 sortable: true,
                 weight: 50,
@@ -760,7 +767,7 @@ export class ElementDetailsView extends UI.Widget.Widget {
                 defaultWeight: undefined,
             },
             {
-                id: 'sourceURL',
+                id: 'source-url',
                 title: i18nString(UIStrings.source),
                 sortable: false,
                 weight: 100,
@@ -778,7 +785,7 @@ export class ElementDetailsView extends UI.Widget.Widget {
                 defaultWeight: undefined,
             },
             {
-                id: 'contrastRatio',
+                id: 'contrast-ratio',
                 title: i18nString(UIStrings.contrastRatio),
                 sortable: true,
                 weight: 25,
@@ -799,14 +806,13 @@ export class ElementDetailsView extends UI.Widget.Widget {
         this.#elementGrid = new DataGrid.SortableDataGrid.SortableDataGrid({
             displayName: i18nString(UIStrings.cssOverviewElements),
             columns: this.#elementGridColumns,
-            editCallback: undefined,
             deleteCallback: undefined,
             refreshCallback: undefined,
         });
         this.#elementGrid.element.classList.add('element-grid');
         this.#elementGrid.element.addEventListener('mouseover', this.#onMouseOver.bind(this));
         this.#elementGrid.setStriped(true);
-        this.#elementGrid.addEventListener(DataGrid.DataGrid.Events.SortingChanged, this.#sortMediaQueryDataGrid.bind(this));
+        this.#elementGrid.addEventListener("SortingChanged" /* DataGrid.DataGrid.Events.SORTING_CHANGED */, this.#sortMediaQueryDataGrid.bind(this));
         this.#elementGrid.asWidget().show(this.element);
     }
     #sortMediaQueryDataGrid() {
@@ -820,12 +826,12 @@ export class ElementDetailsView extends UI.Widget.Widget {
     #onMouseOver(evt) {
         // Traverse the event path on the grid to find the nearest element with a backend node ID attached. Use
         // that for the highlighting.
-        const node = evt.composedPath().find(el => el.dataset && el.dataset.backendNodeId);
+        const node = evt.composedPath().find(el => el.dataset?.backendNodeId);
         if (!node) {
             return;
         }
         const backendNodeId = Number(node.dataset.backendNodeId);
-        this.#controller.dispatchEventToListeners("RequestNodeHighlight" /* CSSOverViewControllerEvents.RequestNodeHighlight */, backendNodeId);
+        this.#controller.dispatchEventToListeners("RequestNodeHighlight" /* CSSOverViewControllerEvents.REQUEST_NODE_HIGHLIGHT */, backendNodeId);
     }
     async populateNodes(data) {
         this.#elementGrid.rootNode().removeChildren();
@@ -834,12 +840,12 @@ export class ElementDetailsView extends UI.Widget.Widget {
         }
         const [firstItem] = data;
         const visibility = new Set();
-        'nodeId' in firstItem && firstItem.nodeId && visibility.add('nodeId');
+        'nodeId' in firstItem && firstItem.nodeId && visibility.add('node-id');
         'declaration' in firstItem && firstItem.declaration && visibility.add('declaration');
-        'sourceURL' in firstItem && firstItem.sourceURL && visibility.add('sourceURL');
-        'contrastRatio' in firstItem && firstItem.contrastRatio && visibility.add('contrastRatio');
+        'sourceURL' in firstItem && firstItem.sourceURL && visibility.add('source-url');
+        'contrastRatio' in firstItem && firstItem.contrastRatio && visibility.add('contrast-ratio');
         let relatedNodesMap;
-        if ('nodeId' in firstItem && visibility.has('nodeId')) {
+        if ('nodeId' in firstItem && visibility.has('node-id')) {
             // Grab the nodes from the frontend, but only those that have not been
             // retrieved already.
             const nodeIds = data.reduce((prev, curr) => {
@@ -854,7 +860,7 @@ export class ElementDetailsView extends UI.Widget.Widget {
         }
         for (const item of data) {
             let frontendNode;
-            if ('nodeId' in item && visibility.has('nodeId')) {
+            if ('nodeId' in item && visibility.has('node-id')) {
                 if (!relatedNodesMap) {
                     continue;
                 }
@@ -867,7 +873,7 @@ export class ElementDetailsView extends UI.Widget.Widget {
             node.selectable = false;
             this.#elementGrid.insertChild(node);
         }
-        this.#elementGrid.setColumnsVisiblity(visibility);
+        this.#elementGrid.setColumnsVisibility(visibility);
         this.#elementGrid.renderInline();
         this.#elementGrid.wasShown();
     }
@@ -885,7 +891,7 @@ export class ElementNode extends DataGrid.SortableDataGrid.SortableDataGridNode 
     createCell(columnId) {
         // Nodes.
         const frontendNode = this.#frontendNode;
-        if (columnId === 'nodeId') {
+        if (columnId === 'node-id') {
             const cell = this.createTD(columnId);
             cell.textContent = '...';
             if (!frontendNode) {
@@ -906,7 +912,7 @@ export class ElementNode extends DataGrid.SortableDataGrid.SortableDataGridNode 
             return cell;
         }
         // Links to CSS.
-        if (columnId === 'sourceURL') {
+        if (columnId === 'source-url') {
             const cell = this.createTD(columnId);
             if (this.data.range) {
                 const link = this.#linkifyRuleLocation(this.#cssModel, this.#linkifier, this.data.styleSheetId, TextUtils.TextRange.TextRange.fromObject(this.data.range));
@@ -922,9 +928,9 @@ export class ElementNode extends DataGrid.SortableDataGrid.SortableDataGridNode 
             }
             return cell;
         }
-        if (columnId === 'contrastRatio') {
+        if (columnId === 'contrast-ratio') {
             const cell = this.createTD(columnId);
-            const showAPCA = Root.Runtime.experiments.isEnabled('APCA');
+            const showAPCA = Root.Runtime.experiments.isEnabled('apca');
             const contrastRatio = Platform.NumberUtilities.floor(this.data.contrastRatio, 2);
             const contrastRatioString = showAPCA ? contrastRatio + '%' : contrastRatio;
             const border = getBorderString(this.data.backgroundColor);

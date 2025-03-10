@@ -3,9 +3,12 @@
 // found in the LICENSE file.
 const UNINITIALIZED = Symbol('uninitialized');
 const ERROR_STATE = Symbol('error');
+/**
+ * Very basic memoizer. Will only invoke its callback the first time, returning the cached value all subsequent calls.
+ */
 export function lazy(producer) {
     let value = UNINITIALIZED;
-    let error = null;
+    let error = new Error('Initial');
     return () => {
         if (value === ERROR_STATE) {
             throw error;
@@ -18,7 +21,7 @@ export function lazy(producer) {
             return value;
         }
         catch (err) {
-            error = err;
+            error = err instanceof Error ? err : new Error(err);
             value = ERROR_STATE;
             throw error;
         }

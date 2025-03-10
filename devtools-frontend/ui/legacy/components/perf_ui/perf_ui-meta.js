@@ -7,17 +7,19 @@ import * as Root from '../../../../core/root/root.js';
 import * as UI from '../../legacy.js';
 const UIStrings = {
     /**
-     *@description Title of a setting under the Performance category in Settings
+     *@description Title of a setting under the Performance category in Settings.
+     * Selected navigation allows switching between 2 different sets of shortcuts
+     * and actions (like zoom on scroll or crtl/cmd + scroll) for navigating the performance panel.
      */
-    flamechartMouseWheelAction: 'Flamechart mouse wheel action:',
+    flamechartSelectedNavigation: 'Flamechart navigation:',
     /**
-     *@description The action to scroll
+     *@description Modern navigation option in the Performance Panel.
      */
-    scroll: 'Scroll',
+    modern: 'Modern',
     /**
-     *@description Text for zooming in
+     *@description Classic navigation option in the Performance Panel.
      */
-    zoom: 'Zoom',
+    classic: 'Classic',
     /**
      * @description Title of a setting under the Memory category in Settings. Live memory is memory
      * that is still in-use by the program (not dead). Allocation of live memory is when the program
@@ -49,40 +51,40 @@ async function loadPerfUIModule() {
 }
 UI.ActionRegistration.registerActionExtension({
     actionId: 'components.collect-garbage',
-    category: UI.ActionRegistration.ActionCategory.PERFORMANCE,
+    category: "PERFORMANCE" /* UI.ActionRegistration.ActionCategory.PERFORMANCE */,
     title: i18nLazyString(UIStrings.collectGarbage),
-    iconClass: "bin" /* UI.ActionRegistration.IconClass.BIN */,
+    iconClass: "mop" /* UI.ActionRegistration.IconClass.MOP */,
     async loadActionDelegate() {
         const PerfUI = await loadPerfUIModule();
-        return PerfUI.GCActionDelegate.GCActionDelegate.instance();
+        return new PerfUI.GCActionDelegate.GCActionDelegate();
     },
 });
 Common.Settings.registerSettingExtension({
-    category: Common.Settings.SettingCategory.PERFORMANCE,
-    storageType: Common.Settings.SettingStorageType.Synced,
-    title: i18nLazyString(UIStrings.flamechartMouseWheelAction),
-    settingName: 'flamechartMouseWheelAction',
-    settingType: Common.Settings.SettingType.ENUM,
-    defaultValue: 'zoom',
+    category: "PERFORMANCE" /* Common.Settings.SettingCategory.PERFORMANCE */,
+    storageType: "Synced" /* Common.Settings.SettingStorageType.SYNCED */,
+    title: i18nLazyString(UIStrings.flamechartSelectedNavigation),
+    settingName: 'flamechart-selected-navigation',
+    settingType: "enum" /* Common.Settings.SettingType.ENUM */,
+    defaultValue: 'classic',
     options: [
         {
-            title: i18nLazyString(UIStrings.scroll),
-            text: i18nLazyString(UIStrings.scroll),
-            value: 'scroll',
+            title: i18nLazyString(UIStrings.modern),
+            text: i18nLazyString(UIStrings.modern),
+            value: 'modern',
         },
         {
-            title: i18nLazyString(UIStrings.zoom),
-            text: i18nLazyString(UIStrings.zoom),
-            value: 'zoom',
+            title: i18nLazyString(UIStrings.classic),
+            text: i18nLazyString(UIStrings.classic),
+            value: 'classic',
         },
     ],
 });
 Common.Settings.registerSettingExtension({
-    category: Common.Settings.SettingCategory.MEMORY,
-    experiment: Root.Runtime.ExperimentName.LIVE_HEAP_PROFILE,
+    category: "MEMORY" /* Common.Settings.SettingCategory.MEMORY */,
+    experiment: "live-heap-profile" /* Root.Runtime.ExperimentName.LIVE_HEAP_PROFILE */,
     title: i18nLazyString(UIStrings.liveMemoryAllocationAnnotations),
-    settingName: 'memoryLiveHeapProfile',
-    settingType: Common.Settings.SettingType.BOOLEAN,
+    settingName: 'memory-live-heap-profile',
+    settingType: "boolean" /* Common.Settings.SettingType.BOOLEAN */,
     defaultValue: false,
     options: [
         {

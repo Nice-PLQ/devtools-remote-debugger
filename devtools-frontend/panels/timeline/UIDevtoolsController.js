@@ -28,14 +28,14 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 import { TimelineController } from './TimelineController.js';
-import { TimelineUIUtils } from './TimelineUIUtils.js';
 import { UIDevtoolsUtils } from './UIDevtoolsUtils.js';
+import * as Utils from './utils/utils.js';
 export class UIDevtoolsController extends TimelineController {
-    constructor(target, client) {
-        super(target, client);
-        TimelineUIUtils.setEventStylesMap(UIDevtoolsUtils.categorizeEvents());
-        TimelineUIUtils.setCategories(UIDevtoolsUtils.categories());
-        TimelineUIUtils.setTimelineMainEventCategories(UIDevtoolsUtils.getMainCategoriesList());
+    constructor(rootTarget, primaryPageTarget, client) {
+        super(rootTarget, primaryPageTarget, client);
+        Utils.EntryStyles.setEventStylesMap(UIDevtoolsUtils.categorizeEvents());
+        Utils.EntryStyles.setCategories(UIDevtoolsUtils.categories());
+        Utils.EntryStyles.setTimelineMainEventCategories(UIDevtoolsUtils.getMainCategoriesList().filter(Utils.EntryStyles.stringIsEventCategory));
     }
 }
 //# sourceMappingURL=UIDevtoolsController.js.map

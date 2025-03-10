@@ -7,11 +7,14 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
     else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
     return c > 3 && r && Object.defineProperty(target, key, r), r;
 };
-import * as LitHtml from '../../../ui/lit-html/lit-html.js';
-import controlButtonStyles from './controlButton.css.js';
-const { html, Decorators, LitElement } = LitHtml;
+import * as Lit from '../../../ui/lit/lit.js';
+import controlButtonStylesRaw from './controlButton.css.js';
+// TODO(crbug.com/391381439): Fully migrate off of constructed style sheets.
+const controlButtonStyles = new CSSStyleSheet();
+controlButtonStyles.replaceSync(controlButtonStylesRaw.cssContent);
+const { html, Decorators, LitElement } = Lit;
 const { customElement, property } = Decorators;
-export let ControlButton = class ControlButton extends LitElement {
+let ControlButton = class ControlButton extends LitElement {
     static styles = [controlButtonStyles];
     constructor() {
         super();
@@ -45,9 +48,10 @@ __decorate([
     property()
 ], ControlButton.prototype, "shape", void 0);
 __decorate([
-    property()
+    property({ type: Boolean })
 ], ControlButton.prototype, "disabled", void 0);
 ControlButton = __decorate([
     customElement('devtools-control-button')
 ], ControlButton);
+export { ControlButton };
 //# sourceMappingURL=ControlButton.js.map

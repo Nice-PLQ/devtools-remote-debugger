@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 import * as i18n from '../../core/i18n/i18n.js';
-import { Issue, IssueCategory, IssueKind } from './Issue.js';
+import { Issue } from './Issue.js';
 const UIStrings = {
     /**
      *@description Link title for the Low Text Contrast issue in the Issues panel
@@ -23,7 +23,7 @@ export class LowTextContrastIssue extends Issue {
         return `${this.code()}-(${this.#issueDetails.violatingNodeId})`;
     }
     getCategory() {
-        return IssueCategory.LowTextContrast;
+        return "LowTextContrast" /* IssueCategory.LOW_TEXT_CONTRAST */;
     }
     details() {
         return this.#issueDetails;
@@ -40,7 +40,7 @@ export class LowTextContrastIssue extends Issue {
         };
     }
     getKind() {
-        return IssueKind.Improvement;
+        return "Improvement" /* IssueKind.IMPROVEMENT */;
     }
     static fromInspectorIssue(issuesModel, inspectorIssue) {
         const lowTextContrastIssueDetails = inspectorIssue.details.lowTextContrastIssueDetails;

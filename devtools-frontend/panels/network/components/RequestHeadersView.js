@@ -1,28 +1,31 @@
 // Copyright 2022 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
+import './RequestHeaderSection.js';
 import * as Common from '../../../core/common/common.js';
 import * as Host from '../../../core/host/host.js';
 import * as i18n from '../../../core/i18n/i18n.js';
 import * as Platform from '../../../core/platform/platform.js';
-import * as Root from '../../../core/root/root.js';
 import * as SDK from '../../../core/sdk/sdk.js';
 import * as Persistence from '../../../models/persistence/persistence.js';
 import * as Workspace from '../../../models/workspace/workspace.js';
 import * as NetworkForward from '../../../panels/network/forward/forward.js';
 import * as Buttons from '../../../ui/components/buttons/buttons.js';
 import * as ComponentHelpers from '../../../ui/components/helpers/helpers.js';
-import * as IconButton from '../../../ui/components/icon_button/icon_button.js';
 import * as Input from '../../../ui/components/input/input.js';
 import * as LegacyWrapper from '../../../ui/components/legacy_wrapper/legacy_wrapper.js';
+import * as RenderCoordinator from '../../../ui/components/render_coordinator/render_coordinator.js';
 import * as UI from '../../../ui/legacy/legacy.js';
-import * as LitHtml from '../../../ui/lit-html/lit-html.js';
+import * as Lit from '../../../ui/lit/lit.js';
+import * as VisualLogging from '../../../ui/visual_logging/visual_logging.js';
 import * as Sources from '../../sources/sources.js';
-import { RequestHeaderSection } from './RequestHeaderSection.js';
-import { ResponseHeaderSection, RESPONSE_HEADER_SECTION_DATA_KEY, } from './ResponseHeaderSection.js';
-import requestHeadersViewStyles from './RequestHeadersView.css.js';
+import requestHeadersViewStylesRaw from './RequestHeadersView.css.js';
+import { RESPONSE_HEADER_SECTION_DATA_KEY, } from './ResponseHeaderSection.js';
+// TODO(crbug.com/391381439): Fully migrate off of constructed style sheets.
+const requestHeadersViewStyles = new CSSStyleSheet();
+requestHeadersViewStyles.replaceSync(requestHeadersViewStylesRaw.cssContent);
 const RAW_HEADER_CUTOFF = 3000;
-const { render, html } = LitHtml;
+const { render, html } = Lit;
 const UIStrings = {
     /**
      *@description Text in Request Headers View of the Network panel
@@ -32,6 +35,10 @@ const UIStrings = {
      *@description Text in Request Headers View of the Network panel
      */
     fromMemoryCache: '(from memory cache)',
+    /**
+     *@description Text in Request Headers View of the Network panel
+     */
+    fromEarlyHints: '(from early hints)',
     /**
      *@description Text in Request Headers View of the Network panel
      */
@@ -52,11 +59,6 @@ const UIStrings = {
      *@description Section header for a list of the main aspects of a http request
      */
     general: 'General',
-    /**
-     *@description Label for a link from the network panel's headers view to the file in which
-     * header overrides are defined in the sources panel.
-     */
-    headerOverrides: 'Header overrides',
     /**
      *@description Label for a checkbox to switch between raw and parsed headers
      */
@@ -86,6 +88,10 @@ const UIStrings = {
      */
     responseHeaders: 'Response Headers',
     /**
+     *@description A context menu item in the Network Log View Columns of the Network panel
+     */
+    earlyHintsHeaders: 'Early Hints Headers',
+    /**
      *@description Title text for a link to the Sources panel to the file containing the header override definitions
      */
     revealHeaderOverrides: 'Reveal header override definitions',
@@ -102,7 +108,6 @@ const str_ = i18n.i18n.registerUIStrings('panels/network/components/RequestHeade
 const i18nString = i18n.i18n.getLocalizedString.bind(undefined, str_);
 export class RequestHeadersView extends LegacyWrapper.LegacyWrapper.WrappableComponent {
     #request;
-    static litTagName = LitHtml.literal `devtools-request-headers`;
     #shadow = this.attachShadow({ mode: 'open' });
     #showResponseHeadersText = false;
     #showRequestHeadersText = false;
@@ -113,19 +118,21 @@ export class RequestHeadersView extends LegacyWrapper.LegacyWrapper.WrappableCom
     constructor(request) {
         super();
         this.#request = request;
+        this.setAttribute('jslog', `${VisualLogging.pane('headers').track({ resize: true })}`);
     }
     wasShown() {
-        this.#request.addEventListener(SDK.NetworkRequest.Events.RemoteAddressChanged, this.#refreshHeadersView, this);
-        this.#request.addEventListener(SDK.NetworkRequest.Events.FinishedLoading, this.#refreshHeadersView, this);
-        this.#request.addEventListener(SDK.NetworkRequest.Events.RequestHeadersChanged, this.#refreshHeadersView, this);
-        this.#request.addEventListener(SDK.NetworkRequest.Events.ResponseHeadersChanged, this.#resetAndRefreshHeadersView, this);
+        this.#request.addEventListener(SDK.NetworkRequest.Events.REMOTE_ADDRESS_CHANGED, this.#refreshHeadersView, this);
+        this.#request.addEventListener(SDK.NetworkRequest.Events.FINISHED_LOADING, this.#refreshHeadersView, this);
+        this.#request.addEventListener(SDK.NetworkRequest.Events.REQUEST_HEADERS_CHANGED, this.#refreshHeadersView, this);
+        this.#request.addEventListener(SDK.NetworkRequest.Events.RESPONSE_HEADERS_CHANGED, this.#resetAndRefreshHeadersView, this);
+        this.#toReveal = undefined;
         this.#refreshHeadersView();
     }
     willHide() {
-        this.#request.removeEventListener(SDK.NetworkRequest.Events.RemoteAddressChanged, this.#refreshHeadersView, this);
-        this.#request.removeEventListener(SDK.NetworkRequest.Events.FinishedLoading, this.#refreshHeadersView, this);
-        this.#request.removeEventListener(SDK.NetworkRequest.Events.RequestHeadersChanged, this.#refreshHeadersView, this);
-        this.#request.removeEventListener(SDK.NetworkRequest.Events.ResponseHeadersChanged, this.#resetAndRefreshHeadersView, this);
+        this.#request.removeEventListener(SDK.NetworkRequest.Events.REMOTE_ADDRESS_CHANGED, this.#refreshHeadersView, this);
+        this.#request.removeEventListener(SDK.NetworkRequest.Events.FINISHED_LOADING, this.#refreshHeadersView, this);
+        this.#request.removeEventListener(SDK.NetworkRequest.Events.REQUEST_HEADERS_CHANGED, this.#refreshHeadersView, this);
+        this.#request.removeEventListener(SDK.NetworkRequest.Events.RESPONSE_HEADERS_CHANGED, this.#resetAndRefreshHeadersView, this);
     }
     #resetAndRefreshHeadersView() {
         this.#request.deleteAssociatedData(RESPONSE_HEADER_SECTION_DATA_KEY);
@@ -143,14 +150,14 @@ export class RequestHeadersView extends LegacyWrapper.LegacyWrapper.WrappableCom
         this.#workspace.addEventListener(Workspace.Workspace.Events.UISourceCodeAdded, this.#uiSourceCodeAddedOrRemoved, this);
         this.#workspace.addEventListener(Workspace.Workspace.Events.UISourceCodeRemoved, this.#uiSourceCodeAddedOrRemoved, this);
         Common.Settings.Settings.instance()
-            .moduleSetting('persistenceNetworkOverridesEnabled')
+            .moduleSetting('persistence-network-overrides-enabled')
             .addChangeListener(this.render, this);
     }
     disconnectedCallback() {
         this.#workspace.removeEventListener(Workspace.Workspace.Events.UISourceCodeAdded, this.#uiSourceCodeAddedOrRemoved, this);
         this.#workspace.removeEventListener(Workspace.Workspace.Events.UISourceCodeRemoved, this.#uiSourceCodeAddedOrRemoved, this);
         Common.Settings.Settings.instance()
-            .moduleSetting('persistenceNetworkOverridesEnabled')
+            .moduleSetting('persistence-network-overrides-enabled')
             .removeChangeListener(this.render, this);
     }
     #uiSourceCodeAddedOrRemoved(event) {
@@ -162,18 +169,21 @@ export class RequestHeadersView extends LegacyWrapper.LegacyWrapper.WrappableCom
         if (!this.#request) {
             return;
         }
-        // Disabled until https://crbug.com/1079231 is fixed.
-        // clang-format off
-        render(html `
-      ${this.#renderGeneralSection()}
-      ${this.#renderResponseHeaders()}
-      ${this.#renderRequestHeaders()}
-    `, this.#shadow, { host: this });
-        // clang-format on
+        return await RenderCoordinator.write(() => {
+            // Disabled until https://crbug.com/1079231 is fixed.
+            // clang-format off
+            render(html `
+        ${this.#renderGeneralSection()}
+        ${this.#renderEarlyHintsHeaders()}
+        ${this.#renderResponseHeaders()}
+        ${this.#renderRequestHeaders()}
+      `, this.#shadow, { host: this });
+            // clang-format on
+        });
     }
-    #renderResponseHeaders() {
-        if (!this.#request) {
-            return LitHtml.nothing;
+    #renderEarlyHintsHeaders() {
+        if (!this.#request || !this.#request.earlyHintsHeaders || this.#request.earlyHintsHeaders.length === 0) {
+            return Lit.nothing;
         }
         const toggleShowRaw = () => {
             this.#showResponseHeadersText = !this.#showResponseHeadersText;
@@ -182,68 +192,110 @@ export class RequestHeadersView extends LegacyWrapper.LegacyWrapper.WrappableCom
         // Disabled until https://crbug.com/1079231 is fixed.
         // clang-format off
         return html `
-      <${Category.litTagName}
+      <devtools-request-headers-category
         @togglerawevent=${toggleShowRaw}
         .data=${{
-            name: 'responseHeaders',
+            name: 'early-hints-headers',
+            title: i18nString(UIStrings.earlyHintsHeaders),
+            headerCount: this.#request.earlyHintsHeaders.length,
+            checked: undefined,
+            additionalContent: undefined,
+            forceOpen: this.#toReveal?.section === "EarlyHints" /* NetworkForward.UIRequestLocation.UIHeaderSection.EARLY_HINTS */,
+            loggingContext: 'early-hints-headers',
+        }}
+        aria-label=${i18nString(UIStrings.earlyHintsHeaders)}
+      >
+        ${this.#showResponseHeadersText ?
+            this.#renderRawHeaders(this.#request.responseHeadersText, true) : html `
+          <devtools-early-hints-header-section .data=${{
+            request: this.#request,
+            toReveal: this.#toReveal,
+        }}></devtools-early-hints-header-section>
+        `}
+      </devtools-request-headers-category>
+    `;
+        // clang-format on
+    }
+    #renderResponseHeaders() {
+        if (!this.#request) {
+            return Lit.nothing;
+        }
+        const toggleShowRaw = () => {
+            this.#showResponseHeadersText = !this.#showResponseHeadersText;
+            void this.render();
+        };
+        // Disabled until https://crbug.com/1079231 is fixed.
+        // clang-format off
+        return html `
+      <devtools-request-headers-category
+        @togglerawevent=${toggleShowRaw}
+        .data=${{
+            name: 'response-headers',
             title: i18nString(UIStrings.responseHeaders),
             headerCount: this.#request.sortedResponseHeaders.length,
             checked: this.#request.responseHeadersText ? this.#showResponseHeadersText : undefined,
             additionalContent: this.#renderHeaderOverridesLink(),
-            forceOpen: this.#toReveal?.section === NetworkForward.UIRequestLocation.UIHeaderSection.Response,
+            forceOpen: this.#toReveal?.section === "Response" /* NetworkForward.UIRequestLocation.UIHeaderSection.RESPONSE */,
+            loggingContext: 'response-headers',
         }}
         aria-label=${i18nString(UIStrings.responseHeaders)}
       >
         ${this.#showResponseHeadersText ?
             this.#renderRawHeaders(this.#request.responseHeadersText, true) : html `
-          <${ResponseHeaderSection.litTagName} .data=${{
+          <devtools-response-header-section .data=${{
             request: this.#request,
             toReveal: this.#toReveal,
-        }}></${ResponseHeaderSection.litTagName}>
+        }} jslog=${VisualLogging.section('response-headers')}></devtools-response-header-section>
         `}
-      </${Category.litTagName}>
+      </devtools-request-headers-category>
     `;
         // clang-format on
     }
     #renderHeaderOverridesLink() {
-        const overrideable = Root.Runtime.experiments.isEnabled(Root.Runtime.ExperimentName.HEADER_OVERRIDES);
-        if (!overrideable || !this.#workspace.uiSourceCodeForURL(this.#getHeaderOverridesFileUrl())) {
-            return LitHtml.nothing;
+        if (!this.#workspace.uiSourceCodeForURL(this.#getHeaderOverridesFileUrl())) {
+            return Lit.nothing;
         }
-        const overridesSetting = Common.Settings.Settings.instance().moduleSetting('persistenceNetworkOverridesEnabled');
+        const overridesSetting = Common.Settings.Settings.instance().moduleSetting('persistence-network-overrides-enabled');
         // Disabled until https://crbug.com/1079231 is fixed.
         // clang-format off
         const fileIcon = html `
-      <${IconButton.Icon.Icon.litTagName} class=${overridesSetting.get() ? 'inline-icon dot purple' : 'inline-icon'} .data=${{
+      <devtools-icon class=${overridesSetting.get() ? 'inline-icon dot purple' : 'inline-icon'} .data=${{
             iconName: 'document',
-            color: 'var(--icon-default)',
             width: '16px',
             height: '16px',
         }}>
-      </${IconButton.Icon.Icon.litTagName}>`;
+      </devtools-icon>`;
         // clang-format on
         const revealHeadersFile = (event) => {
             event.preventDefault();
             const uiSourceCode = this.#workspace.uiSourceCodeForURL(this.#getHeaderOverridesFileUrl());
             if (uiSourceCode) {
                 Sources.SourcesPanel.SourcesPanel.instance().showUISourceCode(uiSourceCode);
-                Sources.SourcesPanel.SourcesPanel.instance().revealInNavigator(uiSourceCode);
+                void Sources.SourcesPanel.SourcesPanel.instance().revealInNavigator(uiSourceCode);
             }
         };
         // Disabled until https://crbug.com/1079231 is fixed.
         // clang-format off
         return html `
-      <x-link href="https://goo.gle/devtools-override" class="link devtools-link">
-        <${IconButton.Icon.Icon.litTagName} class="inline-icon" .data=${{
+      <x-link
+          href="https://goo.gle/devtools-override"
+          class="link devtools-link"
+          jslog=${VisualLogging.link('devtools-override').track({ click: true })}
+      >
+        <devtools-icon class="inline-icon" .data=${{
             iconName: 'help',
-            color: 'var(--icon-link)',
             width: '16px',
             height: '16px',
         }}>
-        </${IconButton.Icon.Icon.litTagName}
+        </devtools-icon
       ></x-link>
-      <x-link @click=${revealHeadersFile} class="link devtools-link" title=${UIStrings.revealHeaderOverrides}>
-        ${fileIcon}${i18nString(UIStrings.headerOverrides)}
+      <x-link
+          @click=${revealHeadersFile}
+          class="link devtools-link"
+          title=${UIStrings.revealHeaderOverrides}
+          jslog=${VisualLogging.link('reveal-header-overrides').track({ click: true })}
+      >
+        ${fileIcon}${Persistence.NetworkPersistenceManager.HEADERS_FILENAME}
       </x-link>
     `;
         // clang-format on
@@ -258,7 +310,7 @@ export class RequestHeadersView extends LegacyWrapper.LegacyWrapper.WrappableCom
     }
     #renderRequestHeaders() {
         if (!this.#request) {
-            return LitHtml.nothing;
+            return Lit.nothing;
         }
         const requestHeadersText = this.#request.requestHeadersText();
         const toggleShowRaw = () => {
@@ -268,25 +320,26 @@ export class RequestHeadersView extends LegacyWrapper.LegacyWrapper.WrappableCom
         // Disabled until https://crbug.com/1079231 is fixed.
         // clang-format off
         return html `
-      <${Category.litTagName}
+      <devtools-request-headers-category
         @togglerawevent=${toggleShowRaw}
         .data=${{
-            name: 'requestHeaders',
+            name: 'request-headers',
             title: i18nString(UIStrings.requestHeaders),
             headerCount: this.#request.requestHeaders().length,
             checked: requestHeadersText ? this.#showRequestHeadersText : undefined,
-            forceOpen: this.#toReveal?.section === NetworkForward.UIRequestLocation.UIHeaderSection.Request,
+            forceOpen: this.#toReveal?.section === "Request" /* NetworkForward.UIRequestLocation.UIHeaderSection.REQUEST */,
+            loggingContext: 'request-headers',
         }}
         aria-label=${i18nString(UIStrings.requestHeaders)}
       >
         ${(this.#showRequestHeadersText && requestHeadersText) ?
             this.#renderRawHeaders(requestHeadersText, false) : html `
-          <${RequestHeaderSection.litTagName} .data=${{
+          <devtools-request-header-section .data=${{
             request: this.#request,
             toReveal: this.#toReveal,
-        }}></${RequestHeaderSection.litTagName}>
+        }} jslog=${VisualLogging.section('request-headers')}></devtools-request-header-section>
         `}
-      </${Category.litTagName}>
+      </devtools-request-headers-category>
     `;
         // clang-format on
     }
@@ -308,7 +361,7 @@ export class RequestHeadersView extends LegacyWrapper.LegacyWrapper.WrappableCom
             if (!showFull) {
                 const contextMenu = new UI.ContextMenu.ContextMenu(event);
                 const section = contextMenu.newSection();
-                section.appendItem(i18nString(UIStrings.showMore), showMore);
+                section.appendItem(i18nString(UIStrings.showMore), showMore, { jslogContext: 'show-more' });
                 void contextMenu.show();
             }
         };
@@ -317,24 +370,28 @@ export class RequestHeadersView extends LegacyWrapper.LegacyWrapper.WrappableCom
                 el.addEventListener('contextmenu', onContextMenuOpen);
             }
         };
+        // Disabled until https://crbug.com/1079231 is fixed.
+        // clang-format off
         return html `
       <div class="row raw-headers-row" on-render=${ComponentHelpers.Directives.nodeRenderedCallback(addContextMenuListener)}>
         <div class="raw-headers">${isShortened ? trimmed.substring(0, RAW_HEADER_CUTOFF) : trimmed}</div>
         ${isShortened ? html `
-          <${Buttons.Button.Button.litTagName}
+          <devtools-button
             .size=${"SMALL" /* Buttons.Button.Size.SMALL */}
-            .variant=${"secondary" /* Buttons.Button.Variant.SECONDARY */}
+            .variant=${"outlined" /* Buttons.Button.Variant.OUTLINED */}
             @click=${showMore}
-          >${i18nString(UIStrings.showMore)}</${Buttons.Button.Button.litTagName}>
-        ` : LitHtml.nothing}
+            jslog=${VisualLogging.action('raw-headers-show-more').track({ click: true })}
+          >${i18nString(UIStrings.showMore)}</devtools-button>
+        ` : Lit.nothing}
       </div>
     `;
+        // clang-format on
     }
     #renderGeneralSection() {
         if (!this.#request) {
-            return LitHtml.nothing;
+            return Lit.nothing;
         }
-        const statusClasses = [];
+        const statusClasses = ['status'];
         if (this.#request.statusCode < 300 || this.#request.statusCode === 304) {
             statusClasses.push('green-circle');
         }
@@ -344,53 +401,57 @@ export class RequestHeadersView extends LegacyWrapper.LegacyWrapper.WrappableCom
         else {
             statusClasses.push('red-circle');
         }
-        let statusText = this.#request.statusCode + ' ' + this.#request.statusText;
+        let comment = '';
         if (this.#request.cachedInMemory()) {
-            statusText += ' ' + i18nString(UIStrings.fromMemoryCache);
-            statusClasses.push('status-with-comment');
+            comment = i18nString(UIStrings.fromMemoryCache);
+        }
+        else if (this.#request.fromEarlyHints()) {
+            comment = i18nString(UIStrings.fromEarlyHints);
         }
         else if (this.#request.fetchedViaServiceWorker) {
-            statusText += ' ' + i18nString(UIStrings.fromServiceWorker);
-            statusClasses.push('status-with-comment');
+            comment = i18nString(UIStrings.fromServiceWorker);
         }
         else if (this.#request.redirectSourceSignedExchangeInfoHasNoErrors()) {
-            statusText += ' ' + i18nString(UIStrings.fromSignedexchange);
-            statusClasses.push('status-with-comment');
+            comment = i18nString(UIStrings.fromSignedexchange);
         }
         else if (this.#request.webBundleInnerRequestInfo()) {
-            statusText += ' ' + i18nString(UIStrings.fromWebBundle);
-            statusClasses.push('status-with-comment');
+            comment = i18nString(UIStrings.fromWebBundle);
         }
         else if (this.#request.fromPrefetchCache()) {
-            statusText += ' ' + i18nString(UIStrings.fromPrefetchCache);
-            statusClasses.push('status-with-comment');
+            comment = i18nString(UIStrings.fromPrefetchCache);
         }
         else if (this.#request.cached()) {
-            statusText += ' ' + i18nString(UIStrings.fromDiskCache);
+            comment = i18nString(UIStrings.fromDiskCache);
+        }
+        if (comment) {
             statusClasses.push('status-with-comment');
         }
+        const statusText = [this.#request.statusCode, this.#request.getInferredStatusText(), comment].join(' ');
         // Disabled until https://crbug.com/1079231 is fixed.
         // clang-format off
         return html `
-      <${Category.litTagName}
+      <devtools-request-headers-category
         .data=${{
             name: 'general',
             title: i18nString(UIStrings.general),
-            forceOpen: this.#toReveal?.section === NetworkForward.UIRequestLocation.UIHeaderSection.General,
+            forceOpen: this.#toReveal?.section === "General" /* NetworkForward.UIRequestLocation.UIHeaderSection.GENERAL */,
+            loggingContext: 'general',
         }}
         aria-label=${i18nString(UIStrings.general)}
       >
+      <div jslog=${VisualLogging.section('general')}>
         ${this.#renderGeneralRow(i18nString(UIStrings.requestUrl), this.#request.url())}
-        ${this.#request.statusCode ? this.#renderGeneralRow(i18nString(UIStrings.requestMethod), this.#request.requestMethod) : LitHtml.nothing}
-        ${this.#request.statusCode ? this.#renderGeneralRow(i18nString(UIStrings.statusCode), statusText, statusClasses) : LitHtml.nothing}
-        ${this.#request.remoteAddress() ? this.#renderGeneralRow(i18nString(UIStrings.remoteAddress), this.#request.remoteAddress()) : LitHtml.nothing}
-        ${this.#request.referrerPolicy() ? this.#renderGeneralRow(i18nString(UIStrings.referrerPolicy), String(this.#request.referrerPolicy())) : LitHtml.nothing}
-      </${Category.litTagName}>
+        ${this.#request.statusCode ? this.#renderGeneralRow(i18nString(UIStrings.requestMethod), this.#request.requestMethod) : Lit.nothing}
+        ${this.#request.statusCode ? this.#renderGeneralRow(i18nString(UIStrings.statusCode), statusText, statusClasses) : Lit.nothing}
+        ${this.#request.remoteAddress() ? this.#renderGeneralRow(i18nString(UIStrings.remoteAddress), this.#request.remoteAddress()) : Lit.nothing}
+        ${this.#request.referrerPolicy() ? this.#renderGeneralRow(i18nString(UIStrings.referrerPolicy), String(this.#request.referrerPolicy())) : Lit.nothing}
+      </div>
+      </devtools-request-headers-category>
     `;
         // clang-format on
     }
     #renderGeneralRow(name, value, classNames) {
-        const isHighlighted = this.#toReveal?.section === NetworkForward.UIRequestLocation.UIHeaderSection.General &&
+        const isHighlighted = this.#toReveal?.section === "General" /* NetworkForward.UIRequestLocation.UIHeaderSection.GENERAL */ &&
             name.toLowerCase() === this.#toReveal?.header?.toLowerCase();
         return html `
       <div class="row ${isHighlighted ? 'header-highlight' : ''}">
@@ -410,7 +471,6 @@ export class ToggleRawHeadersEvent extends Event {
     }
 }
 export class Category extends HTMLElement {
-    static litTagName = LitHtml.literal `devtools-request-headers-category`;
     #shadow = this.attachShadow({ mode: 'open' });
     #expandedSetting;
     #title = Common.UIString.LocalizedEmptyString;
@@ -418,6 +478,7 @@ export class Category extends HTMLElement {
     #checked = undefined;
     #additionalContent = undefined;
     #forceOpen = undefined;
+    #loggingContext = '';
     connectedCallback() {
         this.#shadow.adoptedStyleSheets = [requestHeadersViewStyles, Input.checkboxStyles];
     }
@@ -429,6 +490,7 @@ export class Category extends HTMLElement {
         this.#checked = data.checked;
         this.#additionalContent = data.additionalContent;
         this.#forceOpen = data.forceOpen;
+        this.#loggingContext = data.loggingContext;
         this.#render();
     }
     #onCheckboxToggle() {
@@ -440,19 +502,29 @@ export class Category extends HTMLElement {
         // clang-format off
         render(html `
       <details ?open=${isOpen} @toggle=${this.#onToggle}>
-        <summary class="header" @keydown=${this.#onSummaryKeyDown}>
+        <summary
+          class="header"
+          @keydown=${this.#onSummaryKeyDown}
+          jslog=${VisualLogging.sectionHeader().track({ click: true }).context(this.#loggingContext)}
+        >
           <div class="header-grid-container">
             <div>
               ${this.#title}${this.#headerCount !== undefined ?
             html `<span class="header-count"> (${this.#headerCount})</span>` :
-            LitHtml.nothing}
+            Lit.nothing}
             </div>
             <div class="hide-when-closed">
               ${this.#checked !== undefined ? html `
-                <label><input type="checkbox" .checked=${this.#checked} @change=${this.#onCheckboxToggle} />${i18nString(UIStrings.raw)}</label>
-              ` : LitHtml.nothing}
+                <label><input
+                    type="checkbox"
+                    .checked=${this.#checked}
+                    @change=${this.#onCheckboxToggle}
+                    jslog=${VisualLogging.toggle('raw-headers').track({ change: true })}
+                />${i18nString(UIStrings.raw)}</label>
+              ` : Lit.nothing}
             </div>
             <div class="hide-when-closed">${this.#additionalContent}</div>
+          </div>
         </summary>
         <slot></slot>
       </details>
@@ -481,6 +553,6 @@ export class Category extends HTMLElement {
         this.#expandedSetting?.set(event.target.open);
     }
 }
-ComponentHelpers.CustomElements.defineComponent('devtools-request-headers', RequestHeadersView);
-ComponentHelpers.CustomElements.defineComponent('devtools-request-headers-category', Category);
+customElements.define('devtools-request-headers', RequestHeadersView);
+customElements.define('devtools-request-headers-category', Category);
 //# sourceMappingURL=RequestHeadersView.js.map

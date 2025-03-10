@@ -1,14 +1,15 @@
 // Copyright 2017 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
+import '../../../ui/components/report_view/report_view.js';
 import * as i18n from '../../../core/i18n/i18n.js';
-import * as Platform from '../../../core/platform/platform.js';
 import * as SDK from '../../../core/sdk/sdk.js';
-import * as ComponentHelpers from '../../../ui/components/helpers/helpers.js';
+import * as Buttons from '../../../ui/components/buttons/buttons.js';
 import * as LegacyWrapper from '../../../ui/components/legacy_wrapper/legacy_wrapper.js';
-import * as Coordinator from '../../../ui/components/render_coordinator/render_coordinator.js';
-import * as ReportView from '../../../ui/components/report_view/report_view.js';
-import * as LitHtml from '../../../ui/lit-html/lit-html.js';
+import * as RenderCoordinator from '../../../ui/components/render_coordinator/render_coordinator.js';
+import * as UI from '../../../ui/legacy/legacy.js';
+import * as Lit from '../../../ui/lit/lit.js';
+const { html } = Lit;
 const UIStrings = {
     /**
      *@description The origin of a URL (https://web.dev/same-site-same-origin/#origin).
@@ -64,6 +65,11 @@ const UIStrings = {
      */
     bucketName: 'Bucket name',
     /**
+     *@description The name of the default bucket (https://wicg.github.io/storage-buckets/explainer#the-default-bucket)
+     *(This should not be a valid bucket name (https://wicg.github.io/storage-buckets/explainer#bucket-names))
+     */
+    defaultBucket: 'Default bucket',
+    /**
      *@description Text indicating that the storage is persistent (https://wicg.github.io/storage-buckets/explainer#storage-policy-persistence)
      */
     persistent: 'Is persistent',
@@ -83,13 +89,25 @@ const UIStrings = {
      *@description Text indicating that no value is set
      */
     none: 'None',
+    /**
+     * @description Label of the button that triggers the Storage Bucket to be deleted.
+     */
+    deleteBucket: 'Delete bucket',
+    /**
+     *@description Text shown in the confirmation dialogue that displays before deleting the bucket.
+     *@example {bucket} PH1
+     */
+    confirmBucketDeletion: 'Delete the "{PH1}" bucket?',
+    /**
+     *@description Explanation text shown in the confirmation dialogue that displays before deleting the bucket.
+     */
+    bucketWillBeRemoved: 'The selected storage bucket and contained data will be removed.',
 };
 const str_ = i18n.i18n.registerUIStrings('panels/application/components/StorageMetadataView.ts', UIStrings);
 const i18nString = i18n.i18n.getLocalizedString.bind(undefined, str_);
-const coordinator = Coordinator.RenderCoordinator.RenderCoordinator.instance();
 export class StorageMetadataView extends LegacyWrapper.LegacyWrapper.WrappableComponent {
-    static litTagName = LitHtml.literal `devtools-storage-metadata-view`;
     #shadow = this.attachShadow({ mode: 'open' });
+    #storageBucketsModel;
     #storageKey = null;
     #storageBucket = null;
     getShadow() {
@@ -103,29 +121,40 @@ export class StorageMetadataView extends LegacyWrapper.LegacyWrapper.WrappableCo
         this.#storageBucket = storageBucket;
         this.setStorageKey(storageBucket.bucket.storageKey);
     }
+    enableStorageBucketControls(model) {
+        this.#storageBucketsModel = model;
+        if (this.#storageKey) {
+            void this.render();
+        }
+    }
     render() {
-        return coordinator.write('StorageMetadataView render', async () => {
+        return RenderCoordinator.write('StorageMetadataView render', async () => {
             // Disabled until https://crbug.com/1079231 is fixed.
             // clang-format off
-            LitHtml.render(LitHtml.html `
-        <${ReportView.ReportView.Report.litTagName} .data=${{ reportTitle: this.getTitle() || i18nString(UIStrings.loading) }}>
+            Lit.render(html `
+        <devtools-report .data=${{ reportTitle: this.getTitle() ?? i18nString(UIStrings.loading) }}>
           ${await this.renderReportContent()}
-        </${ReportView.ReportView.Report.litTagName}>`, this.#shadow, { host: this });
+        </devtools-report>`, this.#shadow, { host: this });
             // clang-format on
         });
     }
     getTitle() {
-        return this.#storageKey?.origin;
+        if (!this.#storageKey) {
+            return;
+        }
+        const origin = this.#storageKey.origin;
+        const bucketName = this.#storageBucket?.bucket.name || i18nString(UIStrings.defaultBucket);
+        return this.#storageBucketsModel ? `${bucketName} - ${origin}` : origin;
     }
     key(content) {
-        return LitHtml.html `<${ReportView.ReportView.ReportKey.litTagName}>${content}</${ReportView.ReportView.ReportKey.litTagName}>`;
+        return html `<devtools-report-key>${content}</devtools-report-key>`;
     }
     value(content) {
-        return LitHtml.html `<${ReportView.ReportView.ReportValue.litTagName}>${content}</${ReportView.ReportView.ReportValue.litTagName}>`;
+        return html `<devtools-report-value>${content}</devtools-report-value>`;
     }
     async renderReportContent() {
         if (!this.#storageKey) {
-            return LitHtml.nothing;
+            return Lit.nothing;
         }
         const origin = this.#storageKey.origin;
         const ancestorChainHasCrossSite = Boolean(this.#storageKey.components.get("3" /* SDK.StorageKeyManager.StorageKeyComponent.ANCESTOR_CHAIN_BIT */));
@@ -139,19 +168,20 @@ export class StorageMetadataView extends LegacyWrapper.LegacyWrapper.WrappableCo
                         null;
         // Disabled until https://crbug.com/1079231 is fixed.
         // clang-format off
-        return LitHtml.html `
+        return html `
         ${this.key(i18nString(UIStrings.origin))}
-        ${this.value(LitHtml.html `<div class="text-ellipsis" title=${origin}>${origin}</div>`)}
-        ${(topLevelSite || topLevelSiteIsOpaque) ? this.key(i18nString(UIStrings.topLevelSite)) : LitHtml.nothing}
-        ${topLevelSite ? this.value(topLevelSite) : LitHtml.nothing}
-        ${topLevelSiteIsOpaque ? this.value(i18nString(UIStrings.opaque)) : LitHtml.nothing}
-        ${thirdPartyReason ? LitHtml.html `${this.key(i18nString(UIStrings.isThirdParty))}${this.value(thirdPartyReason)}` : LitHtml.nothing}
+        ${this.value(html `<div class="text-ellipsis" title=${origin}>${origin}</div>`)}
+        ${(topLevelSite || topLevelSiteIsOpaque) ? this.key(i18nString(UIStrings.topLevelSite)) : Lit.nothing}
+        ${topLevelSite ? this.value(topLevelSite) : Lit.nothing}
+        ${topLevelSiteIsOpaque ? this.value(i18nString(UIStrings.opaque)) : Lit.nothing}
+        ${thirdPartyReason ? html `${this.key(i18nString(UIStrings.isThirdParty))}${this.value(thirdPartyReason)}` : Lit.nothing}
         ${hasNonce || topLevelSiteIsOpaque ?
-            this.key(i18nString(UIStrings.isOpaque)) : LitHtml.nothing}
-        ${hasNonce ? this.value(i18nString(UIStrings.yes)) : LitHtml.nothing}
+            this.key(i18nString(UIStrings.isOpaque)) : Lit.nothing}
+        ${hasNonce ? this.value(i18nString(UIStrings.yes)) : Lit.nothing}
         ${topLevelSiteIsOpaque ?
-            this.value(i18nString(UIStrings.yesBecauseTopLevelIsOpaque)) : LitHtml.nothing}
-        ${this.#storageBucket ? this.#renderStorageBucketInfo() : LitHtml.nothing}`;
+            this.value(i18nString(UIStrings.yesBecauseTopLevelIsOpaque)) : Lit.nothing}
+        ${this.#storageBucket ? this.#renderStorageBucketInfo() : Lit.nothing}
+        ${this.#storageBucketsModel ? this.#renderBucketControls() : Lit.nothing}`;
         // clang-format on
     }
     #renderStorageBucketInfo() {
@@ -160,7 +190,7 @@ export class StorageMetadataView extends LegacyWrapper.LegacyWrapper.WrappableCo
         }
         const { bucket: { name }, persistent, durability, quota } = this.#storageBucket;
         // clang-format off
-        return LitHtml.html `
+        return html `
       ${this.key(i18nString(UIStrings.bucketName))}
       ${this.value(name || 'default')}
       ${this.key(i18nString(UIStrings.persistent))}
@@ -168,7 +198,7 @@ export class StorageMetadataView extends LegacyWrapper.LegacyWrapper.WrappableCo
       ${this.key(i18nString(UIStrings.durability))}
       ${this.value(durability)}
       ${this.key(i18nString(UIStrings.quota))}
-      ${this.value(Platform.NumberUtilities.bytesToString(quota))}
+      ${this.value(i18n.ByteUtilities.bytesToString(quota))}
       ${this.key(i18nString(UIStrings.expiration))}
       ${this.value(this.#getExpirationString())}`;
     }
@@ -182,6 +212,28 @@ export class StorageMetadataView extends LegacyWrapper.LegacyWrapper.WrappableCo
         }
         return (new Date(expiration * 1000)).toLocaleString();
     }
+    #renderBucketControls() {
+        // clang-format off
+        return html `
+      <devtools-report-section>
+        <devtools-button
+          aria-label=${i18nString(UIStrings.deleteBucket)}
+          .variant=${"outlined" /* Buttons.Button.Variant.OUTLINED */}
+          @click=${this.#deleteBucket}>
+          ${i18nString(UIStrings.deleteBucket)}
+        </devtools-button>
+      </devtools-report-section>`;
+        // clang-format on
+    }
+    async #deleteBucket() {
+        if (!this.#storageBucketsModel || !this.#storageBucket) {
+            throw new Error('Should not call #deleteBucket if #storageBucketsModel or #storageBucket is null.');
+        }
+        const ok = await UI.UIUtils.ConfirmDialog.show(i18nString(UIStrings.bucketWillBeRemoved), i18nString(UIStrings.confirmBucketDeletion, { PH1: this.#storageBucket.bucket.name || '' }), this, { jslogContext: 'delete-bucket-confirmation' });
+        if (ok) {
+            this.#storageBucketsModel.deleteBucket(this.#storageBucket.bucket);
+        }
+    }
 }
-ComponentHelpers.CustomElements.defineComponent('devtools-storage-metadata-view', StorageMetadataView);
+customElements.define('devtools-storage-metadata-view', StorageMetadataView);
 //# sourceMappingURL=StorageMetadataView.js.map

@@ -45,13 +45,13 @@ function positionToLocation(lineEndings, position) {
     }
     return [lineNumber, columnNumber];
 }
-export async function format(contentType, mimeType, content, indent = Common.Settings.Settings.instance().moduleSetting('textEditorIndent').get()) {
+export async function format(contentType, mimeType, content, indent = Common.Settings.Settings.instance().moduleSetting('text-editor-indent').get()) {
     if (contentType.isDocumentOrScriptOrStyleSheet()) {
-        return formatScriptContent(mimeType, content, indent);
+        return await formatScriptContent(mimeType, content, indent);
     }
     return { formattedContent: content, formattedMapping: new IdentityFormatterSourceMapping() };
 }
-export async function formatScriptContent(mimeType, content, indent = Common.Settings.Settings.instance().moduleSetting('textEditorIndent').get()) {
+export async function formatScriptContent(mimeType, content, indent = Common.Settings.Settings.instance().moduleSetting('text-editor-indent').get()) {
     const originalContent = content.replace(/\r\n?|[\n\u2028\u2029]/g, '\n').replace(/^\uFEFF/, '');
     const pool = formatterWorkerPool();
     const formatResult = await pool.format(mimeType, originalContent, indent);

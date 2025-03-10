@@ -2,8 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 import * as i18n from '../../core/i18n/i18n.js';
-import * as UI from '../../ui/legacy/legacy.js';
 import * as Platform from '../../core/platform/platform.js';
+import * as UI from '../../ui/legacy/legacy.js';
+import * as VisualLogging from '../../ui/visual_logging/visual_logging.js';
 import { AccessibilitySubPane } from './AccessibilitySubPane.js';
 import { ariaMetadata } from './ARIAMetadata.js';
 const UIStrings = {
@@ -25,6 +26,7 @@ export class ARIAAttributesPane extends AccessibilitySubPane {
         super(i18nString(UIStrings.ariaAttributes));
         this.noPropertiesInfo = this.createInfo(i18nString(UIStrings.noAriaAttributes));
         this.treeOutline = this.createTreeOutline();
+        this.element.setAttribute('jslog', `${VisualLogging.section('aria-attributes')}`);
     }
     setNode(node) {
         super.setNode(node);

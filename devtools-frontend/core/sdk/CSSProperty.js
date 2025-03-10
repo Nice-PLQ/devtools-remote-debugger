@@ -5,8 +5,11 @@ import * as TextUtils from '../../models/text_utils/text_utils.js';
 import * as Common from '../common/common.js';
 import * as HostModule from '../host/host.js';
 import * as Platform from '../platform/platform.js';
+import * as Root from '../root/root.js';
 import { cssMetadata, GridAreaRowRegex } from './CSSMetadata.js';
-export class CSSProperty {
+import { matchDeclaration, stripComments } from './CSSPropertyParser.js';
+import { AnchorFunctionMatcher, AngleMatcher, AutoBaseMatcher, BezierMatcher, BinOpMatcher, ColorMatcher, ColorMixMatcher, CSSWideKeywordMatcher, FlexGridMatcher, FontMatcher, GridTemplateMatcher, LengthMatcher, LightDarkColorMatcher, LinearGradientMatcher, LinkableNameMatcher, MathFunctionMatcher, PositionAnchorMatcher, PositionTryMatcher, ShadowMatcher, StringMatcher, URLMatcher, VariableMatcher } from './CSSPropertyParserMatchers.js';
+export class CSSProperty extends Common.ObjectWrapper.ObjectWrapper {
     ownerStyle;
     index;
     name;
@@ -23,6 +26,7 @@ export class CSSProperty {
     #invalidString;
     #longhandProperties = [];
     constructor(ownerStyle, index, name, value, important, disabled, parsedOk, implicit, text, range, longhandProperties) {
+        super();
         this.ownerStyle = ownerStyle;
         this.index = index;
         this.name = name;
@@ -60,6 +64,38 @@ export class CSSProperty {
         // disabled: false
         const result = new CSSProperty(ownerStyle, index, payload.name, payload.value, payload.important || false, payload.disabled || false, ('parsedOk' in payload) ? Boolean(payload.parsedOk) : true, Boolean(payload.implicit), payload.text, payload.range, payload.longhandProperties);
         return result;
+    }
+    parseValue(matchedStyles, computedStyles) {
+        if (!this.parsedOk) {
+            return null;
+        }
+        const matchers = [
+            new VariableMatcher(matchedStyles, this.ownerStyle),
+            new ColorMatcher(() => computedStyles?.get('color') ?? null),
+            new ColorMixMatcher(),
+            new URLMatcher(),
+            new AngleMatcher(),
+            new LinkableNameMatcher(),
+            new BezierMatcher(),
+            new StringMatcher(),
+            new ShadowMatcher(),
+            new CSSWideKeywordMatcher(this, matchedStyles),
+            new LightDarkColorMatcher(this),
+            new GridTemplateMatcher(),
+            new LinearGradientMatcher(),
+            new AnchorFunctionMatcher(),
+            new PositionAnchorMatcher(),
+            new FlexGridMatcher(),
+            new PositionTryMatcher(),
+            new LengthMatcher(),
+            new MathFunctionMatcher(),
+            new AutoBaseMatcher(),
+            new BinOpMatcher(),
+        ];
+        if (Root.Runtime.experiments.isEnabled('font-editor')) {
+            matchers.push(new FontMatcher());
+        }
+        return matchDeclaration(this.name, this.value, matchers);
     }
     ensureRanges() {
         if (this.#nameRangeInternal && this.#valueRangeInternal) {
@@ -120,10 +156,6 @@ export class CSSProperty {
     activeInStyle() {
         return this.#active;
     }
-    trimmedValueWithoutImportant() {
-        const important = '!important';
-        return this.value.endsWith(important) ? this.value.slice(0, -important.length).trim() : this.value.trim();
-    }
     async setText(propertyText, majorChange, overwrite) {
         if (!this.ownerStyle) {
             throw new Error('No ownerStyle for property');
@@ -136,6 +168,9 @@ export class CSSProperty {
         }
         if (majorChange) {
             HostModule.userMetrics.actionTaken(HostModule.UserMetrics.Action.StyleRuleEdited);
+            if (this.ownerStyle.parentRule?.isKeyframeRule()) {
+                HostModule.userMetrics.actionTaken(HostModule.UserMetrics.Action.StylePropertyInsideKeyframeEdited);
+            }
             if (this.name.startsWith('--')) {
                 HostModule.userMetrics.actionTaken(HostModule.UserMetrics.Action.CustomPropertyEdited);
             }
@@ -147,12 +182,12 @@ export class CSSProperty {
         const range = this.range.relativeTo(this.ownerStyle.range.startLine, this.ownerStyle.range.startColumn);
         const indentation = this.ownerStyle.cssText ?
             this.detectIndentation(this.ownerStyle.cssText) :
-            Common.Settings.Settings.instance().moduleSetting('textEditorIndent').get();
+            Common.Settings.Settings.instance().moduleSetting('text-editor-indent').get();
         const endIndentation = this.ownerStyle.cssText ? indentation.substring(0, this.ownerStyle.range.endColumn) : '';
         const text = new TextUtils.Text.Text(this.ownerStyle.cssText || '');
         const newStyleText = text.replaceRange(range, Platform.StringUtilities.sprintf(';%s;', propertyText));
         const styleText = await CSSProperty.formatStyle(newStyleText, indentation, endIndentation);
-        return this.ownerStyle.setText(styleText, majorChange);
+        return await this.ownerStyle.setText(styleText, majorChange);
     }
     static async formatStyle(styleText, indentation, endIndentation) {
         const doubleIndent = indentation.substring(endIndentation.length) + indentation;
@@ -174,7 +209,8 @@ export class CSSProperty {
         function processToken(token, tokenType) {
             if (!insideProperty) {
                 const disabledProperty = tokenType?.includes('comment') && isDisabledProperty(token);
-                const isPropertyStart = (tokenType?.includes('string') || tokenType?.includes('meta') || tokenType?.includes('property') ||
+                const isPropertyStart = (tokenType?.includes('def') || tokenType?.includes('string') || tokenType?.includes('meta') ||
+                    tokenType?.includes('property') ||
                     (tokenType?.includes('variableName') && tokenType !== ('variableName.function')));
                 if (disabledProperty) {
                     result = result.trimEnd() + indentation + token;
@@ -239,6 +275,11 @@ export class CSSProperty {
         const text = this.name + ': ' + newValue + (this.important ? ' !important' : '') + ';';
         void this.setText(text, majorChange, overwrite).then(userCallback);
     }
+    // Updates the value stored locally and emits an event to signal its update.
+    setLocalValue(value) {
+        this.value = value;
+        this.dispatchEventToListeners("localValueUpdated" /* Events.LOCAL_VALUE_UPDATED */);
+    }
     async setDisabled(disabled) {
         if (!this.ownerStyle) {
             return false;
@@ -257,12 +298,16 @@ export class CSSProperty {
         const appendSemicolonIfMissing = (propertyText) => propertyText + (propertyText.endsWith(';') ? '' : ';');
         let text;
         if (disabled) {
-            text = '/* ' + appendSemicolonIfMissing(propertyText) + ' */';
+            // We remove comments before wrapping comment tags around propertyText, because otherwise it will
+            // create an unmatched trailing `*/`, making the text invalid. This will result in disabled
+            // CSSProperty losing its original comments, but since escaping comments will result in the parser
+            // to completely ignore and then lose this declaration, this is the best compromise so far.
+            text = '/* ' + appendSemicolonIfMissing(stripComments(propertyText)) + ' */';
         }
         else {
             text = appendSemicolonIfMissing(this.text.substring(2, propertyText.length - 2).trim());
         }
-        return this.setText(text, true, true);
+        return await this.setText(text, true, true);
     }
     /**
      * This stores the warning string when a CSS Property is improperly parsed.

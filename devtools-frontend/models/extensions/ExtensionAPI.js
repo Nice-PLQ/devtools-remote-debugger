@@ -27,7 +27,6 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-import * as Platform from '../../core/platform/platform.js';
 self.injectedExtensionAPI = function (extensionInfo, inspectedTabId, themeName, keysToForward, testHook, injectedScriptId, targetWindowForTest) {
     const keysToForwardSet = new Set(keysToForward);
     const chrome = window.chrome || {};
@@ -50,7 +49,7 @@ self.injectedExtensionAPI = function (extensionInfo, inspectedTabId, themeName, 
     EventSinkImpl.prototype = {
         addListener: function (callback) {
             if (typeof callback !== 'function') {
-                throw 'addListener: callback is not a function';
+                throw new Error('addListener: callback is not a function');
             }
             if (this._listeners.length === 0) {
                 extensionServer.sendRequest({ command: "subscribe" /* PrivateAPI.Commands.Subscribe */, type: this._type });
@@ -92,9 +91,9 @@ self.injectedExtensionAPI = function (extensionInfo, inspectedTabId, themeName, 
         this.inspectedWindow = new (Constructor(InspectedWindow))();
         this.panels = new (Constructor(Panels))();
         this.network = new (Constructor(Network))();
-        this.timeline = new (Constructor(Timeline))();
         this.languageServices = new (Constructor(LanguageServicesAPI))();
         this.recorder = new (Constructor(RecorderServicesAPI))();
+        this.performance = new (Constructor(Performance))();
         defineDeprecatedProperty(this, 'webInspector', 'resources', 'network');
     }
     function Network() {
@@ -112,17 +111,17 @@ self.injectedExtensionAPI = function (extensionInfo, inspectedTabId, themeName, 
         getHAR: function (callback) {
             function callbackWrapper(response) {
                 const result = response;
-                const entries = (result && result.entries) || [];
+                const entries = (result?.entries) || [];
                 for (let i = 0; i < entries.length; ++i) {
                     entries[i].__proto__ = new (Constructor(Request))(entries[i]._requestId);
                     delete entries[i]._requestId;
                 }
-                callback && callback(result);
+                callback?.(result);
             }
             extensionServer.sendRequest({ command: "getHAR" /* PrivateAPI.Commands.GetHAR */ }, callback && callbackWrapper);
         },
         addRequestHeaders: function (headers) {
-            extensionServer.sendRequest({ command: "addRequestHeaders" /* PrivateAPI.Commands.AddRequestHeaders */, headers: headers, extensionId: window.location.hostname });
+            extensionServer.sendRequest({ command: "addRequestHeaders" /* PrivateAPI.Commands.AddRequestHeaders */, headers, extensionId: window.location.hostname });
         },
     };
     function RequestImpl(id) {
@@ -132,7 +131,7 @@ self.injectedExtensionAPI = function (extensionInfo, inspectedTabId, themeName, 
         getContent: function (callback) {
             function callbackWrapper(response) {
                 const { content, encoding } = response;
-                callback && callback(content, encoding);
+                callback?.(content, encoding);
             }
             extensionServer.sendRequest({ command: "getRequestContent" /* PrivateAPI.Commands.GetRequestContent */, id: this._id }, callback && callbackWrapper);
         },
@@ -141,6 +140,7 @@ self.injectedExtensionAPI = function (extensionInfo, inspectedTabId, themeName, 
         const panels = {
             elements: new ElementsPanel(),
             sources: new SourcesPanel(),
+            network: new (Constructor(NetworkPanel))(),
         };
         function panelGetter(name) {
             return panels[name];
@@ -148,9 +148,6 @@ self.injectedExtensionAPI = function (extensionInfo, inspectedTabId, themeName, 
         for (const panel in panels) {
             Object.defineProperty(this, panel, { get: panelGetter.bind(null, panel), enumerable: true });
         }
-        this.applyStyleSheet = function (styleSheet) {
-            extensionServer.sendRequest({ command: "applyStyleSheet" /* PrivateAPI.Commands.ApplyStyleSheet */, styleSheet: styleSheet });
-        };
     }
     Panels.prototype = {
         create: function (title, icon, page, callback) {
@@ -180,7 +177,7 @@ self.injectedExtensionAPI = function (extensionInfo, inspectedTabId, themeName, 
             }
             // Only send command if we either removed an existing handler or added handler and had none before.
             if (hadHandler === !callback) {
-                extensionServer.sendRequest({ command: "setOpenResourceHandler" /* PrivateAPI.Commands.SetOpenResourceHandler */, 'handlerPresent': Boolean(callback) });
+                extensionServer.sendRequest({ command: "setOpenResourceHandler" /* PrivateAPI.Commands.SetOpenResourceHandler */, handlerPresent: Boolean(callback) });
             }
         },
         setThemeChangeHandler: function (callback) {
@@ -198,7 +195,7 @@ self.injectedExtensionAPI = function (extensionInfo, inspectedTabId, themeName, 
             }
             // Only send command if we either removed an existing handler or added handler and had none before.
             if (hadHandler === !callback) {
-                extensionServer.sendRequest({ command: "setThemeChangeHandler" /* PrivateAPI.Commands.SetThemeChangeHandler */, 'handlerPresent': Boolean(callback) });
+                extensionServer.sendRequest({ command: "setThemeChangeHandler" /* PrivateAPI.Commands.SetThemeChangeHandler */, handlerPresent: Boolean(callback) });
             }
         },
         openResource: function (url, lineNumber, columnNumber, _callback) {
@@ -241,7 +238,7 @@ self.injectedExtensionAPI = function (extensionInfo, inspectedTabId, themeName, 
         createSidebarPane: function (title, callback) {
             const id = 'extension-sidebar-' + extensionServer.nextObjectId();
             function callbackWrapper() {
-                callback && callback(new (Constructor(ExtensionSidebarPane))(id));
+                callback?.(new (Constructor(ExtensionSidebarPane))(id));
             }
             extensionServer.sendRequest({ command: "createSidebarPane" /* PrivateAPI.Commands.CreateSidebarPane */, panel: this._hostPanelName, id, title }, callback && callbackWrapper);
         },
@@ -266,10 +263,10 @@ self.injectedExtensionAPI = function (extensionInfo, inspectedTabId, themeName, 
         async function dispatchMethodCall(request) {
             switch (request.method) {
                 case "stringify" /* PrivateAPI.RecorderExtensionPluginCommands.Stringify */:
-                    return plugin
+                    return await plugin
                         .stringify(request.parameters.recording);
                 case "stringifyStep" /* PrivateAPI.RecorderExtensionPluginCommands.StringifyStep */:
-                    return plugin
+                    return await plugin
                         .stringifyStep(request.parameters.step);
                 case "replay" /* PrivateAPI.RecorderExtensionPluginCommands.Replay */:
                     try {
@@ -415,15 +412,42 @@ self.injectedExtensionAPI = function (extensionInfo, inspectedTabId, themeName, 
             return new ArrayBuffer(0);
         },
         getWasmLocal: async function (local, stopId) {
-            return new Promise(resolve => extensionServer.sendRequest({ command: "getWasmLocal" /* PrivateAPI.Commands.GetWasmLocal */, local, stopId }, resolve));
+            return await new Promise(resolve => extensionServer.sendRequest({ command: "getWasmLocal" /* PrivateAPI.Commands.GetWasmLocal */, local, stopId }, resolve));
         },
         getWasmGlobal: async function (global, stopId) {
-            return new Promise(resolve => extensionServer.sendRequest({ command: "getWasmGlobal" /* PrivateAPI.Commands.GetWasmGlobal */, global, stopId }, resolve));
+            return await new Promise(resolve => extensionServer.sendRequest({ command: "getWasmGlobal" /* PrivateAPI.Commands.GetWasmGlobal */, global, stopId }, resolve));
         },
         getWasmOp: async function (op, stopId) {
-            return new Promise(resolve => extensionServer.sendRequest({ command: "getWasmOp" /* PrivateAPI.Commands.GetWasmOp */, op, stopId }, resolve));
+            return await new Promise(resolve => extensionServer.sendRequest({ command: "getWasmOp" /* PrivateAPI.Commands.GetWasmOp */, op, stopId }, resolve));
+        },
+        reportResourceLoad: function (resourceUrl, status) {
+            return new Promise(resolve => extensionServer.sendRequest({
+                command: "reportResourceLoad" /* PrivateAPI.Commands.ReportResourceLoad */,
+                extensionId: window.location.origin,
+                resourceUrl,
+                status,
+            }, resolve));
         },
     };
+    function NetworkPanelImpl() {
+    }
+    NetworkPanelImpl.prototype = {
+        show: function (options) {
+            return new Promise(resolve => extensionServer.sendRequest({ command: "showNetworkPanel" /* PrivateAPI.Commands.ShowNetworkPanel */, filter: options?.filter }, () => resolve()));
+        },
+    };
+    function PerformanceImpl() {
+        function dispatchProfilingStartedEvent() {
+            this._fire();
+        }
+        function dispatchProfilingStoppedEvent() {
+            this._fire();
+        }
+        this.onProfilingStarted =
+            new (Constructor(EventSink))("profiling-started-" /* PrivateAPI.Events.ProfilingStarted */, dispatchProfilingStartedEvent);
+        this.onProfilingStopped =
+            new (Constructor(EventSink))("profiling-stopped-" /* PrivateAPI.Events.ProfilingStopped */, dispatchProfilingStoppedEvent);
+    }
     function declareInterfaceClass(implConstructor) {
         return function (...args) {
             const impl = { __proto__: implConstructor.prototype };
@@ -449,6 +473,7 @@ self.injectedExtensionAPI = function (extensionInfo, inspectedTabId, themeName, 
     }
     const LanguageServicesAPI = declareInterfaceClass(LanguageServicesAPIImpl);
     const RecorderServicesAPI = declareInterfaceClass(RecorderServicesAPIImpl);
+    const Performance = declareInterfaceClass(PerformanceImpl);
     const Button = declareInterfaceClass(ButtonImpl);
     const EventSink = declareInterfaceClass(EventSinkImpl);
     const ExtensionPanel = declareInterfaceClass(ExtensionPanelImpl);
@@ -457,7 +482,7 @@ self.injectedExtensionAPI = function (extensionInfo, inspectedTabId, themeName, 
     const PanelWithSidebarClass = declareInterfaceClass(PanelWithSidebarImpl);
     const Request = declareInterfaceClass(RequestImpl);
     const Resource = declareInterfaceClass(ResourceImpl);
-    const TraceSession = declareInterfaceClass(TraceSessionImpl);
+    const NetworkPanel = declareInterfaceClass(NetworkPanelImpl);
     class ElementsPanel extends (Constructor(PanelWithSidebarClass)) {
         constructor() {
             super('elements');
@@ -478,7 +503,7 @@ self.injectedExtensionAPI = function (extensionInfo, inspectedTabId, themeName, 
             extensionServer.sendRequest({
                 command: "createToolbarButton" /* PrivateAPI.Commands.CreateToolbarButton */,
                 panel: this._id,
-                id: id,
+                id,
                 icon: iconPath,
                 tooltip: tooltipText,
                 disabled: Boolean(disabled),
@@ -510,14 +535,14 @@ self.injectedExtensionAPI = function (extensionInfo, inspectedTabId, themeName, 
     }
     ExtensionSidebarPaneImpl.prototype = {
         setHeight: function (height) {
-            extensionServer.sendRequest({ command: "setSidebarHeight" /* PrivateAPI.Commands.SetSidebarHeight */, id: this._id, height: height });
+            extensionServer.sendRequest({ command: "setSidebarHeight" /* PrivateAPI.Commands.SetSidebarHeight */, id: this._id, height });
         },
         setExpression: function (expression, rootTitle, evaluateOptions, _callback) {
             extensionServer.sendRequest({
                 command: "setSidebarContent" /* PrivateAPI.Commands.SetSidebarContent */,
                 id: this._id,
-                expression: expression,
-                rootTitle: rootTitle,
+                expression,
+                rootTitle,
                 evaluateOnPage: true,
                 evaluateOptions: (typeof evaluateOptions === 'object' ? evaluateOptions : {}),
             }, extractCallbackArgument(arguments));
@@ -527,11 +552,11 @@ self.injectedExtensionAPI = function (extensionInfo, inspectedTabId, themeName, 
                 command: "setSidebarContent" /* PrivateAPI.Commands.SetSidebarContent */,
                 id: this._id,
                 expression: jsonObject,
-                rootTitle: rootTitle,
+                rootTitle,
             }, callback);
         },
         setPage: function (page) {
-            extensionServer.sendRequest({ command: "setSidebarPage" /* PrivateAPI.Commands.SetSidebarPage */, id: this._id, page: page });
+            extensionServer.sendRequest({ command: "setSidebarPage" /* PrivateAPI.Commands.SetSidebarPage */, id: this._id, page });
         },
         __proto__: ExtensionViewImpl.prototype,
     };
@@ -550,47 +575,18 @@ self.injectedExtensionAPI = function (extensionInfo, inspectedTabId, themeName, 
             });
         },
     };
-    function Timeline() {
-    }
-    Timeline.prototype = {
-        addTraceProvider: function (categoryName, categoryTooltip) {
-            const id = 'extension-trace-provider-' + extensionServer.nextObjectId();
-            extensionServer.sendRequest({
-                command: "addTraceProvider" /* PrivateAPI.Commands.AddTraceProvider */,
-                id: id,
-                categoryName: categoryName,
-                categoryTooltip: categoryTooltip,
-            });
-            return new (Constructor(TraceProvider))(id);
-        },
-    };
-    function TraceSessionImpl(id) {
-        this._id = id;
-    }
-    TraceSessionImpl.prototype = {
-        complete: function (url, timeOffset) {
-            extensionServer.sendRequest({
-                command: "completeTra.eSession" /* PrivateAPI.Commands.CompleteTraceSession */,
-                id: this._id,
-                url: url || Platform.DevToolsPath.EmptyUrlString,
-                timeOffset: timeOffset || 0,
-            });
-        },
-    };
-    function TraceProvider(id) {
-        function dispatchRecordingStarted(message) {
-            const sessionId = message.arguments[0];
-            this._fire(new (Constructor(TraceSession))(sessionId));
+    const protocolGet = Object.getOwnPropertyDescriptor(URL.prototype, 'protocol')?.get;
+    function getProtocol(url) {
+        if (!protocolGet) {
+            throw new Error('URL.protocol is not available');
         }
-        this.onRecordingStarted =
-            new (Constructor(EventSink))("trace-recording-started-" /* PrivateAPI.Events.RecordingStarted */ + id, dispatchRecordingStarted);
-        this.onRecordingStopped = new (Constructor(EventSink))("trace-recording-stopped-" /* PrivateAPI.Events.RecordingStopped */ + id);
+        return protocolGet.call(new URL(url));
     }
     function canAccessResource(resource) {
         try {
-            return extensionInfo.allowFileAccess || (new URL(resource.url)).protocol !== 'file:';
+            return extensionInfo.allowFileAccess || getProtocol(resource.url) !== 'file:';
         }
-        catch (e) {
+        catch {
             return false;
         }
     }
@@ -624,22 +620,22 @@ self.injectedExtensionAPI = function (extensionInfo, inspectedTabId, themeName, 
                 console.warn('Passing userAgent as string parameter to inspectedWindow.reload() is deprecated. ' +
                     'Use inspectedWindow.reload({ userAgent: value}) instead.');
             }
-            extensionServer.sendRequest({ command: "Reload" /* PrivateAPI.Commands.Reload */, options: options });
+            extensionServer.sendRequest({ command: "Reload" /* PrivateAPI.Commands.Reload */, options });
         },
         eval: function (expression, evaluateOptions) {
             const callback = extractCallbackArgument(arguments);
             function callbackWrapper(result) {
                 const { isError, isException, value } = result;
                 if (isError || isException) {
-                    callback && callback(undefined, result);
+                    callback?.(undefined, result);
                 }
                 else {
-                    callback && callback(value);
+                    callback?.(value);
                 }
             }
             extensionServer.sendRequest({
                 command: "evaluateOnInspectedPage" /* PrivateAPI.Commands.EvaluateOnInspectedPage */,
-                expression: expression,
+                expression,
                 evaluateOptions: (typeof evaluateOptions === 'object' ? evaluateOptions : undefined),
             }, callback && callbackWrapper);
             return null;
@@ -649,13 +645,13 @@ self.injectedExtensionAPI = function (extensionInfo, inspectedTabId, themeName, 
                 return new (Constructor(Resource))(resourceData);
             }
             function callbackWrapper(resources) {
-                callback && callback(resources.map(wrapResource).filter(canAccessResource));
+                callback?.(resources.filter(canAccessResource).map(wrapResource));
             }
             extensionServer.sendRequest({ command: "getPageResources" /* PrivateAPI.Commands.GetPageResources */ }, callback && callbackWrapper);
         },
     };
     function ResourceImpl(resourceData) {
-        if (!canAccessResource) {
+        if (!canAccessResource(resourceData)) {
             throw new Error('Resource access not allowed');
         }
         this._url = resourceData.url;
@@ -671,12 +667,38 @@ self.injectedExtensionAPI = function (extensionInfo, inspectedTabId, themeName, 
         getContent: function (callback) {
             function callbackWrapper(response) {
                 const { content, encoding } = response;
-                callback && callback(content, encoding);
+                callback?.(content, encoding);
             }
             extensionServer.sendRequest({ command: "getResourceContent" /* PrivateAPI.Commands.GetResourceContent */, url: this._url }, callback && callbackWrapper);
         },
         setContent: function (content, commit, callback) {
-            extensionServer.sendRequest({ command: "setResourceContent" /* PrivateAPI.Commands.SetResourceContent */, url: this._url, content: content, commit: commit }, callback);
+            extensionServer.sendRequest({ command: "setResourceContent" /* PrivateAPI.Commands.SetResourceContent */, url: this._url, content, commit }, callback);
+        },
+        setFunctionRangesForScript: function (ranges) {
+            return new Promise((resolve, reject) => extensionServer.sendRequest({
+                command: "setFunctionRangesForScript" /* PrivateAPI.Commands.SetFunctionRangesForScript */,
+                scriptUrl: this._url,
+                ranges,
+            }, (response) => {
+                const result = response;
+                if (result.isError) {
+                    reject(result);
+                }
+                else {
+                    resolve();
+                }
+            }));
+        },
+        attachSourceMapURL: function (sourceMapURL) {
+            return new Promise((resolve, reject) => extensionServer.sendRequest({ command: "attachSourceMapToResource" /* PrivateAPI.Commands.AttachSourceMapToResource */, contentUrl: this._url, sourceMapURL }, (response) => {
+                const result = response;
+                if (result.isError) {
+                    reject(new Error(result.description));
+                }
+                else {
+                    resolve();
+                }
+            }));
         },
     };
     function getTabId() {
@@ -829,6 +851,7 @@ self.injectedExtensionAPI = function (extensionInfo, inspectedTabId, themeName, 
     chrome.devtools.panels.themeName = themeName;
     chrome.devtools.languageServices = coreAPI.languageServices;
     chrome.devtools.recorder = coreAPI.recorder;
+    chrome.devtools.performance = coreAPI.performance;
     // default to expose experimental APIs for now.
     if (extensionInfo.exposeExperimentalAPIs !== false) {
         chrome.experimental = chrome.experimental || {};
@@ -856,4 +879,5 @@ self.buildExtensionAPIInjectedScript = function (extensionInfo, inspectedTabId, 
         '(' + self.injectedExtensionAPI.toString() + ')(' + argumentsJSON + ',' + testHook + ', injectedScriptId);' +
         '})';
 };
+export {};
 //# sourceMappingURL=ExtensionAPI.js.map

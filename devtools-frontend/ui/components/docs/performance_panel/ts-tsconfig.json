@@ -1,6 +1,7 @@
 {
   "compilerOptions": {
     "allowJs": true,
+    "allowUmdGlobalAccess": true,
     "checkJs": true,
     "composite": true,
     "declaration": true,
@@ -39,16 +40,18 @@
   "files": [
     "../../../../../../../../front_end/ui/components/docs/performance_panel/basic.ts",
     "../../../../../../../../front_end/ui/components/docs/performance_panel/flamechart.ts",
+    "../../../../../../../../front_end/ui/components/docs/performance_panel/layout_shift_details.ts",
+    "../../../../../../../../front_end/ui/components/docs/performance_panel/network_request_details.ts",
+    "../../../../../../../../front_end/ui/components/docs/performance_panel/network_request_tooltip.ts",
+    "../../../../../../../../front_end/ui/components/docs/performance_panel/overview.ts",
+    "../../../../../../../../front_end/ui/components/docs/performance_panel/timeline_history_manager.ts",
     "../../../../../../../../front_end/ui/components/docs/performance_panel/track_example.ts",
     "../../../../../../../../front_end/legacy/legacy-defs.d.ts",
     "../../../../../../../../front_end/global_typings/global_defs.d.ts",
-    "../../../../../../../../front_end/global_typings/request_idle_callback.d.ts",
-    "../../../../../../../../node_modules/@types/filesystem/index.d.ts"
+    "../../../../../../../../node_modules/@types/filesystem/index.d.ts",
+    "../../../../../../../../node_modules/@types/wicg-task-scheduling/index.d.ts"
   ],
   "references": [
-    {
-      "path": "../../../../../test/unittests/front_end/helpers/helpers-tsconfig.json"
-    },
     {
       "path": "../../../../core/common/bundle-tsconfig.json"
     },
@@ -59,13 +62,16 @@
       "path": "../../../../models/bindings/bundle-tsconfig.json"
     },
     {
-      "path": "../../../../models/timeline_model/bundle-tsconfig.json"
+      "path": "../../../../models/trace/bundle-tsconfig.json"
     },
     {
       "path": "../../../../models/workspace/bundle-tsconfig.json"
     },
     {
       "path": "../../../../panels/timeline/bundle-tsconfig.json"
+    },
+    {
+      "path": "../../../../testing/testing-tsconfig.json"
     },
     {
       "path": "../../../legacy/bundle-tsconfig.json"

@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 import * as i18n from '../../core/i18n/i18n.js';
 import * as Platform from '../../core/platform/platform.js';
-import * as Logs from '../../models/logs/logs.js';
+import * as TextUtils from '../../models/text_utils/text_utils.js';
 import * as NetworkForward from '../../panels/network/forward/forward.js';
 const UIStrings = {
     /**
@@ -14,6 +14,10 @@ const UIStrings = {
 const str_ = i18n.i18n.registerUIStrings('panels/network/NetworkSearchScope.ts', UIStrings);
 const i18nString = i18n.i18n.getLocalizedString.bind(undefined, str_);
 export class NetworkSearchScope {
+    #networkLog;
+    constructor(networkLog) {
+        this.#networkLog = networkLog;
+    }
     performIndexing(progress) {
         queueMicrotask(() => {
             progress.done();
@@ -21,14 +25,14 @@ export class NetworkSearchScope {
     }
     async performSearch(searchConfig, progress, searchResultCallback, searchFinishedCallback) {
         const promises = [];
-        const requests = Logs.NetworkLog.NetworkLog.instance().requests().filter(request => searchConfig.filePathMatchesFileQuery(request.url()));
+        const requests = this.#networkLog.requests().filter(request => searchConfig.filePathMatchesFileQuery(request.url()));
         progress.setTotalWork(requests.length);
         for (const request of requests) {
             const promise = this.searchRequest(searchConfig, request, progress);
             promises.push(promise);
         }
         const resultsWithNull = await Promise.all(promises);
-        const results = resultsWithNull.filter(result => result !== null);
+        const results = (resultsWithNull.filter(result => result !== null));
         if (progress.isCanceled()) {
             searchFinishedCallback(false);
             return;
@@ -42,11 +46,7 @@ export class NetworkSearchScope {
         searchFinishedCallback(true);
     }
     async searchRequest(searchConfig, request, progress) {
-        let bodyMatches = [];
-        if (request.contentType().isTextType()) {
-            bodyMatches =
-                await request.searchInContent(searchConfig.query(), !searchConfig.ignoreCase(), searchConfig.isRegex());
-        }
+        const bodyMatches = await NetworkSearchScope.#responseBodyMatches(searchConfig, request);
         if (progress.isCanceled()) {
             return null;
         }
@@ -78,13 +78,29 @@ export class NetworkSearchScope {
             let pos = 0;
             for (const regExp of regExps) {
                 const match = string.substr(pos).match(regExp);
-                if (!match || match.index === undefined) {
+                if (match?.index === undefined) {
                     return false;
                 }
                 pos += match.index + match[0].length;
             }
             return true;
         }
+    }
+    static async #responseBodyMatches(searchConfig, request) {
+        if (!request.contentType().isTextType()) {
+            return [];
+        }
+        let matches = [];
+        for (const query of searchConfig.queries()) {
+            const tmpMatches = await request.searchInContent(query, !searchConfig.ignoreCase(), searchConfig.isRegex());
+            if (tmpMatches.length === 0) {
+                // Mirror file search that all individual queries must produce matches.
+                return [];
+            }
+            matches =
+                Platform.ArrayUtilities.mergeOrdered(matches, tmpMatches, TextUtils.ContentProvider.SearchMatch.comparator);
+        }
+        return matches;
     }
     stopSearch() {
     }
@@ -132,9 +148,15 @@ export class NetworkSearchResult {
         if (header) {
             return `${header.name}:`;
         }
-        // TODO(crbug.com/1172300) Ignored during the jsdoc to ts migration)
-        // @ts-expect-error
-        return location.searchMatch.lineNumber + 1;
+        return (location.searchMatch.lineNumber + 1).toString();
+    }
+    matchColumn(index) {
+        const location = this.locations[index];
+        return location.searchMatch?.columnNumber;
+    }
+    matchLength(index) {
+        const location = this.locations[index];
+        return location.searchMatch?.matchLength;
     }
 }
 //# sourceMappingURL=NetworkSearchScope.js.map

@@ -1,0 +1,99 @@
+{
+  "compilerOptions": {
+    "allowJs": true,
+    "allowUmdGlobalAccess": true,
+    "checkJs": true,
+    "composite": true,
+    "declaration": true,
+    "experimentalDecorators": true,
+    "forceConsistentCasingInFileNames": true,
+    "inlineSources": true,
+    "lib": [
+      "esnext",
+      "dom",
+      "dom.iterable"
+    ],
+    "module": "esnext",
+    "noEmitOnError": true,
+    "noFallthroughCasesInSwitch": true,
+    "noImplicitOverride": true,
+    "noImplicitReturns": true,
+    "noUnusedLocals": false,
+    "outDir": ".",
+    "rootDir": "../../../../../../front_end/panels/ai_assistance",
+    "skipLibCheck": true,
+    "sourceMap": true,
+    "strict": true,
+    "target": "esnext",
+    "tsBuildInfoFile": "unittests-tsconfig.json.tsbuildinfo",
+    "typeRoots": [
+      "../../../../../../node_modules/@types"
+    ],
+    "types": [
+      "mocha",
+      "chai",
+      "sinon",
+      "karma-chai-sinon"
+    ],
+    "useUnknownInCatchVariables": false
+  },
+  "files": [
+    "../../../../../../front_end/panels/ai_assistance/AgentProject.test.ts",
+    "../../../../../../front_end/panels/ai_assistance/AiAssistancePanel.test.ts",
+    "../../../../../../front_end/panels/ai_assistance/AiHistoryStorage.test.ts",
+    "../../../../../../front_end/panels/ai_assistance/ChangeManager.test.ts",
+    "../../../../../../front_end/panels/ai_assistance/EvaluateAction.test.ts",
+    "../../../../../../front_end/panels/ai_assistance/ExtensionScope.test.ts",
+    "../../../../../../front_end/panels/ai_assistance/PatchWidget.test.ts",
+    "../../../../../../front_end/panels/ai_assistance/SelectWorkspaceDialog.test.ts",
+    "../../../../../../front_end/panels/ai_assistance/agents/AiAgent.test.ts",
+    "../../../../../../front_end/panels/ai_assistance/agents/FileAgent.test.ts",
+    "../../../../../../front_end/panels/ai_assistance/agents/NetworkAgent.test.ts",
+    "../../../../../../front_end/panels/ai_assistance/agents/PatchAgent.test.ts",
+    "../../../../../../front_end/panels/ai_assistance/agents/PerformanceAgent.test.ts",
+    "../../../../../../front_end/panels/ai_assistance/agents/PerformanceInsightsAgent.test.ts",
+    "../../../../../../front_end/panels/ai_assistance/agents/StylingAgent.test.ts",
+    "../../../../../../front_end/panels/ai_assistance/components/ChatView.test.ts",
+    "../../../../../../front_end/panels/ai_assistance/components/MarkdownRendererWithCodeBlock.test.ts",
+    "../../../../../../front_end/panels/ai_assistance/components/UserActionRow.test.ts",
+    "../../../../../../front_end/panels/ai_assistance/data_formatters/FileFormatter.test.ts",
+    "../../../../../../front_end/panels/ai_assistance/data_formatters/NetworkRequestFormatter.test.ts",
+    "../../../../../../front_end/panels/ai_assistance/data_formatters/PerformanceInsightFormatter.test.ts",
+    "../../../../../../front_end/legacy/legacy-defs.d.ts",
+    "../../../../../../front_end/global_typings/global_defs.d.ts",
+    "../../../../../../node_modules/@types/filesystem/index.d.ts",
+    "../../../../../../node_modules/@types/wicg-task-scheduling/index.d.ts"
+  ],
+  "references": [
+    {
+      "path": "./bundle-tsconfig.json"
+    },
+    {
+      "path": "../../core/common/bundle-tsconfig.json"
+    },
+    {
+      "path": "../../core/host/bundle-tsconfig.json"
+    },
+    {
+      "path": "../../core/platform/bundle-tsconfig.json"
+    },
+    {
+      "path": "../../core/sdk/bundle-tsconfig.json"
+    },
+    {
+      "path": "../../generated/protocol-tsconfig.json"
+    },
+    {
+      "path": "../../models/bindings/bundle-tsconfig.json"
+    },
+    {
+      "path": "../../models/trace/bundle-tsconfig.json"
+    },
+    {
+      "path": "../timeline/utils/bundle-tsconfig.json"
+    },
+    {
+      "path": "../../testing/testing-tsconfig.json"
+    }
+  ]
+}

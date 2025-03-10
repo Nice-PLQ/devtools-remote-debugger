@@ -3,8 +3,8 @@
 // found in the LICENSE file.
 import * as Host from '../../core/host/host.js';
 import * as i18n from '../../core/i18n/i18n.js';
-import * as Components from '../../ui/legacy/components/utils/utils.js';
 import * as SDK from '../../core/sdk/sdk.js';
+import * as Components from '../../ui/legacy/components/utils/utils.js';
 const UIStrings = {
     /**
      *@description Text that refers to the main target
@@ -15,6 +15,11 @@ const UIStrings = {
      *@example {example.com} PH1
      */
     nodejsS: 'Node.js: {PH1}',
+    /**
+     *@description Text in DevTools window title when debugging a Node.js app
+     *@example {example.com} PH1
+     */
+    NodejsTitleS: 'DevTools - Node.js: {PH1}',
 };
 const str_ = i18n.i18n.registerUIStrings('entrypoints/node_app/NodeMain.ts', UIStrings);
 const i18nString = i18n.i18n.getLocalizedString.bind(undefined, str_);
@@ -30,9 +35,9 @@ export class NodeMainImpl {
     async run() {
         Host.userMetrics.actionTaken(Host.UserMetrics.Action.ConnectToNodeJSFromFrontend);
         void SDK.Connections.initMainConnection(async () => {
-            const target = SDK.TargetManager.TargetManager.instance().createTarget('main', i18nString(UIStrings.main), SDK.Target.Type.Browser, null);
+            const target = SDK.TargetManager.TargetManager.instance().createTarget('main', i18nString(UIStrings.main), SDK.Target.Type.BROWSER, null);
             target.setInspectedURL('Node.js');
-        }, Components.TargetDetachedDialog.TargetDetachedDialog.webSocketConnectionLost);
+        }, Components.TargetDetachedDialog.TargetDetachedDialog.connectionLost);
     }
 }
 export class NodeChildTargetManager extends SDK.SDKModel.SDKModel {
@@ -60,7 +65,7 @@ export class NodeChildTargetManager extends SDK.SDKModel.SDKModel {
             const parts = address.split(':');
             const port = parseInt(parts[1], 10);
             if (parts[0] && port) {
-                locations.push({ host: parts[0], port: port });
+                locations.push({ host: parts[0], port });
             }
         }
         void this.#targetAgent.invoke_setRemoteLocations({ locations });
@@ -82,9 +87,10 @@ export class NodeChildTargetManager extends SDK.SDKModel.SDKModel {
     }
     attachedToTarget({ sessionId, targetInfo }) {
         const name = i18nString(UIStrings.nodejsS, { PH1: targetInfo.url });
+        document.title = i18nString(UIStrings.NodejsTitleS, { PH1: targetInfo.url });
         const connection = new NodeConnection(this.#targetAgent, sessionId);
         this.#childConnections.set(sessionId, connection);
-        const target = this.#targetManager.createTarget(targetInfo.targetId, name, SDK.Target.Type.Node, this.#parentTarget, undefined, undefined, connection);
+        const target = this.#targetManager.createTarget(targetInfo.targetId, name, SDK.Target.Type.NODE, this.#parentTarget, undefined, undefined, connection);
         this.#childTargets.set(sessionId, target);
         void target.runtimeAgent().invoke_runIfWaitingForDebugger();
     }
@@ -135,5 +141,5 @@ export class NodeConnection {
         await this.#targetAgent.invoke_detachFromTarget({ sessionId: this.#sessionId });
     }
 }
-SDK.SDKModel.SDKModel.register(NodeChildTargetManager, { capabilities: SDK.Target.Capability.Target, autostart: true });
+SDK.SDKModel.SDKModel.register(NodeChildTargetManager, { capabilities: 32 /* SDK.Target.Capability.TARGET */, autostart: true });
 //# sourceMappingURL=NodeMain.js.map

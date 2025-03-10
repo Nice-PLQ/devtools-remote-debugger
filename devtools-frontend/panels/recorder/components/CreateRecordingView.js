@@ -1,16 +1,20 @@
 // Copyright 2023 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
-/* eslint-disable rulesdir/inject_checkbox_styles */
 import '../../../ui/legacy/legacy.js';
+import '../../../ui/components/icon_button/icon_button.js';
+import './ControlButton.js';
 import * as i18n from '../../../core/i18n/i18n.js';
 import * as Buttons from '../../../ui/components/buttons/buttons.js';
-import * as ComponentHelpers from '../../../ui/components/helpers/helpers.js';
-import * as IconButton from '../../../ui/components/icon_button/icon_button.js';
 import * as Input from '../../../ui/components/input/input.js';
-import * as LitHtml from '../../../ui/lit-html/lit-html.js';
+import * as Lit from '../../../ui/lit/lit.js';
+import * as VisualLogging from '../../../ui/visual_logging/visual_logging.js';
 import * as Models from '../models/models.js';
-import createRecordingViewStyles from './createRecordingView.css.js';
+import createRecordingViewStylesRaw from './createRecordingView.css.js';
+// TODO(crbug.com/391381439): Fully migrate off of constructed style sheets.
+const createRecordingViewStyles = new CSSStyleSheet();
+createRecordingViewStyles.replaceSync(createRecordingViewStylesRaw.cssContent);
+const { html, Directives: { ifDefined } } = Lit;
 const UIStrings = {
     /**
      * @description The label for the input where the user enters a name for the new recording.
@@ -82,6 +86,10 @@ const UIStrings = {
      * necessary selectors.
      */
     includeNecessarySelectors: 'You must choose CSS, Pierce, or XPath as one of your options. Only these selectors are guaranteed to be recorded since ARIA and text selectors may not be unique.',
+    /**
+     * @description Title of a link to the developer documentation.
+     */
+    learnMore: 'Learn more',
 };
 const str_ = i18n.i18n.registerUIStrings('panels/recorder/components/CreateRecordingView.ts', UIStrings);
 const i18nString = i18n.i18n.getLocalizedString.bind(undefined, str_);
@@ -104,11 +112,14 @@ export class RecordingCancelledEvent extends Event {
     }
 }
 export class CreateRecordingView extends HTMLElement {
-    static litTagName = LitHtml.literal `devtools-create-recording-view`;
     #shadow = this.attachShadow({ mode: 'open' });
     #defaultRecordingName = '';
     #error;
     #recorderSettings;
+    constructor() {
+        super();
+        this.setAttribute('jslog', `${VisualLogging.section('create-recording-view')}`);
+    }
     connectedCallback() {
         this.#shadow.adoptedStyleSheets = [
             createRecordingViewStyles,
@@ -192,70 +203,68 @@ export class CreateRecordingView extends HTMLElement {
             ],
         ]);
         // clang-format off
-        LitHtml.render(LitHtml.html `
+        Lit.render(html `
         <div class="wrapper">
           <div class="header-wrapper">
             <h1>${i18nString(UIStrings.createRecording)}</h1>
-            <${Buttons.Button.Button.litTagName}
+            <devtools-button
               title=${i18nString(UIStrings.cancelRecording)}
+              jslog=${VisualLogging.close().track({ click: true })}
               .data=${{
-            variant: "round" /* Buttons.Button.Variant.ROUND */,
+            variant: "icon" /* Buttons.Button.Variant.ICON */,
             size: "SMALL" /* Buttons.Button.Size.SMALL */,
             iconName: 'cross',
         }}
               @click=${this.#dispatchRecordingCancelled}
-            ></${Buttons.Button.Button.litTagName}>
+            ></devtools-button>
           </div>
           <label class="row-label" for="user-flow-name">${i18nString(UIStrings.recordingName)}</label>
           <input
             value=${this.#defaultRecordingName}
             @focus=${this.#onInputFocus}
             @keydown=${this.#onKeyDown}
+            jslog=${VisualLogging.textField('user-flow-name').track({ change: true })}
             class="devtools-text-input"
             id="user-flow-name"
           />
           <label class="row-label" for="selector-attribute">
             <span>${i18nString(UIStrings.selectorAttribute)}</span>
-            <x-link class="link" href="https://g.co/devtools/recorder#selector">
-              <${IconButton.Icon.Icon.litTagName}
-                .data=${{
-            iconName: 'help',
-            color: 'var(--icon-default)',
-            width: '16px',
-            height: '16px',
-        }}>
-              </${IconButton.Icon.Icon.litTagName}>
+            <x-link
+              class="link" href="https://g.co/devtools/recorder#selector"
+              title=${i18nString(UIStrings.learnMore)}
+              jslog=${VisualLogging.link('recorder-selector-help').track({ click: true })}>
+              <devtools-icon name="help">
+              </devtools-icon>
             </x-link>
           </label>
           <input
-            value=${this.#recorderSettings?.selectorAttribute}
+            value=${ifDefined(this.#recorderSettings?.selectorAttribute)}
             placeholder="data-testid"
             @keydown=${this.#onKeyDown}
+            jslog=${VisualLogging.textField('selector-attribute').track({ change: true })}
             class="devtools-text-input"
             id="selector-attribute"
           />
           <label class="row-label">
             <span>${i18nString(UIStrings.selectorTypes)}</span>
-            <x-link class="link" href="https://g.co/devtools/recorder#selector">
-              <${IconButton.Icon.Icon.litTagName}
-                .data=${{
-            iconName: 'help',
-            color: 'var(--icon-default)',
-            width: '16px',
-            height: '16px',
-        }}
-              ></${IconButton.Icon.Icon.litTagName}>
+            <x-link
+              class="link" href="https://g.co/devtools/recorder#selector"
+              title=${i18nString(UIStrings.learnMore)}
+              jslog=${VisualLogging.link('recorder-selector-help').track({ click: true })}>
+              <devtools-icon name="help">
+              </devtools-icon>
             </x-link>
           </label>
           <div class="checkbox-container">
             ${Object.values(Models.Schema.SelectorType).map(selectorType => {
             const checked = this.#recorderSettings?.getSelectorByType(selectorType);
-            return LitHtml.html `
+            return html `
                   <label class="checkbox-label selector-type">
                     <input
                       @keydown=${this.#onKeyDown}
                       .value=${selectorType}
-                      checked=${LitHtml.Directives.ifDefined(checked ? checked : undefined)}
+                      jslog=${VisualLogging.toggle().track({ click: true }).context(`selector-${selectorType}`)}
+                      ?checked=${checked}
                       type="checkbox"
                     />
                     ${selectorTypeToLabel.get(selectorType) || selectorType}
@@ -265,7 +274,7 @@ export class CreateRecordingView extends HTMLElement {
           </div>
 
           ${this.#error &&
-            LitHtml.html `
+            html `
           <div class="error" role="alert">
             ${this.#error.message}
           </div>
@@ -277,7 +286,8 @@ export class CreateRecordingView extends HTMLElement {
               @click=${this.startRecording}
               .label=${i18nString(UIStrings.startRecording)}
               .shape=${'circle'}
-              title=${Models.Tooltip.getTooltipForActions(i18nString(UIStrings.startRecording), "chrome_recorder.start-recording" /* Actions.RecorderActions.StartRecording */)}
+              jslog=${VisualLogging.action("chrome-recorder.start-recording" /* Actions.RecorderActions.START_RECORDING */).track({ click: true })}
+              title=${Models.Tooltip.getTooltipForActions(i18nString(UIStrings.startRecording), "chrome-recorder.start-recording" /* Actions.RecorderActions.START_RECORDING */)}
             ></devtools-control-button>
           </div>
         </div>
@@ -285,5 +295,5 @@ export class CreateRecordingView extends HTMLElement {
         // clang-format on
     }
 }
-ComponentHelpers.CustomElements.defineComponent('devtools-create-recording-view', CreateRecordingView);
+customElements.define('devtools-create-recording-view', CreateRecordingView);
 //# sourceMappingURL=CreateRecordingView.js.map

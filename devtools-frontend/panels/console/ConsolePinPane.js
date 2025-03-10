@@ -8,9 +8,10 @@ import * as SDK from '../../core/sdk/sdk.js';
 import * as CodeMirror from '../../third_party/codemirror.next/codemirror.next.js';
 import * as TextEditor from '../../ui/components/text_editor/text_editor.js';
 import * as ObjectUI from '../../ui/legacy/components/object_ui/object_ui.js';
-// eslint-disable-next-line rulesdir/es_modules_import
+// eslint-disable-next-line rulesdir/es-modules-import
 import objectValueStyles from '../../ui/legacy/components/object_ui/objectValue.css.js';
 import * as UI from '../../ui/legacy/legacy.js';
+import * as VisualLogging from '../../ui/visual_logging/visual_logging.js';
 import consolePinPaneStyles from './consolePinPane.css.js';
 const UIStrings = {
     /**
@@ -59,19 +60,18 @@ export class ConsolePinPane extends UI.ThrottledWidget.ThrottledWidget {
         super(true, 250);
         this.liveExpressionButton = liveExpressionButton;
         this.focusOut = focusOut;
+        this.registerRequiredCSS(consolePinPaneStyles, objectValueStyles);
         this.contentElement.classList.add('console-pins', 'monospace');
         this.contentElement.addEventListener('contextmenu', this.contextMenuEventFired.bind(this), false);
+        this.contentElement.setAttribute('jslog', `${VisualLogging.pane('console-pins')}`);
         this.pins = new Set();
-        this.pinsSetting = Common.Settings.Settings.instance().createLocalSetting('consolePins', []);
+        this.pinsSetting = Common.Settings.Settings.instance().createLocalSetting('console-pins', []);
         for (const expression of this.pinsSetting.get()) {
             this.addPin(expression);
         }
     }
-    wasShown() {
-        super.wasShown();
-        this.registerCSSFiles([consolePinPaneStyles, objectValueStyles]);
-    }
     willHide() {
+        super.willHide();
         for (const pin of this.pins) {
             pin.setHovered(false);
         }
@@ -88,12 +88,12 @@ export class ConsolePinPane extends UI.ThrottledWidget.ThrottledWidget {
             if (targetPinElement) {
                 const targetPin = elementToConsolePin.get(targetPinElement);
                 if (targetPin) {
-                    contextMenu.editSection().appendItem(i18nString(UIStrings.removeExpression), this.removePin.bind(this, targetPin));
+                    contextMenu.editSection().appendItem(i18nString(UIStrings.removeExpression), this.removePin.bind(this, targetPin), { jslogContext: 'remove-expression' });
                     targetPin.appendToContextMenu(contextMenu);
                 }
             }
         }
-        contextMenu.editSection().appendItem(i18nString(UIStrings.removeAllExpressions), this.removeAllPins.bind(this));
+        contextMenu.editSection().appendItem(i18nString(UIStrings.removeAllExpressions), this.removeAllPins.bind(this), { jslogContext: 'remove-all-expressions' });
         void contextMenu.show();
     }
     removeAllPins() {
@@ -167,7 +167,7 @@ export class ConsolePin {
     constructor(expression, pinPane, focusOut) {
         this.pinPane = pinPane;
         this.focusOut = focusOut;
-        this.deletePinIcon = document.createElement('div', { is: 'dt-close-button' });
+        this.deletePinIcon = document.createElement('dt-close-button');
         this.deletePinIcon.classList.add('close-button');
         this.deletePinIcon.setTabbable(true);
         if (expression.length) {
@@ -183,7 +183,9 @@ export class ConsolePin {
         const fragment = UI.Fragment.Fragment.build `
   <div class='console-pin'>
   ${this.deletePinIcon}
-  <div class='console-pin-name' $='name'></div>
+  <div class='console-pin-name' $='name' jslog="${VisualLogging.textField().track({
+            change: true,
+        })}"></div>
   <div class='console-pin-preview' $='preview'></div>
   </div>`;
         this.pinElement = fragment.element();
@@ -242,10 +244,34 @@ export class ConsolePin {
                         return true;
                     },
                 },
+                {
+                    key: 'Tab',
+                    run: (view) => {
+                        if (CodeMirror.completionStatus(this.editor.state) !== null) {
+                            return false;
+                        }
+                        // User should be able to tab out of edit field after auto complete is done
+                        view.dispatch({ changes: { from: 0, to: view.state.doc.length, insert: this.committedExpression } });
+                        this.focusOut();
+                        return true;
+                    },
+                },
+                {
+                    key: 'Shift-Tab',
+                    run: (view) => {
+                        if (CodeMirror.completionStatus(this.editor.state) !== null) {
+                            return false;
+                        }
+                        // User should be able to tab out of edit field after auto complete is done
+                        view.dispatch({ changes: { from: 0, to: view.state.doc.length, insert: this.committedExpression } });
+                        this.focusOut();
+                        return true;
+                    },
+                },
             ]),
             CodeMirror.EditorView.domEventHandlers({ blur: (_e, view) => this.onBlur(view) }),
             TextEditor.Config.baseConfiguration(doc),
-            TextEditor.Config.closeBrackets,
+            TextEditor.Config.closeBrackets.instance(),
             TextEditor.Config.autocompletion.instance(),
         ];
         if (Root.Runtime.Runtime.queryParam('noJavaScriptCompletion') !== 'true') {
@@ -294,7 +320,9 @@ export class ConsolePin {
     appendToContextMenu(contextMenu) {
         if (this.lastResult && !('error' in this.lastResult) && this.lastResult.object) {
             contextMenu.appendApplicableItems(this.lastResult.object);
-            // Prevent result from being released manually. It will release along with 'console' group.
+            // Prevent result from being released automatically, since it may be used by
+            // the context menu action. It will be released when the console is cleared,
+            // where we release the 'live-expression' object group.
             this.lastResult = null;
         }
     }
@@ -307,7 +335,7 @@ export class ConsolePin {
         const throwOnSideEffect = isEditing && text !== this.committedExpression;
         const timeout = throwOnSideEffect ? 250 : undefined;
         const executionContext = UI.Context.Context.instance().flavor(SDK.RuntimeModel.ExecutionContext);
-        const { preview, result } = await ObjectUI.JavaScriptREPL.JavaScriptREPL.evaluateAndBuildPreview(text, throwOnSideEffect, true /* replMode */, timeout, !isEditing /* allowErrors */, 'console', true /* awaitPromise */, true /* silent */);
+        const { preview, result } = await ObjectUI.JavaScriptREPL.JavaScriptREPL.evaluateAndBuildPreview(text, throwOnSideEffect, true /* replMode */, timeout, !isEditing /* allowErrors */, 'live-expression', true /* awaitPromise */, true /* silent */);
         if (this.lastResult && this.lastExecutionContext) {
             this.lastExecutionContext.runtimeModel.releaseEvaluationResult(this.lastResult);
         }

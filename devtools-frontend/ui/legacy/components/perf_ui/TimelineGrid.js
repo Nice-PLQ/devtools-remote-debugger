@@ -32,7 +32,7 @@
  */
 import * as ThemeSupport from '../../theme_support/theme_support.js';
 import { DEFAULT_FONT_SIZE, getFontFamilyForCanvas } from './Font.js';
-import timelineGridStyles from './timelineGrid.css.legacy.js';
+import timelineGridStyles from './timelineGrid.css.js';
 const labelMap = new Map();
 export class TimelineGrid {
     element;
@@ -51,7 +51,7 @@ export class TimelineGrid {
         this.element.appendChild(this.gridHeaderElement);
     }
     static calculateGridOffsets(calculator, freeZoneAtLeft) {
-        /** @const */ const minGridSlicePx = 64; // minimal distance between grid lines.
+        const minGridSlicePx = 64; // minimal distance between grid lines.
         const clientWidth = calculator.computePosition(calculator.maximumBoundary());
         let dividersCount = clientWidth / minGridSlicePx;
         let gridSliceTime = calculator.boundarySpan() / dividersCount;
@@ -80,19 +80,23 @@ export class TimelineGrid {
         }
         const offsets = [];
         for (let i = 0; i < dividersCount; ++i) {
-            const time = firstDividerTime + gridSliceTime * i;
-            if (calculator.computePosition(time) < (freeZoneAtLeft || 0)) {
+            // The grid slice time could be small like 0.2. If we multiply this we
+            // open ourselves to floating point rounding errors. To avoid these, we
+            // multiply the number by 100, and i, and then divide it by 100 again.
+            const time = firstDividerTime + (gridSliceTime * 100 * i) / 100;
+            const positionFromTime = calculator.computePosition(time);
+            if (positionFromTime < (freeZoneAtLeft || 0)) {
                 continue;
             }
-            offsets.push({ position: Math.floor(calculator.computePosition(time)), time: time });
+            offsets.push({ position: Math.floor(positionFromTime), time });
         }
-        return { offsets: offsets, precision: Math.max(0, -Math.floor(Math.log(gridSliceTime * 1.01) / Math.LN10)) };
+        return { offsets, precision: Math.max(0, -Math.floor(Math.log(gridSliceTime * 1.01) / Math.LN10)) };
     }
     static drawCanvasGrid(context, dividersData) {
         context.save();
         context.scale(window.devicePixelRatio, window.devicePixelRatio);
         const height = Math.floor(context.canvas.height / window.devicePixelRatio);
-        context.strokeStyle = getComputedStyle(document.body).getPropertyValue('--divider-line');
+        context.strokeStyle = getComputedStyle(document.body).getPropertyValue('--app-color-strokestyle');
         context.lineWidth = 1;
         context.translate(0.5, 0.5);
         context.beginPath();
@@ -110,7 +114,7 @@ export class TimelineGrid {
         context.beginPath();
         context.fillStyle = ThemeSupport.ThemeSupport.instance().getComputedValue('--color-background-opacity-50');
         context.fillRect(0, 0, width, headerHeight);
-        context.fillStyle = ThemeSupport.ThemeSupport.instance().getComputedValue('--color-text-primary');
+        context.fillStyle = ThemeSupport.ThemeSupport.instance().getComputedValue('--sys-color-on-surface');
         context.textBaseline = 'hanging';
         context.font = `${DEFAULT_FONT_SIZE} ${getFontFamilyForCanvas()}`;
         const paddingRight = 4;
@@ -129,10 +133,6 @@ export class TimelineGrid {
     }
     get dividersLabelBarElement() {
         return this.dividersLabelBarElementInternal;
-    }
-    removeDividers() {
-        this.dividersElementInternal.removeChildren();
-        this.dividersLabelBarElementInternal.removeChildren();
     }
     updateDividers(calculator, freeZoneAtLeft) {
         const dividersData = TimelineGrid.calculateGridOffsets(calculator, freeZoneAtLeft);
@@ -214,12 +214,6 @@ export class TimelineGrid {
     }
     showEventDividers() {
         this.eventDividersElement.classList.remove('hidden');
-    }
-    hideDividers() {
-        this.dividersElementInternal.classList.add('hidden');
-    }
-    showDividers() {
-        this.dividersElementInternal.classList.remove('hidden');
     }
     setScrollTop(scrollTop) {
         this.dividersLabelBarElementInternal.style.top = scrollTop + 'px';

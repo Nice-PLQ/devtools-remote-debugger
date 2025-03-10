@@ -38,8 +38,8 @@
     "../../../../../../../front_end/panels/network/components/WebBundleInfoView.ts",
     "../../../../../../../front_end/legacy/legacy-defs.d.ts",
     "../../../../../../../front_end/global_typings/global_defs.d.ts",
-    "../../../../../../../front_end/global_typings/request_idle_callback.d.ts",
-    "../../../../../../../node_modules/@types/filesystem/index.d.ts"
+    "../../../../../../../node_modules/@types/filesystem/index.d.ts",
+    "../../../../../../../node_modules/@types/wicg-task-scheduling/index.d.ts"
   ],
   "references": [
     {
@@ -82,9 +82,6 @@
       "path": "../../../ui/components/buttons/bundle-tsconfig.json"
     },
     {
-      "path": "../../../ui/components/data_grid/bundle-tsconfig.json"
-    },
-    {
       "path": "../../../ui/components/helpers/bundle-tsconfig.json"
     },
     {
@@ -103,7 +100,10 @@
       "path": "../../../ui/legacy/bundle-tsconfig.json"
     },
     {
-      "path": "../../../ui/lit-html/bundle-tsconfig.json"
+      "path": "../../../ui/legacy/components/data_grid/bundle-tsconfig.json"
+    },
+    {
+      "path": "../../../ui/lit/bundle-tsconfig.json"
     },
     {
       "path": "../forward/bundle-tsconfig.json"

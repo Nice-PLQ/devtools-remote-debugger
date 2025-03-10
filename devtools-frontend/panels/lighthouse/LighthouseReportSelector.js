@@ -31,11 +31,11 @@ export class ReportSelector {
         this.setEmptyState();
     }
     setEmptyState() {
-        this.comboBoxInternal.selectElement().removeChildren();
+        this.comboBoxInternal.removeOptions();
         this.comboBoxInternal.setEnabled(false);
         this.newLighthouseItem = document.createElement('option');
         this.newLighthouseItem.label = i18nString(UIStrings.newReport);
-        this.comboBoxInternal.selectElement().appendChild(this.newLighthouseItem);
+        this.comboBoxInternal.addOption(this.newLighthouseItem);
         this.comboBoxInternal.select(this.newLighthouseItem);
     }
     handleChange(_event) {
@@ -51,9 +51,6 @@ export class ReportSelector {
         const option = this.comboBoxInternal.selectedOption();
         return this.itemByOptionElement.get(option);
     }
-    hasCurrentSelection() {
-        return Boolean(this.selectedItem());
-    }
     hasItems() {
         return this.itemByOptionElement.size > 0;
     }
@@ -62,7 +59,7 @@ export class ReportSelector {
     }
     prepend(item) {
         const optionEl = item.optionElement();
-        const selectEl = this.comboBoxInternal.selectElement();
+        const selectEl = this.comboBoxInternal.element;
         this.itemByOptionElement.set(optionEl, item);
         selectEl.insertBefore(optionEl, selectEl.firstElementChild);
         this.comboBoxInternal.setEnabled(true);

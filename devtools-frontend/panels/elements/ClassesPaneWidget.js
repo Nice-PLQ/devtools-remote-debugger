@@ -6,6 +6,7 @@ import * as i18n from '../../core/i18n/i18n.js';
 import * as Platform from '../../core/platform/platform.js';
 import * as SDK from '../../core/sdk/sdk.js';
 import * as UI from '../../ui/legacy/legacy.js';
+import * as VisualLogging from '../../ui/visual_logging/visual_logging.js';
 import classesPaneWidgetStyles from './classesPaneWidget.css.js';
 import { ElementsPanel } from './ElementsPanel.js';
 const UIStrings = {
@@ -42,7 +43,9 @@ export class ClassesPaneWidget extends UI.Widget.Widget {
     previousTarget;
     constructor() {
         super(true);
+        this.registerRequiredCSS(classesPaneWidgetStyles);
         this.contentElement.className = 'styles-element-classes-pane';
+        this.contentElement.setAttribute('jslog', `${VisualLogging.pane('elements-classes')}`);
         const container = this.contentElement.createChild('div', 'title-container');
         this.input = container.createChild('div', 'new-class-input monospace');
         this.setDefaultFocusedElement(this.input);
@@ -53,7 +56,7 @@ export class ClassesPaneWidget extends UI.Widget.Widget {
         this.prompt.renderAsBlock();
         const proxyElement = this.prompt.attach(this.input);
         this.prompt.setPlaceholder(i18nString(UIStrings.addNewClass));
-        this.prompt.addEventListener(UI.TextPrompt.Events.TextChanged, this.onTextChanged, this);
+        this.prompt.addEventListener("TextChanged" /* UI.TextPrompt.Events.TEXT_CHANGED */, this.onTextChanged, this);
         proxyElement.addEventListener('keydown', this.onKeyDown.bind(this), false);
         SDK.TargetManager.TargetManager.instance().addModelListener(SDK.DOMModel.DOMModel, SDK.DOMModel.Events.DOMMutated, this.onDOMMutated, this, { scoped: true });
         this.mutatingNodes = new Set();
@@ -131,7 +134,6 @@ export class ClassesPaneWidget extends UI.Widget.Widget {
     wasShown() {
         super.wasShown();
         this.update();
-        this.registerCSSFiles([classesPaneWidgetStyles]);
     }
     update() {
         if (!this.isShowing()) {
@@ -142,7 +144,7 @@ export class ClassesPaneWidget extends UI.Widget.Widget {
             node = node.enclosingElementOrSelf();
         }
         this.classesContainer.removeChildren();
-        // @ts-ignore this.input is a div, not an input element. So this line makes no sense at all
+        // @ts-expect-error this.input is a div, not an input element. So this line makes no sense at all
         this.input.disabled = !node;
         if (!node) {
             return;
@@ -151,7 +153,7 @@ export class ClassesPaneWidget extends UI.Widget.Widget {
         const keys = [...classes.keys()];
         keys.sort(Platform.StringUtilities.caseInsensetiveComparator);
         for (const className of keys) {
-            const label = UI.UIUtils.CheckboxLabel.create(className, classes.get(className));
+            const label = UI.UIUtils.CheckboxLabel.createWithStringLiteral(className, classes.get(className), undefined, 'element-class', true);
             label.classList.add('monospace');
             label.checkboxElement.addEventListener('click', this.onClick.bind(this, className), false);
             this.classesContainer.appendChild(label);
@@ -186,6 +188,7 @@ export class ClassesPaneWidget extends UI.Widget.Widget {
     toggleClass(node, className, enabled) {
         const classes = this.nodeClasses(node);
         classes.set(className, enabled);
+        ButtonProvider.instance().item().setChecked([...classes.values()].includes(true));
     }
     installNodeClasses(node) {
         const classes = this.nodeClasses(node);
@@ -224,10 +227,11 @@ export class ButtonProvider {
     button;
     view;
     constructor() {
-        this.button = new UI.Toolbar.ToolbarToggle(i18nString(UIStrings.elementClasses), '');
-        this.button.setText('.cls');
-        this.button.element.classList.add('monospace');
-        this.button.addEventListener(UI.Toolbar.ToolbarButton.Events.Click, this.clicked, this);
+        this.button = new UI.Toolbar.ToolbarToggle(i18nString(UIStrings.elementClasses), 'class');
+        this.button.element.style.setProperty('--dot-toggle-top', '12px');
+        this.button.element.style.setProperty('--dot-toggle-left', '18px');
+        this.button.element.setAttribute('jslog', `${VisualLogging.toggleSubpane('elements-classes').track({ click: true })}`);
+        this.button.addEventListener("Click" /* UI.Toolbar.ToolbarButton.Events.CLICK */, this.clicked, this);
         this.view = new ClassesPaneWidget();
     }
     static instance(opts = { forceNew: null }) {
@@ -295,7 +299,7 @@ export class ClassNamePrompt extends UI.TextPrompt.TextPrompt {
             this.classNamesPromise = this.getClassNames(selectedNode);
         }
         let completions = await this.classNamesPromise;
-        const classesMap = this.nodeClasses(selectedNode);
+        const classesMap = this.nodeClasses((selectedNode));
         completions = completions.filter(value => !classesMap.get(value));
         if (prefix[0] === '.') {
             completions = completions.map(value => '.' + value);

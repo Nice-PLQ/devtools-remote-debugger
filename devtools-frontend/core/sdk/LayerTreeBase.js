@@ -2,19 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 import { DOMModel } from './DOMModel.js';
-export var Layer;
-(function (Layer) {
-    // TODO(crbug.com/1167717): Make this a const enum again
-    // eslint-disable-next-line rulesdir/const_enum
-    let ScrollRectType;
-    (function (ScrollRectType) {
-        ScrollRectType["NonFastScrollable"] = "NonFastScrollable";
-        ScrollRectType["TouchEventHandler"] = "TouchEventHandler";
-        ScrollRectType["WheelEventHandler"] = "WheelEventHandler";
-        ScrollRectType["RepaintsOnScroll"] = "RepaintsOnScroll";
-        ScrollRectType["MainThreadScrollingReason"] = "MainThreadScrollingReason";
-    })(ScrollRectType = Layer.ScrollRectType || (Layer.ScrollRectType = {}));
-})(Layer || (Layer = {}));
 export class StickyPositionConstraint {
     #stickyBoxRectInternal;
     #containingBlockRectInternal;

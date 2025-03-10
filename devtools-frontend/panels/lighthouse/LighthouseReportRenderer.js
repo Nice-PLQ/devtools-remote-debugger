@@ -10,7 +10,7 @@ import * as LighthouseReport from '../../third_party/lighthouse/report/report.js
 import * as Components from '../../ui/legacy/components/utils/utils.js';
 import * as UI from '../../ui/legacy/legacy.js';
 import * as ThemeSupport from '../../ui/legacy/theme_support/theme_support.js';
-import * as Timeline from '../timeline/timeline.js';
+import * as VisualLogging from '../../ui/visual_logging/visual_logging.js';
 const MaxLengthForLinks = 40;
 export class LighthouseReportRenderer {
     static renderLighthouseReport(lhr, artifacts, opts) {
@@ -19,8 +19,8 @@ export class LighthouseReportRenderer {
             onViewTrace = async () => {
                 const defaultPassTrace = artifacts.traces.defaultPass;
                 Host.userMetrics.actionTaken(Host.UserMetrics.Action.LighthouseViewTrace);
-                await UI.InspectorView.InspectorView.instance().showPanel('timeline');
-                Timeline.TimelinePanel.TimelinePanel.instance().loadFromEvents(defaultPassTrace.traceEvents);
+                const trace = new SDK.TraceObject.TraceObject(defaultPassTrace.traceEvents);
+                void Common.Revealer.reveal(trace);
             };
         }
         async function onSaveFileOverride(blob) {
@@ -30,7 +30,8 @@ export class LighthouseReportRenderer {
             const ext = blob.type.match('json') ? '.json' : '.html';
             const basename = `${sanitizedDomain}-${timestamp}${ext}`;
             const text = await blob.text();
-            void Workspace.FileManager.FileManager.instance().save(basename, text, true /* forceSaveAs */);
+            await Workspace.FileManager.FileManager.instance().save(basename, text, true /* forceSaveAs */, false /* isBase64 */);
+            Workspace.FileManager.FileManager.instance().close(basename);
         }
         async function onPrintOverride(rootEl) {
             const clonedReport = rootEl.cloneNode(true);
@@ -65,10 +66,13 @@ export class LighthouseReportRenderer {
         };
         ThemeSupport.ThemeSupport.instance().addEventListener(ThemeSupport.ThemeChangeEvent.eventName, updateDarkModeIfNecessary);
         updateDarkModeIfNecessary();
-        // @ts-ignore Expose LHR on DOM for e2e tests
+        // @ts-expect-error Expose LHR on DOM for e2e tests
         reportEl._lighthouseResultForTesting = lhr;
-        // @ts-ignore Expose Artifacts on DOM for e2e tests
+        // @ts-expect-error Expose Artifacts on DOM for e2e tests
         reportEl._lighthouseArtifactsForTesting = artifacts;
+        // This should block the report rendering as we need visual logging ready
+        // before the user starts interacting with the report.
+        LighthouseReportRenderer.installVisualLogging(reportEl);
         // Linkifying requires the target be loaded. Do not block the report
         // from rendering, as this is just an embellishment and the main target
         // could take awhile to load.
@@ -142,6 +146,40 @@ export class LighthouseReportRenderer {
             UI.Tooltip.Tooltip.install(origHTMLElement, '');
             origHTMLElement.textContent = '';
             origHTMLElement.appendChild(element);
+        }
+    }
+    static installVisualLogging(el) {
+        for (const auditEl of el.getElementsByClassName('lh-audit')) {
+            const summaryEl = auditEl.querySelector('summary');
+            if (!summaryEl) {
+                continue;
+            }
+            const id = auditEl.id;
+            if (!id) {
+                continue;
+            }
+            auditEl.setAttribute('jslog', `${VisualLogging.item(`lighthouse.audit.${id}`)}`);
+            let state;
+            for (const className of auditEl.classList) {
+                switch (className) {
+                    case 'lh-audit--pass':
+                        state = 'pass';
+                        break;
+                    case 'lh-audit--average':
+                        state = 'average';
+                        break;
+                    case 'lh-audit--fail':
+                        state = 'fail';
+                        break;
+                    case 'lh-audit--informative':
+                        state = 'informative';
+                        break;
+                }
+            }
+            if (!state) {
+                continue;
+            }
+            summaryEl.setAttribute('jslog', `${VisualLogging.expand(`lighthouse.audit-summary.${state}`).track({ click: true })}`);
         }
     }
 }

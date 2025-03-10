@@ -2,7 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 import * as Platform from '../platform/platform.js';
-import { Capability } from './Target.js';
 import { SDKModel } from './SDKModel.js';
 export class PerformanceMetricsModel extends SDKModel {
     #agent;
@@ -12,12 +11,12 @@ export class PerformanceMetricsModel extends SDKModel {
         super(target);
         this.#agent = target.performanceAgent();
         this.#metricModes = new Map([
-            ['TaskDuration', "CumulativeTime" /* MetricMode.CumulativeTime */],
-            ['ScriptDuration', "CumulativeTime" /* MetricMode.CumulativeTime */],
-            ['LayoutDuration', "CumulativeTime" /* MetricMode.CumulativeTime */],
-            ['RecalcStyleDuration', "CumulativeTime" /* MetricMode.CumulativeTime */],
-            ['LayoutCount', "CumulativeCount" /* MetricMode.CumulativeCount */],
-            ['RecalcStyleCount', "CumulativeCount" /* MetricMode.CumulativeCount */],
+            ['TaskDuration', "CumulativeTime" /* MetricMode.CUMULATIVE_TIME */],
+            ['ScriptDuration', "CumulativeTime" /* MetricMode.CUMULATIVE_TIME */],
+            ['LayoutDuration', "CumulativeTime" /* MetricMode.CUMULATIVE_TIME */],
+            ['RecalcStyleDuration', "CumulativeTime" /* MetricMode.CUMULATIVE_TIME */],
+            ['LayoutCount', "CumulativeCount" /* MetricMode.CUMULATIVE_COUNT */],
+            ['RecalcStyleCount', "CumulativeCount" /* MetricMode.CUMULATIVE_COUNT */],
         ]);
         this.#metricData = new Map();
     }
@@ -39,14 +38,14 @@ export class PerformanceMetricsModel extends SDKModel {
             }
             let value;
             switch (this.#metricModes.get(metric.name)) {
-                case "CumulativeTime" /* MetricMode.CumulativeTime */:
+                case "CumulativeTime" /* MetricMode.CUMULATIVE_TIME */:
                     value = (data.lastTimestamp && data.lastValue) ?
                         Platform.NumberUtilities.clamp((metric.value - data.lastValue) * 1000 / (timestamp - data.lastTimestamp), 0, 1) :
                         0;
                     data.lastValue = metric.value;
                     data.lastTimestamp = timestamp;
                     break;
-                case "CumulativeCount" /* MetricMode.CumulativeCount */:
+                case "CumulativeCount" /* MetricMode.CUMULATIVE_COUNT */:
                     value = (data.lastTimestamp && data.lastValue) ?
                         Math.max(0, (metric.value - data.lastValue) * 1000 / (timestamp - data.lastTimestamp)) :
                         0;
@@ -59,8 +58,8 @@ export class PerformanceMetricsModel extends SDKModel {
             }
             metrics.set(metric.name, value);
         }
-        return { metrics: metrics, timestamp: timestamp };
+        return { metrics, timestamp };
     }
 }
-SDKModel.register(PerformanceMetricsModel, { capabilities: Capability.DOM, autostart: false });
+SDKModel.register(PerformanceMetricsModel, { capabilities: 2 /* Capability.DOM */, autostart: false });
 //# sourceMappingURL=PerformanceMetricsModel.js.map

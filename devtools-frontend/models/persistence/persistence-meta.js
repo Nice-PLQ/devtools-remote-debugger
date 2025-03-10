@@ -4,8 +4,8 @@
 import * as Common from '../../core/common/common.js';
 import * as i18n from '../../core/i18n/i18n.js';
 import * as SDK from '../../core/sdk/sdk.js';
+import * as Workspace from '../../models/workspace/workspace.js';
 import * as UI from '../../ui/legacy/legacy.js';
-import * as Workspace from '../workspace/workspace.js';
 const UIStrings = {
     /**
      *@description Text of a DOM element in Workspace Settings Tab of the Workspace settings in Settings
@@ -14,7 +14,7 @@ const UIStrings = {
     /**
      *@description Command for showing the Workspace tool in Settings
      */
-    showWorkspace: 'Show Workspace',
+    showWorkspace: 'Show Workspace settings',
     /**
      *@description Title of a setting under the Persistence category in Settings
      */
@@ -48,6 +48,10 @@ const UIStrings = {
      *@description Title of a setting under the Persistence category that can be invoked through the Command Menu
      */
     disableOverrideNetworkRequests: 'Disable override network requests',
+    /**
+     * @description Title of a setting to enable the Automatic Workspace Folders.
+     */
+    enableAutomaticWorkspaceFolders: 'Enable automatic workspace folders',
 };
 const str_ = i18n.i18n.registerUIStrings('models/persistence/persistence-meta.ts', UIStrings);
 const i18nLazyString = i18n.i18n.getLazilyComputedLocalizedString.bind(undefined, str_);
@@ -66,14 +70,22 @@ UI.ViewManager.registerViewExtension({
     order: 1,
     async loadView() {
         const Persistence = await loadPersistenceModule();
-        return Persistence.WorkspaceSettingsTab.WorkspaceSettingsTab.instance();
+        return new Persistence.WorkspaceSettingsTab.WorkspaceSettingsTab();
     },
+    iconName: 'folder',
 });
 Common.Settings.registerSettingExtension({
-    category: Common.Settings.SettingCategory.PERSISTENCE,
+    category: "PERSISTENCE" /* Common.Settings.SettingCategory.PERSISTENCE */,
+    title: i18nLazyString(UIStrings.enableAutomaticWorkspaceFolders),
+    settingName: 'persistence-automatic-workspace-folders',
+    settingType: "boolean" /* Common.Settings.SettingType.BOOLEAN */,
+    defaultValue: false,
+});
+Common.Settings.registerSettingExtension({
+    category: "PERSISTENCE" /* Common.Settings.SettingCategory.PERSISTENCE */,
     title: i18nLazyString(UIStrings.enableLocalOverrides),
-    settingName: 'persistenceNetworkOverridesEnabled',
-    settingType: Common.Settings.SettingType.BOOLEAN,
+    settingName: 'persistence-network-overrides-enabled',
+    settingType: "boolean" /* Common.Settings.SettingType.BOOLEAN */,
     defaultValue: false,
     tags: [
         i18nLazyString(UIStrings.interception),
@@ -103,7 +115,7 @@ UI.ContextMenu.registerProvider({
     },
     async loadProvider() {
         const Persistence = await loadPersistenceModule();
-        return Persistence.PersistenceActions.ContextMenuProvider.instance();
+        return new Persistence.PersistenceActions.ContextMenuProvider();
     },
     experiment: undefined,
 });

@@ -29,26 +29,18 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+import '../../ui/legacy/legacy.js';
 import * as Common from '../../core/common/common.js';
 import * as Host from '../../core/host/host.js';
 import * as i18n from '../../core/i18n/i18n.js';
+import * as Platform from '../../core/platform/platform.js';
 import * as SDK from '../../core/sdk/sdk.js';
 import * as ObjectUI from '../../ui/legacy/components/object_ui/object_ui.js';
 import * as UI from '../../ui/legacy/legacy.js';
+import * as VisualLogging from '../../ui/visual_logging/visual_logging.js';
 import propertiesWidgetStyles from './propertiesWidget.css.js';
-import { StylesSidebarPane } from './StylesSidebarPane.js';
 const OBJECT_GROUP_NAME = 'properties-sidebar-pane';
 const UIStrings = {
-    /**
-     * @description Placeholder text for a text input used to filter which DOM element properties show up in
-     * the Properties tab of the Elements panel.
-     */
-    filter: 'Filter',
-    /**
-     * @description ARIA accessible name for the text input used to filter which DOM element properties show up
-     * in the Properties tab of the Elements panel.
-     */
-    filterProperties: 'Filter Properties',
     /**
      * @description Text on the checkbox in the Properties tab of the Elements panel, which controls whether
      * all properties of the currently selected DOM element are shown, or only meaningful properties (i.e.
@@ -69,7 +61,6 @@ const UIStrings = {
 };
 const str_ = i18n.i18n.registerUIStrings('panels/elements/PropertiesWidget.ts', UIStrings);
 const i18nString = i18n.i18n.getLocalizedString.bind(undefined, str_);
-let propertiesWidgetInstance;
 export class PropertiesWidget extends UI.ThrottledWidget.ThrottledWidget {
     node;
     showAllPropertiesSetting;
@@ -80,7 +71,8 @@ export class PropertiesWidget extends UI.ThrottledWidget.ThrottledWidget {
     lastRequestedNode;
     constructor(throttlingTimeout) {
         super(true /* isWebComponent */, throttlingTimeout);
-        this.showAllPropertiesSetting = Common.Settings.Settings.instance().createSetting('showAllProperties', false);
+        this.registerRequiredCSS(propertiesWidgetStyles);
+        this.showAllPropertiesSetting = Common.Settings.Settings.instance().createSetting('show-all-properties', false);
         this.showAllPropertiesSetting.addChangeListener(this.filterList.bind(this));
         SDK.TargetManager.TargetManager.instance().addModelListener(SDK.DOMModel.DOMModel, SDK.DOMModel.Events.AttrModified, this.onNodeChange, this, { scoped: true });
         SDK.TargetManager.TargetManager.instance().addModelListener(SDK.DOMModel.DOMModel, SDK.DOMModel.Events.AttrRemoved, this.onNodeChange, this, { scoped: true });
@@ -89,12 +81,12 @@ export class PropertiesWidget extends UI.ThrottledWidget.ThrottledWidget {
         UI.Context.Context.instance().addFlavorChangeListener(SDK.DOMModel.DOMNode, this.setNode, this);
         this.node = UI.Context.Context.instance().flavor(SDK.DOMModel.DOMNode);
         const hbox = this.contentElement.createChild('div', 'hbox properties-widget-toolbar');
-        const filterContainerElement = hbox.createChild('div', 'properties-widget-filter-box');
-        const filterInput = StylesSidebarPane.createPropertyFilterElement(i18nString(UIStrings.filter), hbox, this.filterProperties.bind(this));
-        UI.ARIAUtils.setLabel(filterInput, i18nString(UIStrings.filterProperties));
-        filterContainerElement.appendChild(filterInput);
-        const toolbar = new UI.Toolbar.Toolbar('styles-pane-toolbar', hbox);
+        const toolbar = hbox.createChild('devtools-toolbar', 'styles-pane-toolbar');
+        const filterInput = new UI.Toolbar.ToolbarFilter(undefined, 1, 1, undefined, undefined, false);
+        filterInput.addEventListener("TextChanged" /* UI.Toolbar.ToolbarInput.Event.TEXT_CHANGED */, this.onFilterChanged, this);
+        toolbar.appendToolbarItem(filterInput);
         toolbar.appendToolbarItem(new UI.Toolbar.ToolbarSettingCheckbox(this.showAllPropertiesSetting, i18nString(UIStrings.showAllTooltip), i18nString(UIStrings.showAll)));
+        this.contentElement.setAttribute('jslog', `${VisualLogging.pane('element-properties').track({ resize: true })}`);
         this.noMatchesElement = this.contentElement.createChild('div', 'gray-info-message hidden');
         this.noMatchesElement.textContent = i18nString(UIStrings.noMatchingProperty);
         this.treeOutline = new ObjectUI.ObjectPropertiesSection.ObjectPropertiesSectionsTreeOutline({ readOnly: true });
@@ -107,14 +99,8 @@ export class PropertiesWidget extends UI.ThrottledWidget.ThrottledWidget {
         });
         this.update();
     }
-    static instance(opts) {
-        if (!propertiesWidgetInstance || opts?.forceNew) {
-            propertiesWidgetInstance = new PropertiesWidget(opts?.throttlingTimeout);
-        }
-        return propertiesWidgetInstance;
-    }
-    filterProperties(regex) {
-        this.filterRegex = regex;
+    onFilterChanged(event) {
+        this.filterRegex = event.data ? new RegExp(Platform.StringUtilities.escapeForRegExp(event.data), 'i') : null;
         this.filterList();
     }
     filterList() {
@@ -169,10 +155,6 @@ export class PropertiesWidget extends UI.ThrottledWidget.ThrottledWidget {
             return;
         }
         this.update();
-    }
-    wasShown() {
-        super.wasShown();
-        this.registerCSSFiles([propertiesWidgetStyles]);
     }
 }
 //# sourceMappingURL=PropertiesWidget.js.map

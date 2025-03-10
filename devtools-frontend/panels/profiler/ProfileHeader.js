@@ -18,13 +18,13 @@ export class ProfileHeader extends Common.ObjectWrapper.ObjectWrapper {
     }
     setTitle(title) {
         this.title = title;
-        this.dispatchEventToListeners(Events.ProfileTitleChanged, this);
+        this.dispatchEventToListeners("ProfileTitleChanged" /* Events.PROFILE_TITLE_CHANGED */, this);
     }
     profileType() {
         return this.profileTypeInternal;
     }
     updateStatus(subtitle, wait) {
-        this.dispatchEventToListeners(Events.UpdateStatus, new StatusUpdate(subtitle, wait));
+        this.dispatchEventToListeners("UpdateStatus" /* Events.UPDATE_STATUS */, new StatusUpdate(subtitle, wait));
     }
     /**
      * Must be implemented by subclasses.
@@ -68,14 +68,6 @@ export class StatusUpdate {
         this.wait = wait;
     }
 }
-// TODO(crbug.com/1167717): Make this a const enum again
-// eslint-disable-next-line rulesdir/const_enum
-export var Events;
-(function (Events) {
-    Events["UpdateStatus"] = "UpdateStatus";
-    Events["ProfileReceived"] = "ProfileReceived";
-    Events["ProfileTitleChanged"] = "ProfileTitleChanged";
-})(Events || (Events = {}));
 export class ProfileType extends Common.ObjectWrapper.ObjectWrapper {
     idInternal;
     nameInternal;
@@ -90,7 +82,7 @@ export class ProfileType extends Common.ObjectWrapper.ObjectWrapper {
         this.profileBeingRecordedInternal = null;
         this.nextProfileUidInternal = 1;
         if (!window.opener) {
-            window.addEventListener('unload', this.clearTempStorage.bind(this), false);
+            window.addEventListener('pagehide', this.clearTempStorage.bind(this), false);
         }
     }
     typeName() {
@@ -168,7 +160,7 @@ export class ProfileType extends Common.ObjectWrapper.ObjectWrapper {
     }
     addProfile(profile) {
         this.profiles.push(profile);
-        this.dispatchEventToListeners(ProfileEvents.AddProfileHeader, profile);
+        this.dispatchEventToListeners("add-profile-header" /* ProfileEvents.ADD_PROFILE_HEADER */, profile);
     }
     removeProfile(profile) {
         const index = this.profiles.indexOf(profile);
@@ -199,7 +191,7 @@ export class ProfileType extends Common.ObjectWrapper.ObjectWrapper {
         this.nextProfileUidInternal = 1;
     }
     disposeProfile(profile) {
-        this.dispatchEventToListeners(ProfileEvents.RemoveProfileHeader, profile);
+        this.dispatchEventToListeners("remove-profile-header" /* ProfileEvents.REMOVE_PROFILE_HEADER */, profile);
         profile.dispose();
         if (this.profileBeingRecordedInternal === profile) {
             this.profileBeingRecordedRemoved();
@@ -207,13 +199,4 @@ export class ProfileType extends Common.ObjectWrapper.ObjectWrapper {
         }
     }
 }
-// TODO(crbug.com/1167717): Make this a const enum again
-// eslint-disable-next-line rulesdir/const_enum
-export var ProfileEvents;
-(function (ProfileEvents) {
-    ProfileEvents["AddProfileHeader"] = "add-profile-header";
-    ProfileEvents["ProfileComplete"] = "profile-complete";
-    ProfileEvents["RemoveProfileHeader"] = "remove-profile-header";
-    ProfileEvents["ViewUpdated"] = "view-updated";
-})(ProfileEvents || (ProfileEvents = {}));
 //# sourceMappingURL=ProfileHeader.js.map

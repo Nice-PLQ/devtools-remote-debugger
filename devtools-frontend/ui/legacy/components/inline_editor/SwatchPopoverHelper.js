@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 import * as Common from '../../../../core/common/common.js';
 import * as Platform from '../../../../core/platform/platform.js';
+import * as VisualLogging from '../../../visual_logging/visual_logging.js';
 import * as UI from '../../legacy.js';
 import { ColorSwatch } from './ColorSwatch.js';
 import swatchPopoverStyles from './swatchPopover.css.js';
@@ -19,8 +20,8 @@ export class SwatchPopoverHelper extends Common.ObjectWrapper.ObjectWrapper {
     constructor() {
         super();
         this.popover = new UI.GlassPane.GlassPane();
-        this.popover.setSizeBehavior("MeasureContent" /* UI.GlassPane.SizeBehavior.MeasureContent */);
-        this.popover.setMarginBehavior("Arrow" /* UI.GlassPane.MarginBehavior.Arrow */);
+        this.popover.setSizeBehavior("MeasureContent" /* UI.GlassPane.SizeBehavior.MEASURE_CONTENT */);
+        this.popover.setMarginBehavior("Arrow" /* UI.GlassPane.MarginBehavior.ARROW */);
         this.popover.element.addEventListener('mousedown', e => e.consume(), false);
         this.hideProxy = this.hide.bind(this, true);
         this.boundOnKeyDown = this.onKeyDown.bind(this);
@@ -49,8 +50,9 @@ export class SwatchPopoverHelper extends Common.ObjectWrapper.ObjectWrapper {
             // Reopen the picker for another anchor element.
             this.hide(true);
         }
-        this.popover.registerCSSFiles([swatchPopoverStyles]);
-        this.dispatchEventToListeners(Events.WillShowPopover);
+        VisualLogging.setMappedParent(view.contentElement, anchorElement);
+        this.popover.registerRequiredCSS(swatchPopoverStyles);
+        this.dispatchEventToListeners("WillShowPopover" /* Events.WILL_SHOW_POPOVER */);
         this.isHidden = false;
         this.anchorElement = anchorElement;
         this.view = view;
@@ -75,14 +77,14 @@ export class SwatchPopoverHelper extends Common.ObjectWrapper.ObjectWrapper {
         if (this.anchorElement) {
             let anchorBox = this.anchorElement.boxInWindow();
             if (ColorSwatch.isColorSwatch(this.anchorElement)) {
-                const swatch = this.anchorElement;
+                const swatch = (this.anchorElement);
                 if (!swatch.anchorBox) {
                     return;
                 }
                 anchorBox = swatch.anchorBox;
             }
             this.popover.setContentAnchorBox(anchorBox);
-            this.popover.show(this.anchorElement.ownerDocument);
+            this.popover.show((this.anchorElement.ownerDocument));
         }
         this.view.contentElement.addEventListener('focusout', this.boundFocusOut, false);
         if (!this.focusRestorer) {
@@ -126,10 +128,4 @@ export class SwatchPopoverHelper extends Common.ObjectWrapper.ObjectWrapper {
         }
     }
 }
-// TODO(crbug.com/1167717): Make this a const enum again
-// eslint-disable-next-line rulesdir/const_enum
-export var Events;
-(function (Events) {
-    Events["WillShowPopover"] = "WillShowPopover";
-})(Events || (Events = {}));
 //# sourceMappingURL=SwatchPopoverHelper.js.map

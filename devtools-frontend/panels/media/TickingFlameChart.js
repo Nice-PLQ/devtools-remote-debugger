@@ -9,7 +9,7 @@ import * as ThemeSupport from '../../ui/legacy/theme_support/theme_support.js';
 import { Bounds, formatMillisecondsToSeconds } from './TickingFlameChartHelpers.js';
 const defaultFont = '11px ' + Host.Platform.fontFamily();
 function getGroupDefaultTextColor() {
-    return ThemeSupport.ThemeSupport.instance().getComputedValue('--color-text-primary');
+    return ThemeSupport.ThemeSupport.instance().getComputedValue('--sys-color-on-surface');
 }
 const DefaultStyle = () => ({
     height: 20,
@@ -164,7 +164,7 @@ export class TickingFlameChart extends UI.Widget.VBox {
         this.delegate = new TickingFlameChartDelegate();
         // Chart settings.
         this.chartGroupExpansionSetting =
-            Common.Settings.Settings.instance().createSetting('mediaFlameChartGroupExpansion', {});
+            Common.Settings.Settings.instance().createSetting('media-flame-chart-group-expansion', {});
         // Create the chart.
         this.chart =
             // TODO(crbug.com/1172300) Ignored during the jsdoc to ts migration
@@ -312,13 +312,16 @@ class TickingFlameChartDataProvider {
         // The current sum of all group heights.
         this.maxLevel = 0;
     }
+    hasTrackConfigurationMode() {
+        return false;
+    }
     /**
      * Add a group with |name| that can contain |depth| different tracks.
      */
     addGroup(name, depth) {
         if (this.timelineDataInternal.groups) {
             const newGroup = {
-                name: name,
+                name,
                 startLevel: this.maxLevel,
                 expanded: true,
                 selectable: false,
@@ -338,7 +341,7 @@ class TickingFlameChartDataProvider {
     startEvent(properties) {
         properties['level'] = properties['level'] || 0;
         if (properties['level'] > this.maxLevel) {
-            throw `level ${properties['level']} is above the maximum allowed of ${this.maxLevel}`;
+            throw new Error(`level ${properties['level']} is above the maximum allowed of ${this.maxLevel}`);
         }
         const event = new Event(this.timelineDataInternal, {
             setLive: this.setLive.bind(this),
@@ -394,7 +397,7 @@ class TickingFlameChartDataProvider {
     forceDecoration(_index) {
         return false;
     }
-    prepareHighlightedEntryInfo(index) {
+    preparePopoverElement(index) {
         const element = document.createElement('div');
         this.eventMap.get(index).decorate(element);
         return element;
@@ -416,9 +419,6 @@ class TickingFlameChartDataProvider {
     }
     canJumpToEntry(_entryIndex) {
         return false;
-    }
-    navStartTimes() {
-        return new Map();
     }
 }
 //# sourceMappingURL=TickingFlameChart.js.map

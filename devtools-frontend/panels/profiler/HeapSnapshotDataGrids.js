@@ -33,7 +33,7 @@ import * as HeapSnapshotModel from '../../models/heap_snapshot_model/heap_snapsh
 import * as DataGrid from '../../ui/legacy/components/data_grid/data_grid.js';
 import * as Components from '../../ui/legacy/components/utils/utils.js';
 import * as UI from '../../ui/legacy/legacy.js';
-import { AllocationGridNode, HeapSnapshotConstructorNode, HeapSnapshotGenericObjectNode, HeapSnapshotRetainingObjectNode, HeapSnapshotObjectNode, HeapSnapshotDiffNode, } from './HeapSnapshotGridNodes.js';
+import { AllocationGridNode, HeapSnapshotConstructorNode, HeapSnapshotDiffNode, HeapSnapshotGenericObjectNode, HeapSnapshotObjectNode, HeapSnapshotRetainingObjectNode, } from './HeapSnapshotGridNodes.js';
 const UIStrings = {
     /**
      *@description Text in Heap Snapshot Data Grids of a profiler tool
@@ -139,7 +139,8 @@ const i18nString = i18n.i18n.getLocalizedString.bind(undefined, str_);
 const adjacencyMap = new WeakMap();
 class HeapSnapshotSortableDataGridBase extends DataGrid.DataGrid.DataGridImpl {
 }
-export class HeapSnapshotSortableDataGrid extends Common.ObjectWrapper.eventMixin(HeapSnapshotSortableDataGridBase) {
+export class HeapSnapshotSortableDataGrid extends Common.ObjectWrapper
+    .eventMixin(HeapSnapshotSortableDataGridBase) {
     snapshot;
     selectedNode;
     heapProfilerModelInternal;
@@ -173,7 +174,7 @@ export class HeapSnapshotSortableDataGrid extends Common.ObjectWrapper.eventMixi
         this.nameFilter = null;
         this.nodeFilterInternal = new HeapSnapshotModel.HeapSnapshotModel.NodeFilter();
         this.addEventListener(HeapSnapshotSortableDataGridEvents.SortingComplete, this.sortingComplete, this);
-        this.addEventListener(DataGrid.DataGrid.Events.SortingChanged, this.sortingChanged, this);
+        this.addEventListener("SortingChanged" /* DataGrid.DataGrid.Events.SORTING_CHANGED */, this.sortingChanged, this);
         this.setRowContextMenuCallback(this.populateContextMenu.bind(this));
     }
     async setDataSource(_snapshot, _nodeIndex) {
@@ -209,7 +210,7 @@ export class HeapSnapshotSortableDataGrid extends Common.ObjectWrapper.eventMixi
     }
     wasShown() {
         if (this.nameFilter) {
-            this.nameFilter.addEventListener(UI.Toolbar.ToolbarInput.Event.TextChanged, this.onNameFilterChanged, this);
+            this.nameFilter.addEventListener("TextChanged" /* UI.Toolbar.ToolbarInput.Event.TEXT_CHANGED */, this.onNameFilterChanged, this);
             this.updateVisibleNodes(true);
         }
         if (this.populatedAndSorted) {
@@ -223,14 +224,13 @@ export class HeapSnapshotSortableDataGrid extends Common.ObjectWrapper.eventMixi
     }
     willHide() {
         if (this.nameFilter) {
-            this.nameFilter.removeEventListener(UI.Toolbar.ToolbarInput.Event.TextChanged, this.onNameFilterChanged, this);
+            this.nameFilter.removeEventListener("TextChanged" /* UI.Toolbar.ToolbarInput.Event.TEXT_CHANGED */, this.onNameFilterChanged, this);
         }
     }
     populateContextMenu(contextMenu, gridNode) {
         const node = gridNode;
         node.populateContextMenu(contextMenu, this.dataDisplayDelegateInternal, this.heapProfilerModel());
-        if (node instanceof HeapSnapshotGenericObjectNode && node.linkElement &&
-            !contextMenu.containsTarget(node.linkElement)) {
+        if (node instanceof HeapSnapshotGenericObjectNode && node.linkElement) {
             contextMenu.appendApplicableItems(node.linkElement);
         }
     }
@@ -256,7 +256,7 @@ export class HeapSnapshotSortableDataGrid extends Common.ObjectWrapper.eventMixi
     deselectFilteredNodes() {
         let currentNode = this.selectedNode;
         while (currentNode) {
-            if (this.selectedNode && this.isFilteredOut(currentNode)) {
+            if (this.selectedNode && this.isFilteredOut((currentNode))) {
                 this.selectedNode.deselect();
                 this.selectedNode = null;
                 return;
@@ -276,11 +276,10 @@ export class HeapSnapshotSortableDataGrid extends Common.ObjectWrapper.eventMixi
         this.lastSortColumnId = sortColumnId;
         this.lastSortAscending = sortAscending;
         const sortFields = this.sortFields(sortColumnId || '', sortAscending);
-        // eslint-disable-next-line @typescript-eslint/naming-convention
-        function SortByTwoFields(nodeA, nodeB) {
-            // @ts-ignore
+        function sortByTwoFields(nodeA, nodeB) {
+            // @ts-expect-error
             let field1 = nodeA[sortFields.fieldName1];
-            // @ts-ignore
+            // @ts-expect-error
             let field2 = nodeB[sortFields.fieldName1];
             let result = field1 < field2 ? -1 : (field1 > field2 ? 1 : 0);
             if (!sortFields.ascending1) {
@@ -289,9 +288,9 @@ export class HeapSnapshotSortableDataGrid extends Common.ObjectWrapper.eventMixi
             if (result !== 0) {
                 return result;
             }
-            // @ts-ignore
+            // @ts-expect-error
             field1 = nodeA[sortFields.fieldName2];
-            // @ts-ignore
+            // @ts-expect-error
             field2 = nodeB[sortFields.fieldName2];
             result = field1 < field2 ? -1 : (field1 > field2 ? 1 : 0);
             if (!sortFields.ascending2) {
@@ -299,7 +298,7 @@ export class HeapSnapshotSortableDataGrid extends Common.ObjectWrapper.eventMixi
             }
             return result;
         }
-        this.performSorting(SortByTwoFields);
+        this.performSorting(sortByTwoFields);
     }
     performSorting(sortFunction) {
         this.recursiveSortingEnter();
@@ -309,7 +308,7 @@ export class HeapSnapshotSortableDataGrid extends Common.ObjectWrapper.eventMixi
         for (let i = 0, l = children.length; i < l; ++i) {
             const child = children[i];
             this.appendChildAfterSorting(child);
-            if (child.expanded) {
+            if (child.populated) {
                 void child.sort();
             }
         }
@@ -347,14 +346,17 @@ export class HeapSnapshotSortableDataGrid extends Common.ObjectWrapper.eventMixi
     removeAllChildren(parent) {
         parent.removeChildren();
     }
+    async dataSourceChanged() {
+        throw new Error('Not implemented');
+    }
 }
-// TODO(crbug.com/1167717): Make this a const enum again
-// eslint-disable-next-line rulesdir/const_enum
 export var HeapSnapshotSortableDataGridEvents;
 (function (HeapSnapshotSortableDataGridEvents) {
+    /* eslint-disable @typescript-eslint/naming-convention -- Used by web_tests. */
     HeapSnapshotSortableDataGridEvents["ContentShown"] = "ContentShown";
     HeapSnapshotSortableDataGridEvents["SortingComplete"] = "SortingComplete";
     HeapSnapshotSortableDataGridEvents["ExpandRetainersComplete"] = "ExpandRetainersComplete";
+    /* eslint-enable @typescript-eslint/naming-convention */
 })(HeapSnapshotSortableDataGridEvents || (HeapSnapshotSortableDataGridEvents = {}));
 export class HeapSnapshotViewportDataGrid extends HeapSnapshotSortableDataGrid {
     topPaddingHeight;
@@ -467,7 +469,7 @@ export class HeapSnapshotViewportDataGrid extends HeapSnapshotSortableDataGrid {
     }
     revealTreeNode(pathToReveal) {
         const height = this.calculateOffset(pathToReveal);
-        const node = pathToReveal[pathToReveal.length - 1];
+        const node = (pathToReveal[pathToReveal.length - 1]);
         const scrollTop = this.scrollContainer.scrollTop;
         const scrollBottom = scrollTop + this.scrollContainer.offsetHeight;
         if (height >= scrollTop && height < scrollBottom) {
@@ -507,7 +509,7 @@ export class HeapSnapshotViewportDataGrid extends HeapSnapshotSortableDataGrid {
             }
             parentNode = node;
         }
-        return height - pathToReveal[pathToReveal.length - 1].nodeSelfHeight();
+        return height - (pathToReveal[pathToReveal.length - 1]).nodeSelfHeight();
     }
     allChildren(parent) {
         const children = adjacencyMap.get(parent) || [];
@@ -520,7 +522,7 @@ export class HeapSnapshotViewportDataGrid extends HeapSnapshotSortableDataGrid {
         this.allChildren(parent).push(node);
     }
     insertChild(parent, node, index) {
-        this.allChildren(parent).splice(index, 0, node);
+        this.allChildren(parent).splice(index, 0, (node));
     }
     removeChildByIndex(parent, index) {
         this.allChildren(parent).splice(index, 1);
@@ -532,13 +534,6 @@ export class HeapSnapshotViewportDataGrid extends HeapSnapshotSortableDataGrid {
         this.disposeAllNodes();
         this.rootNode().removeChildren();
         this.removeAllChildren(this.rootNode());
-    }
-    isScrolledIntoView(element) {
-        const viewportTop = this.scrollContainer.scrollTop;
-        const viewportBottom = viewportTop + this.scrollContainer.clientHeight;
-        const elemTop = element.offsetTop;
-        const elemBottom = elemTop + element.offsetHeight;
-        return elemBottom <= viewportBottom && elemTop >= viewportTop;
     }
     onResize() {
         super.onResize();
@@ -577,9 +572,9 @@ export class HeapSnapshotContainmentDataGrid extends HeapSnapshotSortableDataGri
         const dataGridParameters = { displayName, columns };
         super(heapProfilerModel, dataDisplayDelegate, dataGridParameters);
     }
-    async setDataSource(snapshot, nodeIndex) {
+    async setDataSource(snapshot, nodeIndex, nodeId) {
         this.snapshot = snapshot;
-        const node = new HeapSnapshotModel.HeapSnapshotModel.Node(-1, 'root', 0, nodeIndex || snapshot.rootNodeIndex, 0, 0, '');
+        const node = new HeapSnapshotModel.HeapSnapshotModel.Node(nodeId ?? -1, 'root', 0, nodeIndex || snapshot.rootNodeIndex, 0, 0, '');
         this.setRootNode(this.createRootNode(snapshot, node));
         void this.rootNode().sort();
     }
@@ -595,6 +590,7 @@ export class HeapSnapshotContainmentDataGrid extends HeapSnapshotSortableDataGri
     }
 }
 export class HeapSnapshotRetainmentDataGrid extends HeapSnapshotContainmentDataGrid {
+    resetRetainersButton;
     constructor(heapProfilerModel, dataDisplayDelegate) {
         const columns = [
             { id: 'object', title: i18nString(UIStrings.object), disclosure: true, sortable: true },
@@ -635,17 +631,29 @@ export class HeapSnapshotRetainmentDataGrid extends HeapSnapshotContainmentDataG
         this.rootNode().removeChildren();
         this.resetSortingCache();
     }
-    async setDataSource(snapshot, nodeIndex) {
-        await super.setDataSource(snapshot, nodeIndex);
+    updateResetButtonVisibility() {
+        void this.snapshot?.areNodesIgnoredInRetainersView().then(value => {
+            this.resetRetainersButton?.setVisible(value);
+        });
+    }
+    async setDataSource(snapshot, nodeIndex, nodeId) {
+        await super.setDataSource(snapshot, nodeIndex, nodeId);
         this.rootNode().expand();
+        this.updateResetButtonVisibility();
+    }
+    async dataSourceChanged() {
+        this.reset();
+        await this.rootNode().sort();
+        this.rootNode().expand();
+        this.updateResetButtonVisibility();
     }
 }
-// TODO(crbug.com/1167717): Make this a const enum again
 // TODO(crbug.com/1228674): Remove this enum, it is only used in web tests.
-// eslint-disable-next-line rulesdir/const_enum
 export var HeapSnapshotRetainmentDataGridEvents;
 (function (HeapSnapshotRetainmentDataGridEvents) {
+    /* eslint-disable @typescript-eslint/naming-convention -- Used by web_tests. */
     HeapSnapshotRetainmentDataGridEvents["ExpandRetainersComplete"] = "ExpandRetainersComplete";
+    /* eslint-enable @typescript-eslint/naming-convention */
 })(HeapSnapshotRetainmentDataGridEvents || (HeapSnapshotRetainmentDataGridEvents = {}));
 export class HeapSnapshotConstructorsDataGrid extends HeapSnapshotViewportDataGrid {
     profileIndex;
@@ -692,16 +700,17 @@ export class HeapSnapshotConstructorsDataGrid extends HeapSnapshotViewportDataGr
             this.objectIdToSelect = id;
             return null;
         }
-        const className = await this.snapshot.nodeClassName(parseInt(id, 10));
-        if (!className) {
+        const classKey = await this.snapshot.nodeClassKey(parseInt(id, 10));
+        if (!classKey) {
             return null;
         }
-        const parent = this.topLevelNodes().find(classNode => classNode.name === className);
+        const topLevelNodes = this.topLevelNodes();
+        const parent = topLevelNodes.find(classNode => classNode.classKey === classKey);
         if (!parent) {
             return null;
         }
         const nodes = await parent.populateNodeBySnapshotObjectId(parseInt(id, 10));
-        return nodes.length ? this.revealTreeNode(nodes) : null;
+        return nodes.length ? await this.revealTreeNode(nodes) : null;
     }
     clear() {
         this.nextRequestedFilter = null;
@@ -737,8 +746,8 @@ export class HeapSnapshotConstructorsDataGrid extends HeapSnapshotViewportDataGr
         }
         this.removeTopLevelNodes();
         this.resetSortingCache();
-        for (const constructor in aggregates) {
-            this.appendNode(this.rootNode(), new HeapSnapshotConstructorNode(this, constructor, aggregates[constructor], nodeFilter));
+        for (const classKey in aggregates) {
+            this.appendNode(this.rootNode(), new HeapSnapshotConstructorNode(this, classKey, aggregates[classKey], nodeFilter));
         }
         this.sortingChanged();
         this.lastFilter = nodeFilter;
@@ -749,7 +758,7 @@ export class HeapSnapshotConstructorsDataGrid extends HeapSnapshotViewportDataGr
             this.nextRequestedFilter = this.filterInProgress.equals(nodeFilter) ? null : nodeFilter;
             return;
         }
-        if (this.lastFilter && this.lastFilter.equals(nodeFilter)) {
+        if (this.lastFilter?.equals(nodeFilter)) {
             return;
         }
         this.filterInProgress = nodeFilter;
@@ -758,13 +767,17 @@ export class HeapSnapshotConstructorsDataGrid extends HeapSnapshotViewportDataGr
             this.aggregatesReceived(nodeFilter, aggregates);
         }
     }
-    filterSelectIndexChanged(profiles, profileIndex) {
+    filterSelectIndexChanged(profiles, profileIndex, filterName) {
         this.profileIndex = profileIndex;
         this.nodeFilterInternal = undefined;
         if (profileIndex !== -1) {
             const minNodeId = profileIndex > 0 ? profiles[profileIndex - 1].maxJSObjectId : 0;
             const maxNodeId = profiles[profileIndex].maxJSObjectId;
             this.nodeFilterInternal = new HeapSnapshotModel.HeapSnapshotModel.NodeFilter(minNodeId, maxNodeId);
+        }
+        else if (filterName !== undefined) {
+            this.nodeFilterInternal = new HeapSnapshotModel.HeapSnapshotModel.NodeFilter();
+            this.nodeFilterInternal.filterName = filterName;
         }
         void this.populateChildren(this.nodeFilterInternal);
     }
@@ -827,17 +840,18 @@ export class HeapSnapshotDiffDataGrid extends HeapSnapshotViewportDataGrid {
         void this.populateChildren();
     }
     async populateChildren() {
-        if (this.snapshot === null || this.baseSnapshot === undefined || this.baseSnapshot.uid === undefined) {
+        if (this.snapshot === null || this.baseSnapshot?.uid === undefined) {
             throw new Error('Data sources have not been set correctly');
         }
         // Two snapshots live in different workers isolated from each other. That is why
         // we first need to collect information about the nodes in the first snapshot and
         // then pass it to the second snapshot to calclulate the diff.
-        const aggregatesForDiff = await this.baseSnapshot.aggregatesForDiff();
-        const diffByClassName = await this.snapshot.calculateSnapshotDiff(this.baseSnapshot.uid, aggregatesForDiff);
-        for (const className in diffByClassName) {
-            const diff = diffByClassName[className];
-            this.appendNode(this.rootNode(), new HeapSnapshotDiffNode(this, className, diff));
+        const interfaceDefinitions = await this.snapshot.interfaceDefinitions();
+        const aggregatesForDiff = await this.baseSnapshot.aggregatesForDiff(interfaceDefinitions);
+        const diffByClassKey = await this.snapshot.calculateSnapshotDiff(this.baseSnapshot.uid, aggregatesForDiff);
+        for (const classKey in diffByClassKey) {
+            const diff = diffByClassKey[classKey];
+            this.appendNode(this.rootNode(), new HeapSnapshotDiffNode(this, classKey, diff));
         }
         this.sortingChanged();
     }
@@ -895,11 +909,11 @@ export class AllocationDataGrid extends HeapSnapshotViewportDataGrid {
         const fieldName = this.sortColumnId();
         const compareResult = (this.sortOrder() === DataGrid.DataGrid.Order.Ascending) ? +1 : -1;
         function compare(a, b) {
-            // @ts-ignore
+            // @ts-expect-error
             if (a[fieldName] > b[fieldName]) {
                 return compareResult;
             }
-            // @ts-ignore
+            // @ts-expect-error
             if (a[fieldName] < b[fieldName]) {
                 return -compareResult;
             }

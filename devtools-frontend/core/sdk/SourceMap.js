@@ -33,6 +33,10 @@
 import * as TextUtils from '../../models/text_utils/text_utils.js';
 import * as Common from '../common/common.js';
 import * as Platform from '../platform/platform.js';
+import * as Root from '../root/root.js';
+import { buildOriginalScopes, decodePastaRanges } from './SourceMapFunctionRanges.js';
+import { decodeScopes } from './SourceMapScopes.js';
+import { SourceMapScopesInfo } from './SourceMapScopesInfo.js';
 /**
  * Parses the {@link content} as JSON, ignoring BOM markers in the beginning, and
  * also handling the CORB bypass prefix correctly.
@@ -53,13 +57,15 @@ export function parseSourceMap(content) {
 export class SourceMapEntry {
     lineNumber;
     columnNumber;
+    sourceIndex;
     sourceURL;
     sourceLineNumber;
     sourceColumnNumber;
     name;
-    constructor(lineNumber, columnNumber, sourceURL, sourceLineNumber, sourceColumnNumber, name) {
+    constructor(lineNumber, columnNumber, sourceIndex, sourceURL, sourceLineNumber, sourceColumnNumber, name) {
         this.lineNumber = lineNumber;
         this.columnNumber = columnNumber;
+        this.sourceIndex = sourceIndex;
         this.sourceURL = sourceURL;
         this.sourceLineNumber = sourceLineNumber;
         this.sourceColumnNumber = sourceColumnNumber;
@@ -72,19 +78,16 @@ export class SourceMapEntry {
         return entry1.columnNumber - entry2.columnNumber;
     }
 }
-const base64Digits = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
-const base64Map = new Map();
-for (let i = 0; i < base64Digits.length; ++i) {
-    base64Map.set(base64Digits.charAt(i), i);
-}
-const sourceMapToSourceList = new WeakMap();
 export class SourceMap {
+    static retainRawSourceMaps = false;
     #json;
     #compiledURLInternal;
     #sourceMappingURL;
     #baseURL;
     #mappingsInternal;
-    #sourceInfos;
+    #sourceInfos = [];
+    #sourceInfoByURL = new Map();
+    #scopesInfo = null;
     /**
      * Implements Source Map V3 model. See https://github.com/google/closure-compiler/wiki/Source-Maps
      * for format description.
@@ -93,15 +96,41 @@ export class SourceMap {
         this.#json = payload;
         this.#compiledURLInternal = compiledURL;
         this.#sourceMappingURL = sourceMappingURL;
-        this.#baseURL = (sourceMappingURL.startsWith('data:') ? compiledURL : sourceMappingURL);
+        this.#baseURL = (Common.ParsedURL.schemeIs(sourceMappingURL, 'data:')) ? compiledURL : sourceMappingURL;
         this.#mappingsInternal = null;
-        this.#sourceInfos = new Map();
         if ('sections' in this.#json) {
             if (this.#json.sections.find(section => 'url' in section)) {
                 Common.Console.Console.instance().warn(`SourceMap "${sourceMappingURL}" contains unsupported "URL" field in one of its sections.`);
             }
         }
         this.eachSection(this.parseSources.bind(this));
+    }
+    json() {
+        return this.#json;
+    }
+    augmentWithScopes(scriptUrl, ranges) {
+        this.#ensureMappingsProcessed();
+        if (this.#json && this.#json.version > 3) {
+            throw new Error('Only support augmenting source maps up to version 3.');
+        }
+        // Ensure scriptUrl is associated with sourceMap sources
+        const sourceIdx = this.#sourceIndex(scriptUrl);
+        if (sourceIdx >= 0) {
+            if (!this.#scopesInfo) {
+                // First time seeing this sourcemap, create an new empty scopesInfo object
+                this.#scopesInfo = new SourceMapScopesInfo(this, [], []);
+            }
+            if (!this.#scopesInfo.hasOriginalScopes(sourceIdx)) {
+                const originalScopes = buildOriginalScopes(ranges);
+                this.#scopesInfo.addOriginalScopesAtIndex(sourceIdx, originalScopes);
+            }
+        }
+        else {
+            throw new Error(`Could not find sourceURL ${scriptUrl} in sourceMap`);
+        }
+    }
+    #sourceIndex(sourceURL) {
+        return this.#sourceInfos.findIndex(info => info.sourceURL === sourceURL);
     }
     compiledURL() {
         return this.#compiledURLInternal;
@@ -110,16 +139,40 @@ export class SourceMap {
         return this.#sourceMappingURL;
     }
     sourceURLs() {
-        return [...this.#sourceInfos.keys()];
+        return [...this.#sourceInfoByURL.keys()];
     }
     embeddedContentByURL(sourceURL) {
-        const entry = this.#sourceInfos.get(sourceURL);
+        const entry = this.#sourceInfoByURL.get(sourceURL);
         if (!entry) {
             return null;
         }
         return entry.content;
     }
-    findEntry(lineNumber, columnNumber) {
+    hasScopeInfo() {
+        this.#ensureMappingsProcessed();
+        return this.#scopesInfo !== null;
+    }
+    findEntry(lineNumber, columnNumber, inlineFrameIndex) {
+        this.#ensureMappingsProcessed();
+        if (inlineFrameIndex && this.#scopesInfo !== null) {
+            // For inlineFrameIndex != 0 we use the callsite info for the corresponding inlining site.
+            // Note that the callsite for "inlineFrameIndex" is actually in the previous frame.
+            const { inlinedFunctions } = this.#scopesInfo.findInlinedFunctions(lineNumber, columnNumber);
+            const { callsite } = inlinedFunctions[inlineFrameIndex - 1];
+            if (!callsite) {
+                console.error('Malformed source map. Expected to have a callsite info for index', inlineFrameIndex);
+                return null;
+            }
+            return {
+                lineNumber,
+                columnNumber,
+                sourceIndex: callsite.sourceIndex,
+                sourceURL: this.sourceURLs()[callsite.sourceIndex],
+                sourceLineNumber: callsite.line,
+                sourceColumnNumber: callsite.column,
+                name: undefined,
+            };
+        }
         const mappings = this.mappings();
         const index = Platform.ArrayUtilities.upperBound(mappings, undefined, (unused, entry) => lineNumber - entry.lineNumber || columnNumber - entry.columnNumber);
         return index ? mappings[index - 1] : null;
@@ -228,15 +281,23 @@ export class SourceMap {
     }
     reversedMappings(sourceURL) {
         this.#ensureMappingsProcessed();
-        return this.#sourceInfos.get(sourceURL)?.reverseMappings ?? [];
+        return this.#sourceInfoByURL.get(sourceURL)?.reverseMappings ?? [];
     }
     #ensureMappingsProcessed() {
         if (this.#mappingsInternal === null) {
             this.#mappingsInternal = [];
-            this.eachSection(this.parseMap.bind(this));
+            try {
+                this.eachSection(this.parseMap.bind(this));
+            }
+            catch (e) {
+                console.error('Failed to parse source map', e);
+                this.#mappingsInternal = [];
+            }
             // As per spec, mappings are not necessarily sorted.
             this.mappings().sort(SourceMapEntry.compare);
             this.#computeReverseMappings(this.#mappingsInternal);
+        }
+        if (!SourceMap.retainRawSourceMaps) {
             this.#json = null;
         }
     }
@@ -255,7 +316,7 @@ export class SourceMap {
             reverseMap.push(i);
         }
         for (const [url, reverseMap] of reverseMappingsPerUrl.entries()) {
-            const info = this.#sourceInfos.get(url);
+            const info = this.#sourceInfoByURL.get(url);
             if (!info) {
                 continue;
             }
@@ -274,20 +335,21 @@ export class SourceMap {
             return;
         }
         if ('sections' in this.#json) {
+            let sourcesIndex = 0;
             for (const section of this.#json.sections) {
                 if ('map' in section) {
-                    callback(section.map, section.offset.line, section.offset.column);
+                    callback(section.map, sourcesIndex, section.offset.line, section.offset.column);
+                    sourcesIndex += section.map.sources.length;
                 }
             }
         }
         else {
-            callback(this.#json, 0, 0);
+            callback(this.#json, 0, 0, 0);
         }
     }
     parseSources(sourceMap) {
-        const sourcesList = [];
         const sourceRoot = sourceMap.sourceRoot ?? '';
-        const ignoreList = new Set(sourceMap.x_google_ignoreList);
+        const ignoreList = new Set(sourceMap.ignoreList ?? sourceMap.x_google_ignoreList);
         for (let i = 0; i < sourceMap.sources.length; ++i) {
             let href = sourceMap.sources[i];
             // The source map v3 proposal says to prepend the sourceRoot to the source URL
@@ -304,84 +366,100 @@ export class SourceMap {
                 }
             }
             const url = Common.ParsedURL.ParsedURL.completeURL(this.#baseURL, href) || href;
-            const source = sourceMap.sourcesContent && sourceMap.sourcesContent[i];
-            sourcesList.push(url);
-            if (!this.#sourceInfos.has(url)) {
-                const content = source ?? null;
-                const ignoreListHint = ignoreList.has(i);
-                this.#sourceInfos.set(url, { content, ignoreListHint, reverseMappings: null });
+            const source = sourceMap.sourcesContent?.[i];
+            const sourceInfo = {
+                sourceURL: url,
+                content: source ?? null,
+                ignoreListHint: ignoreList.has(i),
+                reverseMappings: null,
+            };
+            this.#sourceInfos.push(sourceInfo);
+            if (!this.#sourceInfoByURL.has(url)) {
+                this.#sourceInfoByURL.set(url, sourceInfo);
             }
         }
-        sourceMapToSourceList.set(sourceMap, sourcesList);
     }
-    parseMap(map, lineNumber, columnNumber) {
-        let sourceIndex = 0;
+    parseMap(map, baseSourceIndex, baseLineNumber, baseColumnNumber) {
+        let sourceIndex = baseSourceIndex;
+        let lineNumber = baseLineNumber;
+        let columnNumber = baseColumnNumber;
         let sourceLineNumber = 0;
         let sourceColumnNumber = 0;
         let nameIndex = 0;
-        // TODO(crbug.com/1011811): refactor away map.
-        // `sources` can be undefined if it wasn't previously
-        // processed and added to the list. However, that
-        // is not WAI and we should make sure that we can
-        // only reach this point when we are certain
-        // we have the list available.
-        const sources = sourceMapToSourceList.get(map);
         const names = map.names ?? [];
-        const stringCharIterator = new SourceMap.StringCharIterator(map.mappings);
-        let sourceURL = sources && sources[sourceIndex];
+        const tokenIter = new TokenIterator(map.mappings);
+        let sourceURL = this.#sourceInfos[sourceIndex]?.sourceURL;
         while (true) {
-            if (stringCharIterator.peek() === ',') {
-                stringCharIterator.next();
+            if (tokenIter.peek() === ',') {
+                tokenIter.next();
             }
             else {
-                while (stringCharIterator.peek() === ';') {
+                while (tokenIter.peek() === ';') {
                     lineNumber += 1;
                     columnNumber = 0;
-                    stringCharIterator.next();
+                    tokenIter.next();
                 }
-                if (!stringCharIterator.hasNext()) {
+                if (!tokenIter.hasNext()) {
                     break;
                 }
             }
-            columnNumber += this.decodeVLQ(stringCharIterator);
-            if (!stringCharIterator.hasNext() || this.isSeparator(stringCharIterator.peek())) {
+            columnNumber += tokenIter.nextVLQ();
+            if (!tokenIter.hasNext() || this.isSeparator(tokenIter.peek())) {
                 this.mappings().push(new SourceMapEntry(lineNumber, columnNumber));
                 continue;
             }
-            const sourceIndexDelta = this.decodeVLQ(stringCharIterator);
+            const sourceIndexDelta = tokenIter.nextVLQ();
             if (sourceIndexDelta) {
                 sourceIndex += sourceIndexDelta;
-                if (sources) {
-                    sourceURL = sources[sourceIndex];
-                }
+                sourceURL = this.#sourceInfos[sourceIndex]?.sourceURL;
             }
-            sourceLineNumber += this.decodeVLQ(stringCharIterator);
-            sourceColumnNumber += this.decodeVLQ(stringCharIterator);
-            if (!stringCharIterator.hasNext() || this.isSeparator(stringCharIterator.peek())) {
-                this.mappings().push(new SourceMapEntry(lineNumber, columnNumber, sourceURL, sourceLineNumber, sourceColumnNumber));
+            sourceLineNumber += tokenIter.nextVLQ();
+            sourceColumnNumber += tokenIter.nextVLQ();
+            if (!tokenIter.hasNext() || this.isSeparator(tokenIter.peek())) {
+                this.mappings().push(new SourceMapEntry(lineNumber, columnNumber, sourceIndex, sourceURL, sourceLineNumber, sourceColumnNumber));
                 continue;
             }
-            nameIndex += this.decodeVLQ(stringCharIterator);
-            this.mappings().push(new SourceMapEntry(lineNumber, columnNumber, sourceURL, sourceLineNumber, sourceColumnNumber, names[nameIndex]));
+            nameIndex += tokenIter.nextVLQ();
+            this.mappings().push(new SourceMapEntry(lineNumber, columnNumber, sourceIndex, sourceURL, sourceLineNumber, sourceColumnNumber, names[nameIndex]));
         }
+        if (Root.Runtime.experiments.isEnabled("use-source-map-scopes" /* Root.Runtime.ExperimentName.USE_SOURCE_MAP_SCOPES */)) {
+            if (!this.#scopesInfo) {
+                this.#scopesInfo = new SourceMapScopesInfo(this, [], []);
+            }
+            if (map.originalScopes && map.generatedRanges) {
+                const { originalScopes, generatedRanges } = decodeScopes(map, { line: baseLineNumber, column: baseColumnNumber });
+                this.#scopesInfo.addOriginalScopes(originalScopes);
+                this.#scopesInfo.addGeneratedRanges(generatedRanges);
+            }
+            else if (map.x_com_bloomberg_sourcesFunctionMappings) {
+                const originalScopes = this.parseBloombergScopes(map);
+                this.#scopesInfo.addOriginalScopes(originalScopes);
+            }
+            else {
+                // Keep the OriginalScope[] tree array consistent with sources.
+                this.#scopesInfo.addOriginalScopes(new Array(map.sources.length));
+            }
+        }
+    }
+    parseBloombergScopes(map) {
+        const scopeList = map.x_com_bloomberg_sourcesFunctionMappings;
+        if (!scopeList) {
+            throw new Error('Cant decode pasta scopes without x_com_bloomberg_sourcesFunctionMappings field');
+        }
+        else if (scopeList.length !== map.sources.length) {
+            throw new Error(`x_com_bloomberg_sourcesFunctionMappings must have ${map.sources.length} scope trees`);
+        }
+        const names = map.names ?? [];
+        return scopeList.map(rawScopes => {
+            if (!rawScopes) {
+                return undefined;
+            }
+            const ranges = decodePastaRanges(rawScopes, names);
+            return buildOriginalScopes(ranges);
+        });
     }
     isSeparator(char) {
         return char === ',' || char === ';';
-    }
-    decodeVLQ(stringCharIterator) {
-        // Read unsigned value.
-        let result = 0;
-        let shift = 0;
-        let digit = SourceMap._VLQ_CONTINUATION_MASK;
-        while (digit & SourceMap._VLQ_CONTINUATION_MASK) {
-            digit = base64Map.get(stringCharIterator.next()) || 0;
-            result += (digit & SourceMap._VLQ_BASE_MASK) << shift;
-            shift += SourceMap._VLQ_BASE_SHIFT;
-        }
-        // Fix the sign.
-        const negative = result & 1;
-        result >>= 1;
-        return negative ? -result : result;
     }
     /**
      * Finds all the reverse mappings that intersect with the given `textRange` within the
@@ -460,7 +538,7 @@ export class SourceMap {
         return false;
     }
     hasIgnoreListHint(sourceURL) {
-        return this.#sourceInfos.get(sourceURL)?.ignoreListHint ?? false;
+        return this.#sourceInfoByURL.get(sourceURL)?.ignoreListHint ?? false;
     }
     /**
      * Returns a list of ranges in the generated script for original sources that
@@ -512,34 +590,85 @@ export class SourceMap {
         return this.embeddedContentByURL(sourceURL) === other.embeddedContentByURL(sourceURL) &&
             this.hasIgnoreListHint(sourceURL) === other.hasIgnoreListHint(sourceURL);
     }
+    expandCallFrame(frame) {
+        this.#ensureMappingsProcessed();
+        if (this.#scopesInfo === null) {
+            return [frame];
+        }
+        return this.#scopesInfo.expandCallFrame(frame);
+    }
+    resolveScopeChain(frame) {
+        this.#ensureMappingsProcessed();
+        if (this.#scopesInfo === null) {
+            return null;
+        }
+        return this.#scopesInfo.resolveMappedScopeChain(frame);
+    }
+    findOriginalFunctionName(position) {
+        this.#ensureMappingsProcessed();
+        return this.#scopesInfo?.findOriginalFunctionName(position) ?? null;
+    }
 }
-(function (SourceMap) {
-    // TODO(crbug.com/1172300) Ignored during the jsdoc to ts migration
-    // eslint-disable-next-line @typescript-eslint/naming-convention
-    SourceMap._VLQ_BASE_SHIFT = 5;
-    // TODO(crbug.com/1172300) Ignored during the jsdoc to ts migration
-    // eslint-disable-next-line @typescript-eslint/naming-convention
-    SourceMap._VLQ_BASE_MASK = (1 << 5) - 1;
-    // TODO(crbug.com/1172300) Ignored during the jsdoc to ts migration
-    // eslint-disable-next-line @typescript-eslint/naming-convention
-    SourceMap._VLQ_CONTINUATION_MASK = 1 << 5;
-    class StringCharIterator {
-        string;
-        position;
-        constructor(string) {
-            this.string = string;
-            this.position = 0;
+const VLQ_BASE_SHIFT = 5;
+const VLQ_BASE_MASK = (1 << 5) - 1;
+const VLQ_CONTINUATION_MASK = 1 << 5;
+export class TokenIterator {
+    #string;
+    #position;
+    constructor(string) {
+        this.#string = string;
+        this.#position = 0;
+    }
+    next() {
+        return this.#string.charAt(this.#position++);
+    }
+    /** Returns the unicode value of the next character and advances the iterator  */
+    nextCharCode() {
+        return this.#string.charCodeAt(this.#position++);
+    }
+    peek() {
+        return this.#string.charAt(this.#position);
+    }
+    hasNext() {
+        return this.#position < this.#string.length;
+    }
+    nextVLQ() {
+        // Read unsigned value.
+        let result = 0;
+        let shift = 0;
+        let digit = VLQ_CONTINUATION_MASK;
+        while (digit & VLQ_CONTINUATION_MASK) {
+            if (!this.hasNext()) {
+                throw new Error('Unexpected end of input while decodling VLQ number!');
+            }
+            const charCode = this.nextCharCode();
+            digit = Common.Base64.BASE64_CODES[charCode];
+            if (charCode !== 65 /* 'A' */ && digit === 0) {
+                throw new Error(`Unexpected char '${String.fromCharCode(charCode)}' encountered while decoding`);
+            }
+            result += (digit & VLQ_BASE_MASK) << shift;
+            shift += VLQ_BASE_SHIFT;
         }
-        next() {
-            return this.string.charAt(this.position++);
+        // Fix the sign.
+        const negative = result & 1;
+        result >>= 1;
+        return negative ? -result : result;
+    }
+    /**
+     * @returns the next VLQ number without iterating further. Or returns null if
+     * the iterator is at the end or it's not a valid number.
+     */
+    peekVLQ() {
+        const pos = this.#position;
+        try {
+            return this.nextVLQ();
         }
-        peek() {
-            return this.string.charAt(this.position);
+        catch {
+            return null;
         }
-        hasNext() {
-            return this.position < this.string.length;
+        finally {
+            this.#position = pos; // Reset the iterator.
         }
     }
-    SourceMap.StringCharIterator = StringCharIterator;
-})(SourceMap || (SourceMap = {}));
+}
 //# sourceMappingURL=SourceMap.js.map

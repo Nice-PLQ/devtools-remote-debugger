@@ -37,9 +37,9 @@
     "../../../../../../../front_end/panels/application/components/InterestGroupAccessGrid.ts",
     "../../../../../../../front_end/panels/application/components/OriginTrialTreeView.ts",
     "../../../../../../../front_end/panels/application/components/PermissionsPolicySection.ts",
-    "../../../../../../../front_end/panels/application/components/Prerender2.ts",
     "../../../../../../../front_end/panels/application/components/ProtocolHandlersView.ts",
     "../../../../../../../front_end/panels/application/components/ReportsGrid.ts",
+    "../../../../../../../front_end/panels/application/components/ServiceWorkerRouterView.ts",
     "../../../../../../../front_end/panels/application/components/SharedStorageAccessGrid.ts",
     "../../../../../../../front_end/panels/application/components/SharedStorageMetadataView.ts",
     "../../../../../../../front_end/panels/application/components/StackTrace.ts",
@@ -47,8 +47,8 @@
     "../../../../../../../front_end/panels/application/components/TrustTokensView.ts",
     "../../../../../../../front_end/legacy/legacy-defs.d.ts",
     "../../../../../../../front_end/global_typings/global_defs.d.ts",
-    "../../../../../../../front_end/global_typings/request_idle_callback.d.ts",
-    "../../../../../../../node_modules/@types/filesystem/index.d.ts"
+    "../../../../../../../node_modules/@types/filesystem/index.d.ts",
+    "../../../../../../../node_modules/@types/wicg-task-scheduling/index.d.ts"
   ],
   "references": [
     {
@@ -76,6 +76,9 @@
       "path": "../../network/forward/bundle-tsconfig.json"
     },
     {
+      "path": "../../../third_party/csp_evaluator/bundle-tsconfig.json"
+    },
+    {
       "path": "../../../ui/components/adorners/bundle-tsconfig.json"
     },
     {
@@ -83,9 +86,6 @@
     },
     {
       "path": "../../../ui/components/chrome_link/bundle-tsconfig.json"
-    },
-    {
-      "path": "../../../ui/components/data_grid/bundle-tsconfig.json"
     },
     {
       "path": "../../../ui/components/expandable_list/bundle-tsconfig.json"
@@ -107,6 +107,9 @@
     },
     {
       "path": "../../../ui/legacy/bundle-tsconfig.json"
+    },
+    {
+      "path": "../../../ui/legacy/components/data_grid/bundle-tsconfig.json"
     },
     {
       "path": "../../../ui/legacy/components/source_frame/bundle-tsconfig.json"

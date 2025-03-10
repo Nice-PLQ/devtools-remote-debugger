@@ -7,7 +7,6 @@ import * as Root from '../root/root.js';
 import { DebuggerModel, Events as DebuggerModelEvents } from './DebuggerModel.js';
 import { DeferredDOMNode, DOMModel, Events as DOMModelEvents } from './DOMModel.js';
 import { OverlayPersistentHighlighter } from './OverlayPersistentHighlighter.js';
-import { Capability } from './Target.js';
 import { SDKModel } from './SDKModel.js';
 import { TargetManager } from './TargetManager.js';
 const UIStrings = {
@@ -18,6 +17,11 @@ const UIStrings = {
 };
 const str_ = i18n.i18n.registerUIStrings('core/sdk/OverlayModel.ts', UIStrings);
 const i18nString = i18n.i18n.getLocalizedString.bind(undefined, str_);
+const platformOverlayDimensions = {
+    mac: { x: 85, y: 0, width: 185, height: 40 },
+    linux: { x: 0, y: 0, width: 196, height: 34 },
+    windows: { x: 0, y: 0, width: 238, height: 33 },
+};
 export class OverlayModel extends SDKModel {
     #domModel;
     overlayAgent;
@@ -32,12 +36,12 @@ export class OverlayModel extends SDKModel {
     #showDebugBordersSetting;
     #showFPSCounterSetting;
     #showScrollBottleneckRectsSetting;
-    #showWebVitalsSetting;
     #registeredListeners;
     #showViewportSizeOnResize;
     #persistentHighlighter;
     #sourceOrderHighlighter;
     #sourceOrderModeActiveInternal;
+    #windowControls;
     constructor(target) {
         super(target);
         this.#domModel = target.model(DOMModel);
@@ -46,7 +50,7 @@ export class OverlayModel extends SDKModel {
         this.#debuggerModel = target.model(DebuggerModel);
         if (this.#debuggerModel) {
             Common.Settings.Settings.instance()
-                .moduleSetting('disablePausedStateOverlay')
+                .moduleSetting('disable-paused-state-overlay')
                 .addChangeListener(this.updatePausedInDebuggerMessage, this);
             this.#debuggerModel.addEventListener(DebuggerModelEvents.DebuggerPaused, this.updatePausedInDebuggerMessage, this);
             this.#debuggerModel.addEventListener(DebuggerModelEvents.DebuggerResumed, this.updatePausedInDebuggerMessage, this);
@@ -57,30 +61,45 @@ export class OverlayModel extends SDKModel {
         this.#hideHighlightTimeout = null;
         this.#defaultHighlighter = new DefaultHighlighter(this);
         this.#highlighter = this.#defaultHighlighter;
-        this.#showPaintRectsSetting = Common.Settings.Settings.instance().moduleSetting('showPaintRects');
+        this.#showPaintRectsSetting = Common.Settings.Settings.instance().moduleSetting('show-paint-rects');
         this.#showLayoutShiftRegionsSetting =
-            Common.Settings.Settings.instance().moduleSetting('showLayoutShiftRegions');
-        this.#showAdHighlightsSetting = Common.Settings.Settings.instance().moduleSetting('showAdHighlights');
-        this.#showDebugBordersSetting = Common.Settings.Settings.instance().moduleSetting('showDebugBorders');
-        this.#showFPSCounterSetting = Common.Settings.Settings.instance().moduleSetting('showFPSCounter');
+            Common.Settings.Settings.instance().moduleSetting('show-layout-shift-regions');
+        this.#showAdHighlightsSetting = Common.Settings.Settings.instance().moduleSetting('show-ad-highlights');
+        this.#showDebugBordersSetting = Common.Settings.Settings.instance().moduleSetting('show-debug-borders');
+        this.#showFPSCounterSetting = Common.Settings.Settings.instance().moduleSetting('show-fps-counter');
         this.#showScrollBottleneckRectsSetting =
-            Common.Settings.Settings.instance().moduleSetting('showScrollBottleneckRects');
-        this.#showWebVitalsSetting = Common.Settings.Settings.instance().moduleSetting('showWebVitals');
+            Common.Settings.Settings.instance().moduleSetting('show-scroll-bottleneck-rects');
         this.#registeredListeners = [];
         this.#showViewportSizeOnResize = true;
         if (!target.suspended()) {
             void this.overlayAgent.invoke_enable();
             void this.wireAgentToSettings();
         }
-        this.#persistentHighlighter = new OverlayPersistentHighlighter(this);
+        this.#persistentHighlighter = new OverlayPersistentHighlighter(this, {
+            onGridOverlayStateChanged: ({ nodeId, enabled }) => this.dispatchEventToListeners("PersistentGridOverlayStateChanged" /* Events.PERSISTENT_GRID_OVERLAY_STATE_CHANGED */, { nodeId, enabled }),
+            onFlexOverlayStateChanged: ({ nodeId, enabled }) => this.dispatchEventToListeners("PersistentFlexContainerOverlayStateChanged" /* Events.PERSISTENT_FLEX_CONTAINER_OVERLAY_STATE_CHANGED */, { nodeId, enabled }),
+            onContainerQueryOverlayStateChanged: ({ nodeId, enabled }) => this.dispatchEventToListeners("PersistentContainerQueryOverlayStateChanged" /* Events.PERSISTENT_CONTAINER_QUERY_OVERLAY_STATE_CHANGED */, { nodeId, enabled }),
+            onScrollSnapOverlayStateChanged: ({ nodeId, enabled }) => this.dispatchEventToListeners("PersistentScrollSnapOverlayStateChanged" /* Events.PERSISTENT_SCROLL_SNAP_OVERLAY_STATE_CHANGED */, { nodeId, enabled }),
+        });
         this.#domModel.addEventListener(DOMModelEvents.NodeRemoved, () => {
-            this.#persistentHighlighter && this.#persistentHighlighter.refreshHighlights();
+            if (!this.#persistentHighlighter) {
+                return;
+            }
+            this.#persistentHighlighter.refreshHighlights();
         });
         this.#domModel.addEventListener(DOMModelEvents.DocumentUpdated, () => {
-            this.#persistentHighlighter && this.#persistentHighlighter.hideAllInOverlay();
+            if (!this.#persistentHighlighter) {
+                return;
+            }
+            // Hide all the overlays initially after document update
+            this.#persistentHighlighter.hideAllInOverlayWithoutSave();
+            if (!target.suspended()) {
+                void this.#persistentHighlighter.restoreHighlightsForDocument();
+            }
         });
         this.#sourceOrderHighlighter = new SourceOrderHighlighter(this);
         this.#sourceOrderModeActiveInternal = false;
+        this.#windowControls = new WindowControls(this.#domModel.cssModel());
     }
     static highlightObjectAsDOMNode(object) {
         const domModel = object.runtimeModel().target().model(DOMModel);
@@ -94,10 +113,10 @@ export class OverlayModel extends SDKModel {
         }
     }
     static async muteHighlight() {
-        return Promise.all(TargetManager.instance().models(OverlayModel).map(model => model.suspendModel()));
+        return await Promise.all(TargetManager.instance().models(OverlayModel).map(model => model.suspendModel()));
     }
     static async unmuteHighlight() {
-        return Promise.all(TargetManager.instance().models(OverlayModel).map(model => model.resumeModel()));
+        return await Promise.all(TargetManager.instance().models(OverlayModel).map(model => model.resumeModel()));
     }
     static highlightRect(rect) {
         for (const overlayModel of TargetManager.instance().models(OverlayModel)) {
@@ -128,7 +147,6 @@ export class OverlayModel extends SDKModel {
             this.#showDebugBordersSetting.addChangeListener(() => this.overlayAgent.invoke_setShowDebugBorders({ show: this.#showDebugBordersSetting.get() })),
             this.#showFPSCounterSetting.addChangeListener(() => this.overlayAgent.invoke_setShowFPSCounter({ show: this.#showFPSCounterSetting.get() })),
             this.#showScrollBottleneckRectsSetting.addChangeListener(() => this.overlayAgent.invoke_setShowScrollBottleneckRects({ show: this.#showScrollBottleneckRectsSetting.get() })),
-            this.#showWebVitalsSetting.addChangeListener(() => this.overlayAgent.invoke_setShowWebVitals({ show: this.#showWebVitalsSetting.get() })),
         ];
         if (this.#showPaintRectsSetting.get()) {
             void this.overlayAgent.invoke_setShowPaintRects({ result: true });
@@ -148,13 +166,11 @@ export class OverlayModel extends SDKModel {
         if (this.#showScrollBottleneckRectsSetting.get()) {
             void this.overlayAgent.invoke_setShowScrollBottleneckRects({ show: true });
         }
-        if (this.#showWebVitalsSetting.get()) {
-            void this.overlayAgent.invoke_setShowWebVitals({ show: true });
-        }
         if (this.#debuggerModel && this.#debuggerModel.isPaused()) {
             this.updatePausedInDebuggerMessage();
         }
         await this.overlayAgent.invoke_setShowViewportSizeOnResize({ show: this.#showViewportSizeOnResize });
+        this.#persistentHighlighter?.resetOverlay();
     }
     async suspendModel() {
         Common.EventTarget.removeEventListeners(this.#registeredListeners);
@@ -178,7 +194,7 @@ export class OverlayModel extends SDKModel {
             return;
         }
         const message = this.#debuggerModel && this.#debuggerModel.isPaused() &&
-            !Common.Settings.Settings.instance().moduleSetting('disablePausedStateOverlay').get() ?
+            !Common.Settings.Settings.instance().moduleSetting('disable-paused-state-overlay').get() ?
             i18nString(UIStrings.pausedInDebugger) :
             undefined;
         void this.overlayAgent.invoke_setPausedInDebuggerMessage({ message });
@@ -189,7 +205,7 @@ export class OverlayModel extends SDKModel {
     async setInspectMode(mode, showDetailedTooltip = true) {
         await this.#domModel.requestDocument();
         this.#inspectModeEnabledInternal = mode !== "none" /* Protocol.Overlay.InspectMode.None */;
-        this.dispatchEventToListeners(Events.InspectModeWillBeToggled, this);
+        this.dispatchEventToListeners("InspectModeWillBeToggled" /* Events.INSPECT_MODE_WILL_BE_TOGGLED */, this);
         void this.#highlighter.setInspectMode(mode, this.buildHighlightConfig('all', showDetailedTooltip));
     }
     inspectModeEnabled() {
@@ -220,7 +236,6 @@ export class OverlayModel extends SDKModel {
             return;
         }
         this.#persistentHighlighter.highlightGridInOverlay(nodeId);
-        this.dispatchEventToListeners(Events.PersistentGridOverlayStateChanged, { nodeId, enabled: true });
     }
     isHighlightedGridInPersistentOverlay(nodeId) {
         if (!this.#persistentHighlighter) {
@@ -233,14 +248,12 @@ export class OverlayModel extends SDKModel {
             return;
         }
         this.#persistentHighlighter.hideGridInOverlay(nodeId);
-        this.dispatchEventToListeners(Events.PersistentGridOverlayStateChanged, { nodeId, enabled: false });
     }
     highlightScrollSnapInPersistentOverlay(nodeId) {
         if (!this.#persistentHighlighter) {
             return;
         }
         this.#persistentHighlighter.highlightScrollSnapInOverlay(nodeId);
-        this.dispatchEventToListeners(Events.PersistentScrollSnapOverlayStateChanged, { nodeId, enabled: true });
     }
     isHighlightedScrollSnapInPersistentOverlay(nodeId) {
         if (!this.#persistentHighlighter) {
@@ -253,14 +266,12 @@ export class OverlayModel extends SDKModel {
             return;
         }
         this.#persistentHighlighter.hideScrollSnapInOverlay(nodeId);
-        this.dispatchEventToListeners(Events.PersistentScrollSnapOverlayStateChanged, { nodeId, enabled: false });
     }
     highlightFlexContainerInPersistentOverlay(nodeId) {
         if (!this.#persistentHighlighter) {
             return;
         }
         this.#persistentHighlighter.highlightFlexInOverlay(nodeId);
-        this.dispatchEventToListeners(Events.PersistentFlexContainerOverlayStateChanged, { nodeId, enabled: true });
     }
     isHighlightedFlexContainerInPersistentOverlay(nodeId) {
         if (!this.#persistentHighlighter) {
@@ -273,14 +284,12 @@ export class OverlayModel extends SDKModel {
             return;
         }
         this.#persistentHighlighter.hideFlexInOverlay(nodeId);
-        this.dispatchEventToListeners(Events.PersistentFlexContainerOverlayStateChanged, { nodeId, enabled: false });
     }
     highlightContainerQueryInPersistentOverlay(nodeId) {
         if (!this.#persistentHighlighter) {
             return;
         }
         this.#persistentHighlighter.highlightContainerQueryInOverlay(nodeId);
-        this.dispatchEventToListeners(Events.PersistentContainerQueryOverlayStateChanged, { nodeId, enabled: true });
     }
     isHighlightedContainerQueryInPersistentOverlay(nodeId) {
         if (!this.#persistentHighlighter) {
@@ -293,7 +302,6 @@ export class OverlayModel extends SDKModel {
             return;
         }
         this.#persistentHighlighter.hideContainerQueryInOverlay(nodeId);
-        this.dispatchEventToListeners(Events.PersistentContainerQueryOverlayStateChanged, { nodeId, enabled: false });
     }
     highlightSourceOrderInOverlay(node) {
         const sourceOrderConfig = {
@@ -345,24 +353,6 @@ export class OverlayModel extends SDKModel {
     sourceOrderModeActive() {
         return this.#sourceOrderModeActiveInternal;
     }
-    highlightIsolatedElementInPersistentOverlay(nodeId) {
-        if (!this.#persistentHighlighter) {
-            return;
-        }
-        this.#persistentHighlighter.highlightIsolatedElementInOverlay(nodeId);
-    }
-    hideIsolatedElementInPersistentOverlay(nodeId) {
-        if (!this.#persistentHighlighter) {
-            return;
-        }
-        this.#persistentHighlighter.hideIsolatedElementInOverlay(nodeId);
-    }
-    isHighlightedIsolatedElementInPersistentOverlay(nodeId) {
-        if (!this.#persistentHighlighter) {
-            return false;
-        }
-        return this.#persistentHighlighter.isIsolatedElementHighlighted(nodeId);
-    }
     delayedHideHighlight(delay) {
         if (this.#hideHighlightTimeout === null) {
             this.#hideHighlightTimeout = window.setTimeout(() => this.highlightInOverlay({ clear: true }), delay);
@@ -379,26 +369,41 @@ export class OverlayModel extends SDKModel {
         if (hinge) {
             const { x, y, width, height, contentColor, outlineColor } = hinge;
             void this.overlayAgent.invoke_setShowHinge({
-                hingeConfig: { rect: { x: x, y: y, width: width, height: height }, contentColor: contentColor, outlineColor: outlineColor },
+                hingeConfig: { rect: { x, y, width, height }, contentColor, outlineColor },
             });
         }
         else {
             void this.overlayAgent.invoke_setShowHinge({});
         }
     }
+    setWindowControlsPlatform(selectedPlatform) {
+        this.#windowControls.selectedPlatform = selectedPlatform;
+    }
+    setWindowControlsThemeColor(themeColor) {
+        this.#windowControls.themeColor = themeColor;
+    }
+    getWindowControlsConfig() {
+        return this.#windowControls.config;
+    }
+    async toggleWindowControlsToolbar(show) {
+        const wcoConfigObj = show ? { windowControlsOverlayConfig: this.#windowControls.config } : {};
+        const setWindowControlsOverlayOperation = this.overlayAgent.invoke_setShowWindowControlsOverlay(wcoConfigObj);
+        const toggleStylesheetOperation = this.#windowControls.toggleEmulatedOverlay(show);
+        await Promise.all([setWindowControlsOverlayOperation, toggleStylesheetOperation]);
+        this.setShowViewportSizeOnResize(!show);
+    }
     buildHighlightConfig(mode = 'all', showDetailedToolip = false) {
-        const showRulers = Common.Settings.Settings.instance().moduleSetting('showMetricsRulers').get();
-        const colorFormat = Common.Settings.Settings.instance().moduleSetting('colorFormat').get();
+        const showRulers = Common.Settings.Settings.instance().moduleSetting('show-metrics-rulers').get();
         const highlightConfig = {
             showInfo: mode === 'all' || mode === 'container-outline',
-            showRulers: showRulers,
+            showRulers,
             showStyles: showDetailedToolip,
             showAccessibilityInfo: showDetailedToolip,
             showExtensionLines: showRulers,
             gridHighlightConfig: {},
             flexContainerHighlightConfig: {},
             flexItemHighlightConfig: {},
-            contrastAlgorithm: Root.Runtime.experiments.isEnabled('APCA') ? "apca" /* Protocol.Overlay.ContrastAlgorithm.Apca */ :
+            contrastAlgorithm: Root.Runtime.experiments.isEnabled('apca') ? "apca" /* Protocol.Overlay.ContrastAlgorithm.Apca */ :
                 "aa" /* Protocol.Overlay.ContrastAlgorithm.Aa */,
         };
         if (mode === 'all' || mode === 'content') {
@@ -587,18 +592,12 @@ export class OverlayModel extends SDKModel {
                 },
             };
         }
-        // the backend does not support the 'original' format because
-        // it currently cannot retrieve the original format using computed styles
-        const supportedColorFormats = new Set(['rgb', 'hsl', 'hex']);
-        if (supportedColorFormats.has(colorFormat)) {
-            highlightConfig.colorFormat = colorFormat;
-        }
         return highlightConfig;
     }
     nodeHighlightRequested({ nodeId }) {
         const node = this.#domModel.nodeForId(nodeId);
         if (node) {
-            this.dispatchEventToListeners(Events.HighlightNodeRequested, node);
+            this.dispatchEventToListeners("HighlightNodeRequested" /* Events.HIGHLIGHT_NODE_REQUESTED */, node);
         }
     }
     static setInspectNodeHandler(handler) {
@@ -616,33 +615,117 @@ export class OverlayModel extends SDKModel {
         else {
             void Common.Revealer.reveal(deferredNode);
         }
-        this.dispatchEventToListeners(Events.ExitedInspectMode);
+        this.dispatchEventToListeners("InspectModeExited" /* Events.EXITED_INSPECT_MODE */);
     }
     screenshotRequested({ viewport }) {
-        this.dispatchEventToListeners(Events.ScreenshotRequested, viewport);
-        this.dispatchEventToListeners(Events.ExitedInspectMode);
+        this.dispatchEventToListeners("ScreenshotRequested" /* Events.SCREENSHOT_REQUESTED */, viewport);
+        this.dispatchEventToListeners("InspectModeExited" /* Events.EXITED_INSPECT_MODE */);
     }
     inspectModeCanceled() {
-        this.dispatchEventToListeners(Events.ExitedInspectMode);
+        this.dispatchEventToListeners("InspectModeExited" /* Events.EXITED_INSPECT_MODE */);
     }
     static inspectNodeHandler = null;
     getOverlayAgent() {
         return this.overlayAgent;
     }
+    async hasStyleSheetText(url) {
+        return await this.#windowControls.initializeStyleSheetText(url);
+    }
 }
-// TODO(crbug.com/1167717): Make this a const enum again
-// eslint-disable-next-line rulesdir/const_enum
-export var Events;
-(function (Events) {
-    Events["InspectModeWillBeToggled"] = "InspectModeWillBeToggled";
-    Events["ExitedInspectMode"] = "InspectModeExited";
-    Events["HighlightNodeRequested"] = "HighlightNodeRequested";
-    Events["ScreenshotRequested"] = "ScreenshotRequested";
-    Events["PersistentGridOverlayStateChanged"] = "PersistentGridOverlayStateChanged";
-    Events["PersistentFlexContainerOverlayStateChanged"] = "PersistentFlexContainerOverlayStateChanged";
-    Events["PersistentScrollSnapOverlayStateChanged"] = "PersistentScrollSnapOverlayStateChanged";
-    Events["PersistentContainerQueryOverlayStateChanged"] = "PersistentContainerQueryOverlayStateChanged";
-})(Events || (Events = {}));
+export class WindowControls {
+    #cssModel;
+    #originalStylesheetText;
+    #stylesheetId;
+    #currentUrl;
+    #config = {
+        showCSS: false,
+        selectedPlatform: "Windows" /* EmulatedOSType.WINDOWS */,
+        themeColor: '#ffffff',
+    };
+    constructor(cssModel) {
+        this.#cssModel = cssModel;
+    }
+    get selectedPlatform() {
+        return this.#config.selectedPlatform;
+    }
+    set selectedPlatform(osType) {
+        this.#config.selectedPlatform = osType;
+    }
+    get themeColor() {
+        return this.#config.themeColor;
+    }
+    set themeColor(color) {
+        this.#config.themeColor = color;
+    }
+    get config() {
+        return this.#config;
+    }
+    async initializeStyleSheetText(url) {
+        if (this.#originalStylesheetText && url === this.#currentUrl) {
+            return true;
+        }
+        const cssSourceUrl = this.#fetchCssSourceUrl(url);
+        if (!cssSourceUrl) {
+            return false;
+        }
+        this.#stylesheetId = this.#fetchCurrentStyleSheet(cssSourceUrl);
+        if (!this.#stylesheetId) {
+            return false;
+        }
+        const stylesheetText = await this.#cssModel.getStyleSheetText(this.#stylesheetId);
+        if (!stylesheetText) {
+            return false;
+        }
+        this.#originalStylesheetText = stylesheetText;
+        this.#currentUrl = url;
+        return true;
+    }
+    async toggleEmulatedOverlay(showOverlay) {
+        if (!this.#stylesheetId || !this.#originalStylesheetText) {
+            return;
+        }
+        if (showOverlay) {
+            const styleSheetText = WindowControls.#getStyleSheetForPlatform(this.#config.selectedPlatform.toLowerCase(), this.#originalStylesheetText);
+            if (styleSheetText) {
+                await this.#cssModel.setStyleSheetText(this.#stylesheetId, styleSheetText, false);
+            }
+        }
+        else {
+            // Restore the original stylesheet
+            await this.#cssModel.setStyleSheetText(this.#stylesheetId, this.#originalStylesheetText, false);
+        }
+    }
+    static #getStyleSheetForPlatform(platform, originalStyleSheet) {
+        const overlayDimensions = platformOverlayDimensions[platform];
+        return WindowControls.#transformStyleSheet(overlayDimensions.x, overlayDimensions.y, overlayDimensions.width, overlayDimensions.height, originalStyleSheet);
+    }
+    #fetchCssSourceUrl(url) {
+        const parentURL = Common.ParsedURL.ParsedURL.extractOrigin(url);
+        const cssHeaders = this.#cssModel.styleSheetHeaders();
+        const header = cssHeaders.find(header => header.sourceURL && header.sourceURL.includes(parentURL));
+        return header?.sourceURL;
+    }
+    #fetchCurrentStyleSheet(cssSourceUrl) {
+        const stylesheetIds = this.#cssModel.getStyleSheetIdsForURL(cssSourceUrl);
+        return stylesheetIds.length > 0 ? stylesheetIds[0] : undefined;
+    }
+    // The primary objective of this function is to adjust certain CSS environment variables within the existing stylesheet
+    // and provide it as the style sheet for the emulated overlay.
+    static #transformStyleSheet(x, y, width, height, originalStyleSheet) {
+        if (!originalStyleSheet) {
+            return undefined;
+        }
+        const stylesheetText = originalStyleSheet;
+        const updatedStylesheet = stylesheetText.replace(/: env\(titlebar-area-x(?:,[^)]*)?\);/g, `: env(titlebar-area-x, ${x}px);`)
+            .replace(/: env\(titlebar-area-y(?:,[^)]*)?\);/g, `: env(titlebar-area-y, ${y}px);`)
+            .replace(/: env\(titlebar-area-width(?:,[^)]*)?\);/g, `: env(titlebar-area-width, calc(100% - ${width}px));`)
+            .replace(/: env\(titlebar-area-height(?:,[^)]*)?\);/g, `: env(titlebar-area-height, ${height}px);`);
+        return updatedStylesheet;
+    }
+    transformStyleSheetforTesting(x, y, width, height, originalStyleSheet) {
+        return WindowControls.#transformStyleSheet(x, y, width, height, originalStyleSheet);
+    }
+}
 class DefaultHighlighter {
     #model;
     constructor(model) {
@@ -687,5 +770,5 @@ export class SourceOrderHighlighter {
         void this.#model.clearHighlight();
     }
 }
-SDKModel.register(OverlayModel, { capabilities: Capability.DOM, autostart: true });
+SDKModel.register(OverlayModel, { capabilities: 2 /* Capability.DOM */, autostart: true });
 //# sourceMappingURL=OverlayModel.js.map

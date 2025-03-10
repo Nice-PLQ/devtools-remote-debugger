@@ -178,7 +178,7 @@ function parseInnerList(input) {
             }
             return {
                 kind: 12 /* ResultKind.INNER_LIST */,
-                items: items,
+                items,
                 parameters: params,
             };
         }
@@ -567,7 +567,7 @@ function serializeInteger(input) {
 }
 // 4.1.5.  Serializing a Decimal
 function serializeDecimal(_input) {
-    throw 'Unimplemented';
+    throw new Error('Unimplemented');
 }
 // 4.1.6.  Serializing a String
 function serializeString(input) {
@@ -608,7 +608,7 @@ function serializeToken(input) {
 }
 // 4.1.8.  Serializing a Byte Sequence
 function serializeByteSequence(_input) {
-    throw 'Unimplemented';
+    throw new Error('Unimplemented');
 }
 // 4.1.9.  Serializing a Boolean
 function serializeBoolean(input) {

@@ -2,32 +2,32 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 import * as Common from '../common/common.js';
+import * as Platform from '../platform/platform.js';
 import { OverlayColorGenerator } from './OverlayColorGenerator.js';
 export class OverlayPersistentHighlighter {
     #model;
+    #colors;
+    #persistentHighlightSetting;
     #gridHighlights;
     #scrollSnapHighlights;
     #flexHighlights;
     #containerQueryHighlights;
     #isolatedElementHighlights;
-    #colors;
     #gridColorGenerator;
     #flexColorGenerator;
-    #flexEnabled;
-    // TODO(crbug.com/1172300) Ignored during the jsdoc to ts migration
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    /**
+     * @see `front_end/core/sdk/sdk-meta.ts`
+     */
     #showGridLineLabelsSetting;
-    // TODO(crbug.com/1172300) Ignored during the jsdoc to ts migration
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     #extendGridLinesSetting;
-    // TODO(crbug.com/1172300) Ignored during the jsdoc to ts migration
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     #showGridAreasSetting;
-    // TODO(crbug.com/1172300) Ignored during the jsdoc to ts migration
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     #showGridTrackSizesSetting;
-    constructor(model, flexEnabled = true) {
+    #callbacks;
+    constructor(model, callbacks) {
         this.#model = model;
+        this.#callbacks = callbacks;
+        this.#persistentHighlightSetting =
+            Common.Settings.Settings.instance().createLocalSetting('persistent-highlight-setting', []);
         this.#gridHighlights = new Map();
         this.#scrollSnapHighlights = new Map();
         this.#flexHighlights = new Map();
@@ -36,14 +36,13 @@ export class OverlayPersistentHighlighter {
         this.#colors = new Map();
         this.#gridColorGenerator = new OverlayColorGenerator();
         this.#flexColorGenerator = new OverlayColorGenerator();
-        this.#flexEnabled = flexEnabled;
-        this.#showGridLineLabelsSetting = Common.Settings.Settings.instance().moduleSetting('showGridLineLabels');
+        this.#showGridLineLabelsSetting = Common.Settings.Settings.instance().moduleSetting('show-grid-line-labels');
         this.#showGridLineLabelsSetting.addChangeListener(this.onSettingChange, this);
-        this.#extendGridLinesSetting = Common.Settings.Settings.instance().moduleSetting('extendGridLines');
+        this.#extendGridLinesSetting = Common.Settings.Settings.instance().moduleSetting('extend-grid-lines');
         this.#extendGridLinesSetting.addChangeListener(this.onSettingChange, this);
-        this.#showGridAreasSetting = Common.Settings.Settings.instance().moduleSetting('showGridAreas');
+        this.#showGridAreasSetting = Common.Settings.Settings.instance().moduleSetting('show-grid-areas');
         this.#showGridAreasSetting.addChangeListener(this.onSettingChange, this);
-        this.#showGridTrackSizesSetting = Common.Settings.Settings.instance().moduleSetting('showGridTrackSizes');
+        this.#showGridTrackSizesSetting = Common.Settings.Settings.instance().moduleSetting('show-grid-track-sizes');
         this.#showGridTrackSizesSetting.addChangeListener(this.onSettingChange, this);
     }
     onSettingChange() {
@@ -103,6 +102,8 @@ export class OverlayPersistentHighlighter {
     highlightGridInOverlay(nodeId) {
         this.#gridHighlights.set(nodeId, this.buildGridHighlightConfig(nodeId));
         this.updateHighlightsInOverlay();
+        this.savePersistentHighlightSetting();
+        this.#callbacks.onGridOverlayStateChanged({ nodeId, enabled: true });
     }
     isGridHighlighted(nodeId) {
         return this.#gridHighlights.has(nodeId);
@@ -122,11 +123,15 @@ export class OverlayPersistentHighlighter {
         if (this.#gridHighlights.has(nodeId)) {
             this.#gridHighlights.delete(nodeId);
             this.updateHighlightsInOverlay();
+            this.savePersistentHighlightSetting();
+            this.#callbacks.onGridOverlayStateChanged({ nodeId, enabled: false });
         }
     }
     highlightScrollSnapInOverlay(nodeId) {
         this.#scrollSnapHighlights.set(nodeId, this.buildScrollSnapContainerHighlightConfig(nodeId));
         this.updateHighlightsInOverlay();
+        this.#callbacks.onScrollSnapOverlayStateChanged({ nodeId, enabled: true });
+        this.savePersistentHighlightSetting();
     }
     isScrollSnapHighlighted(nodeId) {
         return this.#scrollSnapHighlights.has(nodeId);
@@ -135,11 +140,15 @@ export class OverlayPersistentHighlighter {
         if (this.#scrollSnapHighlights.has(nodeId)) {
             this.#scrollSnapHighlights.delete(nodeId);
             this.updateHighlightsInOverlay();
+            this.#callbacks.onScrollSnapOverlayStateChanged({ nodeId, enabled: false });
+            this.savePersistentHighlightSetting();
         }
     }
     highlightFlexInOverlay(nodeId) {
         this.#flexHighlights.set(nodeId, this.buildFlexContainerHighlightConfig(nodeId));
         this.updateHighlightsInOverlay();
+        this.savePersistentHighlightSetting();
+        this.#callbacks.onFlexOverlayStateChanged({ nodeId, enabled: true });
     }
     isFlexHighlighted(nodeId) {
         return this.#flexHighlights.has(nodeId);
@@ -159,16 +168,22 @@ export class OverlayPersistentHighlighter {
         if (this.#flexHighlights.has(nodeId)) {
             this.#flexHighlights.delete(nodeId);
             this.updateHighlightsInOverlay();
+            this.savePersistentHighlightSetting();
+            this.#callbacks.onFlexOverlayStateChanged({ nodeId, enabled: false });
         }
     }
     highlightContainerQueryInOverlay(nodeId) {
         this.#containerQueryHighlights.set(nodeId, this.buildContainerQueryContainerHighlightConfig());
         this.updateHighlightsInOverlay();
+        this.savePersistentHighlightSetting();
+        this.#callbacks.onContainerQueryOverlayStateChanged({ nodeId, enabled: true });
     }
     hideContainerQueryInOverlay(nodeId) {
         if (this.#containerQueryHighlights.has(nodeId)) {
             this.#containerQueryHighlights.delete(nodeId);
             this.updateHighlightsInOverlay();
+            this.savePersistentHighlightSetting();
+            this.#callbacks.onContainerQueryOverlayStateChanged({ nodeId, enabled: false });
         }
     }
     isContainerQueryHighlighted(nodeId) {
@@ -189,11 +204,13 @@ export class OverlayPersistentHighlighter {
     highlightIsolatedElementInOverlay(nodeId) {
         this.#isolatedElementHighlights.set(nodeId, this.buildIsolationModeHighlightConfig());
         this.updateHighlightsInOverlay();
+        this.savePersistentHighlightSetting();
     }
     hideIsolatedElementInOverlay(nodeId) {
         if (this.#isolatedElementHighlights.has(nodeId)) {
             this.#isolatedElementHighlights.delete(nodeId);
             this.updateHighlightsInOverlay();
+            this.savePersistentHighlightSetting();
         }
     }
     isIsolatedElementHighlighted(nodeId) {
@@ -206,7 +223,7 @@ export class OverlayPersistentHighlighter {
             maskColor: Common.Color.IsolationModeHighlight.Mask.toProtocolRGBA(),
         };
     }
-    hideAllInOverlay() {
+    hideAllInOverlayWithoutSave() {
         this.#flexHighlights.clear();
         this.#gridHighlights.clear();
         this.#scrollSnapHighlights.clear();
@@ -223,6 +240,7 @@ export class OverlayPersistentHighlighter {
         if (flexboxesNeedUpdate || gridsNeedUpdate || scrollSnapsNeedUpdate || containerQueriesNeedUpdate ||
             isolatedElementsNeedUpdate) {
             this.updateHighlightsInOverlay();
+            this.savePersistentHighlightSetting();
         }
     }
     updateHighlightsForDeletedNodes(highlights) {
@@ -272,9 +290,6 @@ export class OverlayPersistentHighlighter {
         overlayModel.target().overlayAgent().invoke_setShowGridOverlays({ gridNodeHighlightConfigs });
     }
     updateFlexHighlightsInOverlay() {
-        if (!this.#flexEnabled) {
-            return;
-        }
         const overlayModel = this.#model;
         const flexNodeHighlightConfigs = [];
         for (const [nodeId, flexContainerHighlightConfig] of this.#flexHighlights.entries()) {
@@ -305,6 +320,80 @@ export class OverlayPersistentHighlighter {
             isolatedElementHighlightConfigs.push({ nodeId, isolationModeHighlightConfig });
         }
         overlayModel.target().overlayAgent().invoke_setShowIsolatedElements({ isolatedElementHighlightConfigs });
+    }
+    async restoreHighlightsForDocument() {
+        this.#flexHighlights = new Map();
+        this.#gridHighlights = new Map();
+        this.#scrollSnapHighlights = new Map();
+        this.#containerQueryHighlights = new Map();
+        this.#isolatedElementHighlights = new Map();
+        // this.currentURL() is empty when the page is reloaded because the
+        // new document has not been requested yet and the old one has been
+        // removed. Therefore, we need to request the document and wait for it.
+        // Note that requestDocument() caches the document so that it is requested
+        // only once.
+        const document = await this.#model.getDOMModel().requestDocument();
+        const currentURL = document ? document.documentURL : Platform.DevToolsPath.EmptyUrlString;
+        await Promise.all(this.#persistentHighlightSetting.get().map(async (persistentHighlight) => {
+            if (persistentHighlight.url === currentURL) {
+                return await this.#model.getDOMModel().pushNodeByPathToFrontend(persistentHighlight.path).then(nodeId => {
+                    const node = this.#model.getDOMModel().nodeForId(nodeId);
+                    if (!node) {
+                        return;
+                    }
+                    switch (persistentHighlight.type) {
+                        case "GRID" /* HighlightType.GRID */:
+                            this.#gridHighlights.set(node.id, this.buildGridHighlightConfig(node.id));
+                            this.#callbacks.onGridOverlayStateChanged({ nodeId: node.id, enabled: true });
+                            break;
+                        case "FLEX" /* HighlightType.FLEX */:
+                            this.#flexHighlights.set(node.id, this.buildFlexContainerHighlightConfig(node.id));
+                            this.#callbacks.onFlexOverlayStateChanged({ nodeId: node.id, enabled: true });
+                            break;
+                        case "CONTAINER_QUERY" /* HighlightType.CONTAINER_QUERY */:
+                            this.#containerQueryHighlights.set(node.id, this.buildContainerQueryContainerHighlightConfig());
+                            this.#callbacks.onContainerQueryOverlayStateChanged({ nodeId: node.id, enabled: true });
+                            break;
+                        case "SCROLL_SNAP" /* HighlightType.SCROLL_SNAP */:
+                            this.#scrollSnapHighlights.set(node.id, this.buildScrollSnapContainerHighlightConfig(node.id));
+                            this.#callbacks.onScrollSnapOverlayStateChanged({ nodeId: node.id, enabled: true });
+                            break;
+                        case "ISOLATED_ELEMENT" /* HighlightType.ISOLATED_ELEMENT */:
+                            this.#isolatedElementHighlights.set(node.id, this.buildIsolationModeHighlightConfig());
+                            break;
+                    }
+                });
+            }
+        }));
+        this.updateHighlightsInOverlay();
+    }
+    currentUrl() {
+        const domDocument = this.#model.getDOMModel().existingDocument();
+        return domDocument ? domDocument.documentURL : Platform.DevToolsPath.EmptyUrlString;
+    }
+    getPersistentHighlightSettingForOneType(highlights, type) {
+        const persistentHighlights = [];
+        for (const nodeId of highlights.keys()) {
+            const node = this.#model.getDOMModel().nodeForId(nodeId);
+            if (node) {
+                persistentHighlights.push({ url: this.currentUrl(), path: node.path(), type });
+            }
+        }
+        return persistentHighlights;
+    }
+    savePersistentHighlightSetting() {
+        const currentURL = this.currentUrl();
+        // Keep the highlights that are not related to this document.
+        const highlightsInOtherDocuments = this.#persistentHighlightSetting.get().filter((persistentSetting) => persistentSetting.url !== currentURL);
+        const persistentHighlights = [
+            ...highlightsInOtherDocuments,
+            ...this.getPersistentHighlightSettingForOneType(this.#gridHighlights, "GRID" /* HighlightType.GRID */),
+            ...this.getPersistentHighlightSettingForOneType(this.#flexHighlights, "FLEX" /* HighlightType.FLEX */),
+            ...this.getPersistentHighlightSettingForOneType(this.#containerQueryHighlights, "CONTAINER_QUERY" /* HighlightType.CONTAINER_QUERY */),
+            ...this.getPersistentHighlightSettingForOneType(this.#scrollSnapHighlights, "SCROLL_SNAP" /* HighlightType.SCROLL_SNAP */),
+            ...this.getPersistentHighlightSettingForOneType(this.#isolatedElementHighlights, "ISOLATED_ELEMENT" /* HighlightType.ISOLATED_ELEMENT */),
+        ];
+        this.#persistentHighlightSetting.set(persistentHighlights);
     }
 }
 //# sourceMappingURL=OverlayPersistentHighlighter.js.map

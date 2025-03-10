@@ -37,11 +37,11 @@ export class Log {
     static pseudoWallTime(request, monotonicTime) {
         return new Date(request.pseudoWallTime(monotonicTime) * 1000);
     }
-    static async build(requests) {
+    static async build(requests, options) {
         const log = new Log();
         const entryPromises = [];
         for (const request of requests) {
-            entryPromises.push(Entry.build(request));
+            entryPromises.push(Entry.build(request, options));
         }
         const entries = await Promise.all(entryPromises);
         return { version: '1.2', creator: log.creator(), pages: log.buildPages(requests), entries };
@@ -91,10 +91,11 @@ export class Entry {
     static toMilliseconds(time) {
         return time === -1 ? -1 : time * 1000;
     }
-    static async build(request) {
+    static async build(request, options) {
         const harEntry = new Entry(request);
         let ipAddress = harEntry.request.remoteAddress();
         const portPositionInString = ipAddress.lastIndexOf(':');
+        const connection = portPositionInString !== -1 ? ipAddress.substring(portPositionInString + 1) : undefined;
         if (portPositionInString !== -1) {
             ipAddress = ipAddress.substr(0, portPositionInString);
         }
@@ -124,22 +125,32 @@ export class Entry {
             }
         }
         const entry = {
+            _connectionId: undefined,
             _fromCache: undefined,
             _initiator: exportedInitiator,
             _priority: harEntry.request.priority(),
             _resourceType: harEntry.request.resourceType().name(),
             _webSocketMessages: undefined,
             cache: {},
-            connection: undefined,
+            connection,
             pageref: undefined,
             request: await harEntry.buildRequest(),
             response: harEntry.buildResponse(),
             // IPv6 address should not have square brackets per (https://tools.ietf.org/html/rfc2373#section-2.2).
             serverIPAddress: ipAddress.replace(/\[\]/g, ''),
             startedDateTime: Log.pseudoWallTime(harEntry.request, harEntry.request.issueTime()).toJSON(),
-            time: time,
-            timings: timings,
+            time,
+            timings,
         };
+        // Sanitize HAR to remove sensitive data.
+        if (options.sanitize) {
+            entry.response.cookies = [];
+            entry.response.headers =
+                entry.response.headers.filter(({ name }) => !['set-cookie'].includes(name.toLocaleLowerCase()));
+            entry.request.cookies = [];
+            entry.request.headers =
+                entry.request.headers.filter(({ name }) => !['authorization', 'cookie'].includes(name.toLocaleLowerCase()));
+        }
         // Chrome specific.
         if (harEntry.request.cached()) {
             entry._fromCache = harEntry.request.cachedInMemory() ? 'memory' : 'disk';
@@ -148,10 +159,10 @@ export class Entry {
             delete entry._fromCache;
         }
         if (harEntry.request.connectionId !== '0') {
-            entry.connection = harEntry.request.connectionId;
+            entry._connectionId = harEntry.request.connectionId;
         }
         else {
-            delete entry.connection;
+            delete entry._connectionId;
         }
         const page = SDK.PageLoad.PageLoad.forRequest(harEntry.request);
         if (page) {
@@ -180,7 +191,7 @@ export class Entry {
             httpVersion: this.request.requestHttpVersion(),
             headers: this.request.requestHeaders(),
             queryString: this.buildParameters(this.request.queryParameters || []),
-            cookies: this.buildCookies(this.request.includedRequestCookies()),
+            cookies: this.buildCookies(this.request.includedRequestCookies().map(includedRequestCookie => includedRequestCookie.cookie)),
             headersSize: headersText ? headersText.length : -1,
             bodySize: await this.requestBodySize(),
             postData: undefined,
@@ -208,6 +219,9 @@ export class Entry {
             bodySize: this.responseBodySize,
             _transferSize: this.request.transferSize,
             _error: this.request.localizedFailDescription,
+            _fetchedViaServiceWorker: this.request.fetchedViaServiceWorker,
+            _responseCacheStorageCacheName: this.request.getResponseCacheStorageCacheName(),
+            _serviceWorkerResponseSource: this.request.serviceWorkerResponseSource(),
         };
     }
     buildContent() {
@@ -278,6 +292,11 @@ export class Entry {
                 result.send = 0;
             }
             highestTime = Math.max(sendEnd, connectEnd, sslEnd, dnsEnd, blockedStart, 0);
+            // Custom fields for service worker timings.
+            result._workerStart = timing.workerStart;
+            result._workerReady = timing.workerReady;
+            result._workerFetchStart = timing.workerFetchStart;
+            result._workerRespondWithSettled = timing.workerRespondWithSettled;
         }
         else if (this.request.responseReceivedTime === -1) {
             // Means that we don't have any more details after blocked, so attribute all to blocked.
@@ -330,12 +349,19 @@ export class Entry {
             httpOnly: cookie.httpOnly(),
             secure: cookie.secure(),
             sameSite: undefined,
+            partitionKey: undefined,
         };
         if (cookie.sameSite()) {
             c.sameSite = cookie.sameSite();
         }
         else {
             delete c.sameSite;
+        }
+        if (cookie.partitionKey()) {
+            c.partitionKey = cookie.partitionKey();
+        }
+        else {
+            delete c.partitionKey;
         }
         return c;
     }

@@ -3,11 +3,11 @@
 // found in the LICENSE file.
 import * as Common from '../../core/common/common.js';
 import * as i18n from '../../core/i18n/i18n.js';
+import { assertNotNullOrUndefined } from '../../core/platform/platform.js';
 import * as SDK from '../../core/sdk/sdk.js';
 import * as TextUtils from '../text_utils/text_utils.js';
 import * as Workspace from '../workspace/workspace.js';
 import { ContentProviderBasedProject } from './ContentProviderBasedProject.js';
-import { assertNotNullOrUndefined } from '../../core/platform/platform.js';
 import { NetworkProject } from './NetworkProject.js';
 const UIStrings = {
     /**
@@ -101,8 +101,6 @@ class FormattingError extends Error {
     }
 }
 class NamespaceObject extends SDK.RemoteObject.LocalJSONObject {
-    // TODO(crbug.com/1172300) Ignored during the jsdoc to ts migration)
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     constructor(value) {
         super(value);
     }
@@ -112,6 +110,31 @@ class NamespaceObject extends SDK.RemoteObject.LocalJSONObject {
     get type() {
         return 'namespace';
     }
+}
+async function getRemoteObject(callFrame, object) {
+    if (!/^(local|global|operand)$/.test(object.valueClass)) {
+        return { type: "undefined" /* Protocol.Runtime.RemoteObjectType.Undefined */ };
+    }
+    const index = Number(object.index);
+    const expression = `${object.valueClass}s[${index}]`;
+    const response = await callFrame.debuggerModel.agent.invoke_evaluateOnCallFrame({
+        callFrameId: callFrame.id,
+        expression,
+        silent: true,
+        generatePreview: true,
+        throwOnSideEffect: true,
+    });
+    if (response.getError() || response.exceptionDetails) {
+        return { type: "undefined" /* Protocol.Runtime.RemoteObjectType.Undefined */ };
+    }
+    return response.result;
+}
+async function wrapRemoteObject(callFrame, object, plugin) {
+    if (object.type === 'reftype') {
+        const obj = await getRemoteObject(callFrame, object);
+        return callFrame.debuggerModel.runtimeModel().createRemoteObject(obj);
+    }
+    return new ExtensionRemoteObject(callFrame, object, plugin);
 }
 class SourceScopeRemoteObject extends SDK.RemoteObject.RemoteObjectImpl {
     variables;
@@ -139,7 +162,7 @@ class SourceScopeRemoteObject extends SDK.RemoteObject.RemoteObjectImpl {
             let sourceVar;
             try {
                 const evalResult = await this.#plugin.evaluate(variable.name, getRawLocation(this.#callFrame), this.stopId);
-                sourceVar = evalResult ? new ExtensionRemoteObject(this.#callFrame, evalResult, this.#plugin) :
+                sourceVar = evalResult ? await wrapRemoteObject(this.#callFrame, evalResult, this.#plugin) :
                     new SDK.RemoteObject.LocalJSONObject(undefined);
             }
             catch (e) {
@@ -165,9 +188,9 @@ class SourceScopeRemoteObject extends SDK.RemoteObject.RemoteObjectImpl {
             }
         }
         for (const namespace in namespaces) {
-            properties.push(makeProperty(namespace, namespaces[namespace]));
+            properties.push(makeProperty(namespace, (namespaces[namespace])));
         }
-        return { properties: properties, internalProperties: [] };
+        return { properties, internalProperties: [] };
     }
 }
 export class SourceScope {
@@ -176,8 +199,6 @@ export class SourceScope {
     #typeNameInternal;
     #iconInternal;
     #objectInternal;
-    #startLocationInternal;
-    #endLocationInternal;
     constructor(callFrame, stopId, type, typeName, icon, plugin) {
         if (icon && new URL(icon).protocol !== 'data:') {
             throw new Error('The icon must be a data:-URL');
@@ -187,8 +208,6 @@ export class SourceScope {
         this.#typeNameInternal = typeName;
         this.#iconInternal = icon;
         this.#objectInternal = new SourceScopeRemoteObject(callFrame, stopId, plugin);
-        this.#startLocationInternal = null;
-        this.#endLocationInternal = null;
     }
     async getVariableValue(name) {
         for (let v = 0; v < this.#objectInternal.variables.length; ++v) {
@@ -218,11 +237,8 @@ export class SourceScope {
     name() {
         return undefined;
     }
-    startLocation() {
-        return this.#startLocationInternal;
-    }
-    endLocation() {
-        return this.#endLocationInternal;
+    range() {
+        return null;
     }
     object() {
         return this.#objectInternal;
@@ -232,6 +248,9 @@ export class SourceScope {
     }
     icon() {
         return this.#iconInternal;
+    }
+    extraProperties() {
+        return [];
     }
 }
 export class ExtensionRemoteObject extends SDK.RemoteObject.RemoteObject {
@@ -299,7 +318,7 @@ export class ExtensionRemoteObject extends SDK.RemoteObject.RemoteObject {
         if (objectId) {
             assertNotNullOrUndefined(this.plugin.getProperties);
             const extensionObjectProperties = await this.plugin.getProperties(objectId);
-            const properties = extensionObjectProperties.map(p => new SDK.RemoteObject.RemoteObjectProperty(p.name, new ExtensionRemoteObject(this.callFrame, p.value, this.plugin)));
+            const properties = await Promise.all(extensionObjectProperties.map(async (p) => new SDK.RemoteObject.RemoteObjectProperty(p.name, await wrapRemoteObject(this.callFrame, p.value, this.plugin))));
             return { properties, internalProperties: null };
         }
         return { properties: null, internalProperties: null };
@@ -316,6 +335,9 @@ export class ExtensionRemoteObject extends SDK.RemoteObject.RemoteObject {
     }
     runtimeModel() {
         return this.callFrame.debuggerModel.runtimeModel();
+    }
+    isLinearMemoryInspectable() {
+        return this.extensionObject.linearMemoryAddress !== undefined;
     }
 }
 export class DebuggerLanguagePluginManager {
@@ -356,7 +378,7 @@ export class DebuggerLanguagePluginManager {
         try {
             const object = await plugin.evaluate(expression, location, this.stopIdForCallFrame(callFrame));
             if (object) {
-                return { object: new ExtensionRemoteObject(callFrame, object, plugin), exceptionDetails: undefined };
+                return { object: await wrapRemoteObject(callFrame, object, plugin), exceptionDetails: undefined };
             }
             return { object: new SDK.RemoteObject.LocalJSONObject(undefined), exceptionDetails: undefined };
         }
@@ -393,13 +415,13 @@ export class DebuggerLanguagePluginManager {
                 if ('missingSymbolFiles' in functionInfo && functionInfo.missingSymbolFiles.length) {
                     const resources = functionInfo.missingSymbolFiles;
                     const details = i18nString(UIStrings.debugSymbolsIncomplete, { PH1: callFrame.functionName });
-                    callFrame.setMissingDebugInfoDetails({ details, resources });
+                    callFrame.missingDebugInfoDetails = { details, resources };
                 }
                 else {
-                    callFrame.setMissingDebugInfoDetails({
-                        resources: [],
+                    callFrame.missingDebugInfoDetails = {
                         details: i18nString(UIStrings.failedToLoadDebugSymbolsForFunction, { PH1: callFrame.functionName }),
-                    });
+                        resources: [],
+                    };
                 }
             }
             return callFrame;
@@ -429,7 +451,7 @@ export class DebuggerLanguagePluginManager {
             const scripts = rawModuleHandle.scripts.filter(script => script.debuggerModel !== debuggerModel);
             if (scripts.length === 0) {
                 rawModuleHandle.plugin.removeRawModule(rawModuleId).catch(error => {
-                    Common.Console.Console.instance().error(i18nString(UIStrings.errorInDebuggerLanguagePlugin, { PH1: error.message }));
+                    Common.Console.Console.instance().error(i18nString(UIStrings.errorInDebuggerLanguagePlugin, { PH1: error.message }), /* show=*/ false);
                 });
                 this.#rawModuleHandles.delete(rawModuleId);
             }
@@ -479,7 +501,7 @@ export class DebuggerLanguagePluginManager {
     hasPluginForScript(script) {
         const rawModuleId = rawModuleIdForScript(script);
         const rawModuleHandle = this.#rawModuleHandles.get(rawModuleId);
-        return rawModuleHandle !== undefined && rawModuleHandle.scripts.includes(script);
+        return rawModuleHandle?.scripts.includes(script) ?? false;
     }
     /**
      * Returns the responsible language #plugin and the raw module ID for a script.
@@ -535,7 +557,7 @@ export class DebuggerLanguagePluginManager {
             }
         }
         catch (error) {
-            Common.Console.Console.instance().error(i18nString(UIStrings.errorInDebuggerLanguagePlugin, { PH1: error.message }));
+            Common.Console.Console.instance().error(i18nString(UIStrings.errorInDebuggerLanguagePlugin, { PH1: error.message }), /* show=*/ false);
         }
         return null;
     }
@@ -554,7 +576,7 @@ export class DebuggerLanguagePluginManager {
             return Promise.resolve(null);
         }
         return Promise.all(locationPromises).then(locations => locations.flat()).catch(error => {
-            Common.Console.Console.instance().error(i18nString(UIStrings.errorInDebuggerLanguagePlugin, { PH1: error.message }));
+            Common.Console.Console.instance().error(i18nString(UIStrings.errorInDebuggerLanguagePlugin, { PH1: error.message }), /* show=*/ false);
             return null;
         });
         async function getLocations(rawModuleId, plugin, script) {
@@ -636,7 +658,7 @@ export class DebuggerLanguagePluginManager {
                 const sourceFileURLsPromise = (async () => {
                     const console = Common.Console.Console.instance();
                     const url = script.sourceURL;
-                    const symbolsUrl = (script.debugSymbols && script.debugSymbols.externalURL) || '';
+                    const symbolsUrl = (script.debugSymbols?.externalURL) || '';
                     if (symbolsUrl) {
                         console.log(i18nString(UIStrings.loadingDebugSymbolsForVia, { PH1: plugin.name, PH2: url, PH3: symbolsUrl }));
                     }
@@ -644,7 +666,7 @@ export class DebuggerLanguagePluginManager {
                         console.log(i18nString(UIStrings.loadingDebugSymbolsFor, { PH1: plugin.name, PH2: url }));
                     }
                     try {
-                        const code = (!symbolsUrl && url.startsWith('wasm://')) ? await script.getWasmBytecode() : undefined;
+                        const code = (!symbolsUrl && Common.ParsedURL.schemeIs(url, 'wasm:')) ? await script.getWasmBytecode() : undefined;
                         const addModuleResult = await plugin.addRawModule(rawModuleId, symbolsUrl, { url, code });
                         // Check that the handle isn't stale by now. This works because the code that assigns to
                         // `rawModuleHandle` below will run before this code because of the `await` in the preceding
@@ -654,7 +676,12 @@ export class DebuggerLanguagePluginManager {
                             return [];
                         }
                         if ('missingSymbolFiles' in addModuleResult) {
-                            return { missingSymbolFiles: addModuleResult.missingSymbolFiles };
+                            const initiator = plugin.createPageResourceLoadInitiator();
+                            const missingSymbolFiles = addModuleResult.missingSymbolFiles.map(resource => {
+                                const resourceUrl = resource;
+                                return { resourceUrl, initiator };
+                            });
+                            return { missingSymbolFiles };
                         }
                         const sourceFileURLs = addModuleResult;
                         if (sourceFileURLs.length === 0) {
@@ -666,7 +693,8 @@ export class DebuggerLanguagePluginManager {
                         return sourceFileURLs;
                     }
                     catch (error) {
-                        console.error(i18nString(UIStrings.failedToLoadDebugSymbolsFor, { PH1: plugin.name, PH2: url, PH3: error.message }));
+                        console.error(i18nString(UIStrings.failedToLoadDebugSymbolsFor, { PH1: plugin.name, PH2: url, PH3: error.message }), 
+                        /* show=*/ false);
                         this.#rawModuleHandles.delete(rawModuleId);
                         return [];
                     }
@@ -744,7 +772,7 @@ export class DebuggerLanguagePluginManager {
             return Array.from(scopes.values());
         }
         catch (error) {
-            Common.Console.Console.instance().error(i18nString(UIStrings.errorInDebuggerLanguagePlugin, { PH1: error.message }));
+            Common.Console.Console.instance().error(i18nString(UIStrings.errorInDebuggerLanguagePlugin, { PH1: error.message }), /* show=*/ false);
             return null;
         }
     }
@@ -760,6 +788,14 @@ export class DebuggerLanguagePluginManager {
         };
         try {
             const functionInfo = await plugin.getFunctionInfo(rawLocation);
+            if ('missingSymbolFiles' in functionInfo) {
+                const initiator = plugin.createPageResourceLoadInitiator();
+                const missingSymbolFiles = functionInfo.missingSymbolFiles.map(resource => {
+                    const resourceUrl = resource;
+                    return { resourceUrl, initiator };
+                });
+                return { missingSymbolFiles, ...('frames' in functionInfo && { frames: functionInfo.frames }) };
+            }
             return functionInfo;
         }
         catch (error) {
@@ -784,7 +820,7 @@ export class DebuggerLanguagePluginManager {
         };
         try {
             // TODO(crbug.com/1172300) Ignored during the jsdoc to ts migration)
-            // @ts-ignore
+            // @ts-expect-error
             const locations = await plugin.getInlinedFunctionRanges(pluginLocation);
             return locations.map(m => ({
                 start: new SDK.DebuggerModel.Location(script.debuggerModel, script.scriptId, 0, Number(m.startOffset) + (script.codeOffset() || 0)),
@@ -813,7 +849,7 @@ export class DebuggerLanguagePluginManager {
         };
         try {
             // TODO(crbug.com/1172300) Ignored during the jsdoc to ts migration)
-            // @ts-ignore
+            // @ts-expect-error
             const locations = await plugin.getInlinedCalleesRanges(pluginLocation);
             return locations.map(m => ({
                 start: new SDK.DebuggerModel.Location(script.debuggerModel, script.scriptId, 0, Number(m.startOffset) + (script.codeOffset() || 0)),

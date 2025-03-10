@@ -1,85 +1,114 @@
 // Copyright 2022 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
+import '../../../../ui/legacy/components/data_grid/data_grid.js';
+import '../../../../ui/components/icon_button/icon_button.js';
+import * as Common from '../../../../core/common/common.js';
 import * as i18n from '../../../../core/i18n/i18n.js';
-import * as DataGrid from '../../../../ui/components/data_grid/data_grid.js';
-import * as ComponentHelpers from '../../../../ui/components/helpers/helpers.js';
+import * as SDK from '../../../../core/sdk/sdk.js';
 import * as LegacyWrapper from '../../../../ui/components/legacy_wrapper/legacy_wrapper.js';
-import * as LitHtml from '../../../../ui/lit-html/lit-html.js';
-import preloadingGridStyles from './preloadingGrid.css.js';
+import * as Lit from '../../../../ui/lit/lit.js';
+import preloadingGridStylesRaw from './preloadingGrid.css.js';
+import { capitalizedAction, composedStatus, ruleSetLocationShort } from './PreloadingString.js';
+// TODO(crbug.com/391381439): Fully migrate off of constructed style sheets.
+const preloadingGridStyles = new CSSStyleSheet();
+preloadingGridStyles.replaceSync(preloadingGridStylesRaw.cssContent);
+const { PreloadingStatus } = SDK.PreloadingModel;
 const UIStrings = {
     /**
      *@description Column header: Action of preloading (prefetch/prerender)
      */
     action: 'Action',
     /**
+     *@description Column header: A rule set of preloading
+     */
+    ruleSet: 'Rule set',
+    /**
      *@description Column header: Status of preloading attempt
      */
     status: 'Status',
+    /**
+     *@description Status: Prerender failed, but prefetch is available
+     */
+    prefetchFallbackReady: 'Prefetch fallback ready',
 };
 const str_ = i18n.i18n.registerUIStrings('panels/application/preloading/components/PreloadingGrid.ts', UIStrings);
 export const i18nString = i18n.i18n.getLocalizedString.bind(undefined, str_);
-const { render, html } = LitHtml;
+const { render, html, Directives: { styleMap } } = Lit;
 // Grid component to show prerendering attempts.
 export class PreloadingGrid extends LegacyWrapper.LegacyWrapper.WrappableComponent {
-    static litTagName = LitHtml.literal `devtools-resources-preloading-grid`;
     #shadow = this.attachShadow({ mode: 'open' });
-    #rows = [];
+    #data = null;
     connectedCallback() {
         this.#shadow.adoptedStyleSheets = [preloadingGridStyles];
         this.#render();
     }
-    update(rows) {
-        this.#rows = rows;
+    update(data) {
+        this.#data = data;
         this.#render();
     }
     #render() {
-        const reportsGridData = {
-            columns: [
-                {
-                    id: 'url',
-                    title: i18n.i18n.lockedString('URL'),
-                    widthWeighting: 40,
-                    hideable: false,
-                    visible: true,
-                },
-                {
-                    id: 'action',
-                    title: i18nString(UIStrings.action),
-                    widthWeighting: 15,
-                    hideable: false,
-                    visible: true,
-                },
-                {
-                    id: 'status',
-                    title: i18nString(UIStrings.status),
-                    widthWeighting: 15,
-                    hideable: false,
-                    visible: true,
-                },
-            ],
-            rows: this.#buildReportRows(),
-        };
+        if (!this.#data) {
+            return;
+        }
+        const { rows, pageURL } = this.#data;
+        const securityOrigin = pageURL === '' ? null : (new Common.ParsedURL.ParsedURL(pageURL)).securityOrigin();
         // Disabled until https://crbug.com/1079231 is fixed.
         // clang-format off
         render(html `
       <div class="preloading-container">
-        <${DataGrid.DataGridController.DataGridController.litTagName} .data=${reportsGridData}>
-        </${DataGrid.DataGridController.DataGridController.litTagName}>
+        <devtools-data-grid striped @select=${this.#onPreloadingGridCellFocused}>
+          <table>
+            <tr>
+              <th id="url" weight="40" sortable>${i18n.i18n.lockedString('URL')}</th>
+              <th id="action" weight="15" sortable>${i18nString(UIStrings.action)}</th>
+              <th id="rule-set" weight="20" sortable>${i18nString(UIStrings.ruleSet)}</th>
+              <th id="status" weight="40" sortable>${i18nString(UIStrings.status)}</th>
+            </tr>
+            ${rows.map(row => {
+            const attempt = row.pipeline.getOriginallyTriggered();
+            const prefetchStatus = row.pipeline.getPrefetch()?.status;
+            const prerenderStatus = row.pipeline.getPrerender()?.status;
+            const hasWarning = (prerenderStatus === "Failure" /* PreloadingStatus.FAILURE */ &&
+                (prefetchStatus === "Ready" /* PreloadingStatus.READY */ || prefetchStatus === "Success" /* PreloadingStatus.SUCCESS */));
+            const hasError = row.pipeline.getOriginallyTriggered().status === "Failure" /* PreloadingStatus.FAILURE */;
+            return html `<tr data-id=${row.id}>
+                <td title=${attempt.key.url}>${this.#urlShort(row, securityOrigin)}</td>
+                <td>${capitalizedAction(attempt.action)}</td>
+                <td>${row.ruleSets.length === 0 ? '' : ruleSetLocationShort(row.ruleSets[0], pageURL)}</td>
+                <td>
+                  <div style=${styleMap({ color: hasWarning ? 'var(--sys-color-orange-bright)'
+                    : hasError ? 'var(--sys-color-error)'
+                        : 'var(--sys-color-on-surface)' })}>
+                    ${(hasError || hasWarning) ? html `
+                      <devtools-icon
+                        name=${hasWarning ? 'warning-filled' : 'cross-circle-filled'}
+                        style=${styleMap({
+                width: '16px',
+                height: '16px',
+                color: hasWarning ? 'var(--sys-color-warning)' : 'var(--sys-color-error)',
+                'vertical-align': 'sub',
+            })}
+                      ></devtools-icon>` : ''}
+                    ${hasWarning ? i18nString(UIStrings.prefetchFallbackReady) : composedStatus(attempt)}
+                  </div>
+                </td>
+              </tr>`;
+        })}
+          </table>
+        </devtools-data-grid>
       </div>
     `, this.#shadow, { host: this });
         // clang-format on
     }
-    #buildReportRows() {
-        return this.#rows.map(row => ({
-            cells: [
-                { columnId: 'id', value: row.id },
-                { columnId: 'url', value: row.url },
-                { columnId: 'action', value: row.action },
-                { columnId: 'status', value: row.status },
-            ],
-        }));
+    #onPreloadingGridCellFocused(event) {
+        this.dispatchEvent(new CustomEvent('select', { detail: event.detail.dataset.id }));
+    }
+    // Shorten URL if a preloading attempt is same-origin.
+    #urlShort(row, securityOrigin) {
+        const url = row.pipeline.getOriginallyTriggered().key.url;
+        return securityOrigin && url.startsWith(securityOrigin) ? url.slice(securityOrigin.length) : url;
     }
 }
-ComponentHelpers.CustomElements.defineComponent('devtools-resources-preloading-grid', PreloadingGrid);
+customElements.define('devtools-resources-preloading-grid', PreloadingGrid);
 //# sourceMappingURL=PreloadingGrid.js.map

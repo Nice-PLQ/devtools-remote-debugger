@@ -32,7 +32,7 @@ export class ContrastCheckTrigger {
         }
     }
     #checkContrast(resourceTreeModel) {
-        if (!Root.Runtime.experiments.isEnabled('contrastIssues')) {
+        if (!Root.Runtime.experiments.isEnabled('contrast-issues')) {
             return;
         }
         void resourceTreeModel.target().auditsAgent().invoke_checkContrast({});
@@ -42,7 +42,7 @@ export class ContrastCheckTrigger {
         this.#checkContrast(resourceTreeModel);
     }
     async #frameAdded(event) {
-        if (!Root.Runtime.experiments.isEnabled('contrastIssues')) {
+        if (!Root.Runtime.experiments.isEnabled('contrast-issues')) {
             return;
         }
         const frame = event.data;

@@ -1,8 +1,8 @@
 // Copyright 2023 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
-import { findMinMax, SelectorRangeOps, } from './CSSSelector.js';
 import { pierceQuerySelectorAll, } from '../../../../third_party/puppeteer/package/lib/esm/puppeteer/injected/PierceQuerySelector.js';
+import { findMinMax, SelectorRangeOps, } from './CSSSelector.js';
 class PierceSelectorRangeOpts {
     #selector = [[]];
     #attributes;

@@ -1,11 +1,37 @@
 // Copyright 2019 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
+import * as i18n from '../../core/i18n/i18n.js';
 import * as SDK from '../../core/sdk/sdk.js';
 import * as UI from '../../ui/legacy/legacy.js';
 import { MediaModel } from './MediaModel.js';
 import { PlayerDetailView } from './PlayerDetailView.js';
 import { PlayerListView } from './PlayerListView.js';
+const UIStrings = {
+    /**
+     *@description Text to show if no media player has been selected
+     * A media player can be an audio and video source of a page.
+     */
+    noPlayerDetailsSelected: 'No media player selected',
+    /**
+     *@description Text to instruct the user on how to view media player details
+     * A media player can be an audio and video source of a page.
+     */
+    selectToViewDetails: 'Select a media player to inspect its details.',
+    /**
+     *@description Text to show if no player can be shown
+     * A media player can be an audio and video source of a page.
+     */
+    noMediaPlayer: 'No media player',
+    /**
+     *@description Text to explain this panel
+     * A media player can be an audio and video source of a page.
+     */
+    mediaPlayerDescription: 'On this page you can view and export media player details.',
+};
+const str_ = i18n.i18n.registerUIStrings('panels/media/MainView.ts', UIStrings);
+const i18nString = i18n.i18n.getLocalizedString.bind(undefined, str_);
+const MEDIA_PLAYER_EXPLANATION_URL = 'https://developer.chrome.com/docs/devtools/media-panel#hide-show';
 class PlayerDataCollection {
     properties;
     messages;
@@ -30,7 +56,7 @@ class PlayerDataCollection {
         this.events.push(event);
     }
     export() {
-        return { 'properties': this.properties, 'messages': this.messages, 'events': this.events, 'errors': this.errors };
+        return { properties: this.properties, messages: this.messages, events: this.events, errors: this.errors };
     }
 }
 export class PlayerDataDownloadManager {
@@ -80,26 +106,24 @@ export class PlayerDataDownloadManager {
         this.playerDataCollection.delete(playerID);
     }
 }
-let mainViewInstance;
 export class MainView extends UI.Panel.PanelWithSidebar {
     detailPanels;
     deletedPlayers;
     downloadStore;
     sidebar;
-    constructor(downloadStore) {
-        super('Media');
+    #placeholder;
+    constructor(downloadStore = new PlayerDataDownloadManager()) {
+        super('media');
         this.detailPanels = new Map();
         this.deletedPlayers = new Set();
         this.downloadStore = downloadStore;
         this.sidebar = new PlayerListView(this);
         this.sidebar.show(this.panelSidebarElement());
+        this.#placeholder =
+            new UI.EmptyWidget.EmptyWidget(i18nString(UIStrings.noMediaPlayer), UIStrings.mediaPlayerDescription);
+        this.#placeholder.show(this.mainElement());
+        this.#placeholder.appendLink(MEDIA_PLAYER_EXPLANATION_URL);
         SDK.TargetManager.TargetManager.instance().observeModels(MediaModel, this, { scoped: true });
-    }
-    static instance(opts) {
-        if (!mainViewInstance || opts?.forceNew) {
-            mainViewInstance = new MainView(opts?.downloadStore || new PlayerDataDownloadManager());
-        }
-        return mainViewInstance;
     }
     renderMainPanel(playerID) {
         if (!this.detailPanels.has(playerID)) {
@@ -132,23 +156,27 @@ export class MainView extends UI.Panel.PanelWithSidebar {
     }
     addEventListeners(mediaModel) {
         mediaModel.ensureEnabled();
-        mediaModel.addEventListener("PlayerPropertiesChanged" /* Events.PlayerPropertiesChanged */, this.propertiesChanged, this);
-        mediaModel.addEventListener("PlayerEventsAdded" /* Events.PlayerEventsAdded */, this.eventsAdded, this);
-        mediaModel.addEventListener("PlayerMessagesLogged" /* Events.PlayerMessagesLogged */, this.messagesLogged, this);
-        mediaModel.addEventListener("PlayerErrorsRaised" /* Events.PlayerErrorsRaised */, this.errorsRaised, this);
-        mediaModel.addEventListener("PlayersCreated" /* Events.PlayersCreated */, this.playersCreated, this);
+        mediaModel.addEventListener("PlayerPropertiesChanged" /* Events.PLAYER_PROPERTIES_CHANGED */, this.propertiesChanged, this);
+        mediaModel.addEventListener("PlayerEventsAdded" /* Events.PLAYER_EVENTS_ADDED */, this.eventsAdded, this);
+        mediaModel.addEventListener("PlayerMessagesLogged" /* Events.PLAYER_MESSAGES_LOGGED */, this.messagesLogged, this);
+        mediaModel.addEventListener("PlayerErrorsRaised" /* Events.PLAYER_ERRORS_RAISED */, this.errorsRaised, this);
+        mediaModel.addEventListener("PlayersCreated" /* Events.PLAYERS_CREATED */, this.playersCreated, this);
     }
     removeEventListeners(mediaModel) {
-        mediaModel.removeEventListener("PlayerPropertiesChanged" /* Events.PlayerPropertiesChanged */, this.propertiesChanged, this);
-        mediaModel.removeEventListener("PlayerEventsAdded" /* Events.PlayerEventsAdded */, this.eventsAdded, this);
-        mediaModel.removeEventListener("PlayerMessagesLogged" /* Events.PlayerMessagesLogged */, this.messagesLogged, this);
-        mediaModel.removeEventListener("PlayerErrorsRaised" /* Events.PlayerErrorsRaised */, this.errorsRaised, this);
-        mediaModel.removeEventListener("PlayersCreated" /* Events.PlayersCreated */, this.playersCreated, this);
+        mediaModel.removeEventListener("PlayerPropertiesChanged" /* Events.PLAYER_PROPERTIES_CHANGED */, this.propertiesChanged, this);
+        mediaModel.removeEventListener("PlayerEventsAdded" /* Events.PLAYER_EVENTS_ADDED */, this.eventsAdded, this);
+        mediaModel.removeEventListener("PlayerMessagesLogged" /* Events.PLAYER_MESSAGES_LOGGED */, this.messagesLogged, this);
+        mediaModel.removeEventListener("PlayerErrorsRaised" /* Events.PLAYER_ERRORS_RAISED */, this.errorsRaised, this);
+        mediaModel.removeEventListener("PlayersCreated" /* Events.PLAYERS_CREATED */, this.playersCreated, this);
     }
     onPlayerCreated(playerID) {
         this.sidebar.addMediaElementItem(playerID);
         this.detailPanels.set(playerID, new PlayerDetailView());
         this.downloadStore.addPlayer(playerID);
+        if (this.detailPanels.size === 1) {
+            this.#placeholder.header = i18nString(UIStrings.noPlayerDetailsSelected);
+            this.#placeholder.text = i18nString(UIStrings.selectToViewDetails);
+        }
     }
     propertiesChanged(event) {
         for (const property of event.data.properties) {
@@ -219,6 +247,10 @@ export class MainView extends UI.Panel.PanelWithSidebar {
         this.detailPanels.delete(playerID);
         this.sidebar.deletePlayer(playerID);
         this.downloadStore.deletePlayer(playerID);
+        if (this.detailPanels.size === 0) {
+            this.#placeholder.header = i18nString(UIStrings.noMediaPlayer);
+            this.#placeholder.text = i18nString(UIStrings.mediaPlayerDescription);
+        }
     }
     markOtherPlayersForDeletion(playerID) {
         for (const keyID of this.detailPanels.keys()) {

@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 import * as Common from '../../core/common/common.js';
-import * as UI from '../../ui/legacy/legacy.js';
 import * as i18n from '../../core/i18n/i18n.js';
+import * as UI from '../../ui/legacy/legacy.js';
 const UIStrings = {
     /**
      * @description Title of the Sensors tool. The sensors tool contains GPS, orientation sensors, touch
@@ -89,6 +89,30 @@ const UIStrings = {
      *@description Command that shows geographic locations.
      */
     showLocations: 'Show Locations',
+    /**
+     * @description Text for the CPU Pressure type to simulate on a device.
+     */
+    cpuPressure: 'CPU Pressure',
+    /**
+     *@description Title of an option in Sensors tab cpu pressure emulation drop-down. Turns off emulation of cpu pressure state.
+     */
+    noPressureEmulation: 'No override',
+    /**
+     *@description An option that appears in a drop-down that represents the nominal state.
+     */
+    nominal: 'Nominal',
+    /**
+     *@description An option that appears in a drop-down that represents the fair state.
+     */
+    fair: 'Fair',
+    /**
+     *@description An option that appears in a drop-down that represents the serious state.
+     */
+    serious: 'Serious',
+    /**
+     *@description An option that appears in a drop-down that represents the critical state.
+     */
+    critical: 'Critical',
 };
 const str_ = i18n.i18n.registerUIStrings('panels/sensors/sensors-meta.ts', UIStrings);
 const i18nLazyString = i18n.i18n.getLazilyComputedLocalizedString.bind(undefined, str_);
@@ -108,7 +132,7 @@ UI.ViewManager.registerViewExtension({
     order: 100,
     async loadView() {
         const Sensors = await loadEmulationModule();
-        return Sensors.SensorsView.SensorsView.instance();
+        return new Sensors.SensorsView.SensorsView();
     },
     tags: [
         i18nLazyString(UIStrings.geolocation),
@@ -127,16 +151,17 @@ UI.ViewManager.registerViewExtension({
     order: 40,
     async loadView() {
         const Sensors = await loadEmulationModule();
-        return Sensors.LocationsSettingsTab.LocationsSettingsTab.instance();
+        return new Sensors.LocationsSettingsTab.LocationsSettingsTab();
     },
     settings: [
         'emulation.locations',
     ],
+    iconName: 'location-on',
 });
 Common.Settings.registerSettingExtension({
-    storageType: Common.Settings.SettingStorageType.Synced,
+    storageType: "Synced" /* Common.Settings.SettingStorageType.SYNCED */,
     settingName: 'emulation.locations',
-    settingType: Common.Settings.SettingType.ARRAY,
+    settingType: "array" /* Common.Settings.SettingType.ARRAY */,
     // TODO(crbug.com/1136655): http://crrev.com/c/2666426 regressed localization of city titles.
     // These titles should be localized since they are displayed to users.
     defaultValue: [
@@ -206,10 +231,44 @@ Common.Settings.registerSettingExtension({
     ],
 });
 Common.Settings.registerSettingExtension({
+    title: i18nLazyString(UIStrings.cpuPressure),
+    reloadRequired: true,
+    settingName: 'emulation.cpu-pressure',
+    settingType: "enum" /* Common.Settings.SettingType.ENUM */,
+    defaultValue: 'none',
+    options: [
+        {
+            value: 'none',
+            title: i18nLazyString(UIStrings.noPressureEmulation),
+            text: i18nLazyString(UIStrings.noPressureEmulation),
+        },
+        {
+            value: 'nominal',
+            title: i18nLazyString(UIStrings.nominal),
+            text: i18nLazyString(UIStrings.nominal),
+        },
+        {
+            value: 'fair',
+            title: i18nLazyString(UIStrings.fair),
+            text: i18nLazyString(UIStrings.fair),
+        },
+        {
+            value: 'serious',
+            title: i18nLazyString(UIStrings.serious),
+            text: i18nLazyString(UIStrings.serious),
+        },
+        {
+            value: 'critical',
+            title: i18nLazyString(UIStrings.critical),
+            text: i18nLazyString(UIStrings.critical),
+        },
+    ],
+});
+Common.Settings.registerSettingExtension({
     title: i18nLazyString(UIStrings.touch),
     reloadRequired: true,
     settingName: 'emulation.touch',
-    settingType: Common.Settings.SettingType.ENUM,
+    settingType: "enum" /* Common.Settings.SettingType.ENUM */,
     defaultValue: 'none',
     options: [
         {
@@ -226,8 +285,8 @@ Common.Settings.registerSettingExtension({
 });
 Common.Settings.registerSettingExtension({
     title: i18nLazyString(UIStrings.emulateIdleDetectorState),
-    settingName: 'emulation.idleDetection',
-    settingType: Common.Settings.SettingType.ENUM,
+    settingName: 'emulation.idle-detection',
+    settingType: "enum" /* Common.Settings.SettingType.ENUM */,
     defaultValue: 'none',
     options: [
         {

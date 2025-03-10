@@ -36,8 +36,8 @@
     "../../../../../../../../front_end/ui/legacy/components/object_ui/RemoteObjectPreviewFormatter.ts",
     "../../../../../../../../front_end/legacy/legacy-defs.d.ts",
     "../../../../../../../../front_end/global_typings/global_defs.d.ts",
-    "../../../../../../../../front_end/global_typings/request_idle_callback.d.ts",
-    "../../../../../../../../node_modules/@types/filesystem/index.d.ts"
+    "../../../../../../../../node_modules/@types/filesystem/index.d.ts",
+    "../../../../../../../../node_modules/@types/wicg-task-scheduling/index.d.ts"
   ],
   "references": [
     {
@@ -71,10 +71,13 @@
       "path": "../../../../models/text_utils/bundle-tsconfig.json"
     },
     {
-      "path": "../../../components/icon_button/bundle-tsconfig.json"
+      "path": "../../../../third_party/acorn/acorn-tsconfig.json"
     },
     {
-      "path": "../../../components/linear_memory_inspector/bundle-tsconfig.json"
+      "path": "../../../../third_party/acorn/bundle-tsconfig.json"
+    },
+    {
+      "path": "../../../components/icon_button/bundle-tsconfig.json"
     },
     {
       "path": "../../../components/text_editor/bundle-tsconfig.json"

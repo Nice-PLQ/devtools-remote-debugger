@@ -6,8 +6,9 @@ import * as i18n from '../../core/i18n/i18n.js';
 import * as Platform from '../../core/platform/platform.js';
 import * as SDK from '../../core/sdk/sdk.js';
 import * as Persistence from '../../models/persistence/persistence.js';
-import * as UI from '../../ui/legacy/legacy.js';
+import * as TextUtils from '../../models/text_utils/text_utils.js';
 import * as Workspace from '../../models/workspace/workspace.js';
+import * as UI from '../../ui/legacy/legacy.js';
 const UIStrings = {
     /**
      *@description Default snippet name when a new snippet is created in the Sources panel
@@ -32,10 +33,10 @@ export class SnippetFileSystem extends Persistence.PlatformFileSystem.PlatformFi
     lastSnippetIdentifierSetting;
     snippetsSetting;
     constructor() {
-        super('snippet://', 'snippets');
+        super('snippet://', Persistence.PlatformFileSystem.PlatformFileSystemType.SNIPPETS, false);
         this.lastSnippetIdentifierSetting =
-            Common.Settings.Settings.instance().createSetting('scriptSnippets_lastIdentifier', 0);
-        this.snippetsSetting = Common.Settings.Settings.instance().createSetting('scriptSnippets', []);
+            Common.Settings.Settings.instance().createSetting('script-snippets-last-identifier', 0);
+        this.snippetsSetting = Common.Settings.Settings.instance().createSetting('script-snippets', []);
     }
     initialFilePaths() {
         const savedSnippets = this.snippetsSetting.get();
@@ -65,9 +66,9 @@ export class SnippetFileSystem extends Persistence.PlatformFileSystem.PlatformFi
         const snippets = this.snippetsSetting.get();
         const snippet = snippets.find(snippet => snippet.name === name);
         if (snippet) {
-            return { content: snippet.content, isEncoded: false };
+            return new TextUtils.ContentData.ContentData(snippet.content, /* isBase64 */ false, 'text/javascript');
         }
-        return { content: null, isEncoded: false, error: `A snippet with name '${name}' was not found` };
+        return { error: `A snippet with name '${name}' was not found` };
     }
     async setFileContent(path, content, _isBase64) {
         const name = unescapeSnippetName(Common.ParsedURL.ParsedURL.substring(path, 1));
@@ -113,7 +114,7 @@ export class SnippetFileSystem extends Persistence.PlatformFileSystem.PlatformFi
     }
 }
 export async function evaluateScriptSnippet(uiSourceCode) {
-    if (!uiSourceCode.url().startsWith('snippet://')) {
+    if (!Common.ParsedURL.schemeIs(uiSourceCode.url(), 'snippet:')) {
         return;
     }
     const executionContext = UI.Context.Context.instance().flavor(SDK.RuntimeModel.ExecutionContext);
@@ -158,7 +159,7 @@ export async function evaluateScriptSnippet(uiSourceCode) {
     consoleModel?.addMessage(new SDK.ConsoleModel.ConsoleMessage(runtimeModel, "javascript" /* Protocol.Log.LogEntrySource.Javascript */, "info" /* Protocol.Log.LogEntryLevel.Info */, '', details));
 }
 export function isSnippetsUISourceCode(uiSourceCode) {
-    return uiSourceCode.url().startsWith('snippet://');
+    return Common.ParsedURL.schemeIs(uiSourceCode.url(), 'snippet:');
 }
 export function isSnippetsProject(project) {
     return project.type() === Workspace.Workspace.projectTypes.FileSystem &&

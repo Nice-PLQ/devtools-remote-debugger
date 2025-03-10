@@ -16,6 +16,12 @@ export class I18n {
     registerLocaleData(locale, messages) {
         this.localeData.set(locale, messages);
     }
+    hasLocaleDataForTest(locale) {
+        return this.localeData.has(locale);
+    }
+    resetLocaleDataForTest() {
+        this.localeData.clear();
+    }
     registerFileStrings(filename, stringStructure) {
         return new RegisteredFileStrings(filename, stringStructure, this.localeData);
     }
@@ -26,7 +32,6 @@ export class I18n {
      * - the default locale if no match is found
      */
     lookupClosestSupportedLocale(locale) {
-        // @ts-expect-error https://github.com/microsoft/TypeScript/issues/29129
         const canonicalLocale = Intl.getCanonicalLocales(locale)[0];
         const localeParts = canonicalLocale.split('-');
         while (localeParts.length) {

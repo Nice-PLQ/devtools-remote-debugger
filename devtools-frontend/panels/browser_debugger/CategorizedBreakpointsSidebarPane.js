@@ -2,17 +2,124 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 import * as i18n from '../../core/i18n/i18n.js';
+import * as Platform from '../../core/platform/platform.js';
 import * as SDK from '../../core/sdk/sdk.js';
+import * as Sources from '../../panels/sources/sources.js';
 import * as UI from '../../ui/legacy/legacy.js';
 import categorizedBreakpointsSidebarPaneStyles from './categorizedBreakpointsSidebarPane.css.js';
 const UIStrings = {
     /**
+     * @description Category of breakpoints
+     */
+    auctionWorklet: 'Ad Auction Worklet',
+    /**
+     *@description Text that refers to the animation of the web page
+     */
+    animation: 'Animation',
+    /**
      *@description Screen reader description of a hit breakpoint in the Sources panel
      */
     breakpointHit: 'breakpoint hit',
+    /**
+     *@description Text in DOMDebugger Model
+     */
+    canvas: 'Canvas',
+    /**
+     *@description Text in DOMDebugger Model
+     */
+    clipboard: 'Clipboard',
+    /**
+     * @description Noun. Describes a group of DOM events (such as 'select' and 'submit') in this context.
+     */
+    control: 'Control',
+    /**
+     *@description Text that refers to device such as a phone
+     */
+    device: 'Device',
+    /**
+     *@description Text in DOMDebugger Model
+     */
+    domMutation: 'DOM Mutation',
+    /**
+     *@description Text in DOMDebugger Model
+     */
+    dragDrop: 'Drag / drop',
+    /**
+     *@description Title for a group of cities
+     */
+    geolocation: 'Geolocation',
+    /**
+     *@description Text in DOMDebugger Model
+     */
+    keyboard: 'Keyboard',
+    /**
+     *@description Text to load something
+     */
+    load: 'Load',
+    /**
+     *@description Text that appears on a button for the media resource type filter.
+     */
+    media: 'Media',
+    /**
+     *@description Text in DOMDebugger Model
+     */
+    mouse: 'Mouse',
+    /**
+     *@description Text in DOMDebugger Model
+     */
+    notification: 'Notification',
+    /**
+     *@description Text to parse something
+     */
+    parse: 'Parse',
+    /**
+     *@description Text in DOMDebugger Model
+     */
+    pictureinpicture: 'Picture-in-Picture',
+    /**
+     *@description Text in DOMDebugger Model
+     */
+    pointer: 'Pointer',
+    /**
+     *@description Label for a group of JavaScript files
+     */
+    script: 'Script',
+    /**
+     *@description Category of breakpoints
+     */
+    sharedStorageWorklet: 'Shared Storage Worklet',
+    /**
+     *@description Text in DOMDebugger Model
+     */
+    timer: 'Timer',
+    /**
+     *@description Text for the touch type to simulate on a device
+     */
+    touch: 'Touch',
+    /**
+     *@description Title for a category of breakpoints on Trusted Type violations
+     */
+    trustedTypeViolations: 'Trusted Type Violations',
+    /**
+     *@description Title of the WebAudio tool
+     */
+    webaudio: 'WebAudio',
+    /**
+     *@description Text in DOMDebugger Model
+     */
+    window: 'Window',
+    /**
+     *@description Text for the service worker type.
+     */
+    worker: 'Worker',
+    /**
+     *@description Text that appears on a button for the xhr resource type filter.
+     */
+    xhr: 'XHR',
 };
 const str_ = i18n.i18n.registerUIStrings('panels/browser_debugger/CategorizedBreakpointsSidebarPane.ts', UIStrings);
 const i18nString = i18n.i18n.getLocalizedString.bind(undefined, str_);
+const i18nLazyString = i18n.i18n.getLazilyComputedLocalizedString.bind(undefined, str_);
 export class CategorizedBreakpointsSidebarPane extends UI.Widget.VBox {
     #categoriesTreeOutline;
     #viewId;
@@ -20,21 +127,26 @@ export class CategorizedBreakpointsSidebarPane extends UI.Widget.VBox {
     #categories;
     #breakpoints;
     #highlightedElement;
-    constructor(categories, breakpoints, viewId, detailsPausedReason) {
+    constructor(breakpoints, viewId, detailsPausedReason) {
         super(true);
         this.#categoriesTreeOutline = new UI.TreeOutline.TreeOutlineInShadow();
+        this.#categoriesTreeOutline.registerRequiredCSS(categorizedBreakpointsSidebarPaneStyles);
         this.#categoriesTreeOutline.setShowSelectionOnKeyboardFocus(/* show */ true);
         this.contentElement.appendChild(this.#categoriesTreeOutline.element);
         this.#viewId = viewId;
         this.#detailsPausedReason = detailsPausedReason;
+        const categories = new Set(breakpoints.map(bp => bp.category()));
+        const sortedCategories = [...categories].sort((a, b) => {
+            const categoryA = getLocalizedCategory(a);
+            const categoryB = getLocalizedCategory(b);
+            return categoryA.localeCompare(categoryB, i18n.DevToolsLocale.DevToolsLocale.instance().locale);
+        });
         this.#categories = new Map();
-        for (const category of categories) {
-            if (!this.#categories.has(category)) {
-                this.createCategory(category);
-            }
+        for (const category of sortedCategories) {
+            this.createCategory(category);
         }
-        if (categories.length > 0) {
-            const firstCategory = this.#categories.get(categories[0]);
+        if (sortedCategories.length > 0) {
+            const firstCategory = this.#categories.get(sortedCategories[0]);
             if (firstCategory) {
                 firstCategory.element.select();
             }
@@ -65,10 +177,10 @@ export class CategorizedBreakpointsSidebarPane extends UI.Widget.VBox {
         }
     }
     createCategory(name) {
-        const labelNode = UI.UIUtils.CheckboxLabel.create(name);
+        const labelNode = UI.UIUtils.CheckboxLabel.create(getLocalizedCategory(name), undefined, undefined, name, /* small */ true);
         labelNode.checkboxElement.addEventListener('click', this.categoryCheckboxClicked.bind(this, name), true);
         labelNode.checkboxElement.tabIndex = -1;
-        const treeElement = new UI.TreeOutline.TreeElement(labelNode);
+        const treeElement = new UI.TreeOutline.TreeElement(labelNode, undefined, name);
         treeElement.listItemElement.addEventListener('keydown', event => {
             this.handleSpaceKeyEventOnBreakpoint(event, this.#categories.get(name));
         });
@@ -81,11 +193,11 @@ export class CategorizedBreakpointsSidebarPane extends UI.Widget.VBox {
         this.#categories.set(name, { element: treeElement, checkbox: labelNode.checkboxElement });
     }
     createBreakpoint(breakpoint) {
-        const labelNode = UI.UIUtils.CheckboxLabel.create(breakpoint.title());
-        labelNode.classList.add('source-code');
+        const labelNode = UI.UIUtils.CheckboxLabel.create(Sources.CategorizedBreakpointL10n.getLocalizedBreakpointName(breakpoint.name), undefined, undefined, Platform.StringUtilities.toKebabCase(breakpoint.name), /* small */ true);
+        labelNode.classList.add('source-code', 'breakpoint');
         labelNode.checkboxElement.addEventListener('click', this.breakpointCheckboxClicked.bind(this, breakpoint), true);
         labelNode.checkboxElement.tabIndex = -1;
-        const treeElement = new UI.TreeOutline.TreeElement(labelNode);
+        const treeElement = new UI.TreeOutline.TreeElement(labelNode, undefined, Platform.StringUtilities.toKebabCase(breakpoint.name));
         treeElement.listItemElement.addEventListener('keydown', event => {
             this.handleSpaceKeyEventOnBreakpoint(event, this.#breakpoints.get(breakpoint));
         });
@@ -188,9 +300,36 @@ export class CategorizedBreakpointsSidebarPane extends UI.Widget.VBox {
             UI.ARIAUtils.setChecked(category.element.listItemElement, hasEnabled);
         }
     }
-    wasShown() {
-        super.wasShown();
-        this.#categoriesTreeOutline.registerCSSFiles([categorizedBreakpointsSidebarPaneStyles]);
-    }
+}
+const LOCALIZED_CATEGORIES = {
+    ["animation" /* SDK.CategorizedBreakpoint.Category.ANIMATION */]: i18nLazyString(UIStrings.animation),
+    ["auction-worklet" /* SDK.CategorizedBreakpoint.Category.AUCTION_WORKLET */]: i18nLazyString(UIStrings.auctionWorklet),
+    ["canvas" /* SDK.CategorizedBreakpoint.Category.CANVAS */]: i18nLazyString(UIStrings.canvas),
+    ["clipboard" /* SDK.CategorizedBreakpoint.Category.CLIPBOARD */]: i18nLazyString(UIStrings.clipboard),
+    ["control" /* SDK.CategorizedBreakpoint.Category.CONTROL */]: i18nLazyString(UIStrings.control),
+    ["device" /* SDK.CategorizedBreakpoint.Category.DEVICE */]: i18nLazyString(UIStrings.device),
+    ["dom-mutation" /* SDK.CategorizedBreakpoint.Category.DOM_MUTATION */]: i18nLazyString(UIStrings.domMutation),
+    ["drag-drop" /* SDK.CategorizedBreakpoint.Category.DRAG_DROP */]: i18nLazyString(UIStrings.dragDrop),
+    ["geolocation" /* SDK.CategorizedBreakpoint.Category.GEOLOCATION */]: i18nLazyString(UIStrings.geolocation),
+    ["keyboard" /* SDK.CategorizedBreakpoint.Category.KEYBOARD */]: i18nLazyString(UIStrings.keyboard),
+    ["load" /* SDK.CategorizedBreakpoint.Category.LOAD */]: i18nLazyString(UIStrings.load),
+    ["media" /* SDK.CategorizedBreakpoint.Category.MEDIA */]: i18nLazyString(UIStrings.media),
+    ["mouse" /* SDK.CategorizedBreakpoint.Category.MOUSE */]: i18nLazyString(UIStrings.mouse),
+    ["notification" /* SDK.CategorizedBreakpoint.Category.NOTIFICATION */]: i18nLazyString(UIStrings.notification),
+    ["parse" /* SDK.CategorizedBreakpoint.Category.PARSE */]: i18nLazyString(UIStrings.parse),
+    ["picture-in-picture" /* SDK.CategorizedBreakpoint.Category.PICTURE_IN_PICTURE */]: i18nLazyString(UIStrings.pictureinpicture),
+    ["pointer" /* SDK.CategorizedBreakpoint.Category.POINTER */]: i18nLazyString(UIStrings.pointer),
+    ["script" /* SDK.CategorizedBreakpoint.Category.SCRIPT */]: i18nLazyString(UIStrings.script),
+    ["shared-storage-worklet" /* SDK.CategorizedBreakpoint.Category.SHARED_STORAGE_WORKLET */]: i18nLazyString(UIStrings.sharedStorageWorklet),
+    ["timer" /* SDK.CategorizedBreakpoint.Category.TIMER */]: i18nLazyString(UIStrings.timer),
+    ["touch" /* SDK.CategorizedBreakpoint.Category.TOUCH */]: i18nLazyString(UIStrings.touch),
+    ["trusted-type-violation" /* SDK.CategorizedBreakpoint.Category.TRUSTED_TYPE_VIOLATION */]: i18nLazyString(UIStrings.trustedTypeViolations),
+    ["web-audio" /* SDK.CategorizedBreakpoint.Category.WEB_AUDIO */]: i18nLazyString(UIStrings.webaudio),
+    ["window" /* SDK.CategorizedBreakpoint.Category.WINDOW */]: i18nLazyString(UIStrings.window),
+    ["worker" /* SDK.CategorizedBreakpoint.Category.WORKER */]: i18nLazyString(UIStrings.worker),
+    ["xhr" /* SDK.CategorizedBreakpoint.Category.XHR */]: i18nLazyString(UIStrings.xhr),
+};
+function getLocalizedCategory(category) {
+    return LOCALIZED_CATEGORIES[category]();
 }
 //# sourceMappingURL=CategorizedBreakpointsSidebarPane.js.map

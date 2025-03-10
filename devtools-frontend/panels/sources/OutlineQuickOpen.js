@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 import * as i18n from '../../core/i18n/i18n.js';
 import * as CodeMirror from '../../third_party/codemirror.next/codemirror.next.js';
+import * as IconButton from '../../ui/components/icon_button/icon_button.js';
 import * as QuickOpen from '../../ui/legacy/components/quick_open/quick_open.js';
 import * as UI from '../../ui/legacy/legacy.js';
 import { SourcesView } from './SourcesView.js';
@@ -29,7 +30,8 @@ export function outline(state) {
         return { lineNumber: line.number - 1, columnNumber: offset - line.from };
     }
     function subtitleFromParamList() {
-        while (cursor.name !== 'ParamList' && cursor.nextSibling()) {
+        while (cursor.name !== 'ParamList') {
+            cursor.nextSibling();
         }
         let parameters = '';
         if (cursor.name === 'ParamList' && cursor.firstChild()) {
@@ -91,6 +93,7 @@ export function outline(state) {
                             prefix += '*';
                             break;
                         case 'PropertyDefinition':
+                        case 'PrivatePropertyDefinition':
                         case 'VariableDefinition': {
                             const title = prefix + state.sliceDoc(cursor.from, cursor.to);
                             const { lineNumber, columnNumber } = toLineColumn(cursor.from);
@@ -162,7 +165,8 @@ export function outline(state) {
                     ])) {
                     let title = state.sliceDoc(cursor.from, cursor.to);
                     const { lineNumber, columnNumber } = toLineColumn(cursor.from);
-                    while (cursor.name !== 'Equals' && cursor.next()) {
+                    while (cursor.name !== 'Equals') {
+                        cursor.next();
                     }
                     if (!cursor.nextSibling()) {
                         break;
@@ -261,6 +265,9 @@ export function outline(state) {
 export class OutlineQuickOpen extends QuickOpen.FilteredListWidget.Provider {
     items = [];
     active = false;
+    constructor() {
+        super('source-symbol');
+    }
     attach() {
         const sourceFrame = this.currentSourceFrame();
         if (sourceFrame) {
@@ -296,6 +303,8 @@ export class OutlineQuickOpen extends QuickOpen.FilteredListWidget.Provider {
     }
     renderItem(itemIndex, query, titleElement, _subtitleElement) {
         const item = this.items[itemIndex];
+        const icon = IconButton.Icon.create('deployed');
+        titleElement.parentElement?.parentElement?.insertBefore(icon, titleElement.parentElement);
         titleElement.textContent = item.title + (item.subtitle ? item.subtitle : '');
         QuickOpen.FilteredListWidget.FilteredListWidget.highlightRanges(titleElement, query);
         const sourceFrame = this.currentSourceFrame();
@@ -329,7 +338,7 @@ export class OutlineQuickOpen extends QuickOpen.FilteredListWidget.Provider {
     }
     currentSourceFrame() {
         const sourcesView = UI.Context.Context.instance().flavor(SourcesView);
-        return sourcesView && sourcesView.currentSourceFrame();
+        return sourcesView?.currentSourceFrame() ?? null;
     }
     notFoundText() {
         if (!this.currentSourceFrame()) {

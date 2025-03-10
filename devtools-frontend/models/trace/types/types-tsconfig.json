@@ -29,16 +29,25 @@
     "useUnknownInCatchVariables": false
   },
   "files": [
+    "../../../../../../../front_end/models/trace/types/Configuration.ts",
+    "../../../../../../../front_end/models/trace/types/Extensions.ts",
+    "../../../../../../../front_end/models/trace/types/File.ts",
     "../../../../../../../front_end/models/trace/types/Timing.ts",
     "../../../../../../../front_end/models/trace/types/TraceEvents.ts",
     "../../../../../../../front_end/legacy/legacy-defs.d.ts",
     "../../../../../../../front_end/global_typings/global_defs.d.ts",
-    "../../../../../../../front_end/global_typings/request_idle_callback.d.ts",
-    "../../../../../../../node_modules/@types/filesystem/index.d.ts"
+    "../../../../../../../node_modules/@types/filesystem/index.d.ts",
+    "../../../../../../../node_modules/@types/wicg-task-scheduling/index.d.ts"
   ],
   "references": [
     {
+      "path": "../../../core/sdk/bundle-tsconfig.json"
+    },
+    {
       "path": "../../../generated/generated-tsconfig.json"
+    },
+    {
+      "path": "../../crux-manager/bundle-tsconfig.json"
     }
   ]
 }

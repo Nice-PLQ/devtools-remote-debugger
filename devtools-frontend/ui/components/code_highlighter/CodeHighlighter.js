@@ -89,8 +89,9 @@ export async function languageFromMIME(mimeType) {
         case 'text/css':
             return CodeMirror.css.css();
         case 'text/html':
-            return CodeMirror.html.html({ selfClosingTags: true });
+            return CodeMirror.html.html({ autoCloseTags: false, selfClosingTags: true });
         case 'application/xml':
+        case 'application/xhtml+xml':
         case 'image/svg+xml':
             return (await CodeMirror.xml()).xml();
         case 'application/wasm':
@@ -104,8 +105,10 @@ export async function languageFromMIME(mimeType) {
         case 'text/x-kotlin':
             return new CodeMirror.LanguageSupport(await CodeMirror.kotlin());
         case 'application/json':
-        case 'application/manifest+json':
-            return (await CodeMirror.json()).json();
+        case 'application/manifest+json': {
+            const jsonLanguage = CodeMirror.javascript.javascriptLanguage.configure({ top: 'SingleExpression' });
+            return new CodeMirror.LanguageSupport(jsonLanguage);
+        }
         case 'application/x-httpd-php':
             return (await CodeMirror.php()).php();
         case 'text/x-python':

@@ -5,8 +5,8 @@ import * as i18n from '../../../../core/i18n/i18n.js';
 import * as Platform from '../../../../core/platform/platform.js';
 import * as TextUtils from '../../../../models/text_utils/text_utils.js';
 import * as UI from '../../legacy.js';
-import xmlTreeStyles from './xmlTree.css.legacy.js';
-import xmlViewStyles from './xmlView.css.legacy.js';
+import xmlTreeStyles from './xmlTree.css.js';
+import xmlViewStyles from './xmlView.css.js';
 const UIStrings = {
     /**
      *@description Text to find an item
@@ -56,7 +56,7 @@ export class XMLView extends UI.Widget.Widget {
                     parsedXML = (new DOMParser()).parseFromString(text, mimeType);
             }
         }
-        catch (e) {
+        catch {
             return null;
         }
         if (!parsedXML || parsedXML.body) {
@@ -197,7 +197,7 @@ export class XMLViewNode extends UI.TreeOutline.TreeElement {
             node = node.nextSibling;
             const nodeType = currentNode.nodeType;
             // ignore empty TEXT
-            if (nodeType === 3 && currentNode.nodeValue && currentNode.nodeValue.match(/\s+/)) {
+            if (nodeType === 3 && currentNode.nodeValue?.match(/\s+/)) {
                 continue;
             }
             // ignore ATTRIBUTE, ENTITY_REFERENCE, ENTITY, DOCUMENT, DOCUMENT_TYPE, DOCUMENT_FRAGMENT, NOTATION

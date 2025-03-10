@@ -1,17 +1,19 @@
 // Copyright 2021 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
+import '../../ui/legacy/legacy.js';
 import * as Common from '../../core/common/common.js';
 import * as i18n from '../../core/i18n/i18n.js';
 import * as IssuesManager from '../../models/issues_manager/issues_manager.js';
 import * as IssueCounter from '../../ui/components/issue_counter/issue_counter.js';
 import * as UI from '../../ui/legacy/legacy.js';
+import * as VisualLogging from '../../ui/visual_logging/visual_logging.js';
 import { HiddenIssuesRow } from './HiddenIssuesRow.js';
+import { IssueAggregator, } from './IssueAggregator.js';
+import { getGroupIssuesByKindSetting, IssueKindView, issueKindViewSortPriority } from './IssueKindView.js';
 import issuesPaneStyles from './issuesPane.css.js';
 import issuesTreeStyles from './issuesTree.css.js';
-import { IssueAggregator, } from './IssueAggregator.js';
 import { IssueView } from './IssueView.js';
-import { IssueKindView, getGroupIssuesByKindSetting, issueKindViewSortPriority } from './IssueKindView.js';
 const UIStrings = {
     /**
      * @description Category title for a group of cross origin embedder policy (COEP) issues
@@ -75,11 +77,15 @@ const UIStrings = {
     /**
      * @description Label on the issues tab
      */
-    onlyThirdpartyCookieIssues: 'Only third-party cookie issues detected so far',
+    onlyThirdpartyCookieIssues: 'Only third-party cookie issues detected',
     /**
      * @description Label in the issues panel
      */
-    noIssuesDetectedSoFar: 'No issues detected so far',
+    noIssues: 'No issues detected',
+    /**
+     * @description Text that explains the issues panel that is shown if no issues are shown.
+     */
+    issuesPanelDescription: 'On this page you can find warnings from the browser.',
     /**
      * @description Category title for the different 'Attribution Reporting API' issues. The
      * Attribution Reporting API is a newly proposed web API (see https://github.com/WICG/conversion-measurement-api).
@@ -98,6 +104,7 @@ const UIStrings = {
 };
 const str_ = i18n.i18n.registerUIStrings('panels/issues/IssuesPane.ts', UIStrings);
 const i18nString = i18n.i18n.getLocalizedString.bind(undefined, str_);
+const ISSUES_PANEL_EXPLANATION_URL = 'https://developer.chrome.com/docs/devtools/issues';
 class IssueCategoryView extends UI.TreeOutline.TreeElement {
     #category;
     constructor(category) {
@@ -109,27 +116,27 @@ class IssueCategoryView extends UI.TreeOutline.TreeElement {
     }
     getCategoryName() {
         switch (this.#category) {
-            case IssuesManager.Issue.IssueCategory.CrossOriginEmbedderPolicy:
+            case "CrossOriginEmbedderPolicy" /* IssuesManager.Issue.IssueCategory.CROSS_ORIGIN_EMBEDDER_POLICY */:
                 return i18nString(UIStrings.crossOriginEmbedderPolicy);
-            case IssuesManager.Issue.IssueCategory.MixedContent:
+            case "MixedContent" /* IssuesManager.Issue.IssueCategory.MIXED_CONTENT */:
                 return i18nString(UIStrings.mixedContent);
-            case IssuesManager.Issue.IssueCategory.Cookie:
+            case "Cookie" /* IssuesManager.Issue.IssueCategory.COOKIE */:
                 return i18nString(UIStrings.samesiteCookie);
-            case IssuesManager.Issue.IssueCategory.HeavyAd:
+            case "HeavyAd" /* IssuesManager.Issue.IssueCategory.HEAVY_AD */:
                 return i18nString(UIStrings.heavyAds);
-            case IssuesManager.Issue.IssueCategory.ContentSecurityPolicy:
+            case "ContentSecurityPolicy" /* IssuesManager.Issue.IssueCategory.CONTENT_SECURITY_POLICY */:
                 return i18nString(UIStrings.contentSecurityPolicy);
-            case IssuesManager.Issue.IssueCategory.LowTextContrast:
+            case "LowTextContrast" /* IssuesManager.Issue.IssueCategory.LOW_TEXT_CONTRAST */:
                 return i18nString(UIStrings.lowTextContrast);
-            case IssuesManager.Issue.IssueCategory.Cors:
+            case "Cors" /* IssuesManager.Issue.IssueCategory.CORS */:
                 return i18nString(UIStrings.cors);
-            case IssuesManager.Issue.IssueCategory.AttributionReporting:
+            case "AttributionReporting" /* IssuesManager.Issue.IssueCategory.ATTRIBUTION_REPORTING */:
                 return i18nString(UIStrings.attributionReporting);
-            case IssuesManager.Issue.IssueCategory.QuirksMode:
+            case "QuirksMode" /* IssuesManager.Issue.IssueCategory.QUIRKS_MODE */:
                 return i18nString(UIStrings.quirksMode);
-            case IssuesManager.Issue.IssueCategory.Generic:
+            case "Generic" /* IssuesManager.Issue.IssueCategory.GENERIC */:
                 return i18nString(UIStrings.generic);
-            case IssuesManager.Issue.IssueCategory.Other:
+            case "Other" /* IssuesManager.Issue.IssueCategory.OTHER */:
                 return i18nString(UIStrings.other);
         }
     }
@@ -147,9 +154,8 @@ class IssueCategoryView extends UI.TreeOutline.TreeElement {
     }
 }
 export function getGroupIssuesByCategorySetting() {
-    return Common.Settings.Settings.instance().createSetting('groupIssuesByCategory', false);
+    return Common.Settings.Settings.instance().createSetting('group-issues-by-category', false);
 }
-let issuesPaneInstance;
 export class IssuesPane extends UI.Widget.VBox {
     #categoryViews;
     #issueViews;
@@ -163,6 +169,8 @@ export class IssuesPane extends UI.Widget.VBox {
     #issueViewUpdatePromise = Promise.resolve();
     constructor() {
         super(true);
+        this.registerRequiredCSS(issuesPaneStyles);
+        this.element.setAttribute('jslog', `${VisualLogging.panel('issues')}`);
         this.contentElement.classList.add('issues-pane');
         this.#categoryViews = new Map();
         this.#kindViews = new Map();
@@ -172,34 +180,32 @@ export class IssuesPane extends UI.Widget.VBox {
         this.#issuesTree = new UI.TreeOutline.TreeOutlineInShadow();
         this.#issuesTree.setShowSelectionOnKeyboardFocus(true);
         this.#issuesTree.contentElement.classList.add('issues');
+        this.#issuesTree.registerRequiredCSS(issuesTreeStyles);
         this.contentElement.appendChild(this.#issuesTree.element);
         this.#hiddenIssuesRow = new HiddenIssuesRow();
         this.#issuesTree.appendChild(this.#hiddenIssuesRow);
-        this.#noIssuesMessageDiv = document.createElement('div');
-        this.#noIssuesMessageDiv.classList.add('issues-pane-no-issues');
-        this.contentElement.appendChild(this.#noIssuesMessageDiv);
+        this.#noIssuesMessageDiv = new UI.EmptyWidget.EmptyWidget('', i18nString(UIStrings.issuesPanelDescription));
+        this.#noIssuesMessageDiv.appendLink(ISSUES_PANEL_EXPLANATION_URL);
+        this.#noIssuesMessageDiv.show(this.contentElement);
         this.#issuesManager = IssuesManager.IssuesManager.IssuesManager.instance();
         this.#aggregator = new IssueAggregator(this.#issuesManager);
-        this.#aggregator.addEventListener("AggregatedIssueUpdated" /* IssueAggregatorEvents.AggregatedIssueUpdated */, this.#issueUpdated, this);
-        this.#aggregator.addEventListener("FullUpdateRequired" /* IssueAggregatorEvents.FullUpdateRequired */, this.#onFullUpdate, this);
+        this.#aggregator.addEventListener("AggregatedIssueUpdated" /* IssueAggregatorEvents.AGGREGATED_ISSUE_UPDATED */, this.#issueUpdated, this);
+        this.#aggregator.addEventListener("FullUpdateRequired" /* IssueAggregatorEvents.FULL_UPDATE_REQUIRED */, this.#onFullUpdate, this);
         this.#hiddenIssuesRow.hidden = this.#issuesManager.numberOfHiddenIssues() === 0;
         this.#onFullUpdate();
-        this.#issuesManager.addEventListener("IssuesCountUpdated" /* IssuesManager.IssuesManager.Events.IssuesCountUpdated */, this.#updateCounts, this);
-    }
-    static instance(opts = { forceNew: null }) {
-        const { forceNew } = opts;
-        if (!issuesPaneInstance || forceNew) {
-            issuesPaneInstance = new IssuesPane();
-        }
-        return issuesPaneInstance;
+        this.#issuesManager.addEventListener("IssuesCountUpdated" /* IssuesManager.IssuesManager.Events.ISSUES_COUNT_UPDATED */, this.#updateCounts, this);
     }
     elementsToRestoreScrollPositionsFor() {
         return [this.#issuesTree.element];
     }
     #createToolbars() {
         const toolbarContainer = this.contentElement.createChild('div', 'issues-toolbar-container');
-        new UI.Toolbar.Toolbar('issues-toolbar-left', toolbarContainer);
-        const rightToolbar = new UI.Toolbar.Toolbar('issues-toolbar-right', toolbarContainer);
+        toolbarContainer.setAttribute('jslog', `${VisualLogging.toolbar()}`);
+        toolbarContainer.role = 'toolbar';
+        const leftToolbar = toolbarContainer.createChild('devtools-toolbar', 'issues-toolbar-left');
+        leftToolbar.role = 'presentation';
+        const rightToolbar = toolbarContainer.createChild('devtools-toolbar', 'issues-toolbar-right');
+        rightToolbar.role = 'presentation';
         const groupByCategorySetting = getGroupIssuesByCategorySetting();
         const groupByCategoryCheckbox = new UI.Toolbar.ToolbarSettingCheckbox(groupByCategorySetting, i18nString(UIStrings.groupDisplayedIssuesUnder), i18nString(UIStrings.groupByCategory));
         // Hide the option to toggle category grouping for now.
@@ -226,10 +232,11 @@ export class IssuesPane extends UI.Widget.VBox {
                 const issueEnumeration = IssueCounter.IssueCounter.getIssueCountsEnumeration(IssuesManager.IssuesManager.IssuesManager.instance(), false);
                 issueCounter.title = issueEnumeration;
             },
-            displayMode: "ShowAlways" /* IssueCounter.IssueCounter.DisplayMode.ShowAlways */,
+            displayMode: "ShowAlways" /* IssueCounter.IssueCounter.DisplayMode.SHOW_ALWAYS */,
             issuesManager: IssuesManager.IssuesManager.IssuesManager.instance(),
         };
         issueCounter.id = 'console-issues-counter';
+        issueCounter.setAttribute('jslog', `${VisualLogging.counter('issues')}`);
         const issuesToolbarItem = new UI.Toolbar.ToolbarItem(issueCounter);
         rightToolbar.appendToolbarItem(issuesToolbarItem);
         return { toolbarContainer };
@@ -281,6 +288,21 @@ export class IssuesPane extends UI.Widget.VBox {
             console.error('The issues tree should only contain IssueView objects as direct children');
             return 0;
         });
+        if (parent instanceof UI.TreeOutline.TreeElement) {
+            // This is an aggregated view, so we need to update the label for position and size of the treeItem.
+            this.#updateItemPositionAndSize(parent);
+        }
+    }
+    #updateItemPositionAndSize(parent) {
+        const childNodes = parent.childrenListNode.children;
+        let treeItemCount = 0;
+        for (let i = 0; i < childNodes.length; i++) {
+            const node = childNodes[i];
+            if (node.classList.contains('issue')) {
+                UI.ARIAUtils.setPositionInSet(node, ++treeItemCount);
+                UI.ARIAUtils.setSetSize(node, childNodes.length / 2); // Each issue has 2 nodes (issue + description).
+            }
+        }
     }
     #getIssueViewParent(issue) {
         if (issue.isHidden()) {
@@ -360,7 +382,7 @@ export class IssuesPane extends UI.Widget.VBox {
             this.#hiddenIssuesRow.hidden = hiddenIssueCount === 0;
             this.#hiddenIssuesRow.update(hiddenIssueCount);
             this.#issuesTree.element.hidden = false;
-            this.#noIssuesMessageDiv.style.display = 'none';
+            this.#noIssuesMessageDiv.hideWidget();
             const firstChild = this.#issuesTree.firstChild();
             if (firstChild) {
                 firstChild.select(/* omitFocus= */ true);
@@ -374,10 +396,9 @@ export class IssuesPane extends UI.Widget.VBox {
             }
             // We alreay know that issesCount is zero here.
             const hasOnlyThirdPartyIssues = this.#issuesManager.numberOfAllStoredIssues() > 0;
-            this.#noIssuesMessageDiv.textContent = hasOnlyThirdPartyIssues ?
-                i18nString(UIStrings.onlyThirdpartyCookieIssues) :
-                i18nString(UIStrings.noIssuesDetectedSoFar);
-            this.#noIssuesMessageDiv.style.display = 'flex';
+            this.#noIssuesMessageDiv.header =
+                hasOnlyThirdPartyIssues ? i18nString(UIStrings.onlyThirdpartyCookieIssues) : i18nString(UIStrings.noIssues);
+            this.#noIssuesMessageDiv.showWidget();
         }
     }
     async reveal(issue) {
@@ -398,11 +419,6 @@ export class IssuesPane extends UI.Widget.VBox {
             issueView.reveal();
             issueView.select(false, true);
         }
-    }
-    wasShown() {
-        super.wasShown();
-        this.#issuesTree.registerCSSFiles([issuesTreeStyles]);
-        this.registerCSSFiles([issuesPaneStyles]);
     }
 }
 //# sourceMappingURL=IssuesPane.js.map

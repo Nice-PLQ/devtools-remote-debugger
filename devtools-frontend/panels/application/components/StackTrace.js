@@ -1,13 +1,20 @@
 // Copyright 2021 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
+import '../../../ui/components/expandable_list/expandable_list.js';
 import * as i18n from '../../../core/i18n/i18n.js';
-import * as ExpandableList from '../../../ui/components/expandable_list/expandable_list.js';
-import * as ComponentHelpers from '../../../ui/components/helpers/helpers.js';
+import * as Bindings from '../../../models/bindings/bindings.js';
 import * as Components from '../../../ui/legacy/components/utils/utils.js';
-import * as LitHtml from '../../../ui/lit-html/lit-html.js';
-import stackTraceRowStyles from './stackTraceRow.css.js';
-import stackTraceLinkButtonStyles from './stackTraceLinkButton.css.js';
+import * as Lit from '../../../ui/lit/lit.js';
+import * as VisualLogging from '../../../ui/visual_logging/visual_logging.js';
+import stackTraceLinkButtonStylesRaw from './stackTraceLinkButton.css.js';
+import stackTraceRowStylesRaw from './stackTraceRow.css.js';
+// TODO(crbug.com/391381439): Fully migrate off of constructed style sheets.
+const stackTraceLinkButtonStyles = new CSSStyleSheet();
+stackTraceLinkButtonStyles.replaceSync(stackTraceLinkButtonStylesRaw.cssContent);
+const stackTraceRowStyles = new CSSStyleSheet();
+stackTraceRowStyles.replaceSync(stackTraceRowStylesRaw.cssContent);
+const { html } = Lit;
 const UIStrings = {
     /**
      *@description Error message stating that something went wrong when tring to render stack trace
@@ -21,11 +28,15 @@ const UIStrings = {
      *@description A link to rehide frames that are by default hidden.
      */
     showLess: 'Show less',
+    /**
+     *@description Label for a stack trace. If a frame is created programmatically (i.e. via JavaScript), there is a
+     * stack trace for the line of code which caused the creation of the iframe. This is the stack trace we are showing here.
+     */
+    creationStackTrace: 'Frame Creation `Stack Trace`',
 };
 const str_ = i18n.i18n.registerUIStrings('panels/application/components/StackTrace.ts', UIStrings);
 const i18nString = i18n.i18n.getLocalizedString.bind(undefined, str_);
 export class StackTraceRow extends HTMLElement {
-    static litTagName = LitHtml.literal `devtools-stack-trace-row`;
     #shadow = this.attachShadow({ mode: 'open' });
     #stackTraceRowItem = null;
     set data(data) {
@@ -39,22 +50,21 @@ export class StackTraceRow extends HTMLElement {
         if (!this.#stackTraceRowItem) {
             return;
         }
-        LitHtml.render(LitHtml.html `
+        Lit.render(html `
       <div class="stack-trace-row">
               <div class="stack-trace-function-name text-ellipsis" title=${this.#stackTraceRowItem.functionName}>
                 ${this.#stackTraceRowItem.functionName}
               </div>
               <div class="stack-trace-source-location">
                 ${this.#stackTraceRowItem.link ?
-            LitHtml.html `<div class="text-ellipsis">\xA0@\xA0${this.#stackTraceRowItem.link}</div>` :
-            LitHtml.nothing}
+            html `<div class="text-ellipsis">\xA0@\xA0${this.#stackTraceRowItem.link}</div>` :
+            Lit.nothing}
               </div>
             </div>
     `, this.#shadow, { host: this });
     }
 }
 export class StackTraceLinkButton extends HTMLElement {
-    static litTagName = LitHtml.literal `devtools-stack-trace-link-button`;
     #shadow = this.attachShadow({ mode: 'open' });
     #onShowAllClick = () => { };
     #hiddenCallFramesCount = null;
@@ -74,7 +84,7 @@ export class StackTraceLinkButton extends HTMLElement {
         }
         const linkText = this.#expandedView ? i18nString(UIStrings.showLess) :
             i18nString(UIStrings.showSMoreFrames, { n: this.#hiddenCallFramesCount });
-        LitHtml.render(LitHtml.html `
+        Lit.render(html `
       <div class="stack-trace-row">
           <button class="link" @click=${() => this.#onShowAllClick()}>
             ${linkText}
@@ -84,7 +94,6 @@ export class StackTraceLinkButton extends HTMLElement {
     }
 }
 export class StackTrace extends HTMLElement {
-    static litTagName = LitHtml.literal `devtools-resources-stack-trace`;
     #shadow = this.attachShadow({ mode: 'open' });
     #linkifier = new Components.Linkifier.Linkifier();
     #stackTraceRows = [];
@@ -109,28 +118,40 @@ export class StackTrace extends HTMLElement {
         const expandableRows = [];
         let hiddenCallFramesCount = 0;
         for (const item of this.#stackTraceRows) {
-            if (this.#showHidden || !item.ignoreListHide) {
+            let ignoreListHide = false;
+            // TODO(crbug.com/1183325): fix race condition with uiLocation still being null here
+            // Note: This has always checked whether the call frame location *in the generated
+            // code* is ignore-listed or not. This can change after the live location updates,
+            // and is handled again in the linkifier live location update callback.
+            if ('link' in item && item.link) {
+                const uiLocation = Components.Linkifier.Linkifier.uiLocation(item.link);
+                if (uiLocation &&
+                    Bindings.IgnoreListManager.IgnoreListManager.instance().isUserOrSourceMapIgnoreListedUISourceCode(uiLocation.uiSourceCode)) {
+                    ignoreListHide = true;
+                }
+            }
+            if (this.#showHidden || !ignoreListHide) {
                 if ('functionName' in item) {
-                    expandableRows.push(LitHtml.html `
-          <${StackTraceRow.litTagName} data-stack-trace-row .data=${{
+                    expandableRows.push(html `
+          <devtools-stack-trace-row data-stack-trace-row .data=${{
                         stackTraceRowItem: item,
-                    }}></${StackTraceRow.litTagName}>`);
+                    }}></devtools-stack-trace-row>`);
                 }
                 if ('asyncDescription' in item) {
-                    expandableRows.push(LitHtml.html `
+                    expandableRows.push(html `
             <div>${item.asyncDescription}</div>
           `);
                 }
             }
-            if ('functionName' in item && item.ignoreListHide) {
+            if ('functionName' in item && ignoreListHide) {
                 hiddenCallFramesCount++;
             }
         }
         if (hiddenCallFramesCount) {
             // Disabled until https://crbug.com/1079231 is fixed.
             // clang-format off
-            expandableRows.push(LitHtml.html `
-      <${StackTraceLinkButton.litTagName} data-stack-trace-row .data=${{ onShowAllClick: this.#onToggleShowAllClick.bind(this), hiddenCallFramesCount, expandedView: this.#showHidden }}></${StackTraceLinkButton.litTagName}>
+            expandableRows.push(html `
+      <devtools-stack-trace-link-button data-stack-trace-row .data=${{ onShowAllClick: this.#onToggleShowAllClick.bind(this), hiddenCallFramesCount, expandedView: this.#showHidden }}></devtools-stack-trace-link-button>
       `);
             // clang-format on
         }
@@ -140,22 +161,21 @@ export class StackTrace extends HTMLElement {
         if (!this.#stackTraceRows.length) {
             // Disabled until https://crbug.com/1079231 is fixed.
             // clang-format off
-            LitHtml.render(LitHtml.html `
+            Lit.render(html `
           <span>${i18nString(UIStrings.cannotRenderStackTrace)}</span>
         `, this.#shadow, { host: this });
             return;
         }
         const expandableRows = this.createRowTemplates();
-        LitHtml.render(LitHtml.html `
-        <${ExpandableList.ExpandableList.ExpandableList.litTagName} .data=${{
-            rows: expandableRows,
-        }}>
-        </${ExpandableList.ExpandableList.ExpandableList.litTagName}>
+        Lit.render(html `
+        <devtools-expandable-list .data=${{ rows: expandableRows, title: i18nString(UIStrings.creationStackTrace) }}
+                                  jslog=${VisualLogging.tree()}>
+        </devtools-expandable-list>
       `, this.#shadow, { host: this });
         // clang-format on
     }
 }
-ComponentHelpers.CustomElements.defineComponent('devtools-stack-trace-row', StackTraceRow);
-ComponentHelpers.CustomElements.defineComponent('devtools-stack-trace-link-button', StackTraceLinkButton);
-ComponentHelpers.CustomElements.defineComponent('devtools-resources-stack-trace', StackTrace);
+customElements.define('devtools-stack-trace-row', StackTraceRow);
+customElements.define('devtools-stack-trace-link-button', StackTraceLinkButton);
+customElements.define('devtools-resources-stack-trace', StackTrace);
 //# sourceMappingURL=StackTrace.js.map

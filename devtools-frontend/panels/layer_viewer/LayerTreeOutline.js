@@ -75,7 +75,7 @@ export class LayerTreeOutline extends Common.ObjectWrapper.eventMixin(UI.TreeOut
     }
     selectObject(selection) {
         this.hoverObject(null);
-        const layer = selection && selection.layer();
+        const layer = selection?.layer();
         const node = layer && layerToTreeElement.get(layer);
         if (node) {
             node.revealAndSelect(true);
@@ -85,7 +85,7 @@ export class LayerTreeOutline extends Common.ObjectWrapper.eventMixin(UI.TreeOut
         }
     }
     hoverObject(selection) {
-        const layer = selection && selection.layer();
+        const layer = selection?.layer();
         const node = layer && layerToTreeElement.get(layer);
         if (node === this.lastHoveredNode) {
             return;
@@ -198,17 +198,17 @@ export class LayerTreeOutline extends Common.ObjectWrapper.eventMixin(UI.TreeOut
     onContextMenu(event) {
         const selection = this.selectionForNode(this.treeOutline.treeElementFromEvent(event));
         const contextMenu = new UI.ContextMenu.ContextMenu(event);
-        const layer = selection && selection.layer();
-        if (layer) {
+        const layer = selection?.layer();
+        if (selection && layer) {
             this.layerSnapshotMap = this.layerViewHost.getLayerSnapshotMap();
             if (this.layerSnapshotMap.has(layer)) {
-                contextMenu.defaultSection().appendItem(i18nString(UIStrings.showPaintProfiler), () => this.dispatchEventToListeners("PaintProfilerRequested" /* Events.PaintProfilerRequested */, selection), false);
+                contextMenu.defaultSection().appendItem(i18nString(UIStrings.showPaintProfiler), () => this.dispatchEventToListeners("PaintProfilerRequested" /* Events.PAINT_PROFILER_REQUESTED */, selection), { jslogContext: 'layers.paint-profiler' });
             }
         }
         this.layerViewHost.showContextMenu(contextMenu, selection);
     }
     selectionForNode(node) {
-        return node && node.layer ? new LayerSelection(node.layer) : null;
+        return node?.layer ? new LayerSelection(node.layer) : null;
     }
 }
 export class LayerTreeElement extends UI.TreeOutline.TreeElement {

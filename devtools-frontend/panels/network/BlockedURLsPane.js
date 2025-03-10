@@ -1,11 +1,14 @@
 // Copyright (c) 2015 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
-import * as Common from '../../core/common/common.js';
+import '../../ui/legacy/legacy.js';
 import * as i18n from '../../core/i18n/i18n.js';
 import * as Platform from '../../core/platform/platform.js';
 import * as SDK from '../../core/sdk/sdk.js';
+import * as Logs from '../../models/logs/logs.js';
+import * as Buttons from '../../ui/components/buttons/buttons.js';
 import * as UI from '../../ui/legacy/legacy.js';
+import * as VisualLogging from '../../ui/visual_logging/visual_logging.js';
 import blockedURLsPaneStyles from './blockedURLsPane.css.js';
 const UIStrings = {
     /**
@@ -17,18 +20,18 @@ const UIStrings = {
      */
     addPattern: 'Add pattern',
     /**
-     *@description Tooltip text that appears when hovering over the clear button in the Blocked URLs Pane of the Network panel
-     */
-    removeAllPatterns: 'Remove all patterns',
-    /**
      *@description Accessible label for the button to add request blocking patterns in the network request blocking tool
      */
     addNetworkRequestBlockingPattern: 'Add network request blocking pattern',
     /**
-     *@description Button to add a pattern to block netwrok requests in the Network request blocking tool
+     *@description Text that shows in the network request blocking panel if no pattern has yet been added.
+     */
+    noNetworkRequestsBlocked: 'No blocked network requests',
+    /**
+     *@description Text that shows  in the network request blocking panel if no pattern has yet been added.
      *@example {Add pattern} PH1
      */
-    networkRequestsAreNotBlockedS: 'Network requests are not blocked. {PH1}',
+    addPatternToBlock: 'Add a pattern to block network requests by clicking on the "{PH1}" button.',
     /**
      *@description Text in Blocked URLs Pane of the Network panel
      *@example {4} PH1
@@ -50,10 +53,14 @@ const UIStrings = {
      *@description Message to be announced for a when list item is removed from list widget
      */
     itemDeleted: 'Item successfully deleted',
+    /**
+     *@description Message to be announced for a when list item is removed from list widget
+     */
+    learnMore: 'Learn more',
 };
 const str_ = i18n.i18n.registerUIStrings('panels/network/BlockedURLsPane.ts', UIStrings);
 const i18nString = i18n.i18n.getLocalizedString.bind(undefined, str_);
-export let blockedURLsPaneInstance = null;
+const NETWORK_REQUEST_BLOCKING_EXPLANATION_URL = 'https://developer.chrome.com/docs/devtools/network-request-blocking';
 export class BlockedURLsPane extends UI.Widget.VBox {
     manager;
     toolbar;
@@ -61,54 +68,53 @@ export class BlockedURLsPane extends UI.Widget.VBox {
     list;
     editor;
     blockedCountForUrl;
-    updateThrottler;
-    constructor(updateThrottler) {
+    constructor() {
         super(true);
+        this.registerRequiredCSS(blockedURLsPaneStyles);
+        this.element.setAttribute('jslog', `${VisualLogging.panel('network.blocked-urls').track({ resize: true })}`);
         this.manager = SDK.NetworkManager.MultitargetNetworkManager.instance();
-        this.manager.addEventListener(SDK.NetworkManager.MultitargetNetworkManager.Events.BlockedPatternsChanged, () => {
-            void this.update();
-        }, this);
-        this.toolbar = new UI.Toolbar.Toolbar('', this.contentElement);
-        this.enabledCheckbox = new UI.Toolbar.ToolbarCheckbox(i18nString(UIStrings.enableNetworkRequestBlocking), undefined, this.toggleEnabled.bind(this));
+        this.manager.addEventListener("BlockedPatternsChanged" /* SDK.NetworkManager.MultitargetNetworkManager.Events.BLOCKED_PATTERNS_CHANGED */, this.update, this);
+        this.toolbar = this.contentElement.createChild('devtools-toolbar');
+        this.enabledCheckbox = new UI.Toolbar.ToolbarCheckbox(i18nString(UIStrings.enableNetworkRequestBlocking), undefined, this.toggleEnabled.bind(this), 'network.enable-request-blocking');
         this.toolbar.appendToolbarItem(this.enabledCheckbox);
         this.toolbar.appendSeparator();
-        const addButton = new UI.Toolbar.ToolbarButton(i18nString(UIStrings.addPattern), 'plus');
-        addButton.addEventListener(UI.Toolbar.ToolbarButton.Events.Click, this.addButtonClicked, this);
-        this.toolbar.appendToolbarItem(addButton);
-        const clearButton = new UI.Toolbar.ToolbarButton(i18nString(UIStrings.removeAllPatterns), 'clear');
-        clearButton.addEventListener(UI.Toolbar.ToolbarButton.Events.Click, this.removeAll, this);
-        this.toolbar.appendToolbarItem(clearButton);
+        this.toolbar.appendToolbarItem(UI.Toolbar.Toolbar.createActionButton('network.add-network-request-blocking-pattern'));
+        this.toolbar.appendToolbarItem(UI.Toolbar.Toolbar.createActionButton('network.remove-all-network-request-blocking-patterns'));
+        this.toolbar.setAttribute('jslog', `${VisualLogging.toolbar()}`);
         this.list = new UI.ListWidget.ListWidget(this);
+        this.list.registerRequiredCSS(blockedURLsPaneStyles);
         this.list.element.classList.add('blocked-urls');
         this.list.setEmptyPlaceholder(this.createEmptyPlaceholder());
         this.list.show(this.contentElement);
         this.editor = null;
         this.blockedCountForUrl = new Map();
         SDK.TargetManager.TargetManager.instance().addModelListener(SDK.NetworkManager.NetworkManager, SDK.NetworkManager.Events.RequestFinished, this.onRequestFinished, this, { scoped: true });
-        this.updateThrottler = updateThrottler;
-        void this.update();
-    }
-    static instance(opts) {
-        if (!blockedURLsPaneInstance || opts?.forceNew) {
-            blockedURLsPaneInstance = new BlockedURLsPane(opts?.updateThrottler || new Common.Throttler.Throttler(200));
-        }
-        return blockedURLsPaneInstance;
+        this.update();
+        Logs.NetworkLog.NetworkLog.instance().addEventListener(Logs.NetworkLog.Events.Reset, this.onNetworkLogReset, this);
     }
     createEmptyPlaceholder() {
-        const element = this.contentElement.createChild('div', 'no-blocked-urls');
-        const addButton = UI.UIUtils.createTextButton(i18nString(UIStrings.addPattern), this.addButtonClicked.bind(this), 'add-button');
+        const placeholder = this.contentElement.createChild('div', 'empty-state');
+        placeholder.createChild('span', 'empty-state-header').textContent = i18nString(UIStrings.noNetworkRequestsBlocked);
+        const description = placeholder.createChild('div', 'empty-state-description');
+        description.createChild('span').textContent =
+            i18nString(UIStrings.addPatternToBlock, { PH1: i18nString(UIStrings.addPattern) });
+        const link = UI.XLink.XLink.create(NETWORK_REQUEST_BLOCKING_EXPLANATION_URL, i18nString(UIStrings.learnMore), undefined, undefined, 'learn-more');
+        description.appendChild(link);
+        const addButton = UI.UIUtils.createTextButton(i18nString(UIStrings.addPattern), this.addPattern.bind(this), {
+            className: 'add-button',
+            jslogContext: 'network.add-network-request-blocking-pattern',
+            variant: "tonal" /* Buttons.Button.Variant.TONAL */,
+        });
         UI.ARIAUtils.setLabel(addButton, i18nString(UIStrings.addNetworkRequestBlockingPattern));
-        element.appendChild(i18n.i18n.getFormatLocalizedString(str_, UIStrings.networkRequestsAreNotBlockedS, { PH1: addButton }));
-        return element;
+        placeholder.appendChild(addButton);
+        return placeholder;
     }
-    static reset() {
-        if (blockedURLsPaneInstance) {
-            blockedURLsPaneInstance.reset();
-        }
-    }
-    addButtonClicked() {
+    addPattern() {
         this.manager.setBlockingEnabled(true);
         this.list.addNewItem(0, { url: Platform.DevToolsPath.EmptyUrlString, enabled: true });
+    }
+    removeAllPatterns() {
+        this.manager.setBlockedPatterns([]);
     }
     renderItem(pattern, editable) {
         const count = this.blockedRequestsCount(pattern.url);
@@ -118,6 +124,7 @@ export class BlockedURLsPane extends UI.Widget.VBox {
         checkbox.type = 'checkbox';
         checkbox.checked = pattern.enabled;
         checkbox.disabled = !editable;
+        checkbox.setAttribute('jslog', `${VisualLogging.toggle().track({ change: true })}`);
         element.createChild('div', 'blocked-url-label').textContent = pattern.url;
         element.createChild('div', 'blocked-url-count').textContent = i18nString(UIStrings.dBlocked, { PH1: count });
         if (editable) {
@@ -134,7 +141,7 @@ export class BlockedURLsPane extends UI.Widget.VBox {
     }
     toggleEnabled() {
         this.manager.setBlockingEnabled(!this.manager.blockingEnabled());
-        void this.update();
+        this.update();
     }
     removeItemRequested(pattern, index) {
         const patterns = this.manager.blockedPatterns();
@@ -151,10 +158,10 @@ export class BlockedURLsPane extends UI.Widget.VBox {
         const url = editor.control('url').value;
         const patterns = this.manager.blockedPatterns();
         if (isNew) {
-            patterns.push({ enabled: true, url: url });
+            patterns.push({ enabled: true, url });
         }
         else {
-            patterns.splice(patterns.indexOf(item), 1, { enabled: true, url: url });
+            patterns.splice(patterns.indexOf(item), 1, { enabled: true, url });
         }
         this.manager.setBlockedPatterns(patterns);
     }
@@ -184,9 +191,6 @@ export class BlockedURLsPane extends UI.Widget.VBox {
         fields.createChild('div', 'blocked-url-edit-value').appendChild(urlInput);
         return editor;
     }
-    removeAll() {
-        this.manager.setBlockedPatterns([]);
-    }
     update() {
         const enabled = this.manager.blockingEnabled();
         this.list.element.classList.toggle('blocking-disabled', !enabled && Boolean(this.manager.blockedPatterns().length));
@@ -195,7 +199,6 @@ export class BlockedURLsPane extends UI.Widget.VBox {
         for (const pattern of this.manager.blockedPatterns()) {
             this.list.appendItem(pattern, enabled);
         }
-        return Promise.resolve();
     }
     blockedRequestsCount(url) {
         if (!url) {
@@ -225,22 +228,44 @@ export class BlockedURLsPane extends UI.Widget.VBox {
         }
         return true;
     }
-    reset() {
+    onNetworkLogReset(_event) {
         this.blockedCountForUrl.clear();
-        void this.updateThrottler.schedule(this.update.bind(this));
+        this.update();
     }
     onRequestFinished(event) {
         const request = event.data;
         if (request.wasBlocked()) {
             const count = this.blockedCountForUrl.get(request.url()) || 0;
             this.blockedCountForUrl.set(request.url(), count + 1);
-            void this.updateThrottler.schedule(this.update.bind(this));
+            this.update();
         }
     }
     wasShown() {
+        UI.Context.Context.instance().setFlavor(BlockedURLsPane, this);
         super.wasShown();
-        this.list.registerCSSFiles([blockedURLsPaneStyles]);
-        this.registerCSSFiles([blockedURLsPaneStyles]);
+    }
+    willHide() {
+        super.willHide();
+        UI.Context.Context.instance().setFlavor(BlockedURLsPane, null);
+    }
+}
+export class ActionDelegate {
+    handleAction(context, actionId) {
+        const blockedURLsPane = context.flavor(BlockedURLsPane);
+        if (blockedURLsPane === null) {
+            return false;
+        }
+        switch (actionId) {
+            case 'network.add-network-request-blocking-pattern': {
+                blockedURLsPane.addPattern();
+                return true;
+            }
+            case 'network.remove-all-network-request-blocking-patterns': {
+                blockedURLsPane.removeAllPatterns();
+                return true;
+            }
+        }
+        return false;
     }
 }
 //# sourceMappingURL=BlockedURLsPane.js.map

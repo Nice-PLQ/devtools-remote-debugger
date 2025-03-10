@@ -1,18 +1,21 @@
 // Copyright 2022 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
+import '../../../ui/components/icon_button/icon_button.js';
 import * as i18n from '../../../core/i18n/i18n.js';
-import * as ComponentHelpers from '../../../ui/components/helpers/helpers.js';
-import * as IconButton from '../../../ui/components/icon_button/icon_button.js';
-import * as LitHtml from '../../../ui/lit-html/lit-html.js';
-import sharedStorageMetadataViewStyles from './sharedStorageMetadataView.css.js';
-import sharedStorageMetadataViewResetBudgetButtonStyles from './sharedStorageMetadataViewResetBudgetButton.css.js';
+import * as Buttons from '../../../ui/components/buttons/buttons.js';
+import * as Lit from '../../../ui/lit/lit.js';
+import sharedStorageMetadataViewStylesRaw from './sharedStorageMetadataView.css.js';
 import { StorageMetadataView } from './StorageMetadataView.js';
+// TODO(crbug.com/391381439): Fully migrate off of constructed style sheets.
+const sharedStorageMetadataViewStyles = new CSSStyleSheet();
+sharedStorageMetadataViewStyles.replaceSync(sharedStorageMetadataViewStylesRaw.cssContent);
+const { html } = Lit;
 const UIStrings = {
     /**
      *@description Text in SharedStorage Metadata View of the Application panel
      */
-    sharedStorage: 'Shared Storage',
+    sharedStorage: 'Shared storage',
     /**
      *@description The time when the origin most recently created its shared storage database
      */
@@ -37,37 +40,18 @@ const UIStrings = {
      *@description Label for a button which when clicked causes the budget to be reset to the max.
      */
     resetBudget: 'Reset Budget',
+    /**
+     *@description The number of bytes used by entries currently in the origin's database
+     */
+    numBytesUsed: 'Number of Bytes Used',
 };
 const str_ = i18n.i18n.registerUIStrings('panels/application/components/SharedStorageMetadataView.ts', UIStrings);
 const i18nString = i18n.i18n.getLocalizedString.bind(undefined, str_);
-class SharedStorageResetBudgetButton extends HTMLElement {
-    static litTagName = LitHtml.literal `devtools-shared-storage-reset-budget-button`;
-    #shadow = this.attachShadow({ mode: 'open' });
-    #resetBudgetHandler = () => { };
-    connectedCallback() {
-        this.#shadow.adoptedStyleSheets = [sharedStorageMetadataViewResetBudgetButtonStyles];
-    }
-    set data(data) {
-        this.#resetBudgetHandler = data.resetBudgetHandler;
-        this.#render();
-    }
-    #render() {
-        // clang-format off
-        LitHtml.render(LitHtml.html `
-      <button class="reset-budget-button"
-        title=${i18nString(UIStrings.resetBudget)}
-        @click=${() => this.#resetBudgetHandler()}>
-      <${IconButton.Icon.Icon.litTagName} .data=${{ iconName: 'undo', color: 'var(--icon-default)', width: '16px', height: '16px' }}>
-        </${IconButton.Icon.Icon.litTagName}>
-      </button>`, this.#shadow, { host: this });
-        // clang-format on
-    }
-}
 export class SharedStorageMetadataView extends StorageMetadataView {
-    static litTagName = LitHtml.literal `devtools-shared-storage-metadata-view`;
     #sharedStorageMetadataGetter;
     #creationTime = null;
     #length = 0;
+    #bytesUsed = 0;
     #remainingBudget = 0;
     constructor(sharedStorageMetadataGetter, owner) {
         super();
@@ -89,36 +73,41 @@ export class SharedStorageMetadataView extends StorageMetadataView {
         const metadata = await this.#sharedStorageMetadataGetter.getMetadata();
         this.#creationTime = metadata?.creationTime ?? null;
         this.#length = metadata?.length ?? 0;
+        this.#bytesUsed = metadata?.bytesUsed ?? 0;
         this.#remainingBudget = metadata?.remainingBudget ?? 0;
         // Disabled until https://crbug.com/1079231 is fixed.
         // clang-format off
-        return LitHtml.html `
+        return html `
       ${await super.renderReportContent()}
       ${this.key(i18nString(UIStrings.creation))}
       ${this.value(this.#renderDateForCreationTime())}
       ${this.key(i18nString(UIStrings.numEntries))}
       ${this.value(String(this.#length))}
-      ${this.key(LitHtml.html `${i18nString(UIStrings.entropyBudget)}<${IconButton.Icon.Icon.litTagName} class="info-icon" title=${i18nString(UIStrings.budgetExplanation)}
-           .data=${{ iconName: 'info', color: 'var(--icon-default)', width: '16px' }}>
-         </${IconButton.Icon.Icon.litTagName}>`)}
-      ${this.value(LitHtml.html `${this.#remainingBudget}${this.#renderResetBudgetButton()}`)}`;
+      ${this.key(i18nString(UIStrings.numBytesUsed))}
+      ${this.value(String(this.#bytesUsed))}
+      ${this.key(html `${i18nString(UIStrings.entropyBudget)}<devtools-icon name="info" title=${i18nString(UIStrings.budgetExplanation)}></devtools-icon>`)}
+      ${this.value(html `${this.#remainingBudget}${this.#renderResetBudgetButton()}`)}`;
         // clang-format on
     }
     #renderDateForCreationTime() {
         if (!this.#creationTime) {
-            return LitHtml.html `${i18nString(UIStrings.notYetCreated)}`;
+            return html `${i18nString(UIStrings.notYetCreated)}`;
         }
-        const date = new Date(1e3 * this.#creationTime);
-        return LitHtml.html `${date.toLocaleString()}`;
+        const date = new Date(1e3 * (this.#creationTime));
+        return html `${date.toLocaleString()}`;
     }
     #renderResetBudgetButton() {
         // clang-format off
-        return LitHtml.html `<${SharedStorageResetBudgetButton.litTagName}
-     .data=${{ resetBudgetHandler: this.#resetBudget.bind(this) }}
-    ></${SharedStorageResetBudgetButton.litTagName}>`;
+        return html `
+      <devtools-button .iconName=${'undo'}
+                       .jslogContext=${'reset-entropy-budget'}
+                       .size=${"SMALL" /* Buttons.Button.Size.SMALL */}
+                       .title=${i18nString(UIStrings.resetBudget)}
+                       .variant=${"icon" /* Buttons.Button.Variant.ICON */}
+                       @click=${this.#resetBudget.bind(this)}></devtools-button>
+    `;
         // clang-format on
     }
 }
-ComponentHelpers.CustomElements.defineComponent('devtools-shared-storage-reset-budget-button', SharedStorageResetBudgetButton);
-ComponentHelpers.CustomElements.defineComponent('devtools-shared-storage-metadata-view', SharedStorageMetadataView);
+customElements.define('devtools-shared-storage-metadata-view', SharedStorageMetadataView);
 //# sourceMappingURL=SharedStorageMetadataView.js.map

@@ -3,14 +3,15 @@
 // found in the LICENSE file.
 import '../shell/shell.js';
 import '../../panels/mobile_throttling/mobile_throttling-meta.js';
-import '../../panels/js_profiler/js_profiler-meta.js';
-import * as i18n from '../../core/i18n/i18n.js';
-import * as UI from '../../ui/legacy/legacy.js';
+import '../../panels/js_timeline/js_timeline-meta.js';
+import '../../panels/network/network-meta.js';
 import * as Common from '../../core/common/common.js';
+import * as i18n from '../../core/i18n/i18n.js';
 import * as Root from '../../core/root/root.js';
+import * as UI from '../../ui/legacy/legacy.js';
 import * as Main from '../main/main.js';
-import { NodeMainImpl } from './NodeMain.js'; // eslint-disable-line rulesdir/es_modules_import
-import { NodeConnectionsPanel } from './NodeConnectionsPanel.js'; // eslint-disable-line rulesdir/es_modules_import
+import { NodeConnectionsPanel } from './NodeConnectionsPanel.js'; // eslint-disable-line rulesdir/es-modules-import
+import { NodeMainImpl } from './NodeMain.js'; // eslint-disable-line rulesdir/es-modules-import
 const UIStrings = {
     /**
      *@description Text that refers to the network connection
@@ -49,7 +50,7 @@ UI.ViewManager.registerViewExtension({
     commandPrompt: i18nLazyString(UIStrings.showConnection),
     order: 0,
     async loadView() {
-        return NodeConnectionsPanel.instance();
+        return new NodeConnectionsPanel();
     },
     tags: [i18nLazyString(UIStrings.node)],
 });
@@ -65,7 +66,7 @@ UI.ViewManager.registerViewExtension({
         return Sources.SourcesNavigator.NetworkNavigatorView.instance();
     },
 });
-// @ts-ignore Exposed for legacy layout tests
+// @ts-expect-error Exposed for legacy layout tests
 self.runtime = Root.Runtime.Runtime.instance({ forceNew: true });
 Common.Runnable.registerEarlyInitializationRunnable(NodeMainImpl.instance);
 new Main.MainImpl.MainImpl();

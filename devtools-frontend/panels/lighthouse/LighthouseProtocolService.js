@@ -44,8 +44,7 @@ let lastId = 1;
  */
 export class ProtocolService {
     mainSessionId;
-    mainFrameId;
-    targetInfos;
+    rootTargetId;
     parallelConnection;
     lighthouseWorkerPromise;
     lighthouseMessageUpdateCallback;
@@ -57,6 +56,10 @@ export class ProtocolService {
         if (!mainTarget) {
             throw new Error('Unable to find main target required for Lighthouse');
         }
+        const rootTarget = SDK.TargetManager.TargetManager.instance().rootTarget();
+        if (!rootTarget) {
+            throw new Error('Could not find the root target');
+        }
         const childTargetManager = mainTarget.model(SDK.ChildTargetManager.ChildTargetManager);
         if (!childTargetManager) {
             throw new Error('Unable to find child target manager required for Lighthouse');
@@ -65,11 +68,11 @@ export class ProtocolService {
         if (!resourceTreeModel) {
             throw new Error('Unable to find resource tree model required for Lighthouse');
         }
-        const mainFrame = resourceTreeModel.mainFrame;
-        if (!mainFrame) {
-            throw new Error('Unable to find main frame required for Lighthouse');
+        const rootChildTargetManager = rootTarget.model(SDK.ChildTargetManager.ChildTargetManager);
+        if (!rootChildTargetManager) {
+            throw new Error('Could not find the child target manager class for the root target');
         }
-        const { connection, sessionId } = await childTargetManager.createParallelConnection(message => {
+        const { connection, sessionId } = await rootChildTargetManager.createParallelConnection(message => {
             if (typeof message === 'string') {
                 message = JSON.parse(message);
             }
@@ -90,8 +93,7 @@ export class ProtocolService {
         resourceTreeModel.addEventListener(SDK.ResourceTreeModel.Events.JavaScriptDialogOpening, dialogHandler);
         this.removeDialogHandler = () => resourceTreeModel.removeEventListener(SDK.ResourceTreeModel.Events.JavaScriptDialogOpening, dialogHandler);
         this.parallelConnection = connection;
-        this.targetInfos = childTargetManager.targetInfos();
-        this.mainFrameId = mainFrame.id;
+        this.rootTargetId = await rootChildTargetManager.getParentTargetId();
         this.mainSessionId = sessionId;
     }
     getLocales() {
@@ -99,7 +101,7 @@ export class ProtocolService {
     }
     async startTimespan(currentLighthouseRun) {
         const { inspectedURL, categoryIDs, flags } = currentLighthouseRun;
-        if (!this.mainFrameId || !this.mainSessionId || !this.targetInfos) {
+        if (!this.mainSessionId || !this.rootTargetId) {
             throw new Error('Unable to get target info required for Lighthouse');
         }
         await this.sendWithResponse('startTimespan', {
@@ -109,28 +111,26 @@ export class ProtocolService {
             config: this.configForTesting,
             locales: this.getLocales(),
             mainSessionId: this.mainSessionId,
-            mainFrameId: this.mainFrameId,
-            targetInfos: this.targetInfos,
+            rootTargetId: this.rootTargetId,
         });
     }
     async collectLighthouseResults(currentLighthouseRun) {
         const { inspectedURL, categoryIDs, flags } = currentLighthouseRun;
-        if (!this.mainFrameId || !this.mainSessionId || !this.targetInfos) {
+        if (!this.mainSessionId || !this.rootTargetId) {
             throw new Error('Unable to get target info required for Lighthouse');
         }
         let mode = flags.mode;
         if (mode === 'timespan') {
             mode = 'endTimespan';
         }
-        return this.sendWithResponse(mode, {
+        return await this.sendWithResponse(mode, {
             url: inspectedURL,
             categoryIDs,
             flags,
             config: this.configForTesting,
             locales: this.getLocales(),
             mainSessionId: this.mainSessionId,
-            mainFrameId: this.mainFrameId,
-            targetInfos: this.targetInfos,
+            rootTargetId: this.rootTargetId,
         });
     }
     async detach() {
@@ -165,7 +165,7 @@ export class ProtocolService {
         //   * the message does not have a sessionId (is for the "Main session"), but only for the Target domain
         //     (to kickstart autoAttach in LH).
         const protocolMessage = message;
-        if (protocolMessage.sessionId || (protocolMessage.method && protocolMessage.method.startsWith('Target'))) {
+        if (protocolMessage.sessionId || (protocolMessage.method?.startsWith('Target'))) {
             void this.send('dispatchProtocolMessage', { message });
         }
     }
@@ -236,7 +236,7 @@ export class ProtocolService {
             worker.addEventListener('message', workerListener);
         });
         worker.postMessage({ id: messageId, action, args: { ...args, id: messageId } });
-        return messageResult;
+        return await messageResult;
     }
 }
 //# sourceMappingURL=LighthouseProtocolService.js.map

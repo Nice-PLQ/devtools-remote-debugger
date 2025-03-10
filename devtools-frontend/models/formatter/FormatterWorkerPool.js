@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 import * as Common from '../../core/common/common.js';
-const MAX_WORKERS = Math.min(2, navigator.hardwareConcurrency - 1);
+const MAX_WORKERS = Math.max(2, navigator.hardwareConcurrency - 1);
 let formatterWorkerPoolInstance;
 export class FormatterWorkerPool {
     taskQueue;
@@ -40,8 +40,6 @@ export class FormatterWorkerPool {
             freeWorker.postMessage({ method: task.method, params: task.params });
         }
     }
-    // TODO(crbug.com/1172300) Ignored during the jsdoc to ts migration
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     onWorkerMessage(worker, event) {
         const task = this.workerTasks.get(worker);
         if (!task) {
@@ -67,10 +65,7 @@ export class FormatterWorkerPool {
             task.callback(null);
         }
     }
-    runChunkedTask(methodName, params, 
-    // TODO(crbug.com/1172300) Ignored during the jsdoc to ts migration
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    callback) {
+    runChunkedTask(methodName, params, callback) {
         const task = new Task(methodName, params, onData, true);
         this.taskQueue.push(task);
         this.processNextTask();
@@ -92,24 +87,23 @@ export class FormatterWorkerPool {
         });
     }
     format(mimeType, content, indentString) {
-        const parameters = { mimeType: mimeType, content: content, indentString: indentString };
+        const parameters = { mimeType, content, indentString };
         return this.runTask("format" /* FormatterActions.FormatterActions.FORMAT */, parameters);
     }
     javaScriptSubstitute(expression, mapping) {
-        return this
-            .runTask("javaScriptSubstitute" /* FormatterActions.FormatterActions.JAVASCRIPT_SUBSTITUTE */, { content: expression, mapping: Array.from(mapping.entries()) })
+        return this.runTask("javaScriptSubstitute" /* FormatterActions.FormatterActions.JAVASCRIPT_SUBSTITUTE */, { content: expression, mapping })
             .then(result => result || '');
     }
-    javaScriptScopeTree(expression) {
-        return this.runTask("javaScriptScopeTree" /* FormatterActions.FormatterActions.JAVASCRIPT_SCOPE_TREE */, { content: expression })
+    javaScriptScopeTree(expression, sourceType = 'script') {
+        return this.runTask("javaScriptScopeTree" /* FormatterActions.FormatterActions.JAVASCRIPT_SCOPE_TREE */, { content: expression, sourceType })
             .then(result => result || null);
     }
     evaluatableJavaScriptSubstring(content) {
-        return this.runTask("evaluatableJavaScriptSubstring" /* FormatterActions.FormatterActions.EVALUATE_JAVASCRIPT_SUBSTRING */, { content: content })
+        return this.runTask("evaluatableJavaScriptSubstring" /* FormatterActions.FormatterActions.EVALUATE_JAVASCRIPT_SUBSTRING */, { content })
             .then(text => text || '');
     }
     parseCSS(content, callback) {
-        this.runChunkedTask("parseCSS" /* FormatterActions.FormatterActions.PARSE_CSS */, { content: content }, onDataChunk);
+        this.runChunkedTask("parseCSS" /* FormatterActions.FormatterActions.PARSE_CSS */, { content }, onDataChunk);
         // TODO(crbug.com/1172300) Ignored during the jsdoc to ts migration
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         function onDataChunk(isLastChunk, data) {

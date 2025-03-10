@@ -6,9 +6,9 @@ import * as Host from '../../core/host/host.js';
 import * as i18n from '../../core/i18n/i18n.js';
 import * as Platform from '../../core/platform/platform.js';
 import * as SDK from '../../core/sdk/sdk.js';
-import * as IconButton from '../../ui/components/icon_button/icon_button.js';
 import * as UI from '../../ui/legacy/legacy.js';
 import * as ThemeSupport from '../../ui/legacy/theme_support/theme_support.js';
+import * as VisualLogging from '../../ui/visual_logging/visual_logging.js';
 import performanceMonitorStyles from './performanceMonitor.css.js';
 const UIStrings = {
     /**
@@ -54,7 +54,6 @@ const UIStrings = {
 };
 const str_ = i18n.i18n.registerUIStrings('panels/performance_monitor/PerformanceMonitor.ts', UIStrings);
 const i18nString = i18n.i18n.getLocalizedString.bind(undefined, str_);
-let performanceMonitorImplInstance;
 export class PerformanceMonitorImpl extends UI.Widget.HBox {
     metricsBuffer;
     pixelsPerMs;
@@ -70,8 +69,10 @@ export class PerformanceMonitorImpl extends UI.Widget.HBox {
     model;
     startTimestamp;
     pollTimer;
-    constructor(pollIntervalMs) {
+    constructor(pollIntervalMs = 500) {
         super(true);
+        this.registerRequiredCSS(performanceMonitorStyles);
+        this.element.setAttribute('jslog', `${VisualLogging.panel('performance.monitor').track({ resize: true })}`);
         this.contentElement.classList.add('perfmon-pane');
         this.metricsBuffer = [];
         /** @const */
@@ -90,21 +91,13 @@ export class PerformanceMonitorImpl extends UI.Widget.HBox {
         UI.ARIAUtils.setLabel(this.canvas, i18nString(UIStrings.graphsDisplayingARealtimeViewOf));
         this.contentElement.createChild('div', 'perfmon-chart-suspend-overlay fill').createChild('div').textContent =
             i18nString(UIStrings.paused);
-        this.controlPane.addEventListener("MetricChanged" /* Events.MetricChanged */, this.recalcChartHeight, this);
+        this.controlPane.addEventListener("MetricChanged" /* Events.METRIC_CHANGED */, this.recalcChartHeight, this);
         SDK.TargetManager.TargetManager.instance().observeModels(SDK.PerformanceMetricsModel.PerformanceMetricsModel, this);
-    }
-    static instance(opts = { forceNew: null }) {
-        const { forceNew } = opts;
-        if (!performanceMonitorImplInstance || forceNew) {
-            performanceMonitorImplInstance = new PerformanceMonitorImpl(500);
-        }
-        return performanceMonitorImplInstance;
     }
     wasShown() {
         if (!this.model) {
             return;
         }
-        this.registerCSSFiles([performanceMonitorStyles]);
         this.controlPane.instantiateMetricData();
         const themeSupport = ThemeSupport.ThemeSupport.instance();
         themeSupport.addEventListener(ThemeSupport.ThemeChangeEvent.eventName, () => {
@@ -113,7 +106,7 @@ export class PerformanceMonitorImpl extends UI.Widget.HBox {
             this.controlPane.instantiateMetricData();
             this.draw();
         });
-        SDK.TargetManager.TargetManager.instance().addEventListener(SDK.TargetManager.Events.SuspendStateChanged, this.suspendStateChanged, this);
+        SDK.TargetManager.TargetManager.instance().addEventListener("SuspendStateChanged" /* SDK.TargetManager.Events.SUSPEND_STATE_CHANGED */, this.suspendStateChanged, this);
         void this.model.enable();
         this.suspendStateChanged();
     }
@@ -121,7 +114,7 @@ export class PerformanceMonitorImpl extends UI.Widget.HBox {
         if (!this.model) {
             return;
         }
-        SDK.TargetManager.TargetManager.instance().removeEventListener(SDK.TargetManager.Events.SuspendStateChanged, this.suspendStateChanged, this);
+        SDK.TargetManager.TargetManager.instance().removeEventListener("SuspendStateChanged" /* SDK.TargetManager.Events.SUSPEND_STATE_CHANGED */, this.suspendStateChanged, this);
         this.stopPolling();
         void this.model.disable();
     }
@@ -177,7 +170,7 @@ export class PerformanceMonitorImpl extends UI.Widget.HBox {
         const data = await this.model.requestMetrics();
         const timestamp = data.timestamp;
         const metrics = data.metrics;
-        this.metricsBuffer.push({ timestamp, metrics: metrics });
+        this.metricsBuffer.push({ timestamp, metrics });
         const millisPerWidth = this.width / this.pixelsPerMs;
         // Multiply by 2 as the pollInterval has some jitter and to have some extra samples if window is resized.
         const maxCount = Math.ceil(millisPerWidth / this.pollIntervalMs * 2);
@@ -242,7 +235,7 @@ export class PerformanceMonitorImpl extends UI.Widget.HBox {
                 color: metricInfo.color,
             });
         }
-        const backgroundColor = Common.Color.parse(ThemeSupport.ThemeSupport.instance().getComputedValue('--color-background'))
+        const backgroundColor = Common.Color.parse(ThemeSupport.ThemeSupport.instance().getComputedValue('--sys-color-cdt-base-container'))
             ?.asLegacyColor();
         if (backgroundColor) {
             for (const path of paths.reverse()) {
@@ -408,7 +401,7 @@ export class ControlPane extends Common.ObjectWrapper.ObjectWrapper {
     constructor(parent) {
         super();
         this.element = parent.createChild('div', 'perfmon-control-pane');
-        this.enabledChartsSetting = Common.Settings.Settings.instance().createSetting('perfmonActiveIndicators2', ['TaskDuration', 'JSHeapTotalSize', 'Nodes']);
+        this.enabledChartsSetting = Common.Settings.Settings.instance().createSetting('perfmon-active-indicators2', ['TaskDuration', 'JSHeapTotalSize', 'Nodes']);
         this.enabledCharts = new Set(this.enabledChartsSetting.get());
     }
     instantiateMetricData() {
@@ -444,7 +437,7 @@ export class ControlPane extends Common.ObjectWrapper.ObjectWrapper {
                         color: themeSupport.getComputedValue('--override-color-perf-monitor-cpu-recalc-style-duration', this.element),
                     },
                 ],
-                format: "Percent" /* Format.Percent */,
+                format: "Percent" /* Format.PERCENT */,
                 smooth: true,
                 stacked: true,
                 color: themeSupport.getComputedValue('--override-color-perf-monitor-cpu', this.element),
@@ -464,7 +457,7 @@ export class ControlPane extends Common.ObjectWrapper.ObjectWrapper {
                         color: themeSupport.getComputedValue('--override-color-perf-monitor-jsheap-used-size', this.element),
                     },
                 ],
-                format: "Bytes" /* Format.Bytes */,
+                format: "Bytes" /* Format.BYTES */,
                 color: themeSupport.getComputedValue('--override-color-perf-monitor-jsheap'),
             },
             {
@@ -529,6 +522,9 @@ export class ControlPane extends Common.ObjectWrapper.ObjectWrapper {
             const chartName = chartInfo.metrics[0].name;
             const active = this.enabledCharts.has(chartName);
             const indicator = new MetricIndicator(this.element, chartInfo, active, this.onToggle.bind(this, chartName));
+            indicator.element.setAttribute('jslog', `${VisualLogging.toggle()
+                .track({ click: true, keydown: 'Enter' })
+                .context(Platform.StringUtilities.toKebabCase(chartName))}`);
             this.indicators.set(chartName, indicator);
         }
     }
@@ -540,7 +536,7 @@ export class ControlPane extends Common.ObjectWrapper.ObjectWrapper {
             this.enabledCharts.delete(chartName);
         }
         this.enabledChartsSetting.set(Array.from(this.enabledCharts));
-        this.dispatchEventToListeners("MetricChanged" /* Events.MetricChanged */);
+        this.dispatchEventToListeners("MetricChanged" /* Events.METRIC_CHANGED */);
     }
     charts() {
         return this.chartsInfo;
@@ -564,8 +560,6 @@ let numberFormatter;
 let percentFormatter;
 export class MetricIndicator {
     info;
-    active;
-    onToggle;
     element;
     swatchElement;
     valueElement;
@@ -573,22 +567,17 @@ export class MetricIndicator {
     constructor(parent, info, active, onToggle) {
         this.color = info.color || info.metrics[0].color;
         this.info = info;
-        this.active = active;
-        this.onToggle = onToggle;
         this.element = parent.createChild('div', 'perfmon-indicator');
-        this.swatchElement = new IconButton.Icon.Icon();
-        this.swatchElement.classList.add('perfmon-indicator-swatch');
-        this.updateSwatchElement();
+        const chartName = info.metrics[0].name;
+        this.swatchElement = UI.UIUtils.CheckboxLabel.create(info.title, active, undefined, chartName);
         this.element.appendChild(this.swatchElement);
-        this.element.createChild('div', 'perfmon-indicator-title').textContent = info.title;
+        this.swatchElement.checkboxElement.addEventListener('change', () => {
+            onToggle(this.swatchElement.checkboxElement.checked);
+            this.element.classList.toggle('active');
+        });
         this.valueElement = this.element.createChild('div', 'perfmon-indicator-value');
         this.valueElement.style.color = this.color;
-        this.element.addEventListener('click', () => this.toggleIndicator());
-        this.element.addEventListener('keypress', event => this.handleKeypress(event));
         this.element.classList.toggle('active', active);
-        UI.ARIAUtils.markAsCheckbox(this.element);
-        UI.ARIAUtils.setChecked(this.element, this.active);
-        this.element.tabIndex = 0;
     }
     static formatNumber(value, info) {
         if (!numberFormatter) {
@@ -596,33 +585,16 @@ export class MetricIndicator {
             percentFormatter = new Intl.NumberFormat('en-US', { maximumFractionDigits: 1, style: 'percent' });
         }
         switch (info.format) {
-            case "Percent" /* Format.Percent */:
+            case "Percent" /* Format.PERCENT */:
                 return percentFormatter.format(value);
-            case "Bytes" /* Format.Bytes */:
-                return Platform.NumberUtilities.bytesToString(value);
+            case "Bytes" /* Format.BYTES */:
+                return i18n.ByteUtilities.bytesToString(value);
             default:
                 return numberFormatter.format(value);
         }
     }
     setValue(value) {
         this.valueElement.textContent = MetricIndicator.formatNumber(value, this.info);
-    }
-    updateSwatchElement() {
-        const color = this.active ? this.color : 'var(--icon-disabled)';
-        this.swatchElement.data = { iconName: 'checkmark', color, width: '16px', height: '14px' };
-    }
-    toggleIndicator() {
-        this.active = !this.active;
-        this.updateSwatchElement();
-        this.element.classList.toggle('active', this.active);
-        UI.ARIAUtils.setChecked(this.element, this.active);
-        this.onToggle(this.active);
-    }
-    handleKeypress(event) {
-        const keyboardEvent = event;
-        if (keyboardEvent.key === ' ' || keyboardEvent.key === 'Enter') {
-            this.toggleIndicator();
-        }
     }
 }
 export const format = new Intl.NumberFormat('en-US', { maximumFractionDigits: 1 });

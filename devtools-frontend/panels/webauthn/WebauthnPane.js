@@ -1,12 +1,14 @@
 // Copyright 2020 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
+import '../../ui/legacy/legacy.js';
 import * as Common from '../../core/common/common.js';
 import * as Host from '../../core/host/host.js';
 import * as i18n from '../../core/i18n/i18n.js';
 import * as SDK from '../../core/sdk/sdk.js';
 import * as DataGrid from '../../ui/legacy/components/data_grid/data_grid.js';
 import * as UI from '../../ui/legacy/legacy.js';
+import * as VisualLogging from '../../ui/visual_logging/visual_logging.js';
 import webauthnPaneStyles from './webauthnPane.css.js';
 const UIStrings = {
     /**
@@ -56,13 +58,13 @@ const UIStrings = {
      */
     credentials: 'Credentials',
     /**
-     *@description Label for the learn more link that is shown before the virtual environment is enabled.
+     *@description Text that shows before the virtual environment is enabled.
      */
-    useWebauthnForPhishingresistant: 'Use WebAuthn for phishing-resistant authentication',
+    noAuthenticator: 'No authenticator set up',
     /**
-     *@description Text that is usually a hyperlink to more documentation
+     *@description That that shows before virtual environment is enabled explaining the panel.
      */
-    learnMore: 'Learn more',
+    useWebauthnForPhishingresistant: 'Use WebAuthn for phishing-resistant authentication.',
     /**
      *@description Title for section of interface that allows user to add a new virtual authenticator.
      */
@@ -102,6 +104,10 @@ const UIStrings = {
      */
     editName: 'Edit name',
     /**
+     *@description Placeholder for the input box to customize name of authenticator.
+     */
+    enterNewName: 'Enter new name',
+    /**
      *@description Title for button that enables user to save name of authenticator after editing it.
      */
     saveName: 'Save name',
@@ -138,6 +144,7 @@ const UIStrings = {
 };
 const str_ = i18n.i18n.registerUIStrings('panels/webauthn/WebauthnPane.ts', UIStrings);
 const i18nString = i18n.i18n.getLocalizedString.bind(undefined, str_);
+const WEB_AUTHN_EXPLANATION_URL = 'https://developer.chrome.com/docs/devtools/webauthn';
 class DataGridNode extends DataGrid.DataGrid.DataGridNode {
     credential;
     constructor(credential) {
@@ -155,15 +162,15 @@ class DataGridNode extends DataGrid.DataGrid.DataGridNode {
         }
         const exportButton = UI.UIUtils.createTextButton(i18nString(UIStrings.export), () => {
             if (this.dataGrid) {
-                this.dataGrid.dispatchEventToListeners("ExportCredential" /* Events.ExportCredential */, this.credential);
+                this.dataGrid.dispatchEventToListeners("ExportCredential" /* Events.EXPORT_CREDENTIAL */, this.credential);
             }
-        });
+        }, { jslogContext: 'webauthn.export-credential' });
         cell.appendChild(exportButton);
         const removeButton = UI.UIUtils.createTextButton(i18nString(UIStrings.remove), () => {
             if (this.dataGrid) {
-                this.dataGrid.dispatchEventToListeners("RemoveCredential" /* Events.RemoveCredential */, this.credential);
+                this.dataGrid.dispatchEventToListeners("RemoveCredential" /* Events.REMOVE_CREDENTIAL */, this.credential);
             }
-        });
+        }, { jslogContext: 'webauthn.remove-credential' });
         cell.appendChild(removeButton);
         return cell;
     }
@@ -175,7 +182,7 @@ class WebauthnDataGrid extends Common.ObjectWrapper.eventMixin(WebauthnDataGridB
 class EmptyDataGridNode extends DataGrid.DataGrid.DataGridNode {
     createCells(element) {
         element.removeChildren();
-        const td = this.createTDWithClass(DataGrid.DataGrid.Align.Center);
+        const td = this.createTDWithClass("center" /* DataGrid.DataGrid.Align.CENTER */);
         if (this.dataGrid) {
             td.colSpan = this.dataGrid.visibleColumnsArray.length;
         }
@@ -187,7 +194,6 @@ class EmptyDataGridNode extends DataGrid.DataGrid.DataGridNode {
         element.appendChild(td);
     }
 }
-let webauthnPaneImplInstance;
 // We extrapolate this variable as otherwise git detects a private key, even though we
 // perform string manipulation. If we extract the name, then the regex doesn't match
 // and we can upload as expected.
@@ -213,7 +219,7 @@ export class WebauthnPaneImpl extends UI.Widget.VBox {
     #newAuthenticatorSection;
     #newAuthenticatorForm;
     #protocolSelect;
-    #transportSelect;
+    transportSelect;
     #residentKeyCheckboxLabel;
     residentKeyCheckbox;
     #userVerificationCheckboxLabel;
@@ -224,20 +230,16 @@ export class WebauthnPaneImpl extends UI.Widget.VBox {
     #isEnabling;
     constructor() {
         super(true);
+        this.registerRequiredCSS(webauthnPaneStyles);
+        this.element.setAttribute('jslog', `${VisualLogging.panel('webauthn').track({ resize: true })}`);
         SDK.TargetManager.TargetManager.instance().observeModels(SDK.WebAuthnModel.WebAuthnModel, this, { scoped: true });
         this.contentElement.classList.add('webauthn-pane');
         this.#availableAuthenticatorSetting =
-            Common.Settings.Settings.instance().createSetting('webauthnAuthenticators', []);
+            Common.Settings.Settings.instance().createSetting('webauthn-authenticators', []);
         this.#createToolbar();
         this.#authenticatorsView = this.contentElement.createChild('div', 'authenticators-view');
         this.#createNewAuthenticatorSection();
         this.#updateVisibility(false);
-    }
-    static instance(opts) {
-        if (!webauthnPaneImplInstance || opts?.forceNew) {
-            webauthnPaneImplInstance = new WebauthnPaneImpl();
-        }
-        return webauthnPaneImplInstance;
     }
     modelAdded(model) {
         if (model.target() === model.target().outermostTarget()) {
@@ -278,10 +280,14 @@ export class WebauthnPaneImpl extends UI.Widget.VBox {
     }
     #createToolbar() {
         this.#topToolbarContainer = this.contentElement.createChild('div', 'webauthn-toolbar-container');
-        this.#topToolbar = new UI.Toolbar.Toolbar('webauthn-toolbar', this.#topToolbarContainer);
+        this.#topToolbarContainer.setAttribute('jslog', `${VisualLogging.toolbar()}`);
+        this.#topToolbarContainer.role = 'toolbar';
+        this.#topToolbar = this.#topToolbarContainer.createChild('devtools-toolbar', 'webauthn-toolbar');
+        this.#topToolbar.role = 'presentation';
         const enableCheckboxTitle = i18nString(UIStrings.enableVirtualAuthenticator);
         this.#enableCheckbox =
             new UI.Toolbar.ToolbarCheckbox(enableCheckboxTitle, enableCheckboxTitle, this.#handleCheckboxToggle.bind(this));
+        this.#enableCheckbox.inputElement.setAttribute('jslog', `${VisualLogging.toggle('virtual-authenticators').track({ click: true })}`);
         this.#topToolbar.appendToolbarItem(this.#enableCheckbox);
     }
     #createCredentialsDataGrid(authenticatorId) {
@@ -295,7 +301,7 @@ export class WebauthnPaneImpl extends UI.Widget.VBox {
             {
                 id: 'isResidentCredential',
                 title: i18nString(UIStrings.isResident),
-                dataType: DataGrid.DataGrid.DataType.Boolean,
+                dataType: "Boolean" /* DataGrid.DataGrid.DataType.BOOLEAN */,
                 weight: 10,
             },
             {
@@ -322,8 +328,8 @@ export class WebauthnPaneImpl extends UI.Widget.VBox {
         const dataGrid = new WebauthnDataGrid(dataGridConfig);
         dataGrid.renderInline();
         dataGrid.setStriped(true);
-        dataGrid.addEventListener("ExportCredential" /* Events.ExportCredential */, this.#handleExportCredential, this);
-        dataGrid.addEventListener("RemoveCredential" /* Events.RemoveCredential */, this.#handleRemoveCredential.bind(this, authenticatorId));
+        dataGrid.addEventListener("ExportCredential" /* Events.EXPORT_CREDENTIAL */, this.#handleExportCredential, this);
+        dataGrid.addEventListener("RemoveCredential" /* Events.REMOVE_CREDENTIAL */, this.#handleRemoveCredential.bind(this, authenticatorId));
         dataGrid.rootNode().appendChild(new EmptyDataGridNode());
         this.dataGrids.set(authenticatorId, dataGrid);
         return dataGrid;
@@ -356,6 +362,17 @@ export class WebauthnPaneImpl extends UI.Widget.VBox {
             return;
         }
         node.data = event.credential;
+    }
+    #deleteCredential(authenticatorId, { data: event, }) {
+        const dataGrid = this.dataGrids.get(authenticatorId);
+        if (!dataGrid) {
+            return;
+        }
+        const node = dataGrid.rootNode().children.find(node => node.data?.credentialId === event.credentialId);
+        if (!node) {
+            return;
+        }
+        node.remove();
     }
     async #setVirtualAuthEnvEnabled(enable) {
         await this.#isEnabling;
@@ -393,20 +410,38 @@ export class WebauthnPaneImpl extends UI.Widget.VBox {
         void this.#setVirtualAuthEnvEnabled(e.target.checked);
     }
     #updateEnabledTransportOptions(enabledOptions) {
-        if (!this.#transportSelect) {
+        if (!this.transportSelect) {
             return;
         }
-        const prevValue = this.#transportSelect.value;
-        this.#transportSelect.removeChildren();
+        const prevValue = this.transportSelect.value;
+        this.transportSelect.removeChildren();
         for (const option of enabledOptions) {
-            this.#transportSelect.appendChild(new Option(option, option));
+            this.transportSelect.appendChild(UI.UIUtils.createOption(option, option, option));
         }
         // Make sure the currently selected value stays the same.
-        this.#transportSelect.value = prevValue;
+        this.transportSelect.value = prevValue;
         // If the new set does not include the previous value.
-        if (!this.#transportSelect.value) {
+        if (!this.transportSelect.value) {
             // Select the first available value.
-            this.#transportSelect.selectedIndex = 0;
+            this.transportSelect.selectedIndex = 0;
+        }
+        this.#updateInternalTransportAvailability();
+    }
+    #updateInternalTransportAvailability() {
+        if (!this.transportSelect?.options) {
+            return;
+        }
+        const hasInternal = Boolean(this.#availableAuthenticatorSetting.get().find(authenticator => authenticator.transport === "internal" /* Protocol.WebAuthn.AuthenticatorTransport.Internal */));
+        for (let i = 0; i < this.transportSelect.options.length; ++i) {
+            const option = this.transportSelect.options[i];
+            if (option.value === "internal" /* Protocol.WebAuthn.AuthenticatorTransport.Internal */) {
+                option.disabled = hasInternal;
+                // This relies on "internal" never being the first or only element.
+                if (i === this.transportSelect.selectedIndex) {
+                    --this.transportSelect.selectedIndex;
+                }
+                break;
+            }
         }
     }
     #updateNewAuthenticatorSectionOptions() {
@@ -443,17 +478,15 @@ export class WebauthnPaneImpl extends UI.Widget.VBox {
         }
     }
     #createNewAuthenticatorSection() {
-        this.#learnMoreView = this.contentElement.createChild('div', 'learn-more');
-        this.#learnMoreView.appendChild(UI.Fragment.html `
-  <div>
-  ${i18nString(UIStrings.useWebauthnForPhishingresistant)}<br /><br />
-  ${UI.XLink.XLink.create('https://developers.google.com/web/updates/2018/05/webauthn', i18nString(UIStrings.learnMore))}
-  </div>
-  `);
+        this.#learnMoreView = new UI.EmptyWidget.EmptyWidget(i18nString(UIStrings.noAuthenticator), i18nString(UIStrings.useWebauthnForPhishingresistant));
+        this.#learnMoreView.element.classList.add('learn-more');
+        this.#learnMoreView.appendLink(WEB_AUTHN_EXPLANATION_URL);
+        this.#learnMoreView.show(this.contentElement);
         this.#newAuthenticatorSection = this.contentElement.createChild('div', 'new-authenticator-container');
         const newAuthenticatorTitle = UI.UIUtils.createLabel(i18nString(UIStrings.newAuthenticator), 'new-authenticator-title');
         this.#newAuthenticatorSection.appendChild(newAuthenticatorTitle);
         this.#newAuthenticatorForm = this.#newAuthenticatorSection.createChild('div', 'new-authenticator-form');
+        this.#newAuthenticatorForm.setAttribute('jslog', `${VisualLogging.section('new-authenticator')}`);
         const protocolGroup = this.#newAuthenticatorForm.createChild('div', 'authenticator-option');
         const transportGroup = this.#newAuthenticatorForm.createChild('div', 'authenticator-option');
         const residentKeyGroup = this.#newAuthenticatorForm.createChild('div', 'authenticator-option');
@@ -462,13 +495,12 @@ export class WebauthnPaneImpl extends UI.Widget.VBox {
         const addButtonGroup = this.#newAuthenticatorForm.createChild('div', 'authenticator-option');
         const protocolSelectTitle = UI.UIUtils.createLabel(i18nString(UIStrings.protocol), 'authenticator-option-label');
         protocolGroup.appendChild(protocolSelectTitle);
-        this.#protocolSelect = protocolGroup.createChild('select', 'chrome-select');
+        this.#protocolSelect = protocolGroup.createChild('select');
+        this.#protocolSelect.setAttribute('jslog', `${VisualLogging.dropDown('protocol').track({ change: true })}`);
         UI.ARIAUtils.bindLabelToControl(protocolSelectTitle, this.#protocolSelect);
-        Object.values(PROTOCOL_AUTHENTICATOR_VALUES)
-            .sort()
-            .forEach((option) => {
+        Object.values(PROTOCOL_AUTHENTICATOR_VALUES).sort().forEach((option) => {
             if (this.#protocolSelect) {
-                this.#protocolSelect.appendChild(new Option(option, option));
+                this.#protocolSelect.appendChild(UI.UIUtils.createOption(option, option, option));
             }
         });
         if (this.#protocolSelect) {
@@ -476,25 +508,27 @@ export class WebauthnPaneImpl extends UI.Widget.VBox {
         }
         const transportSelectTitle = UI.UIUtils.createLabel(i18nString(UIStrings.transport), 'authenticator-option-label');
         transportGroup.appendChild(transportSelectTitle);
-        this.#transportSelect = transportGroup.createChild('select', 'chrome-select');
-        UI.ARIAUtils.bindLabelToControl(transportSelectTitle, this.#transportSelect);
+        this.transportSelect = transportGroup.createChild('select');
+        this.transportSelect.setAttribute('jslog', `${VisualLogging.dropDown('transport').track({ change: true })}`);
+        UI.ARIAUtils.bindLabelToControl(transportSelectTitle, this.transportSelect);
         // transportSelect will be populated in updateNewAuthenticatorSectionOptions.
-        this.#residentKeyCheckboxLabel = UI.UIUtils.CheckboxLabel.create(i18nString(UIStrings.supportsResidentKeys), false);
+        this.#residentKeyCheckboxLabel =
+            UI.UIUtils.CheckboxLabel.create(i18nString(UIStrings.supportsResidentKeys), false, undefined, 'resident-key');
         this.#residentKeyCheckboxLabel.textElement.classList.add('authenticator-option-label');
         residentKeyGroup.appendChild(this.#residentKeyCheckboxLabel.textElement);
         this.residentKeyCheckbox = this.#residentKeyCheckboxLabel.checkboxElement;
         this.residentKeyCheckbox.checked = false;
         this.residentKeyCheckbox.classList.add('authenticator-option-checkbox');
         residentKeyGroup.appendChild(this.#residentKeyCheckboxLabel);
-        this.#userVerificationCheckboxLabel =
-            UI.UIUtils.CheckboxLabel.create(i18nString(UIStrings.supportsUserVerification), false);
+        this.#userVerificationCheckboxLabel = UI.UIUtils.CheckboxLabel.create(i18nString(UIStrings.supportsUserVerification), false, undefined, 'user-verification');
         this.#userVerificationCheckboxLabel.textElement.classList.add('authenticator-option-label');
         userVerificationGroup.appendChild(this.#userVerificationCheckboxLabel.textElement);
         this.#userVerificationCheckbox = this.#userVerificationCheckboxLabel.checkboxElement;
         this.#userVerificationCheckbox.checked = false;
         this.#userVerificationCheckbox.classList.add('authenticator-option-checkbox');
         userVerificationGroup.appendChild(this.#userVerificationCheckboxLabel);
-        this.#largeBlobCheckboxLabel = UI.UIUtils.CheckboxLabel.create(i18nString(UIStrings.supportsLargeBlob), false);
+        this.#largeBlobCheckboxLabel =
+            UI.UIUtils.CheckboxLabel.create(i18nString(UIStrings.supportsLargeBlob), false, undefined, 'large-blob');
         this.#largeBlobCheckboxLabel.textElement.classList.add('authenticator-option-label');
         largeBlobGroup.appendChild(this.#largeBlobCheckboxLabel.textElement);
         this.largeBlobCheckbox = this.#largeBlobCheckboxLabel.checkboxElement;
@@ -502,8 +536,7 @@ export class WebauthnPaneImpl extends UI.Widget.VBox {
         this.largeBlobCheckbox.classList.add('authenticator-option-checkbox');
         this.largeBlobCheckbox.name = 'large-blob-checkbox';
         largeBlobGroup.appendChild(this.#largeBlobCheckboxLabel);
-        this.addAuthenticatorButton =
-            UI.UIUtils.createTextButton(i18nString(UIStrings.add), this.#handleAddAuthenticatorButton.bind(this), '');
+        this.addAuthenticatorButton = UI.UIUtils.createTextButton(i18nString(UIStrings.add), this.#handleAddAuthenticatorButton.bind(this), { jslogContext: 'webauthn.add-authenticator' });
         addButtonGroup.createChild('div', 'authenticator-option-label');
         addButtonGroup.appendChild(this.addAuthenticatorButton);
         const addAuthenticatorTitle = UI.UIUtils.createLabel(i18nString(UIStrings.addAuthenticator), '');
@@ -527,37 +560,42 @@ export class WebauthnPaneImpl extends UI.Widget.VBox {
             const mediaQueryList = window.matchMedia('(prefers-reduced-motion: reduce)');
             const prefersReducedMotion = mediaQueryList.matches;
             section.scrollIntoView({ block: 'start', behavior: prefersReducedMotion ? 'auto' : 'smooth' });
+            this.#updateInternalTransportAvailability();
         }
     }
     async #addAuthenticatorSection(authenticatorId, options) {
         const section = document.createElement('div');
         section.classList.add('authenticator-section');
         section.setAttribute('data-authenticator-id', authenticatorId);
+        section.setAttribute('jslog', `${VisualLogging.section('authenticator')}`);
         this.#authenticatorsView.appendChild(section);
         const headerElement = section.createChild('div', 'authenticator-section-header');
         const titleElement = headerElement.createChild('div', 'authenticator-section-title');
         UI.ARIAUtils.markAsHeading(titleElement, 2);
         await this.#clearActiveAuthenticator();
         const activeButtonContainer = headerElement.createChild('div', 'active-button-container');
-        const activeLabel = UI.UIUtils.createRadioLabel(`active-authenticator-${authenticatorId}`, i18nString(UIStrings.active));
-        activeLabel.radioElement.addEventListener('click', this.#setActiveAuthenticator.bind(this, authenticatorId));
+        const { label: activeLabel, radio: activeRadio } = UI.UIUtils.createRadioButton('active-authenticator', i18nString(UIStrings.active), 'webauthn.active-authenticator');
+        activeRadio.addEventListener('change', this.#setActiveAuthenticator.bind(this, authenticatorId));
+        activeRadio.checked = true;
         activeButtonContainer.appendChild(activeLabel);
-        activeLabel.radioElement.checked = true;
         this.#activeAuthId = authenticatorId; // Newly added authenticator is automatically set as active.
         const removeButton = headerElement.createChild('button', 'text-button');
         removeButton.textContent = i18nString(UIStrings.remove);
-        removeButton.addEventListener('click', this.#removeAuthenticator.bind(this, authenticatorId));
-        const toolbar = new UI.Toolbar.Toolbar('edit-name-toolbar', titleElement);
-        const editName = new UI.Toolbar.ToolbarButton(i18nString(UIStrings.editName), 'edit');
-        const saveName = new UI.Toolbar.ToolbarButton(i18nString(UIStrings.saveName), 'checkmark');
+        removeButton.addEventListener('click', this.removeAuthenticator.bind(this, authenticatorId));
+        removeButton.setAttribute('jslog', `${VisualLogging.action('webauthn.remove-authenticator').track({ click: true })}`);
+        const toolbar = titleElement.createChild('devtools-toolbar', 'edit-name-toolbar');
+        const editName = new UI.Toolbar.ToolbarButton(i18nString(UIStrings.editName), 'edit', undefined, 'edit-name');
+        const saveName = new UI.Toolbar.ToolbarButton(i18nString(UIStrings.saveName), 'checkmark', undefined, 'save-name');
         saveName.setVisible(false);
         const nameField = titleElement.createChild('input', 'authenticator-name-field');
+        nameField.placeholder = i18nString(UIStrings.enterNewName);
         nameField.disabled = true;
+        nameField.setAttribute('jslog', `${VisualLogging.textField('name').track({ keydown: 'Enter', change: true })}`);
         const userFriendlyName = authenticatorId.slice(-5); // User friendly name defaults to last 5 chars of UUID.
         nameField.value = i18nString(UIStrings.authenticatorS, { PH1: userFriendlyName });
         this.#updateActiveLabelTitle(activeLabel, nameField.value);
-        editName.addEventListener(UI.Toolbar.ToolbarButton.Events.Click, () => this.#handleEditNameButton(titleElement, nameField, editName, saveName));
-        saveName.addEventListener(UI.Toolbar.ToolbarButton.Events.Click, () => this.#handleSaveNameButton(titleElement, nameField, editName, saveName, activeLabel));
+        editName.addEventListener("Click" /* UI.Toolbar.ToolbarButton.Events.CLICK */, () => this.#handleEditNameButton(titleElement, nameField, editName, saveName));
+        saveName.addEventListener("Click" /* UI.Toolbar.ToolbarButton.Events.CLICK */, () => this.#handleSaveNameButton(titleElement, nameField, editName, saveName, activeLabel));
         nameField.addEventListener('focusout', () => this.#handleSaveNameButton(titleElement, nameField, editName, saveName, activeLabel));
         nameField.addEventListener('keydown', (event) => {
             if (event.key === 'Enter') {
@@ -574,8 +612,10 @@ export class WebauthnPaneImpl extends UI.Widget.VBox {
         const dataGrid = this.#createCredentialsDataGrid(authenticatorId);
         dataGrid.asWidget().show(section);
         if (this.#model) {
-            this.#model.addEventListener("CredentialAdded" /* SDK.WebAuthnModel.Events.CredentialAdded */, this.#addCredential.bind(this, authenticatorId));
-            this.#model.addEventListener("CredentialAsserted" /* SDK.WebAuthnModel.Events.CredentialAsserted */, this.#updateCredential.bind(this, authenticatorId));
+            this.#model.addEventListener("CredentialAdded" /* SDK.WebAuthnModel.Events.CREDENTIAL_ADDED */, this.#addCredential.bind(this, authenticatorId));
+            this.#model.addEventListener("CredentialAsserted" /* SDK.WebAuthnModel.Events.CREDENTIAL_ASSERTED */, this.#updateCredential.bind(this, authenticatorId));
+            this.#model.addEventListener("CredentialUpdated" /* SDK.WebAuthnModel.Events.CREDENTIAL_UPDATED */, this.#updateCredential.bind(this, authenticatorId));
+            this.#model.addEventListener("CredentialDeleted" /* SDK.WebAuthnModel.Events.CREDENTIAL_DELETED */, this.#deleteCredential.bind(this, authenticatorId));
         }
         return section;
     }
@@ -595,10 +635,9 @@ export class WebauthnPaneImpl extends UI.Widget.VBox {
         if (!dataGrid) {
             return;
         }
-        // @ts-ignore dataGrid node type is indeterminate.
+        // @ts-expect-error dataGrid node type is indeterminate.
         dataGrid.rootNode()
-            .children
-            .find((n) => n.data.credentialId === credentialId)
+            .children.find((n) => n.data.credentialId === credentialId)
             .remove();
         if (!dataGrid.rootNode().children.length) {
             dataGrid.rootNode().appendChild(new EmptyDataGridNode());
@@ -642,19 +681,23 @@ export class WebauthnPaneImpl extends UI.Widget.VBox {
         editName.setVisible(false);
     }
     #handleSaveNameButton(titleElement, nameField, editName, saveName, activeLabel) {
+        const name = nameField.value;
+        if (!name) {
+            return;
+        }
         nameField.disabled = true;
         titleElement.classList.remove('editing-name');
         editName.setVisible(true);
         saveName.setVisible(false);
-        this.#updateActiveLabelTitle(activeLabel, nameField.value);
+        this.#updateActiveLabelTitle(activeLabel, name);
     }
     #updateActiveLabelTitle(activeLabel, authenticatorName) {
-        UI.Tooltip.Tooltip.install(activeLabel.radioElement, i18nString(UIStrings.setSAsTheActiveAuthenticator, { PH1: authenticatorName }));
+        UI.Tooltip.Tooltip.install(activeLabel, i18nString(UIStrings.setSAsTheActiveAuthenticator, { PH1: authenticatorName }));
     }
     /**
      * Removes both the authenticator and its respective UI element.
      */
-    #removeAuthenticator(authenticatorId) {
+    removeAuthenticator(authenticatorId) {
         if (this.#authenticatorsView) {
             const child = this.#authenticatorsView.querySelector(`[data-authenticator-id=${CSS.escape(authenticatorId)}]`);
             if (child) {
@@ -682,17 +725,18 @@ export class WebauthnPaneImpl extends UI.Widget.VBox {
                 this.#activeAuthId = null;
             }
         }
+        this.#updateInternalTransportAvailability();
     }
     #createOptionsFromCurrentInputs() {
         // TODO(crbug.com/1034663): Add optionality for isUserVerified param.
-        if (!this.#protocolSelect || !this.#transportSelect || !this.residentKeyCheckbox ||
+        if (!this.#protocolSelect || !this.transportSelect || !this.residentKeyCheckbox ||
             !this.#userVerificationCheckbox || !this.largeBlobCheckbox) {
             throw new Error('Unable to create options from current inputs');
         }
         return {
             protocol: this.#protocolSelect.options[this.#protocolSelect.selectedIndex].value,
             ctap2Version: "ctap2_1" /* Protocol.WebAuthn.Ctap2Version.Ctap2_1 */,
-            transport: this.#transportSelect.options[this.#transportSelect.selectedIndex].value,
+            transport: this.transportSelect.options[this.transportSelect.selectedIndex].value,
             hasResidentKey: this.residentKeyCheckbox.checked,
             hasUserVerification: this.#userVerificationCheckbox.checked,
             hasLargeBlob: this.largeBlobCheckbox.checked,
@@ -718,7 +762,7 @@ export class WebauthnPaneImpl extends UI.Widget.VBox {
     #updateActiveButtons() {
         const authenticators = this.#authenticatorsView.getElementsByClassName('authenticator-section');
         Array.from(authenticators).forEach((authenticator) => {
-            const button = authenticator.querySelector('input.dt-radio-button');
+            const button = authenticator.querySelector('input[type="radio"]');
             if (!button) {
                 return;
             }
@@ -731,10 +775,6 @@ export class WebauthnPaneImpl extends UI.Widget.VBox {
         }
         this.#activeAuthId = null;
         this.#updateActiveButtons();
-    }
-    wasShown() {
-        super.wasShown();
-        this.registerCSSFiles([webauthnPaneStyles]);
     }
 }
 //# sourceMappingURL=WebauthnPane.js.map

@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 import * as i18n from '../../core/i18n/i18n.js';
-import { Issue, IssueCategory, IssueKind } from './Issue.js';
+import { Issue } from './Issue.js';
 import { resolveLazyDescription, } from './MarkdownIssueDescription.js';
 const UIStrings = {
     /**
@@ -47,7 +47,7 @@ export class CrossOriginEmbedderPolicyIssue extends Issue {
         return [this.#issueDetails.request];
     }
     getCategory() {
-        return IssueCategory.CrossOriginEmbedderPolicy;
+        return "CrossOriginEmbedderPolicy" /* IssueCategory.CROSS_ORIGIN_EMBEDDER_POLICY */;
     }
     getDescription() {
         const description = issueDescriptions.get(this.code());
@@ -57,7 +57,7 @@ export class CrossOriginEmbedderPolicyIssue extends Issue {
         return resolveLazyDescription(description);
     }
     getKind() {
-        return IssueKind.PageError;
+        return "PageError" /* IssueKind.PAGE_ERROR */;
     }
 }
 const issueDescriptions = new Map([

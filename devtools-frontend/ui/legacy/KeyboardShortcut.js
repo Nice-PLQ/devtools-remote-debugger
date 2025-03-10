@@ -46,8 +46,8 @@ export class KeyboardShortcut {
         return this.descriptors.map(descriptor => descriptor.name).join(' ');
     }
     isDefault() {
-        return this.type === Type.DefaultShortcut || this.type === Type.DisabledDefault ||
-            (this.type === Type.KeybindSetShortcut && this.keybindSets.has(DefaultShortcutSetting));
+        return this.type === "DefaultShortcut" /* Type.DEFAULT_SHORTCUT */ || this.type === "DisabledDefault" /* Type.DISABLED_DEFAULT */ ||
+            (this.type === "KeybindSetShortcut" /* Type.KEYBIND_SET_SHORTCUT */ && this.keybindSets.has(DefaultShortcutSetting));
     }
     changeType(type) {
         return new KeyboardShortcut(this.descriptors, this.action, type);
@@ -80,32 +80,27 @@ export class KeyboardShortcut {
         if (typeof keyCode === 'string') {
             keyCode = keyCode.charCodeAt(0) - (/^[a-z]/.test(keyCode) ? 32 : 0);
         }
-        modifiers = modifiers || Modifiers.None;
+        modifiers = modifiers || Modifiers.None.value;
         return KeyboardShortcut.makeKeyFromCodeAndModifiers(keyCode, modifiers);
     }
     static makeKeyFromEvent(keyboardEvent) {
-        let modifiers = Modifiers.None;
+        let modifiers = Modifiers.None.value;
         if (keyboardEvent.shiftKey) {
-            modifiers |= Modifiers.Shift;
+            modifiers |= Modifiers.Shift.value;
         }
         if (keyboardEvent.ctrlKey) {
-            modifiers |= Modifiers.Ctrl;
+            modifiers |= Modifiers.Ctrl.value;
         }
         if (keyboardEvent.altKey) {
-            modifiers |= Modifiers.Alt;
+            modifiers |= Modifiers.Alt.value;
         }
         if (keyboardEvent.metaKey) {
-            modifiers |= Modifiers.Meta;
+            modifiers |= Modifiers.Meta.value;
         }
         // Use either a real or a synthetic keyCode (for events originating from extensions).
-        // @ts-ignore ExtensionServer.js installs '__keyCode' on some events.
+        // @ts-expect-error ExtensionServer.js installs '__keyCode' on some events.
         const keyCode = keyboardEvent.keyCode || keyboardEvent['__keyCode'];
         return KeyboardShortcut.makeKeyFromCodeAndModifiers(keyCode, modifiers);
-    }
-    static makeKeyFromEventIgnoringModifiers(keyboardEvent) {
-        // @ts-ignore ExtensionServer.js installs '__keyCode' on some events.
-        const keyCode = keyboardEvent.keyCode || keyboardEvent['__keyCode'];
-        return KeyboardShortcut.makeKeyFromCodeAndModifiers(keyCode, Modifiers.None);
     }
     // This checks if a "control equivalent" key is pressed. For non-mac platforms this means checking
     // if control is pressed but not meta. On mac, we instead check if meta is pressed but not control.
@@ -119,6 +114,9 @@ export class KeyboardShortcut {
         const keyboardEvent = event;
         return !keyboardEvent.ctrlKey && !keyboardEvent.shiftKey && !keyboardEvent.altKey && !keyboardEvent.metaKey;
     }
+    static hasAtLeastOneModifier(event) {
+        return KeyboardShortcut.hasNoModifiers(event) === false;
+    }
     static makeDescriptor(key, modifiers) {
         return {
             key: KeyboardShortcut.makeKey(typeof key === 'string' ? key : key.code, modifiers),
@@ -129,14 +127,14 @@ export class KeyboardShortcut {
         const [keyString, ...modifierStrings] = shortcut.split(/\+(?!$)/).reverse();
         let modifiers = 0;
         for (const modifierString of modifierStrings) {
-            const modifier = Modifiers[modifierString];
+            const modifier = Modifiers[modifierString].value;
             console.assert(typeof modifier !== 'undefined', `Only one key other than modifier is allowed in shortcut <${shortcut}>`);
             modifiers |= modifier;
         }
         console.assert(keyString.length > 0, `Modifiers-only shortcuts are not allowed (encountered <${shortcut}>)`);
         const key = Keys[keyString] || KeyBindings[keyString];
         if (key && 'shiftKey' in key && key.shiftKey) {
-            modifiers |= Modifiers.Shift;
+            modifiers |= Modifiers.Shift.value;
         }
         return KeyboardShortcut.makeDescriptor(key ? key : keyString, modifiers);
     }
@@ -177,7 +175,7 @@ export class KeyboardShortcut {
         ]);
         return [m.Meta, m.Ctrl, m.Alt, m.Shift].map(mapModifiers).join('');
         function mapModifiers(m) {
-            return (modifiers || 0) & m ? /** @type {string} */ modifierNames.get(m) : '';
+            return (modifiers || 0) & m.value ? /** @type {string} */ modifierNames.get(m) : '';
         }
     }
 }
@@ -186,15 +184,19 @@ export class KeyboardShortcut {
  * see #makeKeyFromCodeAndModifiers
  */
 export const Modifiers = {
-    None: 0,
-    Shift: 1,
-    Ctrl: 2,
-    Alt: 4,
-    Meta: 8,
-    // "default" command/ctrl key for platform, Command on Mac, Ctrl on other platforms
-    CtrlOrMeta: Host.Platform.isMac() ? 8 /* Meta */ : 2 /* Ctrl */,
-    // Option on Mac, Shift on other platforms
-    ShiftOrOption: Host.Platform.isMac() ? 4 /* Alt */ : 1 /* Shift */,
+    None: { value: 0, name: 'None' },
+    Shift: { value: 1, name: 'Shift' },
+    Ctrl: { value: 2, name: 'Ctrl' },
+    Alt: { value: 4, name: 'Alt' },
+    Meta: { value: 8, name: 'Meta' },
+    CtrlOrMeta: {
+        value: Host.Platform.isMac() ? 8 /* Meta */ : 2 /* Ctrl */,
+        name: Host.Platform.isMac() ? 'Meta' : 'Ctrl',
+    },
+    ShiftOrOption: {
+        value: Host.Platform.isMac() ? 4 /* Alt */ : 1 /* Shift */,
+        name: Host.Platform.isMac() ? 'Alt' : 'Shift',
+    },
 };
 const leftKey = {
     code: 37,
@@ -236,6 +238,10 @@ const quoteKey = {
     code: 222,
     name: '\'',
 };
+const metaKey = {
+    code: 91,
+    name: 'Meta',
+};
 export const Keys = {
     Backspace: { code: 8, name: '\u21a4' },
     Tab: { code: 9, name: { mac: '\u21e5', other: 'Tab' } },
@@ -248,24 +254,29 @@ export const Keys = {
     Escape: escKey,
     Space: spaceKey,
     ' ': spaceKey,
-    PageUp: { code: 33, name: { mac: '\u21de', other: 'PageUp' } },
-    PageDown: { code: 34, name: { mac: '\u21df', other: 'PageDown' } },
-    End: { code: 35, name: { mac: '\u2197', other: 'End' } },
-    Home: { code: 36, name: { mac: '\u2196', other: 'Home' } },
-    Left: leftKey,
-    Up: upKey,
-    Right: rightKey,
-    Down: downKey,
+    PageUp: { code: 33, name: { mac: '\u21de', other: 'PageUp' } }, // also NUM_NORTH_EAST
+    PageDown: { code: 34, name: { mac: '\u21df', other: 'PageDown' } }, // also NUM_SOUTH_EAST
+    End: { code: 35, name: { mac: '\u2197', other: 'End' } }, // also NUM_SOUTH_WEST
+    Home: { code: 36, name: { mac: '\u2196', other: 'Home' } }, // also NUM_NORTH_WEST
+    Left: leftKey, // also NUM_WEST
+    Up: upKey, // also NUM_NORTH
+    Right: rightKey, // also NUM_EAST
+    Down: downKey, // also NUM_SOUTH
     ArrowLeft: leftKey,
     ArrowUp: upKey,
     ArrowRight: rightKey,
     ArrowDown: downKey,
     Delete: { code: 46, name: 'Del' },
     Zero: { code: 48, name: '0' },
+    C: { code: 67, name: 'C' },
     H: { code: 72, name: 'H' },
     N: { code: 78, name: 'N' },
     P: { code: 80, name: 'P' },
-    Meta: { code: 91, name: 'Meta' },
+    R: { code: 82, name: 'R' },
+    U: { code: 85, name: 'U' },
+    V: { code: 86, name: 'V' },
+    X: { code: 88, name: 'X' },
+    Meta: metaKey,
     F1: { code: 112, name: 'F1' },
     F2: { code: 113, name: 'F2' },
     F3: { code: 114, name: 'F3' },
@@ -298,23 +309,9 @@ export const Keys = {
     Backslash: { code: 220, name: '\\' },
     SingleQuote: quoteKey,
     Quote: quoteKey,
-    // TODO(crbug.com/1172300) Ignored during the jsdoc to ts migration
-    // eslint-disable-next-line @typescript-eslint/naming-convention
-    get CtrlOrMeta() {
-        // "default" command/ctrl key for platform, Command on Mac, Ctrl on other platforms
-        return Host.Platform.isMac() ? this.Meta : this.Ctrl;
-    },
+    // "default" command/ctrl key for platform, Command on Mac, Ctrl on other platforms
+    CtrlOrMeta: Host.Platform.isMac() ? metaKey : ctrlKey,
 };
-// TODO(crbug.com/1167717): Make this a const enum again
-// eslint-disable-next-line rulesdir/const_enum
-export var Type;
-(function (Type) {
-    Type["UserShortcut"] = "UserShortcut";
-    Type["DefaultShortcut"] = "DefaultShortcut";
-    Type["DisabledDefault"] = "DisabledDefault";
-    Type["UnsetShortcut"] = "UnsetShortcut";
-    Type["KeybindSetShortcut"] = "KeybindSetShortcut";
-})(Type || (Type = {}));
 export const KeyBindings = {};
 (function () {
     for (const key in Keys) {

@@ -9,7 +9,7 @@ export class PuppeteerReplayConverter {
         this.#indent = indent;
     }
     getId() {
-        return "@puppeteer/replay" /* Models.ConverterIds.ConverterIds.Replay */;
+        return "@puppeteer/replay" /* Models.ConverterIds.ConverterIds.REPLAY */;
     }
     getFormatName() {
         return '@puppeteer/replay';

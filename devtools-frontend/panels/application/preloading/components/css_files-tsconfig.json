@@ -4,8 +4,11 @@
         "outDir": "."
     },
     "files": [
+        "RuleSetDetailsView.css.js",
         "preloadingDetailsReportView.css.js",
+        "preloadingDisabledInfobar.css.js",
         "preloadingGrid.css.js",
-        "ruleSetGrid.css.js"
+        "ruleSetGrid.css.js",
+        "usedPreloadingView.css.js"
     ]
 }

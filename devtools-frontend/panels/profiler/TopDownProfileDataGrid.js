@@ -5,7 +5,7 @@ import { ProfileDataGridNode, ProfileDataGridTree } from './ProfileDataGrid.js';
 export class TopDownProfileDataGridNode extends ProfileDataGridNode {
     remainingChildren;
     constructor(profileNode, owningTree) {
-        const hasChildren = Boolean(profileNode.children && profileNode.children.length);
+        const hasChildren = Boolean(profileNode.children?.length);
         super(profileNode, owningTree, hasChildren);
         this.remainingChildren = profileNode.children;
     }

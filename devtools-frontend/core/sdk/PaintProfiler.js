@@ -27,7 +27,6 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-import { Capability } from './Target.js';
 import { SDKModel } from './SDKModel.js';
 export class PaintProfilerModel extends SDKModel {
     layerTreeAgent;
@@ -91,5 +90,5 @@ export class PaintProfilerLogItem {
         this.commandIndex = commandIndex;
     }
 }
-SDKModel.register(PaintProfilerModel, { capabilities: Capability.DOM, autostart: false });
+SDKModel.register(PaintProfilerModel, { capabilities: 2 /* Capability.DOM */, autostart: false });
 //# sourceMappingURL=PaintProfiler.js.map

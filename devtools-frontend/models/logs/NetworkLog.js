@@ -64,13 +64,13 @@ export class NetworkLog extends Common.ObjectWrapper.ObjectWrapper {
         this.modelListeners = new WeakMap();
         this.initiatorData = new WeakMap();
         SDK.TargetManager.TargetManager.instance().observeModels(SDK.NetworkManager.NetworkManager, this);
-        const recordLogSetting = Common.Settings.Settings.instance().moduleSetting('network_log.record-log');
+        const recordLogSetting = Common.Settings.Settings.instance().moduleSetting('network-log.record-log');
         recordLogSetting.addChangeListener(() => {
-            const preserveLogSetting = Common.Settings.Settings.instance().moduleSetting('network_log.preserve-log');
+            const preserveLogSetting = Common.Settings.Settings.instance().moduleSetting('network-log.preserve-log');
             if (!preserveLogSetting.get() && recordLogSetting.get()) {
                 this.reset(true);
             }
-            this.setIsRecording(recordLogSetting.get());
+            this.setIsRecording((recordLogSetting.get()));
         }, this);
         this.unresolvedPreflightRequests = new Map();
     }
@@ -171,7 +171,7 @@ export class NetworkLog extends Common.ObjectWrapper.ObjectWrapper {
             chain: null,
             request: undefined,
         };
-        let type = SDK.NetworkRequest.InitiatorType.Other;
+        let type = "other" /* SDK.NetworkRequest.InitiatorType.OTHER */;
         let url = Platform.DevToolsPath.EmptyUrlString;
         let lineNumber = undefined;
         let columnNumber = undefined;
@@ -181,12 +181,12 @@ export class NetworkLog extends Common.ObjectWrapper.ObjectWrapper {
         const initiator = request.initiator();
         const redirectSource = request.redirectSource();
         if (redirectSource) {
-            type = SDK.NetworkRequest.InitiatorType.Redirect;
+            type = "redirect" /* SDK.NetworkRequest.InitiatorType.REDIRECT */;
             url = redirectSource.url();
         }
         else if (initiator) {
             if (initiator.type === "parser" /* Protocol.Network.InitiatorType.Parser */) {
-                type = SDK.NetworkRequest.InitiatorType.Parser;
+                type = "parser" /* SDK.NetworkRequest.InitiatorType.PARSER */;
                 url = initiator.url ? initiator.url : url;
                 lineNumber = initiator.lineNumber;
                 columnNumber = initiator.columnNumber;
@@ -198,7 +198,7 @@ export class NetworkLog extends Common.ObjectWrapper.ObjectWrapper {
                         stack = stack.parent;
                         continue;
                     }
-                    type = SDK.NetworkRequest.InitiatorType.Script;
+                    type = "script" /* SDK.NetworkRequest.InitiatorType.SCRIPT */;
                     url = (topFrame.url || i18nString(UIStrings.anonymous));
                     lineNumber = topFrame.lineNumber;
                     columnNumber = topFrame.columnNumber;
@@ -206,7 +206,7 @@ export class NetworkLog extends Common.ObjectWrapper.ObjectWrapper {
                     break;
                 }
                 if (!initiator.stack && initiator.url) {
-                    type = SDK.NetworkRequest.InitiatorType.Script;
+                    type = "script" /* SDK.NetworkRequest.InitiatorType.SCRIPT */;
                     url = initiator.url;
                     lineNumber = initiator.lineNumber;
                 }
@@ -215,14 +215,14 @@ export class NetworkLog extends Common.ObjectWrapper.ObjectWrapper {
                 }
             }
             else if (initiator.type === "preload" /* Protocol.Network.InitiatorType.Preload */) {
-                type = SDK.NetworkRequest.InitiatorType.Preload;
+                type = "preload" /* SDK.NetworkRequest.InitiatorType.PRELOAD */;
             }
             else if (initiator.type === "preflight" /* Protocol.Network.InitiatorType.Preflight */) {
-                type = SDK.NetworkRequest.InitiatorType.Preflight;
+                type = "preflight" /* SDK.NetworkRequest.InitiatorType.PREFLIGHT */;
                 initiatorRequest = request.preflightInitiatorRequest();
             }
             else if (initiator.type === "SignedExchange" /* Protocol.Network.InitiatorType.SignedExchange */) {
-                type = SDK.NetworkRequest.InitiatorType.SignedExchange;
+                type = "signedExchange" /* SDK.NetworkRequest.InitiatorType.SIGNED_EXCHANGE */;
                 url = initiator.url || Platform.DevToolsPath.EmptyUrlString;
             }
         }
@@ -249,7 +249,7 @@ export class NetworkLog extends Common.ObjectWrapper.ObjectWrapper {
                 }
             }
         }
-        return { initiators: this.initiatorChain(request), initiated: initiated };
+        return { initiators: this.initiatorChain(request), initiated };
     }
     initiatorChain(request) {
         const initiatorDataForRequest = this.initializeInitiatorSymbolIfNeeded(request);
@@ -262,7 +262,7 @@ export class NetworkLog extends Common.ObjectWrapper.ObjectWrapper {
         while (checkRequest) {
             const initiatorData = this.initializeInitiatorSymbolIfNeeded(checkRequest);
             if (initiatorData.chain) {
-                Platform.SetUtilities.addAll(initiatorChainCache, initiatorData.chain);
+                initiatorChainCache = initiatorChainCache.union(initiatorData.chain);
                 break;
             }
             if (initiatorChainCache.has(checkRequest)) {
@@ -285,23 +285,23 @@ export class NetworkLog extends Common.ObjectWrapper.ObjectWrapper {
         return initiatorData.request;
     }
     willReloadPage() {
-        if (!Common.Settings.Settings.instance().moduleSetting('network_log.preserve-log').get()) {
+        if (!Common.Settings.Settings.instance().moduleSetting('network-log.preserve-log').get()) {
             this.reset(true);
         }
     }
     onPrimaryPageChanged(event) {
         const mainFrame = event.data.frame;
         const manager = mainFrame.resourceTreeModel().target().model(SDK.NetworkManager.NetworkManager);
-        if (!manager || mainFrame.resourceTreeModel().target().parentTarget()?.type() === SDK.Target.Type.Frame) {
+        if (!manager || mainFrame.resourceTreeModel().target().parentTarget()?.type() === SDK.Target.Type.FRAME) {
             return;
         }
         // If a page resulted in an error, the browser will navigate to an internal error page
         // hosted at 'chrome-error://...'. In this case, skip the frame navigated event to preserve
         // the network log.
-        if (mainFrame.url !== mainFrame.unreachableUrl() && mainFrame.url.startsWith('chrome-error://')) {
+        if (mainFrame.url !== mainFrame.unreachableUrl() && Common.ParsedURL.schemeIs(mainFrame.url, 'chrome-error:')) {
             return;
         }
-        const preserveLog = Common.Settings.Settings.instance().moduleSetting('network_log.preserve-log').get();
+        const preserveLog = Common.Settings.Settings.instance().moduleSetting('network-log.preserve-log').get();
         const oldRequests = this.requestsInternal;
         const oldManagerRequests = this.requestsInternal.filter(request => SDK.NetworkManager.NetworkManager.forRequest(request) === manager);
         const oldRequestsSet = this.requestsSet;
@@ -316,7 +316,8 @@ export class NetworkLog extends Common.ObjectWrapper.ObjectWrapper {
         let currentPageLoad = null;
         const requestsToAdd = [];
         for (const request of oldManagerRequests) {
-            if (request.loaderId !== mainFrame.loaderId) {
+            if (event.data.type !== "Activation" /* SDK.ResourceTreeModel.PrimaryPageChangeType.ACTIVATION */ &&
+                request.loaderId !== mainFrame.loaderId) {
                 continue;
             }
             if (!currentPageLoad) {
@@ -349,7 +350,7 @@ export class NetworkLog extends Common.ObjectWrapper.ObjectWrapper {
         }
         if (preserveLog) {
             for (const request of oldRequestsSet) {
-                this.addRequest(request);
+                this.addRequest(request, true);
                 request.preserved = true;
             }
         }
@@ -357,7 +358,7 @@ export class NetworkLog extends Common.ObjectWrapper.ObjectWrapper {
             this.pageLoadForManager.set(manager, currentPageLoad);
         }
     }
-    addRequest(request) {
+    addRequest(request, preserveLog) {
         this.requestsInternal.push(request);
         this.requestsSet.add(request);
         const requestList = this.requestsMap.get(request.requestId());
@@ -368,7 +369,16 @@ export class NetworkLog extends Common.ObjectWrapper.ObjectWrapper {
             requestList.push(request);
         }
         this.tryResolvePreflightRequests(request);
-        this.dispatchEventToListeners(Events.RequestAdded, request);
+        this.dispatchEventToListeners(Events.RequestAdded, { request, preserveLog });
+    }
+    removeRequest(request) {
+        const index = this.requestsInternal.indexOf(request);
+        if (index > -1) {
+            this.requestsInternal.splice(index, 1);
+        }
+        this.requestsSet.delete(request);
+        this.requestsMap.delete(request.requestId());
+        this.dispatchEventToListeners(Events.RequestRemoved, { request });
     }
     tryResolvePreflightRequests(request) {
         if (request.isPreflightRequest()) {
@@ -395,7 +405,7 @@ export class NetworkLog extends Common.ObjectWrapper.ObjectWrapper {
                 if (data) {
                     data.info = null;
                 }
-                this.dispatchEventToListeners(Events.RequestUpdated, preflightRequest);
+                this.dispatchEventToListeners(Events.RequestUpdated, { request: preflightRequest });
             }
         }
     }
@@ -433,7 +443,15 @@ export class NetworkLog extends Common.ObjectWrapper.ObjectWrapper {
         if (!this.requestsSet.has(request)) {
             return;
         }
-        this.dispatchEventToListeners(Events.RequestUpdated, request);
+        // This is only triggered in an edge case in which Chrome reports 2 preflight requests. The
+        // first preflight gets aborted and should not be shown in DevTools.
+        // (see https://crbug.com/1290390 for details)
+        if (request.isPreflightRequest() &&
+            request.corsErrorStatus()?.corsError === "UnexpectedPrivateNetworkAccess" /* Protocol.Network.CorsError.UnexpectedPrivateNetworkAccess */) {
+            this.removeRequest(request);
+            return;
+        }
+        this.dispatchEventToListeners(Events.RequestUpdated, { request });
     }
     onRequestRedirect(event) {
         this.initiatorData.delete(event.data);
@@ -501,12 +519,13 @@ export class NetworkLog extends Common.ObjectWrapper.ObjectWrapper {
     }
 }
 const consoleMessageToRequest = new WeakMap();
-// TODO(crbug.com/1167717): Make this a const enum again
-// eslint-disable-next-line rulesdir/const_enum
 export var Events;
 (function (Events) {
+    /* eslint-disable @typescript-eslint/naming-convention -- Used by web_tests. */
     Events["Reset"] = "Reset";
     Events["RequestAdded"] = "RequestAdded";
     Events["RequestUpdated"] = "RequestUpdated";
+    Events["RequestRemoved"] = "RequestRemoved";
+    /* eslint-enable @typescript-eslint/naming-convention */
 })(Events || (Events = {}));
 //# sourceMappingURL=NetworkLog.js.map

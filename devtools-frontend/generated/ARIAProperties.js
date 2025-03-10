@@ -1,8 +1,12 @@
-// Copyright 2023 The Chromium Authors. All rights reserved.
+// Copyright 2025 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 export const config = {
     "attributes": [
+        {
+            "name": "aria-actions",
+            "type": "IDREF_list"
+        },
         {
             "name": "aria-activedescendant",
             "type": "IDREF"
@@ -56,6 +60,10 @@ export const config = {
             "type": "integer"
         },
         {
+            "name": "aria-colindextext",
+            "type": "string"
+        },
+        {
             "name": "aria-colspan",
             "type": "integer"
         },
@@ -95,19 +103,6 @@ export const config = {
             "type": "boolean"
         },
         {
-            "default": "none",
-            "enum": [
-                "copy",
-                "move",
-                "link",
-                "execute",
-                "popup",
-                "none"
-            ],
-            "name": "aria-dropeffect",
-            "type": "token_list"
-        },
-        {
             "name": "aria-errormessage",
             "type": "IDREF"
         },
@@ -124,16 +119,6 @@ export const config = {
         {
             "name": "aria-flowto",
             "type": "IDREF_list"
-        },
-        {
-            "default": "undefined",
-            "enum": [
-                "true",
-                "false",
-                "undefined"
-            ],
-            "name": "aria-grabbed",
-            "type": "token"
         },
         {
             "default": "false",
@@ -280,6 +265,10 @@ export const config = {
         {
             "name": "aria-rowindex",
             "type": "integer"
+        },
+        {
+            "name": "aria-rowindextext",
+            "type": "string"
         },
         {
             "name": "aria-rowspan",

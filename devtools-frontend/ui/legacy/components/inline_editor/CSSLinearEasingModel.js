@@ -74,7 +74,7 @@ function consumeLinearFunction(text) {
     return stops;
 }
 const KeywordToValue = {
-    'linear': 'linear(0 0%, 1 100%)',
+    linear: 'linear(0 0%, 1 100%)',
 };
 export class CSSLinearEasingModel {
     #points;

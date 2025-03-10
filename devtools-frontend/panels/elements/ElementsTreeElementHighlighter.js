@@ -19,15 +19,15 @@ export class ElementsTreeElementHighlighter {
         this.treeOutline.addEventListener(UI.TreeOutline.Events.ElementExpanded, this.clearState, this);
         this.treeOutline.addEventListener(UI.TreeOutline.Events.ElementCollapsed, this.clearState, this);
         this.treeOutline.addEventListener(ElementsTreeOutline.Events.SelectedNodeChanged, this.clearState, this);
-        SDK.TargetManager.TargetManager.instance().addModelListener(SDK.OverlayModel.OverlayModel, SDK.OverlayModel.Events.HighlightNodeRequested, this.highlightNode, this, { scoped: true });
-        SDK.TargetManager.TargetManager.instance().addModelListener(SDK.OverlayModel.OverlayModel, SDK.OverlayModel.Events.InspectModeWillBeToggled, this.clearState, this, { scoped: true });
+        SDK.TargetManager.TargetManager.instance().addModelListener(SDK.OverlayModel.OverlayModel, "HighlightNodeRequested" /* SDK.OverlayModel.Events.HIGHLIGHT_NODE_REQUESTED */, this.highlightNode, this, { scoped: true });
+        SDK.TargetManager.TargetManager.instance().addModelListener(SDK.OverlayModel.OverlayModel, "InspectModeWillBeToggled" /* SDK.OverlayModel.Events.INSPECT_MODE_WILL_BE_TOGGLED */, this.clearState, this, { scoped: true });
         this.currentHighlightedElement = null;
         this.alreadyExpandedParentElement = null;
         this.pendingHighlightNode = null;
         this.isModifyingTreeOutline = false;
     }
     highlightNode(event) {
-        if (!Common.Settings.Settings.instance().moduleSetting('highlightNodeOnHoverInOverlay').get()) {
+        if (!Common.Settings.Settings.instance().moduleSetting('highlight-node-on-hover-in-overlay').get()) {
             return;
         }
         const domNode = event.data;

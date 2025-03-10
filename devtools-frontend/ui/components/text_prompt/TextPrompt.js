@@ -2,8 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 import * as Platform from '../../../core/platform/platform.js';
-import * as ComponentHelpers from '../../components/helpers/helpers.js';
-import * as LitHtml from '../../lit-html/lit-html.js';
+import { html, render } from '../../lit/lit.js';
 import textPromptStyles from './textPrompt.css.js';
 export class PromptInputEvent extends Event {
     static eventName = 'promptinputchanged';
@@ -14,14 +13,10 @@ export class PromptInputEvent extends Event {
     }
 }
 export class TextPrompt extends HTMLElement {
-    static litTagName = LitHtml.literal `devtools-text-prompt`;
     #shadow = this.attachShadow({ mode: 'open' });
     #ariaLabelText = '';
     #prefixText = '';
     #suggestionText = '';
-    connectedCallback() {
-        this.#shadow.adoptedStyleSheets = [textPromptStyles];
-    }
     set data(data) {
         this.#ariaLabelText = data.ariaLabel;
         this.#prefixText = data.prefix;
@@ -98,11 +93,12 @@ export class TextPrompt extends HTMLElement {
         return this.#input().value || '';
     }
     #render() {
-        const output = LitHtml.html `
+        const output = html `
+      <style>${textPromptStyles.cssContent}</style>
       <span class="prefix">${this.#prefixText} </span>
       <span class="text-prompt-input"><input class="input" aria-label=${this.#ariaLabelText} spellcheck="false" @input=${this.onInput} @keydown=${this.onKeyDown}/><input class="suggestion" aria-label=${this.#ariaLabelText + ' Suggestion'}></span>`;
-        LitHtml.render(output, this.#shadow, { host: this });
+        render(output, this.#shadow, { host: this });
     }
 }
-ComponentHelpers.CustomElements.defineComponent('devtools-text-prompt', TextPrompt);
+customElements.define('devtools-text-prompt', TextPrompt);
 //# sourceMappingURL=TextPrompt.js.map

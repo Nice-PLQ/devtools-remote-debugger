@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 import '../../../../panels/recorder/components/components.js';
 import * as ComponentHelpers from '../../../../../front_end/ui/components/helpers/helpers.js';
-import * as FrontendHelpers from '../../../../../test/unittests/front_end/helpers/EnvironmentHelpers.js'; // eslint-disable-line rulesdir/es_modules_import
+import * as FrontendHelpers from '../../../../testing/EnvironmentHelpers.js';
 await ComponentHelpers.ComponentServerSetup.setup();
 await FrontendHelpers.initializeGlobalVars();
 document.getElementById('container').innerHTML = `

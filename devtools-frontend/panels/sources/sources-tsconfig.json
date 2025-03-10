@@ -33,6 +33,7 @@
     "../../../../../../front_end/panels/sources/BreakpointEditDialog.ts",
     "../../../../../../front_end/panels/sources/CSSPlugin.ts",
     "../../../../../../front_end/panels/sources/CallStackSidebarPane.ts",
+    "../../../../../../front_end/panels/sources/CategorizedBreakpointL10n.ts",
     "../../../../../../front_end/panels/sources/CoveragePlugin.ts",
     "../../../../../../front_end/panels/sources/DebuggerPausedMessage.ts",
     "../../../../../../front_end/panels/sources/DebuggerPlugin.ts",
@@ -60,8 +61,8 @@
     "../../../../../../front_end/panels/sources/WatchExpressionsSidebarPane.ts",
     "../../../../../../front_end/legacy/legacy-defs.d.ts",
     "../../../../../../front_end/global_typings/global_defs.d.ts",
-    "../../../../../../front_end/global_typings/request_idle_callback.d.ts",
-    "../../../../../../node_modules/@types/filesystem/index.d.ts"
+    "../../../../../../node_modules/@types/filesystem/index.d.ts",
+    "../../../../../../node_modules/@types/wicg-task-scheduling/index.d.ts"
   ],
   "references": [
     {
@@ -128,10 +129,10 @@
       "path": "../../third_party/diff/bundle-tsconfig.json"
     },
     {
-      "path": "../../ui/components/icon_button/bundle-tsconfig.json"
+      "path": "../../ui/components/floating_button/bundle-tsconfig.json"
     },
     {
-      "path": "../../ui/components/linear_memory_inspector/bundle-tsconfig.json"
+      "path": "../../ui/components/icon_button/bundle-tsconfig.json"
     },
     {
       "path": "../../ui/components/text_editor/bundle-tsconfig.json"
@@ -156,6 +157,12 @@
     },
     {
       "path": "../../ui/legacy/components/utils/bundle-tsconfig.json"
+    },
+    {
+      "path": "../../ui/visual_logging/bundle-tsconfig.json"
+    },
+    {
+      "path": "../utils/bundle-tsconfig.json"
     },
     {
       "path": "components/bundle-tsconfig.json"

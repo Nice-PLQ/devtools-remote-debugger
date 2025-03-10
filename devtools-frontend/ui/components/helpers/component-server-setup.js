@@ -11,6 +11,7 @@ export async function setup() {
         get() {
             return 'default';
         },
+        addChangeListener: () => { },
     };
     ThemeSupport.ThemeSupport.instance({ forceNew: true, setting });
 }

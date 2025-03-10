@@ -34,8 +34,8 @@
     "../../../../../../front_end/entrypoints/main/SimpleApp.ts",
     "../../../../../../front_end/legacy/legacy-defs.d.ts",
     "../../../../../../front_end/global_typings/global_defs.d.ts",
-    "../../../../../../front_end/global_typings/request_idle_callback.d.ts",
-    "../../../../../../node_modules/@types/filesystem/index.d.ts"
+    "../../../../../../node_modules/@types/filesystem/index.d.ts",
+    "../../../../../../node_modules/@types/wicg-task-scheduling/index.d.ts"
   ],
   "references": [
     {
@@ -60,6 +60,9 @@
       "path": "../../generated/protocol-tsconfig.json"
     },
     {
+      "path": "../../models/autofill_manager/bundle-tsconfig.json"
+    },
+    {
       "path": "../../models/bindings/bundle-tsconfig.json"
     },
     {
@@ -75,6 +78,9 @@
       "path": "../../models/persistence/bundle-tsconfig.json"
     },
     {
+      "path": "../../models/project_settings/bundle-tsconfig.json"
+    },
+    {
       "path": "../../models/workspace/bundle-tsconfig.json"
     },
     {
@@ -82,6 +88,9 @@
     },
     {
       "path": "../../panels/timeline/bundle-tsconfig.json"
+    },
+    {
+      "path": "../../ui/components/buttons/bundle-tsconfig.json"
     },
     {
       "path": "../../ui/components/icon_button/bundle-tsconfig.json"
@@ -94,6 +103,12 @@
     },
     {
       "path": "../../ui/legacy/theme_support/bundle-tsconfig.json"
+    },
+    {
+      "path": "../../ui/lit/bundle-tsconfig.json"
+    },
+    {
+      "path": "../../ui/visual_logging/bundle-tsconfig.json"
     }
   ]
 }

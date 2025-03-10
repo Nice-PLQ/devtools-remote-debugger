@@ -74,7 +74,7 @@ export class SelectorPicker {
     };
     #targetMutexes = new Map();
     targetAdded(target) {
-        if (target.type() !== SDK.Target.Type.Frame) {
+        if (target.type() !== SDK.Target.Type.FRAME) {
             return;
         }
         let mutex = this.#targetMutexes.get(target);

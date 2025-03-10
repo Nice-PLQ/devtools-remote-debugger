@@ -29,16 +29,19 @@
     "useUnknownInCatchVariables": false
   },
   "files": [
+    "../../../../../../../../front_end/panels/application/preloading/components/MismatchedPreloadingGrid.ts",
     "../../../../../../../../front_end/panels/application/preloading/components/PreloadingDetailsReportView.ts",
+    "../../../../../../../../front_end/panels/application/preloading/components/PreloadingDisabledInfobar.ts",
     "../../../../../../../../front_end/panels/application/preloading/components/PreloadingGrid.ts",
+    "../../../../../../../../front_end/panels/application/preloading/components/PreloadingMismatchedHeadersGrid.ts",
     "../../../../../../../../front_end/panels/application/preloading/components/PreloadingString.ts",
-    "../../../../../../../../front_end/panels/application/preloading/components/RuleSetDetailsReportView.ts",
+    "../../../../../../../../front_end/panels/application/preloading/components/RuleSetDetailsView.ts",
     "../../../../../../../../front_end/panels/application/preloading/components/RuleSetGrid.ts",
     "../../../../../../../../front_end/panels/application/preloading/components/UsedPreloadingView.ts",
     "../../../../../../../../front_end/legacy/legacy-defs.d.ts",
     "../../../../../../../../front_end/global_typings/global_defs.d.ts",
-    "../../../../../../../../front_end/global_typings/request_idle_callback.d.ts",
-    "../../../../../../../../node_modules/@types/filesystem/index.d.ts"
+    "../../../../../../../../node_modules/@types/filesystem/index.d.ts",
+    "../../../../../../../../node_modules/@types/wicg-task-scheduling/index.d.ts"
   ],
   "references": [
     {
@@ -75,7 +78,7 @@
       "path": "../../../../ui/components/chrome_link/bundle-tsconfig.json"
     },
     {
-      "path": "../../../../ui/components/data_grid/bundle-tsconfig.json"
+      "path": "../../../../ui/components/dialogs/bundle-tsconfig.json"
     },
     {
       "path": "../../../../ui/components/expandable_list/bundle-tsconfig.json"
@@ -90,6 +93,12 @@
       "path": "../../../../ui/components/report_view/bundle-tsconfig.json"
     },
     {
+      "path": "../../../../ui/components/request_link_icon/bundle-tsconfig.json"
+    },
+    {
+      "path": "../../../../ui/components/text_editor/bundle-tsconfig.json"
+    },
+    {
       "path": "../../../../ui/components/text_prompt/bundle-tsconfig.json"
     },
     {
@@ -99,10 +108,16 @@
       "path": "../../../../ui/legacy/bundle-tsconfig.json"
     },
     {
+      "path": "../../../../ui/legacy/components/data_grid/bundle-tsconfig.json"
+    },
+    {
       "path": "../../../../ui/legacy/components/source_frame/bundle-tsconfig.json"
     },
     {
       "path": "../../../../ui/legacy/components/utils/bundle-tsconfig.json"
+    },
+    {
+      "path": "../helper/bundle-tsconfig.json"
     }
   ]
 }

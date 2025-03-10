@@ -57,19 +57,21 @@ UI.ViewManager.registerViewExtension({
     order: 35,
     async loadView() {
         const MobileThrottling = await loadMobileThrottlingModule();
-        return MobileThrottling.ThrottlingSettingsTab.ThrottlingSettingsTab.instance();
+        return new MobileThrottling.ThrottlingSettingsTab.ThrottlingSettingsTab();
     },
     settings: [
-        'customNetworkConditions',
+        'custom-network-conditions',
+        'calibrated-cpu-throttling',
     ],
+    iconName: 'performance',
 });
 UI.ActionRegistration.registerActionExtension({
     actionId: 'network-conditions.network-offline',
-    category: UI.ActionRegistration.ActionCategory.NETWORK,
+    category: "NETWORK" /* UI.ActionRegistration.ActionCategory.NETWORK */,
     title: i18nLazyString(UIStrings.goOffline),
     async loadActionDelegate() {
         const MobileThrottling = await loadMobileThrottlingModule();
-        return MobileThrottling.ThrottlingManager.ActionDelegate.instance();
+        return new MobileThrottling.ThrottlingManager.ActionDelegate();
     },
     tags: [
         i18nLazyString(UIStrings.device),
@@ -78,11 +80,11 @@ UI.ActionRegistration.registerActionExtension({
 });
 UI.ActionRegistration.registerActionExtension({
     actionId: 'network-conditions.network-low-end-mobile',
-    category: UI.ActionRegistration.ActionCategory.NETWORK,
+    category: "NETWORK" /* UI.ActionRegistration.ActionCategory.NETWORK */,
     title: i18nLazyString(UIStrings.enableSlowGThrottling),
     async loadActionDelegate() {
         const MobileThrottling = await loadMobileThrottlingModule();
-        return MobileThrottling.ThrottlingManager.ActionDelegate.instance();
+        return new MobileThrottling.ThrottlingManager.ActionDelegate();
     },
     tags: [
         i18nLazyString(UIStrings.device),
@@ -91,11 +93,11 @@ UI.ActionRegistration.registerActionExtension({
 });
 UI.ActionRegistration.registerActionExtension({
     actionId: 'network-conditions.network-mid-tier-mobile',
-    category: UI.ActionRegistration.ActionCategory.NETWORK,
+    category: "NETWORK" /* UI.ActionRegistration.ActionCategory.NETWORK */,
     title: i18nLazyString(UIStrings.enableFastGThrottling),
     async loadActionDelegate() {
         const MobileThrottling = await loadMobileThrottlingModule();
-        return MobileThrottling.ThrottlingManager.ActionDelegate.instance();
+        return new MobileThrottling.ThrottlingManager.ActionDelegate();
     },
     tags: [
         i18nLazyString(UIStrings.device),
@@ -104,11 +106,11 @@ UI.ActionRegistration.registerActionExtension({
 });
 UI.ActionRegistration.registerActionExtension({
     actionId: 'network-conditions.network-online',
-    category: UI.ActionRegistration.ActionCategory.NETWORK,
+    category: "NETWORK" /* UI.ActionRegistration.ActionCategory.NETWORK */,
     title: i18nLazyString(UIStrings.goOnline),
     async loadActionDelegate() {
         const MobileThrottling = await loadMobileThrottlingModule();
-        return MobileThrottling.ThrottlingManager.ActionDelegate.instance();
+        return new MobileThrottling.ThrottlingManager.ActionDelegate();
     },
     tags: [
         i18nLazyString(UIStrings.device),
@@ -116,9 +118,9 @@ UI.ActionRegistration.registerActionExtension({
     ],
 });
 Common.Settings.registerSettingExtension({
-    storageType: Common.Settings.SettingStorageType.Synced,
-    settingName: 'customNetworkConditions',
-    settingType: Common.Settings.SettingType.ARRAY,
+    storageType: "Synced" /* Common.Settings.SettingStorageType.SYNCED */,
+    settingName: 'custom-network-conditions',
+    settingType: "array" /* Common.Settings.SettingType.ARRAY */,
     defaultValue: [],
 });
 //# sourceMappingURL=mobile_throttling-meta.js.map

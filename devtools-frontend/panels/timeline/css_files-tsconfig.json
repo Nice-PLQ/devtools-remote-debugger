@@ -4,12 +4,13 @@
         "outDir": "."
     },
     "files": [
-        "historyToolbarButton.css.js",
-        "invalidationsTree.css.js",
+        "timelineFlameChartView.css.js",
         "timelineFlamechartPopover.css.js",
         "timelineHistoryManager.css.js",
+        "timelineMiniMap.css.js",
         "timelinePaintProfiler.css.js",
         "timelinePanel.css.js",
+        "timelineSelectorStatsView.css.js",
         "timelineStatusDialog.css.js"
     ]
 }

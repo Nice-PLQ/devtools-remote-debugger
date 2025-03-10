@@ -1,14 +1,15 @@
 // Copyright (c) 2021 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
+import '../../../ui/legacy/legacy.js';
 import * as i18n from '../../../core/i18n/i18n.js';
 import * as Root from '../../../core/root/root.js';
-import * as LitHtml from '../../../ui/lit-html/lit-html.js';
-import * as ComponentHelpers from '../helpers/helpers.js';
-import * as IconButton from '../icon_button/icon_button.js';
+import { html, nothing, render } from '../../../ui/lit/lit.js';
 import * as Input from '../input/input.js';
-import previewToggleStyles from './previewToggle.css.js';
-const { render, html, nothing } = LitHtml;
+import previewToggleStylesRaw from './previewToggle.css.js';
+// TODO(crbug.com/391381439): Fully migrate off of constructed style sheets.
+const previewToggleStyles = new CSSStyleSheet();
+previewToggleStyles.replaceSync(previewToggleStylesRaw.cssContent);
 const UIStrings = {
     /**
      *@description Link text the user can click to provide feedback to the team.
@@ -26,7 +27,6 @@ const UIStrings = {
 const str_ = i18n.i18n.registerUIStrings('ui/components/panel_feedback/PreviewToggle.ts', UIStrings);
 const i18nString = i18n.i18n.getLocalizedString.bind(undefined, str_);
 export class PreviewToggle extends HTMLElement {
-    static litTagName = LitHtml.literal `devtools-preview-toggle`;
     #shadow = this.attachShadow({ mode: 'open' });
     #name = '';
     #helperText = null;
@@ -53,14 +53,14 @@ export class PreviewToggle extends HTMLElement {
         render(html `
       <div class="container">
         <label class="experiment-preview">
-          <input type="checkbox" ?checked=${checked} @change=${this.#checkboxChanged} aria-label=${this.#name}/>
-          <${IconButton.Icon.Icon.litTagName} .data=${{
+          <input type="checkbox" ?checked=${checked} @change=${this.#checkboxChanged} aria-label=${this.#name} />
+          <devtools-icon .data=${{
             iconName: 'experiment',
             width: '16px',
             height: '16px',
             color: 'var(--icon-default)',
         }}>
-          </${IconButton.Icon.Icon.litTagName}>${this.#name}
+          </devtools-icon>${this.#name}
         </label>
         <div class="spacer"></div>
         ${this.#feedbackURL && !this.#helperText
@@ -85,5 +85,5 @@ export class PreviewToggle extends HTMLElement {
         this.#onChangeCallback?.(checked);
     }
 }
-ComponentHelpers.CustomElements.defineComponent('devtools-preview-toggle', PreviewToggle);
+customElements.define('devtools-preview-toggle', PreviewToggle);
 //# sourceMappingURL=PreviewToggle.js.map

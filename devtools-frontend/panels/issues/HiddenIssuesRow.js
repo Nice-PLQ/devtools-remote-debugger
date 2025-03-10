@@ -28,7 +28,7 @@ export class HiddenIssuesRow extends UI.TreeOutline.TreeElement {
         this.#appendHeader();
     }
     #appendHeader() {
-        const unhideAllIssuesBtn = UI.UIUtils.createTextButton(i18nString(UIStrings.unhideAll), () => IssuesManager.IssuesManager.IssuesManager.instance().unhideAllIssues(), 'unhide-all-issues-button');
+        const unhideAllIssuesBtn = UI.UIUtils.createTextButton(i18nString(UIStrings.unhideAll), () => IssuesManager.IssuesManager.IssuesManager.instance().unhideAllIssues(), { className: 'unhide-all-issues-button', jslogContext: 'issues.unhide-all-hiddes' });
         const countAdorner = new Adorners.Adorner.Adorner();
         countAdorner.data = {
             name: 'countWrapper',

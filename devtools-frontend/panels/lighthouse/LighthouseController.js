@@ -4,7 +4,6 @@
 import * as Common from '../../core/common/common.js';
 import * as Host from '../../core/host/host.js';
 import * as i18n from '../../core/i18n/i18n.js';
-import * as Platform from '../../core/platform/platform.js';
 import * as SDK from '../../core/sdk/sdk.js';
 import * as EmulationModel from '../../models/emulation/emulation.js';
 import * as Emulation from '../emulation/emulation.js';
@@ -34,7 +33,7 @@ const UIStrings = {
     /**
      *@description Text in Application Panel Sidebar of the Application panel
      */
-    localStorage: 'Local Storage',
+    localStorage: 'Local storage',
     /**
      *@description Text in Application Panel Sidebar of the Application panel
      */
@@ -51,14 +50,6 @@ const UIStrings = {
      *@description Tooltip text of checkbox to include running the performance audits in Lighthouse
      */
     howLongDoesThisAppTakeToShow: 'How long does this app take to show content and become usable',
-    /**
-     *@description Text of checkbox to include running the Progressive Web App audits in Lighthouse
-     */
-    progressiveWebApp: 'Progressive Web App',
-    /**
-     *@description Tooltip text of checkbox to include running the Progressive Web App audits in Lighthouse
-     */
-    doesThisPageMeetTheStandardOfA: 'Does this page meet the standard of a Progressive Web App',
     /**
      *@description Text of checkbox to include running the Best Practices audits in Lighthouse
      */
@@ -83,14 +74,6 @@ const UIStrings = {
      *@description Tooltip text of checkbox to include running the Search Engine Optimization audits in Lighthouse
      */
     isThisPageOptimizedForSearch: 'Is this page optimized for search engine results ranking',
-    /**
-     *@description Text of checkbox to include running the Ad speed and quality audits in Lighthouse
-     */
-    publisherAds: 'Publisher Ads',
-    /**
-     *@description Tooltip text of checkbox to include running the Ad speed and quality audits in Lighthouse
-     */
-    isThisPageOptimizedForAdSpeedAnd: 'Is this page optimized for ad speed and quality',
     /**
      *@description ARIA label for a radio button input to emulate mobile device behavior when running audits in Lighthouse.
      */
@@ -160,20 +143,21 @@ const UIStrings = {
      */
     clearStorage: 'Clear storage',
     /**
-     * @description Text of checkbox to use the legacy Lighthouse navigation mode
-     */
-    legacyNavigation: 'Legacy navigation',
-    /**
-     * @description Tooltip text that appears when hovering over the 'Legacy navigation' checkbox in the settings pane opened by clicking the setting cog in the start view of the audits panel. "Navigation mode" is a Lighthouse mode that analyzes a page navigation.
-     */
-    useLegacyNavigation: 'Analyze the page using classic Lighthouse when in navigation mode.',
-    /**
      * @description Tooltip text of checkbox to reset storage features prior to running audits in
      * Lighthouse. Resetting the storage clears/empties it to a neutral state.
      */
     resetStorageLocalstorage: 'Reset storage (`cache`, `service workers`, etc) before auditing. (Good for performance & `PWA` testing)',
     /**
-     *@description Explanation for user that Ligthhouse can only audit when JavaScript is enabled
+     * @description Text of checkbox to enable JavaScript sampling while running audits in Lighthouse
+     */
+    enableSampling: 'Enable JS sampling',
+    /**
+     * @description Tooltip text of checkbox to enable JavaScript sampling while running audits in
+     * Lighthouse. Resetting the storage clears/empties it to a neutral state.
+     */
+    enableJavaScriptSampling: 'Enable JavaScript sampling during the Lighthouse run. This will provide more execution details in the performance panel when you view the trace, but has higher CPU overhead and may impact the performance of the page.',
+    /**
+     *@description Explanation for user that Lighthouse can only audit when JavaScript is enabled
      */
     javaScriptDisabled: 'JavaScript is disabled. You need to enable JavaScript to audit this page. Open the Command Menu and run the Enable JavaScript command to enable JavaScript.',
 };
@@ -197,10 +181,10 @@ export class LighthouseController extends Common.ObjectWrapper.ObjectWrapper {
         for (const runtimeSetting of RuntimeSettings) {
             runtimeSetting.setting.addChangeListener(this.recomputePageAuditability.bind(this));
         }
-        const javaScriptDisabledSetting = Common.Settings.Settings.instance().moduleSetting('javaScriptDisabled');
+        const javaScriptDisabledSetting = Common.Settings.Settings.instance().moduleSetting('java-script-disabled');
         javaScriptDisabledSetting.addChangeListener(this.recomputePageAuditability.bind(this));
         SDK.TargetManager.TargetManager.instance().observeModels(SDK.ServiceWorkerManager.ServiceWorkerManager, this);
-        SDK.TargetManager.TargetManager.instance().addEventListener(SDK.TargetManager.Events.InspectedURLChanged, this.recomputePageAuditability, this);
+        SDK.TargetManager.TargetManager.instance().addEventListener("InspectedURLChanged" /* SDK.TargetManager.Events.INSPECTED_URL_CHANGED */, this.recomputePageAuditability, this);
     }
     modelAdded(serviceWorkerManager) {
         if (serviceWorkerManager.target() !== SDK.TargetManager.TargetManager.instance().primaryPageTarget()) {
@@ -208,8 +192,8 @@ export class LighthouseController extends Common.ObjectWrapper.ObjectWrapper {
         }
         this.manager = serviceWorkerManager;
         this.serviceWorkerListeners = [
-            this.manager.addEventListener(SDK.ServiceWorkerManager.Events.RegistrationUpdated, this.recomputePageAuditability, this),
-            this.manager.addEventListener(SDK.ServiceWorkerManager.Events.RegistrationDeleted, this.recomputePageAuditability, this),
+            this.manager.addEventListener("RegistrationUpdated" /* SDK.ServiceWorkerManager.Events.REGISTRATION_UPDATED */, this.recomputePageAuditability, this),
+            this.manager.addEventListener("RegistrationDeleted" /* SDK.ServiceWorkerManager.Events.REGISTRATION_DELETED */, this.recomputePageAuditability, this),
         ];
         this.recomputePageAuditability();
     }
@@ -249,7 +233,7 @@ export class LighthouseController extends Common.ObjectWrapper.ObjectWrapper {
         return Presets.some(preset => preset.setting.get());
     }
     unauditablePageMessage() {
-        if (!this.manager) {
+        if (!this.manager || this.getFlags().mode !== 'navigation') {
             return null;
         }
         const mainTarget = this.manager.target();
@@ -282,16 +266,16 @@ export class LighthouseController extends Common.ObjectWrapper.ObjectWrapper {
                 return i18nString(UIStrings.canOnlyAuditHttphttpsPages);
             }
         }
-        catch (e) {
+        catch {
             return i18nString(UIStrings.canOnlyAuditHttphttpsPages);
         }
         return null;
     }
     javaScriptDisabled() {
-        return Common.Settings.Settings.instance().moduleSetting('javaScriptDisabled').get();
+        return Common.Settings.Settings.instance().moduleSetting('java-script-disabled').get();
     }
     async hasImportantResourcesNotCleared() {
-        const clearStorageSetting = RuntimeSettings.find(runtimeSetting => runtimeSetting.setting.name === 'lighthouse.clear_storage');
+        const clearStorageSetting = RuntimeSettings.find(runtimeSetting => runtimeSetting.setting.name === 'lighthouse.clear-storage');
         if (clearStorageSetting && !clearStorageSetting.setting.get()) {
             return '';
         }
@@ -320,10 +304,10 @@ export class LighthouseController extends Common.ObjectWrapper.ObjectWrapper {
         return '';
     }
     async evaluateInspectedURL() {
-        if (!this.manager) {
-            return Platform.DevToolsPath.EmptyUrlString;
+        const mainTarget = SDK.TargetManager.TargetManager.instance().primaryPageTarget();
+        if (!mainTarget) {
+            throw new Error('Unable to find main target required for Lighthouse');
         }
-        const mainTarget = this.manager.target();
         // target.inspectedURL is reliably populated, however it lacks any url #hash
         const inspectedURL = mainTarget.inspectedURL();
         // We'll use the navigationHistory to acquire the current URL including hash
@@ -356,7 +340,7 @@ export class LighthouseController extends Common.ObjectWrapper.ObjectWrapper {
         return categoryIDs;
     }
     async getInspectedURL(options) {
-        if (options && options.force || !this.inspectedURL) {
+        if (options?.force || !this.inspectedURL) {
             this.inspectedURL = await this.evaluateInspectedURL();
         }
         return this.inspectedURL;
@@ -387,22 +371,23 @@ export class LighthouseController extends Common.ObjectWrapper.ObjectWrapper {
             this.dispatchEventToListeners(Events.PageWarningsChanged, { warning });
         });
     }
-    recordMetrics(flags) {
+    recordMetrics(flags, categoryIds) {
         Host.userMetrics.actionTaken(Host.UserMetrics.Action.LighthouseStarted);
+        for (const preset of Presets) {
+            if (!categoryIds.includes(preset.configID)) {
+                continue;
+            }
+            Host.userMetrics.lighthouseCategoryUsed(preset.userMetric);
+        }
         switch (flags.mode) {
             case 'navigation':
-                if (flags.legacyNavigation) {
-                    Host.userMetrics.lighthouseModeRun(Host.UserMetrics.LighthouseModeRun.LegacyNavigation);
-                }
-                else {
-                    Host.userMetrics.lighthouseModeRun(Host.UserMetrics.LighthouseModeRun.Navigation);
-                }
+                Host.userMetrics.lighthouseModeRun(0 /* Host.UserMetrics.LighthouseModeRun.NAVIGATION */);
                 break;
             case 'timespan':
-                Host.userMetrics.lighthouseModeRun(Host.UserMetrics.LighthouseModeRun.Timespan);
+                Host.userMetrics.lighthouseModeRun(1 /* Host.UserMetrics.LighthouseModeRun.TIMESPAN */);
                 break;
             case 'snapshot':
-                Host.userMetrics.lighthouseModeRun(Host.UserMetrics.LighthouseModeRun.Snapshot);
+                Host.userMetrics.lighthouseModeRun(2 /* Host.UserMetrics.LighthouseModeRun.SNAPSHOT */);
                 break;
         }
     }
@@ -411,7 +396,7 @@ export class LighthouseController extends Common.ObjectWrapper.ObjectWrapper {
             const inspectedURL = await this.getInspectedURL({ force: true });
             const categoryIDs = this.getCategoryIDs();
             const flags = this.getFlags();
-            this.recordMetrics(flags);
+            this.recordMetrics(flags, categoryIDs);
             this.currentLighthouseRun = { inspectedURL, categoryIDs, flags };
             await this.setupEmulationAndProtocolConnection();
             if (flags.mode === 'timespan') {
@@ -539,57 +524,41 @@ const STORAGE_TYPE_NAMES = new Map([
 export const Presets = [
     // configID maps to Lighthouse's Object.keys(config.categories)[0] value
     {
-        setting: Common.Settings.Settings.instance().createSetting('lighthouse.cat_perf', true, Common.Settings.SettingStorageType.Synced),
+        setting: Common.Settings.Settings.instance().createSetting('lighthouse.cat-perf', true, "Synced" /* Common.Settings.SettingStorageType.SYNCED */),
         configID: 'performance',
         title: i18nLazyString(UIStrings.performance),
         description: i18nLazyString(UIStrings.howLongDoesThisAppTakeToShow),
-        plugin: false,
         supportedModes: ['navigation', 'timespan', 'snapshot'],
+        userMetric: 0 /* Host.UserMetrics.LighthouseCategoryUsed.PERFORMANCE */,
     },
     {
-        setting: Common.Settings.Settings.instance().createSetting('lighthouse.cat_a11y', true, Common.Settings.SettingStorageType.Synced),
+        setting: Common.Settings.Settings.instance().createSetting('lighthouse.cat-a11y', true, "Synced" /* Common.Settings.SettingStorageType.SYNCED */),
         configID: 'accessibility',
         title: i18nLazyString(UIStrings.accessibility),
         description: i18nLazyString(UIStrings.isThisPageUsableByPeopleWith),
-        plugin: false,
         supportedModes: ['navigation', 'snapshot'],
+        userMetric: 1 /* Host.UserMetrics.LighthouseCategoryUsed.ACCESSIBILITY */,
     },
     {
-        setting: Common.Settings.Settings.instance().createSetting('lighthouse.cat_best_practices', true, Common.Settings.SettingStorageType.Synced),
+        setting: Common.Settings.Settings.instance().createSetting('lighthouse.cat-best-practices', true, "Synced" /* Common.Settings.SettingStorageType.SYNCED */),
         configID: 'best-practices',
         title: i18nLazyString(UIStrings.bestPractices),
         description: i18nLazyString(UIStrings.doesThisPageFollowBestPractices),
-        plugin: false,
         supportedModes: ['navigation', 'timespan', 'snapshot'],
+        userMetric: 2 /* Host.UserMetrics.LighthouseCategoryUsed.BEST_PRACTICES */,
     },
     {
-        setting: Common.Settings.Settings.instance().createSetting('lighthouse.cat_seo', true, Common.Settings.SettingStorageType.Synced),
+        setting: Common.Settings.Settings.instance().createSetting('lighthouse.cat-seo', true, "Synced" /* Common.Settings.SettingStorageType.SYNCED */),
         configID: 'seo',
         title: i18nLazyString(UIStrings.seo),
         description: i18nLazyString(UIStrings.isThisPageOptimizedForSearch),
-        plugin: false,
         supportedModes: ['navigation', 'snapshot'],
-    },
-    {
-        setting: Common.Settings.Settings.instance().createSetting('lighthouse.cat_pwa', true, Common.Settings.SettingStorageType.Synced),
-        configID: 'pwa',
-        title: i18nLazyString(UIStrings.progressiveWebApp),
-        description: i18nLazyString(UIStrings.doesThisPageMeetTheStandardOfA),
-        plugin: false,
-        supportedModes: ['navigation'],
-    },
-    {
-        setting: Common.Settings.Settings.instance().createSetting('lighthouse.cat_pubads', false, Common.Settings.SettingStorageType.Synced),
-        plugin: true,
-        configID: 'lighthouse-plugin-publisher-ads',
-        title: i18nLazyString(UIStrings.publisherAds),
-        description: i18nLazyString(UIStrings.isThisPageOptimizedForAdSpeedAnd),
-        supportedModes: ['navigation'],
+        userMetric: 3 /* Host.UserMetrics.LighthouseCategoryUsed.SEO */,
     },
 ];
 export const RuntimeSettings = [
     {
-        setting: Common.Settings.Settings.instance().createSetting('lighthouse.device_type', 'mobile', Common.Settings.SettingStorageType.Synced),
+        setting: Common.Settings.Settings.instance().createSetting('lighthouse.device-type', 'mobile', "Synced" /* Common.Settings.SettingStorageType.SYNCED */),
         title: i18nLazyString(UIStrings.applyMobileEmulation),
         description: i18nLazyString(UIStrings.applyMobileEmulationDuring),
         setFlags: (flags, value) => {
@@ -603,7 +572,7 @@ export const RuntimeSettings = [
         learnMore: undefined,
     },
     {
-        setting: Common.Settings.Settings.instance().createSetting('lighthouse.mode', 'navigation', Common.Settings.SettingStorageType.Synced),
+        setting: Common.Settings.Settings.instance().createSetting('lighthouse.mode', 'navigation', "Synced" /* Common.Settings.SettingStorageType.SYNCED */),
         title: i18nLazyString(UIStrings.lighthouseMode),
         description: i18nLazyString(UIStrings.runLighthouseInMode),
         setFlags: (flags, value) => {
@@ -630,7 +599,7 @@ export const RuntimeSettings = [
     },
     {
         // This setting is disabled, but we keep it around to show in the UI.
-        setting: Common.Settings.Settings.instance().createSetting('lighthouse.throttling', 'simulate', Common.Settings.SettingStorageType.Synced),
+        setting: Common.Settings.Settings.instance().createSetting('lighthouse.throttling', 'simulate', "Synced" /* Common.Settings.SettingStorageType.SYNCED */),
         title: i18nLazyString(UIStrings.throttlingMethod),
         // We will disable this when we have a Lantern trace viewer within DevTools.
         learnMore: 'https://github.com/GoogleChrome/lighthouse/blob/master/docs/throttling.md#devtools-lighthouse-panel-throttling',
@@ -649,7 +618,7 @@ export const RuntimeSettings = [
         ],
     },
     {
-        setting: Common.Settings.Settings.instance().createSetting('lighthouse.clear_storage', true, Common.Settings.SettingStorageType.Synced),
+        setting: Common.Settings.Settings.instance().createSetting('lighthouse.clear-storage', true, "Synced" /* Common.Settings.SettingStorageType.SYNCED */),
         title: i18nLazyString(UIStrings.clearStorage),
         description: i18nLazyString(UIStrings.resetStorageLocalstorage),
         setFlags: (flags, value) => {
@@ -659,22 +628,27 @@ export const RuntimeSettings = [
         learnMore: undefined,
     },
     {
-        setting: Common.Settings.Settings.instance().createSetting('lighthouse.legacy_navigation', false, Common.Settings.SettingStorageType.Synced),
-        title: i18nLazyString(UIStrings.legacyNavigation),
-        description: i18nLazyString(UIStrings.useLegacyNavigation),
+        setting: Common.Settings.Settings.instance().createSetting('lighthouse.enable-sampling', false, "Synced" /* Common.Settings.SettingStorageType.SYNCED */),
+        title: i18nLazyString(UIStrings.enableSampling),
+        description: i18nLazyString(UIStrings.enableJavaScriptSampling),
         setFlags: (flags, value) => {
-            flags.legacyNavigation = value;
+            if (value) {
+                flags.additionalTraceCategories = 'disabled-by-default-v8.cpu_profiler';
+            }
+            else {
+                flags.additionalTraceCategories = '';
+            }
         },
         options: undefined,
         learnMore: undefined,
     },
 ];
-// TODO(crbug.com/1167717): Make this a const enum again
-// eslint-disable-next-line rulesdir/const_enum
 export var Events;
 (function (Events) {
+    /* eslint-disable @typescript-eslint/naming-convention -- Used by web_tests. */
     Events["PageAuditabilityChanged"] = "PageAuditabilityChanged";
     Events["PageWarningsChanged"] = "PageWarningsChanged";
     Events["AuditProgressChanged"] = "AuditProgressChanged";
+    /* eslint-enable @typescript-eslint/naming-convention */
 })(Events || (Events = {}));
 //# sourceMappingURL=LighthouseController.js.map

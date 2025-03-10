@@ -41,6 +41,7 @@
     "../../../../../../front_end/core/common/JavaScriptMetaData.ts",
     "../../../../../../front_end/core/common/Lazy.ts",
     "../../../../../../front_end/core/common/Linkifier.ts",
+    "../../../../../../front_end/core/common/MapWithDefault.ts",
     "../../../../../../front_end/core/common/Mutex.ts",
     "../../../../../../front_end/core/common/Object.ts",
     "../../../../../../front_end/core/common/ParsedURL.ts",
@@ -58,12 +59,11 @@
     "../../../../../../front_end/core/common/TextDictionary.ts",
     "../../../../../../front_end/core/common/Throttler.ts",
     "../../../../../../front_end/core/common/Trie.ts",
-    "../../../../../../front_end/core/common/WasmDisassembly.ts",
     "../../../../../../front_end/core/common/Worker.ts",
     "../../../../../../front_end/legacy/legacy-defs.d.ts",
     "../../../../../../front_end/global_typings/global_defs.d.ts",
-    "../../../../../../front_end/global_typings/request_idle_callback.d.ts",
-    "../../../../../../node_modules/@types/filesystem/index.d.ts"
+    "../../../../../../node_modules/@types/filesystem/index.d.ts",
+    "../../../../../../node_modules/@types/wicg-task-scheduling/index.d.ts"
   ],
   "references": [
     {

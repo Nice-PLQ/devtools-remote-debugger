@@ -26,6 +26,9 @@ export class AutocompleteHistory {
         this.#setting.set([]);
         this.#historyOffset = 1;
     }
+    length() {
+        return this.#data.length;
+    }
     /**
      * Pushes a committed text into the history.
      */

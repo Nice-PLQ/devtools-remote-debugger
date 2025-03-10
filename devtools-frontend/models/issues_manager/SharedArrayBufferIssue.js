@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 import * as i18n from '../../core/i18n/i18n.js';
-import { Issue, IssueKind, IssueCategory } from './Issue.js';
+import { Issue } from './Issue.js';
 const UIStrings = {
     /**
      *@description Label for the link for SharedArrayBuffer Issues. The full text reads "Enabling `SharedArrayBuffer`"
@@ -20,7 +20,7 @@ export class SharedArrayBufferIssue extends Issue {
         this.#issueDetails = issueDetails;
     }
     getCategory() {
-        return IssueCategory.Other;
+        return "Other" /* IssueCategory.OTHER */;
     }
     details() {
         return this.#issueDetails;
@@ -39,9 +39,9 @@ export class SharedArrayBufferIssue extends Issue {
     }
     getKind() {
         if (this.#issueDetails.isWarning) {
-            return IssueKind.BreakingChange;
+            return "BreakingChange" /* IssueKind.BREAKING_CHANGE */;
         }
-        return IssueKind.PageError;
+        return "PageError" /* IssueKind.PAGE_ERROR */;
     }
     static fromInspectorIssue(issuesModel, inspectorIssue) {
         const sabIssueDetails = inspectorIssue.details.sharedArrayBufferIssueDetails;

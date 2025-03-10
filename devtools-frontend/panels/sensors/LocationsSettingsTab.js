@@ -1,17 +1,19 @@
 // Copyright 2018 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
+import '../../ui/components/cards/cards.js';
 import * as Common from '../../core/common/common.js';
 import * as i18n from '../../core/i18n/i18n.js';
+import * as Buttons from '../../ui/components/buttons/buttons.js';
 import * as UI from '../../ui/legacy/legacy.js';
+import * as VisualLogging from '../../ui/visual_logging/visual_logging.js';
 import locationsSettingsTabStyles from './locationsSettingsTab.css.js';
-let locationsSettingsTabInstance;
 const UIStrings = {
     /**
      *@description Title in the Locations Settings Tab, where custom geographic locations that the user
      *has entered are stored.
      */
-    customLocations: 'Custom locations',
+    locations: 'Locations',
     /**
      *@description Label for the name of a geographic location that the user has entered.
      */
@@ -88,7 +90,7 @@ const UIStrings = {
     /**
      *@description Text of add locations button in Locations Settings Tab of the Device Toolbar
      */
-    addLocation: 'Add location...',
+    addLocation: 'Add location',
 };
 const str_ = i18n.i18n.registerUIStrings('panels/sensors/LocationsSettingsTab.ts', UIStrings);
 const i18nString = i18n.i18n.getLocalizedString.bind(undefined, str_);
@@ -98,12 +100,17 @@ export class LocationsSettingsTab extends UI.Widget.VBox {
     editor;
     constructor() {
         super(true);
-        this.contentElement.createChild('div', 'header').textContent = i18nString(UIStrings.customLocations);
-        const addButton = UI.UIUtils.createTextButton(i18nString(UIStrings.addLocation), this.addButtonClicked.bind(this), 'add-locations-button');
-        this.contentElement.appendChild(addButton);
-        this.list = new UI.ListWidget.ListWidget(this);
+        this.registerRequiredCSS(locationsSettingsTabStyles);
+        this.element.setAttribute('jslog', `${VisualLogging.pane('emulation-locations')}`);
+        const settingsContent = this.contentElement.createChild('div', 'settings-card-container-wrapper').createChild('div');
+        settingsContent.classList.add('settings-card-container');
+        const locationsCard = settingsContent.createChild('devtools-card');
+        locationsCard.heading = i18nString(UIStrings.locations);
+        const listContainer = locationsCard.createChild('div');
+        this.list = new UI.ListWidget.ListWidget(this, undefined, true);
         this.list.element.classList.add('locations-list');
-        this.list.show(this.contentElement);
+        this.list.registerRequiredCSS(locationsSettingsTabStyles);
+        this.list.show(listContainer);
         this.customSetting =
             Common.Settings.Settings.instance().moduleSetting('emulation.locations');
         const list = this.customSetting.get().map(location => replaceLocationTitles(location, this.customSetting.defaultValue));
@@ -126,20 +133,21 @@ export class LocationsSettingsTab extends UI.Widget.VBox {
             }
             return location;
         }
+        const addButton = new Buttons.Button.Button();
+        addButton.classList.add('add-locations-button');
+        addButton.data = {
+            variant: "outlined" /* Buttons.Button.Variant.OUTLINED */,
+            iconName: 'plus',
+            jslogContext: 'emulation.add-location',
+        };
+        addButton.textContent = i18nString(UIStrings.addLocation);
+        addButton.addEventListener('click', () => this.addButtonClicked());
+        locationsCard.append(addButton);
         this.customSetting.set(list);
         this.customSetting.addChangeListener(this.locationsUpdated, this);
-        this.setDefaultFocusedElement(addButton);
-    }
-    static instance() {
-        if (!locationsSettingsTabInstance) {
-            locationsSettingsTabInstance = new LocationsSettingsTab();
-        }
-        return locationsSettingsTabInstance;
     }
     wasShown() {
         super.wasShown();
-        this.registerCSSFiles([locationsSettingsTabStyles]);
-        this.list.registerCSSFiles([locationsSettingsTabStyles]);
         this.locationsUpdated();
     }
     locationsUpdated() {
@@ -155,19 +163,29 @@ export class LocationsSettingsTab extends UI.Widget.VBox {
     }
     renderItem(location, _editable) {
         const element = document.createElement('div');
+        element.role = 'row';
         element.classList.add('locations-list-item');
         const title = element.createChild('div', 'locations-list-text locations-list-title');
+        title.role = 'cell';
         const titleText = title.createChild('div', 'locations-list-title-text');
         titleText.textContent = location.title;
         UI.Tooltip.Tooltip.install(titleText, location.title);
         element.createChild('div', 'locations-list-separator');
-        element.createChild('div', 'locations-list-text').textContent = String(location.lat);
+        const lat = element.createChild('div', 'locations-list-text');
+        lat.textContent = String(location.lat);
+        lat.role = 'cell';
         element.createChild('div', 'locations-list-separator');
-        element.createChild('div', 'locations-list-text').textContent = String(location.long);
+        const long = element.createChild('div', 'locations-list-text');
+        long.textContent = String(location.long);
+        long.role = 'cell';
         element.createChild('div', 'locations-list-separator');
-        element.createChild('div', 'locations-list-text').textContent = location.timezoneId;
+        const timezoneId = element.createChild('div', 'locations-list-text');
+        timezoneId.textContent = location.timezoneId;
+        timezoneId.role = 'cell';
         element.createChild('div', 'locations-list-separator');
-        element.createChild('div', 'locations-list-text').textContent = location.locale;
+        const locale = element.createChild('div', 'locations-list-text');
+        locale.textContent = location.locale;
+        locale.role = 'cell';
         return element;
     }
     removeItemRequested(item, index) {
@@ -181,7 +199,7 @@ export class LocationsSettingsTab extends UI.Widget.VBox {
         location.lat = lat ? parseFloat(lat) : 0;
         const long = editor.control('long').value.trim();
         location.long = long ? parseFloat(long) : 0;
-        const timezoneId = editor.control('timezoneId').value.trim();
+        const timezoneId = editor.control('timezone-id').value.trim();
         location.timezoneId = timezoneId;
         const locale = editor.control('locale').value.trim();
         location.locale = locale;
@@ -196,7 +214,7 @@ export class LocationsSettingsTab extends UI.Widget.VBox {
         editor.control('title').value = location.title;
         editor.control('lat').value = String(location.lat);
         editor.control('long').value = String(location.long);
-        editor.control('timezoneId').value = location.timezoneId;
+        editor.control('timezone-id').value = location.timezoneId;
         editor.control('locale').value = location.locale;
         return editor;
     }
@@ -229,7 +247,7 @@ export class LocationsSettingsTab extends UI.Widget.VBox {
         cell.appendChild(editor.createInput('long', 'text', i18nString(UIStrings.longitude), longValidator));
         fields.createChild('div', 'locations-list-separator locations-list-separator-invisible');
         cell = fields.createChild('div', 'locations-list-text locations-input-container');
-        cell.appendChild(editor.createInput('timezoneId', 'text', i18nString(UIStrings.timezoneId), timezoneIdValidator));
+        cell.appendChild(editor.createInput('timezone-id', 'text', i18nString(UIStrings.timezoneId), timezoneIdValidator));
         fields.createChild('div', 'locations-list-separator locations-list-separator-invisible');
         cell = fields.createChild('div', 'locations-list-text locations-input-container');
         cell.appendChild(editor.createInput('locale', 'text', i18nString(UIStrings.locale), localeValidator));

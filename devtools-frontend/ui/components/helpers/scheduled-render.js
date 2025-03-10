@@ -1,8 +1,7 @@
 // Copyright 2021 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
-import * as Coordinator from '../render_coordinator/render_coordinator.js';
-const coordinator = Coordinator.RenderCoordinator.RenderCoordinator.instance();
+import * as RenderCoordinator from '../render_coordinator/render_coordinator.js';
 const pendingRenders = new WeakSet();
 const activeRenders = new WeakSet();
 const subsequentRender = new WeakMap();
@@ -43,7 +42,7 @@ export async function scheduleRender(component, callback) {
         wrappedCallbacks.set(callback, wrappedCallback);
     }
     // Track that there is render rendering, wait for it to finish, and stop tracking.
-    await coordinator.write(wrappedCallback);
+    await RenderCoordinator.write(wrappedCallback);
     // If during the render there was another schedule render call, get
     // the callback and schedule it to happen now.
     if (subsequentRender.has(component)) {

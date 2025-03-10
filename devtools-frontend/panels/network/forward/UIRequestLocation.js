@@ -1,30 +1,6 @@
 // Copyright 2021 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
-// TODO(crbug.com/1167717): Make this a const enum again
-// eslint-disable-next-line rulesdir/const_enum
-export var UIHeaderSection;
-(function (UIHeaderSection) {
-    UIHeaderSection["General"] = "General";
-    UIHeaderSection["Request"] = "Request";
-    UIHeaderSection["Response"] = "Response";
-})(UIHeaderSection || (UIHeaderSection = {}));
-// TODO(crbug.com/1167717): Make this a const enum again
-// eslint-disable-next-line rulesdir/const_enum
-export var UIRequestTabs;
-(function (UIRequestTabs) {
-    UIRequestTabs["Cookies"] = "cookies";
-    UIRequestTabs["EventSource"] = "eventSource";
-    UIRequestTabs["Headers"] = "headers";
-    UIRequestTabs["HeadersComponent"] = "headersComponent";
-    UIRequestTabs["Payload"] = "payload";
-    UIRequestTabs["Initiator"] = "initiator";
-    UIRequestTabs["Preview"] = "preview";
-    UIRequestTabs["Response"] = "response";
-    UIRequestTabs["Timing"] = "timing";
-    UIRequestTabs["TrustTokens"] = "trustTokens";
-    UIRequestTabs["WsFrames"] = "webSocketFrames";
-})(UIRequestTabs || (UIRequestTabs = {}));
 export class UIRequestLocation {
     request;
     header;
@@ -41,10 +17,10 @@ export class UIRequestLocation {
         this.filterOptions = filterOptions;
     }
     static requestHeaderMatch(request, header) {
-        return new UIRequestLocation(request, { section: UIHeaderSection.Request, header }, null, false, undefined, undefined);
+        return new UIRequestLocation(request, { section: "Request" /* UIHeaderSection.REQUEST */, header }, null, false, undefined, undefined);
     }
     static responseHeaderMatch(request, header) {
-        return new UIRequestLocation(request, { section: UIHeaderSection.Response, header }, null, false, undefined, undefined);
+        return new UIRequestLocation(request, { section: "Response" /* UIHeaderSection.RESPONSE */, header }, null, false, undefined, undefined);
     }
     static bodyMatch(request, searchMatch) {
         return new UIRequestLocation(request, null, searchMatch, false, undefined, undefined);

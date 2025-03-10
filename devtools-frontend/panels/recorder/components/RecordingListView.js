@@ -1,13 +1,18 @@
 // Copyright 2023 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
+import '../../../ui/components/icon_button/icon_button.js';
 import * as i18n from '../../../core/i18n/i18n.js';
 import * as Buttons from '../../../ui/components/buttons/buttons.js';
 import * as ComponentHelpers from '../../../ui/components/helpers/helpers.js';
-import * as IconButton from '../../../ui/components/icon_button/icon_button.js';
-import * as LitHtml from '../../../ui/lit-html/lit-html.js';
+import * as Lit from '../../../ui/lit/lit.js';
+import * as VisualLogging from '../../../ui/visual_logging/visual_logging.js';
 import * as Models from '../models/models.js';
-import recordingListViewStyles from './recordingListView.css.js';
+import recordingListViewStylesRaw from './recordingListView.css.js';
+// TODO(crbug.com/391381439): Fully migrate off of constructed style sheets.
+const recordingListViewStyles = new CSSStyleSheet();
+recordingListViewStyles.replaceSync(recordingListViewStylesRaw.cssContent);
+const { html } = Lit;
 const UIStrings = {
     /**
      *@description The title of the page that contains a list of saved recordings that the user has..
@@ -63,12 +68,14 @@ export class PlayRecordingEvent extends Event {
     }
 }
 export class RecordingListView extends HTMLElement {
-    static litTagName = LitHtml.literal `devtools-recording-list-view`;
     #shadow = this.attachShadow({ mode: 'open' });
     #props = {
         recordings: [],
         replayAllowed: true,
     };
+    constructor() {
+        super();
+    }
     connectedCallback() {
         this.#shadow.adoptedStyleSheets = [recordingListViewStyles];
         void ComponentHelpers.ScheduledRender.scheduleRender(this, this.#render);
@@ -107,54 +114,63 @@ export class RecordingListView extends HTMLElement {
     }
     #render = () => {
         // clang-format off
-        LitHtml.render(LitHtml.html `
+        Lit.render(html `
         <div class="wrapper">
           <div class="header">
             <h1>${i18nString(UIStrings.savedRecordings)}</h1>
-            <${Buttons.Button.Button.litTagName}
+            <devtools-button
               .variant=${"primary" /* Buttons.Button.Variant.PRIMARY */}
               @click=${this.#onCreateClick}
-              title=${Models.Tooltip.getTooltipForActions(i18nString(UIStrings.createRecording), "chrome_recorder.create-recording" /* Actions.RecorderActions.CreateRecording */)}
+              title=${Models.Tooltip.getTooltipForActions(i18nString(UIStrings.createRecording), "chrome-recorder.create-recording" /* Actions.RecorderActions.CREATE_RECORDING */)}
+              .jslogContext=${'create-recording'}
             >
               ${i18nString(UIStrings.createRecording)}
-            </${Buttons.Button.Button.litTagName}>
+            </devtools-button>
           </div>
           <div class="table">
             ${this.#props.recordings.map(recording => {
-            return LitHtml.html `
-                  <div role="button" tabindex="0" aria-label=${i18nString(UIStrings.openRecording)} class="row" @keydown=${this.#onKeyDown.bind(this, recording.storageName)} @click=${this.#onOpenClick.bind(this, recording.storageName)}>
+            return html `
+                  <div
+                    role="button"
+                    tabindex="0"
+                    aria-label=${i18nString(UIStrings.openRecording)}
+                    class="row"
+                    @keydown=${this.#onKeyDown.bind(this, recording.storageName)}
+                    @click=${this.#onOpenClick.bind(this, recording.storageName)}
+                    jslog=${VisualLogging.item()
+                .track({ click: true })
+                .context('recording')}>
                     <div class="icon">
-                      <${IconButton.Icon.Icon.litTagName} .data=${{
-                iconName: 'flow',
-                color: 'var(--color-primary)',
-            }}>
-                      </${IconButton.Icon.Icon.litTagName}>
+                      <devtools-icon name="flow">
+                      </devtools-icon>
                     </div>
                     <div class="title">${recording.name}</div>
                     <div class="actions">
                       ${this.#props.replayAllowed
-                ? LitHtml.html `
-                              <${Buttons.Button.Button.litTagName}
+                ? html `
+                              <devtools-button
                                 title=${i18nString(UIStrings.playRecording)}
                                 .data=${{
-                    variant: "round" /* Buttons.Button.Variant.ROUND */,
+                    variant: "icon" /* Buttons.Button.Variant.ICON */,
                     iconName: 'play',
+                    jslogContext: 'play-recording',
                 }}
                                 @click=${this.#onPlayRecordingClick.bind(this, recording.storageName)}
                                 @keydown=${this.#stopPropagation}
-                              ></${Buttons.Button.Button.litTagName}>
+                              ></devtools-button>
                               <div class="divider"></div>`
                 : ''}
-                      <${Buttons.Button.Button.litTagName}
+                      <devtools-button
                         class="delete-recording-button"
                         title=${i18nString(UIStrings.deleteRecording)}
                         .data=${{
-                variant: "round" /* Buttons.Button.Variant.ROUND */,
+                variant: "icon" /* Buttons.Button.Variant.ICON */,
                 iconName: 'bin',
+                jslogContext: 'delete-recording',
             }}
                         @click=${this.#onDeleteClick.bind(this, recording.storageName)}
                         @keydown=${this.#stopPropagation}
-                      ></${Buttons.Button.Button.litTagName}>
+                      ></devtools-button>
                     </div>
                   </div>
                 `;
@@ -165,5 +181,5 @@ export class RecordingListView extends HTMLElement {
         // clang-format on
     };
 }
-ComponentHelpers.CustomElements.defineComponent('devtools-recording-list-view', RecordingListView);
+customElements.define('devtools-recording-list-view', RecordingListView);
 //# sourceMappingURL=RecordingListView.js.map

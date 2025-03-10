@@ -30,12 +30,12 @@ export class ConsoleContextSelector {
     toolbarItemInternal;
     constructor() {
         this.items = new UI.ListModel.ListModel();
-        this.dropDown = new UI.SoftDropDown.SoftDropDown(this.items, this);
+        this.dropDown = new UI.SoftDropDown.SoftDropDown(this.items, this, 'javascript-context');
         this.dropDown.setRowHeight(36);
         this.toolbarItemInternal = new UI.Toolbar.ToolbarItem(this.dropDown.element);
         this.toolbarItemInternal.setEnabled(false);
         this.toolbarItemInternal.setTitle(i18nString(UIStrings.javascriptContextNotSelected));
-        this.items.addEventListener(UI.ListModel.Events.ItemsReplaced, () => this.toolbarItemInternal.setEnabled(Boolean(this.items.length)));
+        this.items.addEventListener("ItemsReplaced" /* UI.ListModel.Events.ITEMS_REPLACED */, () => this.toolbarItemInternal.setEnabled(Boolean(this.items.length)));
         this.toolbarItemInternal.element.classList.add('toolbar-has-dropdown');
         SDK.TargetManager.TargetManager.instance().addModelListener(SDK.RuntimeModel.RuntimeModel, SDK.RuntimeModel.Events.ExecutionContextCreated, this.onExecutionContextCreated, this, { scoped: true });
         SDK.TargetManager.TargetManager.instance().addModelListener(SDK.RuntimeModel.RuntimeModel, SDK.RuntimeModel.Events.ExecutionContextChanged, this.onExecutionContextChanged, this, { scoped: true });
@@ -70,7 +70,7 @@ export class ConsoleContextSelector {
         let label = maybeLabel ? target.decorateLabel(maybeLabel) : '';
         if (executionContext.frameId) {
             const resourceTreeModel = target.model(SDK.ResourceTreeModel.ResourceTreeModel);
-            const frame = resourceTreeModel && resourceTreeModel.frameForId(executionContext.frameId);
+            const frame = resourceTreeModel?.frameForId(executionContext.frameId);
             if (frame) {
                 label = label || frame.displayName();
             }
@@ -141,11 +141,11 @@ export class ConsoleContextSelector {
         this.dropDown.selectItem(executionContext);
     }
     isTopContext(executionContext) {
-        if (!executionContext || !executionContext.isDefault) {
+        if (!executionContext?.isDefault) {
             return false;
         }
         const resourceTreeModel = executionContext.target().model(SDK.ResourceTreeModel.ResourceTreeModel);
-        const frame = executionContext.frameId && resourceTreeModel && resourceTreeModel.frameForId(executionContext.frameId);
+        const frame = executionContext.frameId && resourceTreeModel?.frameForId(executionContext.frameId);
         if (!frame) {
             return false;
         }
@@ -166,7 +166,7 @@ export class ConsoleContextSelector {
     }
     createElementForItem(item) {
         const element = document.createElement('div');
-        const shadowRoot = UI.Utils.createShadowRootWithCoreStyles(element, { cssFile: [consoleContextSelectorStyles], delegatesFocus: undefined });
+        const shadowRoot = UI.UIUtils.createShadowRootWithCoreStyles(element, { cssFile: consoleContextSelectorStyles });
         const title = shadowRoot.createChild('div', 'title');
         UI.UIUtils.createTextChild(title, Platform.StringUtilities.trimEndWithMaxLength(this.titleFor(item), 100));
         const subTitle = shadowRoot.createChild('div', 'subtitle');
@@ -179,12 +179,12 @@ export class ConsoleContextSelector {
         let frame = null;
         if (executionContext.frameId) {
             const resourceTreeModel = target.model(SDK.ResourceTreeModel.ResourceTreeModel);
-            frame = resourceTreeModel && resourceTreeModel.frameForId(executionContext.frameId);
+            frame = resourceTreeModel?.frameForId(executionContext.frameId) ?? null;
         }
-        if (executionContext.origin.startsWith('chrome-extension://')) {
+        if (Common.ParsedURL.schemeIs(executionContext.origin, 'chrome-extension:')) {
             return i18nString(UIStrings.extension);
         }
-        const sameTargetParentFrame = frame && frame.sameTargetParentFrame();
+        const sameTargetParentFrame = frame?.sameTargetParentFrame();
         // TODO(crbug.com/1159332): Understand why condition involves the sameTargetParentFrame.
         if (!frame || !sameTargetParentFrame || sameTargetParentFrame.securityOrigin !== executionContext.origin) {
             const url = Common.ParsedURL.ParsedURL.fromString(executionContext.origin);
@@ -192,7 +192,7 @@ export class ConsoleContextSelector {
                 return url.domain();
             }
         }
-        if (frame && frame.securityOrigin) {
+        if (frame?.securityOrigin) {
             const domain = new Common.ParsedURL.ParsedURL(frame.securityOrigin).domain();
             if (domain) {
                 return domain;
@@ -202,7 +202,7 @@ export class ConsoleContextSelector {
     }
     isItemSelectable(item) {
         const callFrame = item.debuggerModel.selectedCallFrame();
-        const callFrameContext = callFrame && callFrame.script.executionContext();
+        const callFrameContext = callFrame?.script.executionContext();
         return !callFrameContext || item === callFrameContext;
     }
     itemSelected(item) {
@@ -214,7 +214,7 @@ export class ConsoleContextSelector {
     }
     callFrameSelectedInUI() {
         const callFrame = UI.Context.Context.instance().flavor(SDK.DebuggerModel.CallFrame);
-        const callFrameContext = callFrame && callFrame.script.executionContext();
+        const callFrameContext = callFrame?.script.executionContext();
         if (callFrameContext) {
             UI.Context.Context.instance().setFlavor(SDK.RuntimeModel.ExecutionContext, callFrameContext);
         }

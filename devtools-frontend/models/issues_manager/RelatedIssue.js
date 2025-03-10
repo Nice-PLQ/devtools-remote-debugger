@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 import * as Common from '../../core/common/common.js';
 import * as SDK from '../../core/sdk/sdk.js';
+import { CookieIssue } from './CookieIssue.js';
 import { IssuesManager } from './IssuesManager.js';
 function issuesAssociatedWithNetworkRequest(issues, request) {
     return issues.filter(issue => {
@@ -44,17 +45,27 @@ export function hasIssueOfCategory(obj, category) {
     const issues = Array.from(IssuesManager.instance().issues());
     return issuesAssociatedWith(issues, obj).some(issue => issue.getCategory() === category);
 }
+export function hasThirdPartyPhaseoutCookieIssue(obj) {
+    const issues = Array.from(IssuesManager.instance().issues());
+    return issuesAssociatedWith(issues, obj)
+        .some(issue => CookieIssue.getSubCategory(issue.code()) === "ThirdPartyPhaseoutCookie" /* CookieIssueSubCategory.THIRD_PARTY_PHASEOUT_COOKIE */);
+}
+export function hasThirdPartyPhaseoutCookieIssueForDomain(domain) {
+    const issues = Array.from(IssuesManager.instance().issues());
+    const issuesForDomain = issues.filter(issue => Array.from(issue.cookies()).some(cookie => cookie.domain === domain));
+    return issuesForDomain.some(issue => CookieIssue.getSubCategory(issue.code()) === "ThirdPartyPhaseoutCookie" /* CookieIssueSubCategory.THIRD_PARTY_PHASEOUT_COOKIE */);
+}
 export async function reveal(obj, category) {
     if (typeof obj === 'string') {
         const issue = IssuesManager.instance().getIssueById(obj);
         if (issue) {
-            return Common.Revealer.reveal(issue);
+            return await Common.Revealer.reveal(issue);
         }
     }
     const issues = Array.from(IssuesManager.instance().issues());
     const candidates = issuesAssociatedWith(issues, obj).filter(issue => !category || issue.getCategory() === category);
     if (candidates.length > 0) {
-        return Common.Revealer.reveal(candidates[0]);
+        return await Common.Revealer.reveal(candidates[0]);
     }
 }
 //# sourceMappingURL=RelatedIssue.js.map

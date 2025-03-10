@@ -8,8 +8,9 @@ import * as Root from '../../core/root/root.js';
 import * as SDK from '../../core/sdk/sdk.js';
 import * as Feedback from '../../ui/components/panel_feedback/panel_feedback.js';
 import * as UI from '../../ui/legacy/legacy.js';
-import axBreadcrumbsStyles from './axBreadcrumbs.css.js';
+import * as VisualLogging from '../../ui/visual_logging/visual_logging.js';
 import { AccessibilitySubPane } from './AccessibilitySubPane.js';
+import axBreadcrumbsStyles from './axBreadcrumbs.css.js';
 const UIStrings = {
     /**
      *@description Text in AXBreadcrumbs Pane of the Accessibility panel
@@ -48,8 +49,10 @@ export class AXBreadcrumbsPane extends AccessibilitySubPane {
     #legacyTreeDisabled = false;
     constructor(axSidebarView) {
         super(i18nString(UIStrings.accessibilityTree));
+        this.registerRequiredCSS(axBreadcrumbsStyles);
         this.element.classList.add('ax-subpane');
         this.element.tabIndex = -1;
+        this.element.setAttribute('jslog', `${VisualLogging.section('accessibility-tree')}`);
         this.axSidebarView = axSidebarView;
         this.preselectedBreadcrumb = null;
         this.inspectedNodeBreadcrumb = null;
@@ -57,8 +60,9 @@ export class AXBreadcrumbsPane extends AccessibilitySubPane {
         this.rootElement = this.element.createChild('div', 'ax-breadcrumbs');
         this.hoveredBreadcrumb = null;
         const previewToggle = new Feedback.PreviewToggle.PreviewToggle();
+        previewToggle.setAttribute('jslog', `${VisualLogging.toggle('full-accessibility-tree')}`);
         const name = i18nString(UIStrings.fullTreeExperimentName);
-        const experiment = Root.Runtime.ExperimentName.FULL_ACCESSIBILITY_TREE;
+        const experiment = "full-accessibility-tree" /* Root.Runtime.ExperimentName.FULL_ACCESSIBILITY_TREE */;
         const onChangeCallback = checked => {
             Host.userMetrics.experimentChanged(experiment, checked);
             UI.InspectorView.InspectorView.instance().displayReloadRequiredWarning(i18nString(UIStrings.reloadRequired));
@@ -275,7 +279,7 @@ export class AXBreadcrumbsPane extends AccessibilitySubPane {
             return;
         }
         const breadcrumb = elementsToAXBreadcrumb.get(breadcrumbElement);
-        if (!breadcrumb || !breadcrumb.isDOMNode()) {
+        if (!breadcrumb?.isDOMNode()) {
             return;
         }
         this.setHoveredBreadcrumb(breadcrumb);
@@ -304,12 +308,14 @@ export class AXBreadcrumbsPane extends AccessibilitySubPane {
             // This will collapse and preselect/focus the breadcrumb.
             this.collapseBreadcrumb(breadcrumb);
             breadcrumb.nodeElement().focus();
+            void VisualLogging.logClick(breadcrumb.expandLoggable, event);
             return;
         }
         if (!breadcrumb.isDOMNode()) {
             return;
         }
         this.inspectDOMNode(breadcrumb.axNode());
+        void VisualLogging.logClick(breadcrumb.expandLoggable, event);
     }
     setHoveredBreadcrumb(breadcrumb) {
         if (breadcrumb === this.hoveredBreadcrumb) {
@@ -370,16 +376,12 @@ export class AXBreadcrumbsPane extends AccessibilitySubPane {
                 }
                 void domNode.scrollIntoView();
             });
-        });
+        }, { jslogContext: 'scroll-into-view' });
         const deferredNode = axNode.deferredDOMNode();
         if (deferredNode) {
             contextMenu.appendApplicableItems(deferredNode);
         }
         void contextMenu.show();
-    }
-    wasShown() {
-        super.wasShown();
-        this.registerCSSFiles([axBreadcrumbsStyles]);
     }
 }
 const elementsToAXBreadcrumb = new WeakMap();
@@ -395,10 +397,12 @@ export class AXBreadcrumb {
     preselectedInternal;
     parent;
     inspectedInternal;
+    expandLoggable = {};
     constructor(axNode, depth, inspected) {
         this.axNodeInternal = axNode;
         this.elementInternal = document.createElement('div');
         this.elementInternal.classList.add('ax-breadcrumb');
+        this.elementInternal.setAttribute('jslog', `${VisualLogging.treeItem().track({ click: true, keydown: 'ArrowUp|ArrowDown|ArrowLeft|ArrowRight|Enter' })}`);
         elementsToAXBreadcrumb.set(this.elementInternal, this);
         this.nodeElementInternal = document.createElement('div');
         this.nodeElementInternal.classList.add('ax-node');
@@ -429,7 +433,7 @@ export class AXBreadcrumb {
         else {
             this.appendRoleElement(this.axNodeInternal.role());
             const axNodeName = this.axNodeInternal.name();
-            if (axNodeName && axNodeName.value) {
+            if (axNodeName?.value) {
                 this.nodeWrapper.createChild('span', 'separator').textContent = '\xA0';
                 this.appendNameElement(axNodeName.value);
             }
@@ -437,6 +441,7 @@ export class AXBreadcrumb {
         if (!this.axNodeInternal.ignored() && this.axNodeInternal.hasOnlyUnloadedChildren()) {
             this.nodeElementInternal.classList.add('children-unloaded');
             UI.ARIAUtils.setExpanded(this.nodeElementInternal, false);
+            VisualLogging.registerLoggable(this.expandLoggable, `${VisualLogging.expand()}`, this.elementInternal);
         }
         if (!this.axNodeInternal.isDOMNode()) {
             this.nodeElementInternal.classList.add('no-dom-node');
@@ -454,6 +459,7 @@ export class AXBreadcrumb {
         this.nodeElementInternal.classList.add('parent');
         UI.ARIAUtils.setExpanded(this.nodeElementInternal, true);
         this.childrenGroupElement.appendChild(breadcrumb.element());
+        VisualLogging.registerLoggable(this.expandLoggable, `${VisualLogging.expand()}`, this.elementInternal);
     }
     hasExpandedChildren() {
         return this.children.length;

@@ -31,8 +31,8 @@ import * as Common from '../../core/common/common.js';
 import * as i18n from '../../core/i18n/i18n.js';
 import * as Platform from '../../core/platform/platform.js';
 import * as PerfUI from '../../ui/legacy/components/perf_ui/perf_ui.js';
-import paintProfilerStyles from './paintProfiler.css.js';
 import * as UI from '../../ui/legacy/legacy.js';
+import paintProfilerStyles from './paintProfiler.css.js';
 const UIStrings = {
     /**
      *@description Text to indicate the progress of a profile
@@ -89,6 +89,7 @@ export class PaintProfilerView extends Common.ObjectWrapper.eventMixin(UI.Widget
     updateImageTimer;
     constructor(showImageCallback) {
         super(true);
+        this.registerRequiredCSS(paintProfilerStyles);
         this.contentElement.classList.add('paint-profiler-overview');
         this.canvasContainer = this.contentElement.createChild('div', 'paint-profiler-canvas-container');
         this.progressBanner = this.contentElement.createChild('div', 'full-widget-dimmed-banner hidden');
@@ -101,7 +102,7 @@ export class PaintProfilerView extends Common.ObjectWrapper.eventMixin(UI.Widget
         this.canvas = this.canvasContainer.createChild('canvas', 'fill');
         this.context = this.canvas.getContext('2d');
         this.selectionWindowInternal = new PerfUI.OverviewGrid.Window(this.canvasContainer);
-        this.selectionWindowInternal.addEventListener(PerfUI.OverviewGrid.Events.WindowChanged, this.onWindowChanged, this);
+        this.selectionWindowInternal.addEventListener("WindowChanged" /* PerfUI.OverviewGrid.Events.WINDOW_CHANGED */, this.onWindowChanged, this);
         this.innerBarWidth = 4 * window.devicePixelRatio;
         this.minBarHeight = window.devicePixelRatio;
         this.barPaddingWidth = 2 * window.devicePixelRatio;
@@ -191,10 +192,10 @@ export class PaintProfilerView extends Common.ObjectWrapper.eventMixin(UI.Widget
         if (!snapshot) {
             this.update();
             this.populatePieChart(0, []);
-            this.selectionWindowInternal.setEnabled(false);
+            this.selectionWindowInternal.setResizeEnabled(false);
             return;
         }
-        this.selectionWindowInternal.setEnabled(true);
+        this.selectionWindowInternal.setResizeEnabled(true);
         this.progressBanner.classList.remove('hidden');
         this.updateImage();
         const profiles = await snapshot.profile(clipRect);
@@ -215,7 +216,7 @@ export class PaintProfilerView extends Common.ObjectWrapper.eventMixin(UI.Widget
         this.canvas.width = this.canvasContainer.clientWidth * window.devicePixelRatio;
         this.canvas.height = this.canvasContainer.clientHeight * window.devicePixelRatio;
         this.samplesPerBar = 0;
-        if (!this.profiles || !this.profiles.length || !this.logCategories) {
+        if (!this.profiles?.length || !this.logCategories) {
             return;
         }
         const maxBars = Math.floor((this.canvas.width - 2 * this.barPaddingWidth) / this.outerBarWidth);
@@ -226,7 +227,7 @@ export class PaintProfilerView extends Common.ObjectWrapper.eventMixin(UI.Widget
         const barHeightByCategory = [];
         let heightByCategory = {};
         for (let i = 0, lastBarIndex = 0, lastBarTime = 0; i < sampleCount;) {
-            let categoryName = (this.logCategories[i] && this.logCategories[i].name) || 'misc';
+            let categoryName = (this.logCategories[i]?.name) || 'misc';
             const sampleIndex = this.log[i].commandIndex;
             for (let row = 0; row < this.profiles.length; row++) {
                 const sample = this.profiles[row][sampleIndex];
@@ -275,7 +276,7 @@ export class PaintProfilerView extends Common.ObjectWrapper.eventMixin(UI.Widget
         }
     }
     onWindowChanged() {
-        this.dispatchEventToListeners(Events.WindowChanged);
+        this.dispatchEventToListeners("WindowChanged" /* Events.WINDOW_CHANGED */);
         this.updatePieChart();
         if (this.updateImageTimer) {
             return;
@@ -288,7 +289,7 @@ export class PaintProfilerView extends Common.ObjectWrapper.eventMixin(UI.Widget
     }
     calculatePieChart() {
         const window = this.selectionWindow();
-        if (!this.profiles || !this.profiles.length || !window) {
+        if (!this.profiles?.length || !window) {
             return { total: 0, slices: [] };
         }
         let totalTime = 0;
@@ -326,8 +327,8 @@ export class PaintProfilerView extends Common.ObjectWrapper.eventMixin(UI.Widget
         if (!this.log) {
             return null;
         }
-        const screenLeft = (this.selectionWindowInternal.windowLeft || 0) * this.canvas.width;
-        const screenRight = (this.selectionWindowInternal.windowRight || 0) * this.canvas.width;
+        const screenLeft = (this.selectionWindowInternal.windowLeftRatio || 0) * this.canvas.width;
+        const screenRight = (this.selectionWindowInternal.windowRightRatio || 0) * this.canvas.width;
         const barLeft = Math.floor(screenLeft / this.outerBarWidth);
         const barRight = Math.floor((screenRight + this.innerBarWidth - this.barPaddingWidth / 2) / this.outerBarWidth);
         const stepLeft = Platform.NumberUtilities.clamp(barLeft * this.samplesPerBar, 0, this.log.length - 1);
@@ -339,7 +340,7 @@ export class PaintProfilerView extends Common.ObjectWrapper.eventMixin(UI.Widget
         let left;
         let right;
         const window = this.selectionWindow();
-        if (this.profiles && this.profiles.length && window) {
+        if (this.profiles?.length && window) {
             left = this.log[window.left].commandIndex;
             right = this.log[window.right - 1].commandIndex;
         }
@@ -362,19 +363,9 @@ export class PaintProfilerView extends Common.ObjectWrapper.eventMixin(UI.Widget
         this.snapshot = null;
         this.profiles = null;
         this.selectionWindowInternal.reset();
-        this.selectionWindowInternal.setEnabled(false);
-    }
-    wasShown() {
-        super.wasShown();
-        this.registerCSSFiles([paintProfilerStyles]);
+        this.selectionWindowInternal.setResizeEnabled(false);
     }
 }
-// TODO(crbug.com/1167717): Make this a const enum again
-// eslint-disable-next-line rulesdir/const_enum
-export var Events;
-(function (Events) {
-    Events["WindowChanged"] = "WindowChanged";
-})(Events || (Events = {}));
 export class PaintProfilerCommandLogView extends UI.ThrottledWidget.ThrottledWidget {
     treeOutline;
     log;
@@ -462,8 +453,7 @@ export class LogTreeElement extends UI.TreeOutline.TreeElement {
         let keyCount = 0;
         for (const key in param) {
             const paramKey = param[key];
-            if (++keyCount > 4 || paramKey === 'object' ||
-                (paramKey === 'string' && paramKey.length > 100)) {
+            if (++keyCount > 4 || paramKey === 'object' || (paramKey === 'string' && paramKey.length > 100)) {
                 return name;
             }
             if (str) {
@@ -496,7 +486,7 @@ export class LogPropertyTreeElement extends UI.TreeOutline.TreeElement {
         this.property = property;
     }
     static appendLogPropertyItem(element, name, value) {
-        const treeElement = new LogPropertyTreeElement({ name: name, value: value });
+        const treeElement = new LogPropertyTreeElement({ name, value });
         element.appendChild(treeElement);
         if (value && typeof value === 'object') {
             for (const property in value) {

@@ -35,6 +35,7 @@
     "../../../../../../front_end/models/issues_manager/ClientHintIssue.ts",
     "../../../../../../front_end/models/issues_manager/ContentSecurityPolicyIssue.ts",
     "../../../../../../front_end/models/issues_manager/ContrastCheckTrigger.ts",
+    "../../../../../../front_end/models/issues_manager/CookieDeprecationMetadataIssue.ts",
     "../../../../../../front_end/models/issues_manager/CookieIssue.ts",
     "../../../../../../front_end/models/issues_manager/CorsIssue.ts",
     "../../../../../../front_end/models/issues_manager/CrossOriginEmbedderPolicyIssue.ts",
@@ -50,15 +51,20 @@
     "../../../../../../front_end/models/issues_manager/LowTextContrastIssue.ts",
     "../../../../../../front_end/models/issues_manager/MarkdownIssueDescription.ts",
     "../../../../../../front_end/models/issues_manager/MixedContentIssue.ts",
+    "../../../../../../front_end/models/issues_manager/PartitioningBlobURLIssue.ts",
+    "../../../../../../front_end/models/issues_manager/PropertyRuleIssue.ts",
     "../../../../../../front_end/models/issues_manager/QuirksModeIssue.ts",
     "../../../../../../front_end/models/issues_manager/RelatedIssue.ts",
+    "../../../../../../front_end/models/issues_manager/SRIMessageSignatureIssue.ts",
+    "../../../../../../front_end/models/issues_manager/SelectElementAccessibilityIssue.ts",
     "../../../../../../front_end/models/issues_manager/SharedArrayBufferIssue.ts",
+    "../../../../../../front_end/models/issues_manager/SharedDictionaryIssue.ts",
     "../../../../../../front_end/models/issues_manager/SourceFrameIssuesManager.ts",
     "../../../../../../front_end/models/issues_manager/StylesheetLoadingIssue.ts",
     "../../../../../../front_end/legacy/legacy-defs.d.ts",
     "../../../../../../front_end/global_typings/global_defs.d.ts",
-    "../../../../../../front_end/global_typings/request_idle_callback.d.ts",
-    "../../../../../../node_modules/@types/filesystem/index.d.ts"
+    "../../../../../../node_modules/@types/filesystem/index.d.ts",
+    "../../../../../../node_modules/@types/wicg-task-scheduling/index.d.ts"
   ],
   "references": [
     {
@@ -93,6 +99,9 @@
     },
     {
       "path": "../../third_party/marked/bundle-tsconfig.json"
+    },
+    {
+      "path": "../../third_party/third-party-web/bundle-tsconfig.json"
     }
   ]
 }

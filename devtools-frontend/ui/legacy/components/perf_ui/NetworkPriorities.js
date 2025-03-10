@@ -34,23 +34,22 @@ export function uiLabelToNetworkPriority(priorityLabel) {
     if (uiLabelToPriorityMapInstance.size === 0) {
         priorityUILabelMap().forEach((value, key) => uiLabelToPriorityMapInstance.set(value, key));
     }
-    return uiLabelToPriorityMapInstance.get(priorityLabel) || '';
-}
-// TODO(crbug.com/1172300) Ignored during the jsdoc to ts migration)
-// eslint-disable-next-line @typescript-eslint/naming-convention
-let _priorityUILabelMapInstance;
-export function priorityUILabelMap() {
-    if (_priorityUILabelMapInstance) {
-        return _priorityUILabelMapInstance;
+    const priority = uiLabelToPriorityMapInstance.get(priorityLabel);
+    if (priority) {
+        return priority;
     }
-    const map = new Map();
-    map.set("VeryLow" /* Protocol.Network.ResourcePriority.VeryLow */, i18nString(UIStrings.lowest));
-    map.set("Low" /* Protocol.Network.ResourcePriority.Low */, i18nString(UIStrings.low));
-    map.set("Medium" /* Protocol.Network.ResourcePriority.Medium */, i18nString(UIStrings.medium));
-    map.set("High" /* Protocol.Network.ResourcePriority.High */, i18nString(UIStrings.high));
-    map.set("VeryHigh" /* Protocol.Network.ResourcePriority.VeryHigh */, i18nString(UIStrings.highest));
-    _priorityUILabelMapInstance = map;
-    return map;
+    throw new Error('Priority not found');
+}
+const priorityUILabelMapInstance = new Map();
+export function priorityUILabelMap() {
+    if (priorityUILabelMapInstance.size === 0) {
+        priorityUILabelMapInstance.set("VeryLow" /* Protocol.Network.ResourcePriority.VeryLow */, i18nString(UIStrings.lowest));
+        priorityUILabelMapInstance.set("Low" /* Protocol.Network.ResourcePriority.Low */, i18nString(UIStrings.low));
+        priorityUILabelMapInstance.set("Medium" /* Protocol.Network.ResourcePriority.Medium */, i18nString(UIStrings.medium));
+        priorityUILabelMapInstance.set("High" /* Protocol.Network.ResourcePriority.High */, i18nString(UIStrings.high));
+        priorityUILabelMapInstance.set("VeryHigh" /* Protocol.Network.ResourcePriority.VeryHigh */, i18nString(UIStrings.highest));
+    }
+    return priorityUILabelMapInstance;
 }
 const networkPriorityWeights = new Map();
 export function networkPriorityWeight(priority) {

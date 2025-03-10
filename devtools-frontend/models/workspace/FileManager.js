@@ -46,10 +46,11 @@ export class FileManager extends Common.ObjectWrapper.ObjectWrapper {
         }
         return fileManagerInstance;
     }
-    save(url, content, forceSaveAs) {
+    // close() *must* be called, for the InspectorFrontendHostStub case, to complete the saving.
+    save(url, content, forceSaveAs, isBase64) {
         // Remove this url from the saved URLs while it is being saved.
         const result = new Promise(resolve => this.saveCallbacks.set(url, resolve));
-        Host.InspectorFrontendHost.InspectorFrontendHostInstance.save(url, content, forceSaveAs);
+        Host.InspectorFrontendHost.InspectorFrontendHostInstance.save(url, content, forceSaveAs, isBase64);
         return result;
     }
     savedURL(event) {
@@ -74,13 +75,7 @@ export class FileManager extends Common.ObjectWrapper.ObjectWrapper {
         Host.InspectorFrontendHost.InspectorFrontendHostInstance.close(url);
     }
     appendedToURL({ data: url }) {
-        this.dispatchEventToListeners(Events.AppendedToURL, url);
+        this.dispatchEventToListeners("AppendedToURL" /* Events.APPENDED_TO_URL */, url);
     }
 }
-// TODO(crbug.com/1167717): Make this a const enum again
-// eslint-disable-next-line rulesdir/const_enum
-export var Events;
-(function (Events) {
-    Events["AppendedToURL"] = "AppendedToURL";
-})(Events || (Events = {}));
 //# sourceMappingURL=FileManager.js.map

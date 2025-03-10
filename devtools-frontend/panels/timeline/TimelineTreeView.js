@@ -1,33 +1,38 @@
 // Copyright 2015 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
+import '../../ui/legacy/legacy.js';
 import * as Common from '../../core/common/common.js';
 import * as i18n from '../../core/i18n/i18n.js';
 import * as Platform from '../../core/platform/platform.js';
-import * as SDK from '../../core/sdk/sdk.js';
-import * as TimelineModel from '../../models/timeline_model/timeline_model.js';
+import * as Trace from '../../models/trace/trace.js';
+import * as Buttons from '../../ui/components/buttons/buttons.js';
 import * as DataGrid from '../../ui/legacy/components/data_grid/data_grid.js';
 import * as Components from '../../ui/legacy/components/utils/utils.js';
 import * as UI from '../../ui/legacy/legacy.js';
+import * as VisualLogging from '../../ui/visual_logging/visual_logging.js';
+import { ActiveFilters } from './ActiveFilters.js';
+import * as Extensions from './extensions/extensions.js';
+import { Tracker } from './FreshRecording.js';
+import { targetForEvent } from './TargetForEvent.js';
+import * as ThirdPartyTreeView from './ThirdPartyTreeView.js';
 import { TimelineRegExp } from './TimelineFilters.js';
+import { rangeForSelection } from './TimelineSelection.js';
 import { TimelineUIUtils } from './TimelineUIUtils.js';
+import * as Utils from './utils/utils.js';
 const UIStrings = {
     /**
      *@description Text for the performance of something
      */
     performance: 'Performance',
     /**
-     *@description Text to filter result items
-     */
-    filter: 'Filter',
-    /**
      *@description Time of a single activity, as opposed to the total time
      */
-    selfTime: 'Self Time',
+    selfTime: 'Self time',
     /**
      *@description Text for the total time of something
      */
-    totalTime: 'Total Time',
+    totalTime: 'Total time',
     /**
      *@description Text in Timeline Tree View of the Performance panel
      */
@@ -36,19 +41,6 @@ const UIStrings = {
      *@description Text of a DOM element in Timeline Tree View of the Performance panel
      */
     selectItemForDetails: 'Select item for details.',
-    /**
-     * @description This message is presented as a tooltip when developers investigate the performance
-     * of a page. The tooltip alerts developers that some parts of code in execution were not optimized
-     * (made to run faster) and that associated timing information must be considered with this in
-     * mind. The placeholder text is the reason the code was not optimized.
-     * @example {Optimized too many times} PH1
-     */
-    notOptimizedS: 'Not optimized: {PH1}',
-    /**
-     *@description Time in miliseconds
-     *@example {30.1} PH1
-     */
-    fms: '{PH1} ms',
     /**
      *@description Number followed by percent sign
      *@example {20} PH1
@@ -69,53 +61,45 @@ const UIStrings = {
      */
     unattributed: '[unattributed]',
     /**
-     *@description Text in Timeline Tree View of the Performance panel
-     */
-    javascript: 'JavaScript',
-    /**
      *@description Text that refers to one or a group of webpages
      */
     page: 'Page',
     /**
      *@description Text in Timeline Tree View of the Performance panel
      */
-    noGrouping: 'No Grouping',
+    noGrouping: 'No grouping',
     /**
      *@description Text in Timeline Tree View of the Performance panel
      */
-    groupByActivity: 'Group by Activity',
+    groupByActivity: 'Group by activity',
     /**
      *@description Text in Timeline Tree View of the Performance panel
      */
-    groupByCategory: 'Group by Category',
+    groupByCategory: 'Group by category',
     /**
      *@description Text in Timeline Tree View of the Performance panel
      */
-    groupByDomain: 'Group by Domain',
+    groupByDomain: 'Group by domain',
     /**
      *@description Text in Timeline Tree View of the Performance panel
      */
-    groupByFrame: 'Group by Frame',
+    groupByFrame: 'Group by frame',
     /**
      *@description Text in Timeline Tree View of the Performance panel
      */
-    groupBySubdomain: 'Group by Subdomain',
+    groupBySubdomain: 'Group by subdomain',
     /**
      *@description Text in Timeline Tree View of the Performance panel
      */
     groupByUrl: 'Group by URL',
     /**
+     *@description Text in Timeline Tree View of the Performance panel
+     */
+    groupByThirdParties: 'Group by Third Parties',
+    /**
      *@description Aria-label for grouping combo box in Timeline Details View
      */
     groupBy: 'Group by',
-    /**
-     *@description Aria-label for filter bar in Call Tree view
-     */
-    filterCallTree: 'Filter call tree',
-    /**
-     *@description Aria-label for the filter bar in Bottom-Up view
-     */
-    filterBottomup: 'Filter bottom-up',
     /**
      * @description Title of the sidebar pane in the Performance panel which shows the stack (call
      * stack) where the program spent the most time (out of all the call stacks) while executing.
@@ -125,12 +109,12 @@ const UIStrings = {
      * @description Tooltip for the the Heaviest stack sidebar toggle in the Timeline Tree View of the
      * Performance panel. Command to open/show the sidebar.
      */
-    showHeaviestStack: 'Show Heaviest stack',
+    showHeaviestStack: 'Show heaviest stack',
     /**
      * @description Tooltip for the the Heaviest stack sidebar toggle in the Timeline Tree View of the
      * Performance panel. Command to close/hide the sidebar.
      */
-    hideHeaviestStack: 'Hide Heaviest stack',
+    hideHeaviestStack: 'Hide heaviest stack',
     /**
      * @description Screen reader announcement when the heaviest stack sidebar is shown in the Performance panel.
      */
@@ -142,12 +126,39 @@ const UIStrings = {
     /**
      *@description Data grid name for Timeline Stack data grids
      */
-    timelineStack: 'Timeline Stack',
+    timelineStack: 'Timeline stack',
+    /**
+    /*@description Text to search by matching case of the input button
+     */
+    matchCase: 'Match case',
+    /**
+     *@description Text for searching with regular expression button
+     */
+    useRegularExpression: 'Use regular expression',
+    /**
+     * @description Text for Match whole word button
+     */
+    matchWholeWord: 'Match whole word',
+    /**
+     * @description Text for bottom up tree button
+     */
+    bottomUp: 'Bottom-up',
+    /**
+     * @description Text referring to view bottom up tree
+     */
+    viewBottomUp: 'View Bottom-up',
+    /**
+     * @description Text referring to a 1st party entity
+     */
+    firstParty: '1st party',
+    /**
+     * @description Text referring to an entity that is an extension
+     */
+    extension: 'Extension',
 };
 const str_ = i18n.i18n.registerUIStrings('panels/timeline/TimelineTreeView.ts', UIStrings);
 const i18nString = i18n.i18n.getLocalizedString.bind(undefined, str_);
-export class TimelineTreeView extends UI.Widget.VBox {
-    modelInternal;
+export class TimelineTreeView extends Common.ObjectWrapper.eventMixin(UI.Widget.VBox) {
     #selectedEvents;
     searchResults;
     linkifier;
@@ -167,99 +178,116 @@ export class TimelineTreeView extends UI.Widget.VBox {
     root;
     currentResult;
     textFilterUI;
-    #traceParseData = null;
+    caseSensitiveButton;
+    regexButton;
+    matchWholeWord;
+    #parsedTrace = null;
+    #entityMapper = null;
+    #lastHighlightedEvent = null;
+    eventToTreeNode = new WeakMap();
+    /**
+     * Determines if the first child in the data grid will be selected
+     * by default when refreshTree() gets called.
+     */
+    autoSelectFirstChildOnRefresh = true;
     constructor() {
         super();
-        this.modelInternal = null;
         this.#selectedEvents = null;
         this.element.classList.add('timeline-tree-view');
         this.searchResults = [];
     }
-    static eventNameForSorting(event) {
-        if (TimelineModel.TimelineModel.TimelineModelImpl.isJsFrameEvent(event)) {
-            const data = event.args['data'];
-            return data['functionName'] + '@' + (data['scriptId'] || data['url'] || '');
+    #eventNameForSorting(event) {
+        const name = TimelineUIUtils.eventTitle(event) || event.name;
+        if (!this.#parsedTrace) {
+            return name;
         }
-        return event.name + ':@' + TimelineModel.TimelineProfileTree.eventURL(event);
+        return name + ':@' + Trace.Handlers.Helpers.getNonResolvedURL(event, this.#parsedTrace);
     }
     setSearchableView(searchableView) {
         this.searchableView = searchableView;
     }
-    setModelWithEvents(model, selectedEvents, traceParseData = null) {
-        this.modelInternal = model;
-        this.#traceParseData = traceParseData;
+    setModelWithEvents(selectedEvents, parsedTrace = null, entityMappings = null) {
+        this.#parsedTrace = parsedTrace;
         this.#selectedEvents = selectedEvents;
+        this.#entityMapper = entityMappings;
         this.refreshTree();
     }
-    /**
-     * This method is included only for preventing layout test failures.
-     * TODO(crbug.com/1433692): Port problematic layout tests to unit
-     * tests.
-     */
-    setModel(model, track) {
-        this.setModelWithEvents(model, track?.eventsForTreeView() || null);
+    entityMapper() {
+        return this.#entityMapper;
     }
-    getToolbarInputAccessiblePlaceHolder() {
-        return '';
-    }
-    model() {
-        return this.modelInternal;
-    }
-    traceParseData() {
-        return this.#traceParseData;
+    parsedTrace() {
+        return this.#parsedTrace;
     }
     init() {
         this.linkifier = new Components.Linkifier.Linkifier();
-        this.taskFilter =
-            new TimelineModel.TimelineModelFilter.ExclusiveNameFilter([TimelineModel.TimelineModel.RecordType.Task]);
+        this.taskFilter = new Trace.Extras.TraceFilter.ExclusiveNameFilter([
+            "RunTask" /* Trace.Types.Events.Name.RUN_TASK */,
+        ]);
         this.textFilterInternal = new TimelineRegExp();
-        this.currentThreadSetting = Common.Settings.Settings.instance().createSetting('timelineTreeCurrentThread', 0);
+        this.currentThreadSetting = Common.Settings.Settings.instance().createSetting('timeline-tree-current-thread', 0);
         this.currentThreadSetting.addChangeListener(this.refreshTree, this);
         const columns = [];
         this.populateColumns(columns);
-        this.splitWidget = new UI.SplitWidget.SplitWidget(true, true, 'timelineTreeViewDetailsSplitWidget');
+        this.splitWidget = new UI.SplitWidget.SplitWidget(true, true, 'timeline-tree-view-details-split-widget');
         const mainView = new UI.Widget.VBox();
-        const toolbar = new UI.Toolbar.Toolbar('', mainView.element);
-        toolbar.makeWrappable(true);
+        const toolbar = mainView.element.createChild('devtools-toolbar');
+        toolbar.setAttribute('jslog', `${VisualLogging.toolbar()}`);
+        toolbar.wrappable = true;
         this.populateToolbar(toolbar);
         this.dataGrid = new DataGrid.SortableDataGrid.SortableDataGrid({
             displayName: i18nString(UIStrings.performance),
             columns,
             refreshCallback: undefined,
-            editCallback: undefined,
             deleteCallback: undefined,
         });
-        this.dataGrid.addEventListener(DataGrid.DataGrid.Events.SortingChanged, this.sortingChanged, this);
+        this.dataGrid.addEventListener("SortingChanged" /* DataGrid.DataGrid.Events.SORTING_CHANGED */, this.sortingChanged, this);
         this.dataGrid.element.addEventListener('mousemove', this.onMouseMove.bind(this), true);
-        this.dataGrid.setResizeMethod(DataGrid.DataGrid.ResizeMethod.Last);
+        this.dataGrid.element.addEventListener('mouseleave', () => this.dispatchEventToListeners("TreeRowHovered" /* TimelineTreeView.Events.TREE_ROW_HOVERED */, null));
+        this.dataGrid.addEventListener("OpenedNode" /* DataGrid.DataGrid.Events.OPENED_NODE */, this.onGridNodeOpened, this);
+        this.dataGrid.setResizeMethod("last" /* DataGrid.DataGrid.ResizeMethod.LAST */);
         this.dataGrid.setRowContextMenuCallback(this.onContextMenu.bind(this));
         this.dataGrid.asWidget().show(mainView.element);
-        this.dataGrid.addEventListener(DataGrid.DataGrid.Events.SelectedNode, this.updateDetailsForSelection, this);
+        this.dataGrid.addEventListener("SelectedNode" /* DataGrid.DataGrid.Events.SELECTED_NODE */, this.updateDetailsForSelection, this);
         this.detailsView = new UI.Widget.VBox();
         this.detailsView.element.classList.add('timeline-details-view', 'timeline-details-view-body');
         this.splitWidget.setMainWidget(mainView);
         this.splitWidget.setSidebarWidget(this.detailsView);
         this.splitWidget.hideSidebar();
         this.splitWidget.show(this.element);
-        this.splitWidget.addEventListener(UI.SplitWidget.Events.ShowModeChanged, this.onShowModeChanged, this);
-        this.lastSelectedNodeInternal;
+        this.splitWidget.addEventListener("ShowModeChanged" /* UI.SplitWidget.Events.SHOW_MODE_CHANGED */, this.onShowModeChanged, this);
     }
     lastSelectedNode() {
         return this.lastSelectedNodeInternal;
     }
     updateContents(selection) {
-        this.setRange(selection.startTime, selection.endTime);
+        const timings = rangeForSelection(selection);
+        const timingMilli = Trace.Helpers.Timing.traceWindowMicroSecondsToMilliSeconds(timings);
+        this.setRange(timingMilli.min, timingMilli.max);
     }
     setRange(startTime, endTime) {
         this.startTime = startTime;
         this.endTime = endTime;
         this.refreshTree();
     }
+    highlightEventInTree(event) {
+        // Potentially clear last highlight
+        const dataGridElem = event && this.dataGridElementForEvent(event);
+        if (!event || (dataGridElem && dataGridElem !== this.#lastHighlightedEvent)) {
+            this.#lastHighlightedEvent?.style.setProperty('background-color', '');
+        }
+        if (event) {
+            const rowElem = dataGridElem;
+            if (rowElem) {
+                this.#lastHighlightedEvent = rowElem;
+                this.#lastHighlightedEvent.style.backgroundColor = 'var(--sys-color-yellow-container)';
+            }
+        }
+    }
     filters() {
-        return [this.taskFilter, this.textFilterInternal, ...(this.modelInternal ? this.modelInternal.filters() : [])];
+        return [this.taskFilter, this.textFilterInternal, ...(ActiveFilters.instance().activeFilters())];
     }
     filtersWithoutTextFilter() {
-        return [this.taskFilter, ...(this.modelInternal ? this.modelInternal.filters() : [])];
+        return [this.taskFilter, ...(ActiveFilters.instance().activeFilters())];
     }
     textFilter() {
         return this.textFilterInternal;
@@ -268,19 +296,30 @@ export class TimelineTreeView extends UI.Widget.VBox {
         return false;
     }
     populateToolbar(toolbar) {
-        const textFilterUI = new UI.Toolbar.ToolbarInput(i18nString(UIStrings.filter), this.getToolbarInputAccessiblePlaceHolder());
-        textFilterUI.addEventListener(UI.Toolbar.ToolbarInput.Event.TextChanged, () => {
-            const searchQuery = textFilterUI.value();
-            this.textFilterInternal.setRegExp(searchQuery ? Platform.StringUtilities.createPlainTextSearchRegex(searchQuery, 'i') : null);
-            this.refreshTree();
+        this.caseSensitiveButton =
+            new UI.Toolbar.ToolbarToggle(i18nString(UIStrings.matchCase), 'match-case', undefined, 'match-case');
+        this.caseSensitiveButton.addEventListener("Click" /* UI.Toolbar.ToolbarButton.Events.CLICK */, () => {
+            this.#filterChanged();
         }, this);
+        toolbar.appendToolbarItem(this.caseSensitiveButton);
+        this.regexButton = new UI.Toolbar.ToolbarToggle(i18nString(UIStrings.useRegularExpression), 'regular-expression', undefined, 'regular-expression');
+        this.regexButton.addEventListener("Click" /* UI.Toolbar.ToolbarButton.Events.CLICK */, () => {
+            this.#filterChanged();
+        }, this);
+        toolbar.appendToolbarItem(this.regexButton);
+        this.matchWholeWord = new UI.Toolbar.ToolbarToggle(i18nString(UIStrings.matchWholeWord), 'match-whole-word', undefined, 'match-whole-word');
+        this.matchWholeWord.addEventListener("Click" /* UI.Toolbar.ToolbarButton.Events.CLICK */, () => {
+            this.#filterChanged();
+        }, this);
+        toolbar.appendToolbarItem(this.matchWholeWord);
+        const textFilterUI = new UI.Toolbar.ToolbarFilter();
         this.textFilterUI = textFilterUI;
+        textFilterUI.addEventListener("TextChanged" /* UI.Toolbar.ToolbarInput.Event.TEXT_CHANGED */, this.#filterChanged, this);
         toolbar.appendToolbarItem(textFilterUI);
     }
-    modelEvents() {
+    selectedEvents() {
+        // TODO: can we make this type readonly?
         return this.#selectedEvents || [];
-    }
-    onHover(_node) {
     }
     appendContextMenuItems(_contextMenu, _node) {
     }
@@ -292,20 +331,28 @@ export class TimelineTreeView extends UI.Widget.VBox {
         }
         for (let i = pathToRoot.length - 1; i > 0; --i) {
             const gridNode = this.dataGridNodeForTreeNode(pathToRoot[i]);
-            if (gridNode && gridNode.dataGrid) {
+            if (gridNode?.dataGrid) {
                 gridNode.expand();
             }
         }
         const gridNode = this.dataGridNodeForTreeNode(treeNode);
-        if (gridNode && gridNode.dataGrid) {
+        if (gridNode?.dataGrid) {
             gridNode.reveal();
             gridNode.select(suppressSelectedEvent);
         }
     }
     refreshTree() {
+        if (!this.element.parentElement) {
+            // This function can be called in different views (Bottom-Up and
+            // Call Tree) by the same single event whenever the group-by
+            // dropdown changes value. Thus, we bail out whenever the view is
+            // not visible, which we know if the related element is detached
+            // from the document.
+            return;
+        }
         this.linkifier.reset();
         this.dataGrid.rootNode().removeChildren();
-        if (!this.modelInternal) {
+        if (!this.#parsedTrace) {
             this.updateDetailsForSelection();
             return;
         }
@@ -321,6 +368,9 @@ export class TimelineTreeView extends UI.Widget.VBox {
         for (const child of children.values()) {
             // Exclude the idle time off the total calculation.
             const gridNode = new TreeGridNode(child, totalUsedTime, maxSelfTime, maxTotalTime, this);
+            for (const e of child.events) {
+                this.eventToTreeNode.set(e, child);
+            }
             this.dataGrid.insertChild(gridNode);
         }
         this.sortingChanged();
@@ -329,15 +379,21 @@ export class TimelineTreeView extends UI.Widget.VBox {
             this.searchableView.refreshSearch();
         }
         const rootNode = this.dataGrid.rootNode();
-        if (rootNode.children.length > 0) {
+        if (this.autoSelectFirstChildOnRefresh && rootNode.children.length > 0) {
             rootNode.children[0].select(/* supressSelectedEvent */ true);
         }
     }
     buildTree() {
         throw new Error('Not Implemented');
     }
-    buildTopDownTree(doNotAggregate, groupIdCallback) {
-        return new TimelineModel.TimelineProfileTree.TopDownRootNode(this.modelEvents(), this.filters(), this.startTime, this.endTime, doNotAggregate, groupIdCallback);
+    buildTopDownTree(doNotAggregate, eventGroupIdCallback) {
+        return new Trace.Extras.TraceTree.TopDownRootNode(this.selectedEvents(), {
+            filters: this.filters(),
+            startTime: this.startTime,
+            endTime: this.endTime,
+            doNotAggregate,
+            eventGroupIdCallback,
+        });
     }
     populateColumns(columns) {
         columns.push({ id: 'self', title: i18nString(UIStrings.selfTime), width: '120px', fixedWidth: true, sortable: true });
@@ -349,51 +405,72 @@ export class TimelineTreeView extends UI.Widget.VBox {
         if (!columnId) {
             return;
         }
-        let sortFunction;
-        switch (columnId) {
-            case 'startTime':
-                sortFunction = compareStartTime;
-                break;
-            case 'self':
-                sortFunction = compareNumericField.bind(null, 'selfTime');
-                break;
-            case 'total':
-                sortFunction = compareNumericField.bind(null, 'totalTime');
-                break;
-            case 'activity':
-                sortFunction = compareName;
-                break;
-            default:
-                console.assert(false, 'Unknown sort field: ' + columnId);
-                return;
+        const sortFunction = this.getSortingFunction(columnId);
+        if (sortFunction) {
+            this.dataGrid.sortNodes(sortFunction, !this.dataGrid.isSortOrderAscending());
         }
-        this.dataGrid.sortNodes(sortFunction, !this.dataGrid.isSortOrderAscending());
-        function compareNumericField(field, a, b) {
+    }
+    // Gets the sorting function for the tree view nodes.
+    getSortingFunction(columnId) {
+        const compareNameSortFn = (a, b) => {
             const nodeA = a;
             const nodeB = b;
-            // TODO(crbug.com/1172300) Ignored during the jsdoc to ts migration
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            return nodeA.profileNode[field] - nodeB.profileNode[field];
+            const eventA = nodeA.profileNode.event;
+            const eventB = nodeB.profileNode.event;
+            if (!eventA || !eventB) {
+                return 0;
+            }
+            const nameA = this.#eventNameForSorting(eventA);
+            const nameB = this.#eventNameForSorting(eventB);
+            return nameA.localeCompare(nameB);
+        };
+        switch (columnId) {
+            case 'start-time':
+                return compareStartTime;
+            case 'self':
+                return compareSelfTime;
+            case 'total':
+                return compareTotalTime;
+            case 'activity':
+            case 'site':
+                return compareNameSortFn;
+            default:
+                console.assert(false, 'Unknown sort field: ' + columnId);
+                return null;
+        }
+        function compareSelfTime(a, b) {
+            const nodeA = a;
+            const nodeB = b;
+            return nodeA.profileNode.selfTime - nodeB.profileNode.selfTime;
         }
         function compareStartTime(a, b) {
             const nodeA = a;
             const nodeB = b;
             const eventA = nodeA.profileNode.event;
             const eventB = nodeB.profileNode.event;
-            return eventA.startTime - eventB.startTime;
+            // Should not happen, but guard against the nodes not having events.
+            if (!eventA || !eventB) {
+                return 0;
+            }
+            return eventA.ts - eventB.ts;
         }
-        function compareName(a, b) {
+        function compareTotalTime(a, b) {
             const nodeA = a;
             const nodeB = b;
-            const eventA = nodeA.profileNode.event;
-            const eventB = nodeB.profileNode.event;
-            const nameA = TimelineTreeView.eventNameForSorting(eventA);
-            const nameB = TimelineTreeView.eventNameForSorting(eventB);
-            return nameA.localeCompare(nameB);
+            return nodeA.profileNode.totalTime - nodeB.profileNode.totalTime;
         }
     }
+    #filterChanged() {
+        const searchQuery = this.textFilterUI?.value();
+        const caseSensitive = this.caseSensitiveButton?.isToggled() ?? false;
+        const isRegex = this.regexButton?.isToggled() ?? false;
+        const matchWholeWord = this.matchWholeWord?.isToggled() ?? false;
+        this.textFilterInternal.setRegExp(searchQuery ? Platform.StringUtilities.createSearchRegex(searchQuery, caseSensitive, isRegex, matchWholeWord) :
+            null);
+        this.refreshTree();
+    }
     onShowModeChanged() {
-        if (this.splitWidget.showMode() === UI.SplitWidget.ShowMode.OnlyMain) {
+        if (this.splitWidget.showMode() === "OnlyMain" /* UI.SplitWidget.ShowMode.ONLY_MAIN */) {
             return;
         }
         this.lastSelectedNodeInternal = undefined;
@@ -404,12 +481,12 @@ export class TimelineTreeView extends UI.Widget.VBox {
         if (selectedNode === this.lastSelectedNodeInternal) {
             return;
         }
-        this.lastSelectedNodeInternal = selectedNode;
-        if (this.splitWidget.showMode() === UI.SplitWidget.ShowMode.OnlyMain) {
+        if (this.splitWidget.showMode() === "OnlyMain" /* UI.SplitWidget.ShowMode.ONLY_MAIN */) {
             return;
         }
         this.detailsView.detachChildWidgets();
         this.detailsView.element.removeChildren();
+        this.lastSelectedNodeInternal = selectedNode;
         if (selectedNode && this.showDetailsForNode(selectedNode)) {
             return;
         }
@@ -420,21 +497,40 @@ export class TimelineTreeView extends UI.Widget.VBox {
         return false;
     }
     onMouseMove(event) {
-        const gridNode = event.target && (event.target instanceof Node) ?
-            (this.dataGrid.dataGridNodeFromNode(event.target)) :
-            null;
-        // TODO(crbug.com/1172300) Ignored during the jsdoc to ts migration
-        // @ts-expect-error
-        const profileNode = gridNode && gridNode._profileNode;
+        const gridNode = event.target && (event.target instanceof Node) ? (this.dataGrid.dataGridNodeFromNode((event.target))) : null;
+        const profileNode = gridNode?.profileNode;
         if (profileNode === this.lastHoveredProfileNode) {
             return;
         }
         this.lastHoveredProfileNode = profileNode;
         this.onHover(profileNode);
     }
+    onHover(node) {
+        this.dispatchEventToListeners("TreeRowHovered" /* TimelineTreeView.Events.TREE_ROW_HOVERED */, node);
+    }
+    wasShown() {
+        this.dataGrid.addEventListener("SelectedNode" /* DataGrid.DataGrid.Events.SELECTED_NODE */, this.#onDataGridSelectionChange, this);
+    }
+    childWasDetached(_widget) {
+        this.dataGrid.removeEventListener("SelectedNode" /* DataGrid.DataGrid.Events.SELECTED_NODE */, this.#onDataGridSelectionChange);
+    }
+    /**
+     * This event fires when the user selects a row in the grid, either by
+     * clicking or by using the arrow keys. We want to have the same effect as
+     * when the user hover overs a row.
+     */
+    #onDataGridSelectionChange(event) {
+        this.dispatchEventToListeners("TreeRowClicked" /* TimelineTreeView.Events.TREE_ROW_CLICKED */, event.data.profileNode);
+        this.onHover(event.data.profileNode);
+    }
+    onGridNodeOpened() {
+        const gridNode = this.dataGrid.selectedNode;
+        this.dispatchEventToListeners("TreeRowHovered" /* TimelineTreeView.Events.TREE_ROW_HOVERED */, gridNode.profileNode);
+        this.updateDetailsForSelection();
+    }
     onContextMenu(contextMenu, eventGridNode) {
         const gridNode = eventGridNode;
-        if (gridNode.linkElement && !contextMenu.containsTarget(gridNode.linkElement)) {
+        if (gridNode.linkElement) {
             contextMenu.appendApplicableItems(gridNode.linkElement);
         }
         const profileNode = gridNode.profileNode;
@@ -442,8 +538,15 @@ export class TimelineTreeView extends UI.Widget.VBox {
             this.appendContextMenuItems(contextMenu, profileNode);
         }
     }
+    dataGridElementForEvent(event) {
+        if (!event) {
+            return null;
+        }
+        const treeNode = this.eventToTreeNode.get(event);
+        return (treeNode && this.dataGridNodeForTreeNode(treeNode)?.element()) ?? null;
+    }
     dataGridNodeForTreeNode(treeNode) {
-        return profileNodeToTreeGridNode.get(treeNode) || null;
+        return treeNodeToGridNode.get(treeNode) || null;
     }
     // UI.SearchableView.Searchable implementation
     onSearchCanceled() {
@@ -457,7 +560,7 @@ export class TimelineTreeView extends UI.Widget.VBox {
             return;
         }
         const searchRegex = searchConfig.toSearchRegex();
-        this.searchResults = this.root.searchTree(event => TimelineUIUtils.testContentMatching(event, searchRegex.regex));
+        this.searchResults = this.root.searchTree(event => TimelineUIUtils.testContentMatching(event, searchRegex.regex, this.#parsedTrace || undefined));
         this.searchableView.updateSearchMatchesCount(this.searchResults.length);
     }
     jumpToNextSearchResult() {
@@ -500,7 +603,7 @@ export class GridNode extends DataGrid.SortableDataGrid.SortableDataGridNode {
         this.linkElement = null;
     }
     createCell(columnId) {
-        if (columnId === 'activity') {
+        if (columnId === 'activity' || columnId === 'site') {
             return this.createNameCell(columnId);
         }
         return this.createValueCell(columnId) || super.createCell(columnId);
@@ -520,85 +623,138 @@ export class GridNode extends DataGrid.SortableDataGrid.SortableDataGridNode {
             if (info.icon) {
                 iconContainer.insertBefore(info.icon, icon);
             }
+            // Include badges with the name, if relevant.
+            if (columnId === 'site' && this.treeView instanceof ThirdPartyTreeView.ThirdPartyTreeViewWidget) {
+                const thirdPartyTree = this.treeView;
+                let badgeText = '';
+                if (thirdPartyTree.nodeIsFirstParty(this.profileNode)) {
+                    badgeText = i18nString(UIStrings.firstParty);
+                }
+                else if (thirdPartyTree.nodeIsExtension(this.profileNode)) {
+                    badgeText = i18nString(UIStrings.extension);
+                }
+                if (badgeText) {
+                    const badge = container.createChild('div', 'entity-badge');
+                    badge.textContent = badgeText;
+                    UI.ARIAUtils.setLabel(badge, badgeText);
+                }
+            }
         }
         else if (event) {
-            const data = event.args['data'];
-            const deoptReason = data && data['deoptReason'];
-            if (deoptReason) {
-                container.createChild('div', 'activity-warning').title =
-                    i18nString(UIStrings.notOptimizedS, { PH1: deoptReason });
-            }
             name.textContent = TimelineUIUtils.eventTitle(event);
-            const target = this.treeView.modelInternal?.timelineModel().targetByEvent(event) || null;
+            const parsedTrace = this.treeView.parsedTrace();
+            const target = parsedTrace ? targetForEvent(parsedTrace, event) : null;
             const linkifier = this.treeView.linkifier;
-            const isFreshRecording = Boolean(this.treeView.modelInternal?.timelineModel().isFreshRecording());
+            const isFreshRecording = Boolean(parsedTrace && Tracker.instance().recordingIsFresh(parsedTrace));
             this.linkElement = TimelineUIUtils.linkifyTopCallFrame(event, target, linkifier, isFreshRecording);
             if (this.linkElement) {
                 container.createChild('div', 'activity-link').appendChild(this.linkElement);
             }
-            const eventStyle = TimelineUIUtils.eventStyle(event);
-            const eventCategory = eventStyle.category;
-            UI.ARIAUtils.setLabel(icon, eventCategory.title);
-            icon.style.backgroundColor = eventCategory.color;
+            UI.ARIAUtils.setLabel(icon, TimelineUIUtils.eventStyle(event).category.title);
+            icon.style.backgroundColor = TimelineUIUtils.eventColor(event);
+            if (Trace.Types.Extensions.isSyntheticExtensionEntry(event)) {
+                icon.style.backgroundColor = Extensions.ExtensionUI.extensionEntryColor(event);
+            }
         }
         return cell;
     }
     createValueCell(columnId) {
-        if (columnId !== 'self' && columnId !== 'total' && columnId !== 'startTime') {
+        if (columnId !== 'self' && columnId !== 'total' && columnId !== 'start-time' && columnId !== 'transfer-size') {
             return null;
         }
         let showPercents = false;
         let value;
         let maxTime;
         let event;
+        let isSize = false;
+        let showBottomUpButton = false;
+        const thirdPartyView = this.treeView;
         switch (columnId) {
-            case 'startTime':
+            case 'start-time':
                 {
                     event = this.profileNode.event;
-                    const model = this.treeView.model();
-                    if (!model) {
-                        throw new Error('Unable to find model for tree view');
+                    const parsedTrace = this.treeView.parsedTrace();
+                    if (!parsedTrace) {
+                        throw new Error('Unable to load trace data for tree view');
                     }
-                    const timings = event && SDK.TracingModel.timesForEventInMilliseconds(event);
+                    const timings = event && Trace.Helpers.Timing.eventTimingsMilliSeconds(event);
                     const startTime = timings?.startTime ?? 0;
-                    value = startTime - model.timelineModel().minimumRecordTime();
+                    value = startTime - Trace.Helpers.Timing.microToMilli(parsedTrace.Meta.traceBounds.min);
                 }
                 break;
             case 'self':
                 value = this.profileNode.selfTime;
                 maxTime = this.maxSelfTime;
                 showPercents = true;
+                showBottomUpButton = thirdPartyView instanceof ThirdPartyTreeView.ThirdPartyTreeViewWidget;
                 break;
             case 'total':
                 value = this.profileNode.totalTime;
                 maxTime = this.maxTotalTime;
                 showPercents = true;
                 break;
+            case 'transfer-size':
+                value = this.profileNode.transferSize;
+                isSize = true;
+                break;
             default:
                 return null;
         }
         const cell = this.createTD(columnId);
         cell.className = 'numeric-column';
-        cell.setAttribute('title', i18nString(UIStrings.fms, { PH1: value.toFixed(4) }));
-        const textDiv = cell.createChild('div');
-        textDiv.createChild('span').textContent = i18nString(UIStrings.fms, { PH1: value.toFixed(1) });
+        let textDiv;
+        if (!isSize) {
+            cell.setAttribute('title', i18n.TimeUtilities.preciseMillisToString(value, 4));
+            textDiv = cell.createChild('div');
+            textDiv.createChild('span').textContent = i18n.TimeUtilities.preciseMillisToString(value, 1);
+        }
+        else {
+            cell.setAttribute('title', i18n.ByteUtilities.bytesToString(value));
+            textDiv = cell.createChild('div');
+            textDiv.createChild('span').textContent = i18n.ByteUtilities.bytesToString(value);
+        }
         if (showPercents && this.treeView.exposePercentages()) {
             textDiv.createChild('span', 'percent-column').textContent =
                 i18nString(UIStrings.percentPlaceholder, { PH1: (value / this.grandTotalTime * 100).toFixed(1) });
         }
         if (maxTime) {
-            textDiv.classList.add('background-percent-bar');
+            textDiv.classList.add('background-bar-text');
             cell.createChild('div', 'background-bar-container').createChild('div', 'background-bar').style.width =
                 (value * 100 / maxTime).toFixed(1) + '%';
         }
+        // Generate button on hover for 3P self time cell.
+        if (showBottomUpButton) {
+            this.generateBottomUpButton(textDiv);
+        }
         return cell;
+    }
+    // Generates bottom up tree hover button and appends it to the provided cell element.
+    generateBottomUpButton(textDiv) {
+        const button = new Buttons.Button.Button();
+        button.data = {
+            variant: "icon" /* Buttons.Button.Variant.ICON */,
+            iconName: 'account-tree',
+            size: "SMALL" /* Buttons.Button.Size.SMALL */,
+            toggledIconName: i18nString(UIStrings.bottomUp),
+        };
+        UI.ARIAUtils.setLabel(button, i18nString(UIStrings.viewBottomUp));
+        button.addEventListener('click', () => this.#bottomUpButtonClicked());
+        UI.Tooltip.Tooltip.install(button, i18nString(UIStrings.bottomUp));
+        // Append the button to the last column
+        textDiv.appendChild(button);
+    }
+    #bottomUpButtonClicked() {
+        // We should also trigger an event to "unhover" the 3P tree row. Since this isn't
+        // triggered when clicking the bottom up button.
+        this.treeView.dispatchEventToListeners("TreeRowHovered" /* TimelineTreeView.Events.TREE_ROW_HOVERED */, null);
+        this.treeView.dispatchEventToListeners("BottomUpButtonClicked" /* TimelineTreeView.Events.BOTTOM_UP_BUTTON_CLICKED */, this.profileNode);
     }
 }
 export class TreeGridNode extends GridNode {
     constructor(profileNode, grandTotalTime, maxSelfTime, maxTotalTime, treeView) {
         super(profileNode, grandTotalTime, maxSelfTime, maxTotalTime, treeView);
         this.setHasChildren(this.profileNode.hasChildren());
-        profileNodeToTreeGridNode.set(profileNode, this);
+        treeNodeToGridNode.set(profileNode, this);
     }
     populate() {
         if (this.populated) {
@@ -610,54 +766,37 @@ export class TreeGridNode extends GridNode {
         }
         for (const node of this.profileNode.children().values()) {
             const gridNode = new TreeGridNode(node, this.grandTotalTime, this.maxSelfTime, this.maxTotalTime, this.treeView);
+            for (const e of node.events) {
+                this.treeView.eventToTreeNode.set(e, node);
+            }
             this.insertChildOrdered(gridNode);
         }
     }
 }
-const profileNodeToTreeGridNode = new WeakMap();
+const treeNodeToGridNode = new WeakMap();
 export class AggregatedTimelineTreeView extends TimelineTreeView {
     groupBySetting;
     stackView;
-    executionContextNamesByOrigin = new Map();
     constructor() {
         super();
-        this.groupBySetting = Common.Settings.Settings.instance().createSetting('timelineTreeGroupBy', AggregatedTimelineTreeView.GroupBy.None);
+        this.groupBySetting = Common.Settings.Settings.instance().createSetting('timeline-tree-group-by', AggregatedTimelineTreeView.GroupBy.None);
         this.groupBySetting.addChangeListener(this.refreshTree.bind(this));
         this.init();
         this.stackView = new TimelineStackView(this);
-        this.stackView.addEventListener(TimelineStackView.Events.SelectionChanged, this.onStackViewSelectionChanged, this);
+        this.stackView.addEventListener("SelectionChanged" /* TimelineStackView.Events.SELECTION_CHANGED */, this.onStackViewSelectionChanged, this);
     }
-    setGroupBySettingForTests(groupBy) {
+    setGroupBySetting(groupBy) {
         this.groupBySetting.set(groupBy);
     }
-    setModelWithEvents(model, selectedEvents, traceParseData = null) {
-        super.setModelWithEvents(model, selectedEvents, traceParseData);
-    }
-    /**
-     * This method is included only for preventing layout test failures.
-     * TODO(crbug.com/1433692): Port problematic layout tests to unit
-     * tests.
-     */
-    setModel(model, track) {
-        super.setModel(model, track);
-    }
     updateContents(selection) {
-        this.updateExtensionResolver();
         super.updateContents(selection);
         const rootNode = this.dataGrid.rootNode();
         if (rootNode.children.length) {
             rootNode.children[0].select(/* suppressSelectedEvent */ true);
         }
+        this.updateDetailsForSelection();
     }
-    updateExtensionResolver() {
-        this.executionContextNamesByOrigin = new Map();
-        for (const runtimeModel of SDK.TargetManager.TargetManager.instance().models(SDK.RuntimeModel.RuntimeModel)) {
-            for (const context of runtimeModel.executionContexts()) {
-                this.executionContextNamesByOrigin.set(context.origin, context.name);
-            }
-        }
-    }
-    beautifyDomainName(name) {
+    beautifyDomainName(name, node) {
         if (AggregatedTimelineTreeView.isExtensionInternalURL(name)) {
             name = i18nString(UIStrings.chromeExtensionsOverhead);
         }
@@ -665,54 +804,51 @@ export class AggregatedTimelineTreeView extends TimelineTreeView {
             name = i18nString(UIStrings.vRuntime);
         }
         else if (name.startsWith('chrome-extension')) {
-            name = this.executionContextNamesByOrigin.get(name) || name;
+            name = this.entityMapper()?.entityForEvent(node.event)?.name || name;
         }
         return name;
     }
     displayInfoForGroupNode(node) {
-        const categories = TimelineUIUtils.categories();
-        const color = node.id ? TimelineUIUtils.eventColor(node.event) : categories['other'].color;
+        const categories = Utils.EntryStyles.getCategoryStyles();
+        const color = TimelineUIUtils.eventColor(node.event);
         const unattributed = i18nString(UIStrings.unattributed);
         const id = typeof node.id === 'symbol' ? undefined : node.id;
         switch (this.groupBySetting.get()) {
             case AggregatedTimelineTreeView.GroupBy.Category: {
-                const category = id ? categories[id] || categories['other'] : { title: unattributed, color: unattributed };
+                const idIsValid = id && Utils.EntryStyles.stringIsEventCategory(id);
+                const category = idIsValid ? categories[id] || categories['other'] : { title: unattributed, color: unattributed };
                 return { name: category.title, color: category.color, icon: undefined };
             }
             case AggregatedTimelineTreeView.GroupBy.Domain:
-            case AggregatedTimelineTreeView.GroupBy.Subdomain: {
-                const domainName = id ? this.beautifyDomainName(id) : undefined;
-                return { name: domainName || unattributed, color: color, icon: undefined };
+            case AggregatedTimelineTreeView.GroupBy.Subdomain:
+            case AggregatedTimelineTreeView.GroupBy.ThirdParties: {
+                // This `undefined` is [unattributed]
+                // TODO(paulirish,aixba): Improve attribution to reduce amount of items in [unattributed].
+                const domainName = id ? this.beautifyDomainName(id, node) : undefined;
+                return { name: domainName || unattributed, color, icon: undefined };
             }
             case AggregatedTimelineTreeView.GroupBy.EventName: {
                 if (!node.event) {
                     throw new Error('Unable to find event for group by operation');
                 }
-                const name = (TimelineModel.TimelineModel.TimelineModelImpl.isJsFrameEvent(node.event)) ?
-                    i18nString(UIStrings.javascript) :
-                    TimelineUIUtils.eventTitle(node.event);
+                const name = TimelineUIUtils.eventTitle(node.event);
                 return {
-                    name: name,
-                    color: TimelineModel.TimelineModel.TimelineModelImpl.isJsFrameEvent(node.event) ?
-                        TimelineUIUtils.eventStyle(node.event).category.color :
-                        color,
+                    name,
+                    color,
                     icon: undefined,
                 };
             }
             case AggregatedTimelineTreeView.GroupBy.URL:
                 break;
             case AggregatedTimelineTreeView.GroupBy.Frame: {
-                if (!this.modelInternal) {
-                    throw new Error('Unable to find model for group by frame operation');
-                }
-                const frame = id ? this.modelInternal.timelineModel().pageFrameById(id) : undefined;
-                const frameName = frame ? TimelineUIUtils.displayNameForFrame(frame, 80) : i18nString(UIStrings.page);
-                return { name: frameName, color: color, icon: undefined };
+                const frame = id ? this.parsedTrace()?.PageFrames.frames.get(id) : undefined;
+                const frameName = frame ? TimelineUIUtils.displayNameForFrame(frame) : i18nString(UIStrings.page);
+                return { name: frameName, color, icon: undefined };
             }
             default:
                 console.assert(false, 'Unexpected grouping type');
         }
-        return { name: id || unattributed, color: color, icon: undefined };
+        return { name: id || unattributed, color, icon: undefined };
     }
     populateToolbar(toolbar) {
         super.populateToolbar(toolbar);
@@ -725,6 +861,7 @@ export class AggregatedTimelineTreeView extends TimelineTreeView {
             { label: i18nString(UIStrings.groupByFrame), value: groupBy.Frame },
             { label: i18nString(UIStrings.groupBySubdomain), value: groupBy.Subdomain },
             { label: i18nString(UIStrings.groupByUrl), value: groupBy.URL },
+            { label: i18nString(UIStrings.groupByThirdParties), value: groupBy.ThirdParties },
         ];
         toolbar.appendToolbarItem(new UI.Toolbar.ToolbarSettingComboBox(options, this.groupBySetting, i18nString(UIStrings.groupBy)));
         toolbar.appendSpacer();
@@ -734,11 +871,11 @@ export class AggregatedTimelineTreeView extends TimelineTreeView {
         console.assert(Boolean(treeNode.parent), 'Attempt to build stack for tree root');
         let result = [];
         // Do not add root to the stack, as it's the tree itself.
-        for (let node = treeNode; node && node.parent; node = node.parent) {
+        for (let node = treeNode; node?.parent; node = node.parent) {
             result.push(node);
         }
         result = result.reverse();
-        for (let node = treeNode; node && node.children() && node.children().size;) {
+        for (let node = treeNode; node?.children()?.size;) {
             const children = Array.from(node.children().values());
             node = children.reduce((a, b) => a.totalTime > b.totalTime ? a : b);
             result.push(node);
@@ -770,20 +907,30 @@ export class AggregatedTimelineTreeView extends TimelineTreeView {
             case GroupBy.Category:
                 return (event) => TimelineUIUtils.eventStyle(event).category.name;
             case GroupBy.Subdomain:
-                return this.domainByEvent.bind(this, false);
             case GroupBy.Domain:
-                return this.domainByEvent.bind(this, true);
+            case GroupBy.ThirdParties:
+                return this.domainByEvent.bind(this, groupBy);
             case GroupBy.URL:
-                return (event) => TimelineModel.TimelineProfileTree.eventURL(event) || '';
+                return (event) => {
+                    const parsedTrace = this.parsedTrace();
+                    return parsedTrace ? Trace.Handlers.Helpers.getNonResolvedURL(event, parsedTrace) ?? '' : '';
+                };
             case GroupBy.Frame:
-                return (event) => TimelineModel.TimelineModel.EventOnTimelineData.forEvent(event).frameId || '';
+                return (event) => {
+                    const frameId = Trace.Helpers.Trace.frameIDForEvent(event);
+                    return frameId || this.parsedTrace()?.Meta.mainFrameId || '';
+                };
             default:
                 console.assert(false, `Unexpected aggregation setting: ${groupBy}`);
                 return null;
         }
     }
-    domainByEvent(groupSubdomains, event) {
-        const url = TimelineModel.TimelineProfileTree.eventURL(event);
+    domainByEvent(groupBy, event) {
+        const parsedTrace = this.parsedTrace();
+        if (!parsedTrace) {
+            return '';
+        }
+        const url = Trace.Handlers.Helpers.getNonResolvedURL(event, parsedTrace);
         if (!url) {
             return '';
         }
@@ -800,30 +947,22 @@ export class AggregatedTimelineTreeView extends TimelineTreeView {
         if (parsedURL.scheme === 'chrome-extension') {
             return parsedURL.scheme + '://' + parsedURL.host;
         }
-        if (!groupSubdomains) {
+        // This must follow after the extension checks.
+        if (groupBy === AggregatedTimelineTreeView.GroupBy.ThirdParties) {
+            const entity = this.entityMapper()?.entityForEvent(event);
+            if (!entity) {
+                return '';
+            }
+            return entity.name;
+        }
+        if (groupBy === AggregatedTimelineTreeView.GroupBy.Subdomain) {
             return parsedURL.host;
         }
         if (/^[.0-9]+$/.test(parsedURL.host)) {
             return parsedURL.host;
         }
         const domainMatch = /([^.]*\.)?[^.]*$/.exec(parsedURL.host);
-        return domainMatch && domainMatch[0] || '';
-    }
-    appendContextMenuItems(contextMenu, node) {
-        if (this.groupBySetting.get() !== AggregatedTimelineTreeView.GroupBy.Frame) {
-            return;
-        }
-        if (!node.isGroupNode()) {
-            return;
-        }
-        if (!this.modelInternal) {
-            return;
-        }
-        const frame = this.modelInternal.timelineModel().pageFrameById(node.id);
-        if (!frame || !frame.ownerNode) {
-            return;
-        }
-        contextMenu.appendApplicableItems(frame.ownerNode);
+        return domainMatch?.[0] || '';
     }
     static isExtensionInternalURL(url) {
         return url.startsWith(AggregatedTimelineTreeView.extensionInternalPrefix);
@@ -831,16 +970,13 @@ export class AggregatedTimelineTreeView extends TimelineTreeView {
     static isV8NativeURL(url) {
         return url.startsWith(AggregatedTimelineTreeView.v8NativePrefix);
     }
-    // eslint-disable-next-line @typescript-eslint/naming-convention
     static extensionInternalPrefix = 'extensions::';
-    // eslint-disable-next-line @typescript-eslint/naming-convention
     static v8NativePrefix = 'native ';
 }
 (function (AggregatedTimelineTreeView) {
-    // TODO(crbug.com/1167717): Make this a const enum again
-    // eslint-disable-next-line rulesdir/const_enum
     let GroupBy;
     (function (GroupBy) {
+        /* eslint-disable @typescript-eslint/naming-convention -- Used by web_tests. */
         GroupBy["None"] = "None";
         GroupBy["EventName"] = "EventName";
         GroupBy["Category"] = "Category";
@@ -848,15 +984,15 @@ export class AggregatedTimelineTreeView extends TimelineTreeView {
         GroupBy["Subdomain"] = "Subdomain";
         GroupBy["URL"] = "URL";
         GroupBy["Frame"] = "Frame";
+        GroupBy["ThirdParties"] = "ThirdParties";
+        /* eslint-enable @typescript-eslint/naming-convention */
     })(GroupBy = AggregatedTimelineTreeView.GroupBy || (AggregatedTimelineTreeView.GroupBy = {}));
 })(AggregatedTimelineTreeView || (AggregatedTimelineTreeView = {}));
 export class CallTreeTimelineTreeView extends AggregatedTimelineTreeView {
     constructor() {
         super();
+        this.element.setAttribute('jslog', `${VisualLogging.pane('call-tree').track({ resize: true })}`);
         this.dataGrid.markColumnAsSortedBy('total', DataGrid.DataGrid.Order.Descending);
-    }
-    getToolbarInputAccessiblePlaceHolder() {
-        return i18nString(UIStrings.filterCallTree);
     }
     buildTree() {
         const grouping = this.groupBySetting.get();
@@ -866,13 +1002,17 @@ export class CallTreeTimelineTreeView extends AggregatedTimelineTreeView {
 export class BottomUpTimelineTreeView extends AggregatedTimelineTreeView {
     constructor() {
         super();
+        this.element.setAttribute('jslog', `${VisualLogging.pane('bottom-up').track({ resize: true })}`);
         this.dataGrid.markColumnAsSortedBy('self', DataGrid.DataGrid.Order.Descending);
     }
-    getToolbarInputAccessiblePlaceHolder() {
-        return i18nString(UIStrings.filterBottomup);
-    }
     buildTree() {
-        return new TimelineModel.TimelineProfileTree.BottomUpRootNode(this.modelEvents(), this.textFilter(), this.filtersWithoutTextFilter(), this.startTime, this.endTime, this.groupingFunction(this.groupBySetting.get()));
+        return new Trace.Extras.TraceTree.BottomUpRootNode(this.selectedEvents(), {
+            textFilter: this.textFilter(),
+            filters: this.filtersWithoutTextFilter(),
+            startTime: this.startTime,
+            endTime: this.endTime,
+            eventGroupIdCallback: this.groupingFunction(this.groupBySetting.get()),
+        });
     }
 }
 export class TimelineStackView extends Common.ObjectWrapper.eventMixin(UI.Widget.VBox) {
@@ -891,11 +1031,13 @@ export class TimelineStackView extends Common.ObjectWrapper.eventMixin(UI.Widget
             displayName: i18nString(UIStrings.timelineStack),
             columns,
             deleteCallback: undefined,
-            editCallback: undefined,
             refreshCallback: undefined,
         });
-        this.dataGrid.setResizeMethod(DataGrid.DataGrid.ResizeMethod.Last);
-        this.dataGrid.addEventListener(DataGrid.DataGrid.Events.SelectedNode, this.onSelectionChanged, this);
+        this.dataGrid.setResizeMethod("last" /* DataGrid.DataGrid.ResizeMethod.LAST */);
+        this.dataGrid.addEventListener("SelectedNode" /* DataGrid.DataGrid.Events.SELECTED_NODE */, this.onSelectionChanged, this);
+        // Hover dim behavior within stackview sidebar
+        this.dataGrid.element.addEventListener('mouseenter', this.onMouseMove.bind(this), true);
+        this.dataGrid.element.addEventListener('mouseleave', () => this.dispatchEventToListeners("TreeRowHovered" /* TimelineStackView.Events.TREE_ROW_HOVERED */, null));
         this.dataGrid.asWidget().show(this.element);
     }
     setStack(stack, selectedNode) {
@@ -914,20 +1056,19 @@ export class TimelineStackView extends Common.ObjectWrapper.eventMixin(UI.Widget
             nodeToReveal.revealAndSelect();
         }
     }
+    onMouseMove(event) {
+        const gridNode = event.target && (event.target instanceof Node) ?
+            (this.dataGrid.dataGridNodeFromNode(event.target)) :
+            null;
+        const profileNode = gridNode?.profileNode;
+        this.dispatchEventToListeners("TreeRowHovered" /* TimelineStackView.Events.TREE_ROW_HOVERED */, profileNode);
+    }
     selectedTreeNode() {
         const selectedNode = this.dataGrid.selectedNode;
         return selectedNode && selectedNode.profileNode;
     }
     onSelectionChanged() {
-        this.dispatchEventToListeners(TimelineStackView.Events.SelectionChanged);
+        this.dispatchEventToListeners("SelectionChanged" /* TimelineStackView.Events.SELECTION_CHANGED */);
     }
 }
-(function (TimelineStackView) {
-    // TODO(crbug.com/1167717): Make this a const enum again
-    // eslint-disable-next-line rulesdir/const_enum
-    let Events;
-    (function (Events) {
-        Events["SelectionChanged"] = "SelectionChanged";
-    })(Events = TimelineStackView.Events || (TimelineStackView.Events = {}));
-})(TimelineStackView || (TimelineStackView = {}));
 //# sourceMappingURL=TimelineTreeView.js.map

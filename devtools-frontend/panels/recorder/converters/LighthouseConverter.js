@@ -9,7 +9,7 @@ export class LighthouseConverter {
         this.#indent = indent;
     }
     getId() {
-        return "lighthouse" /* Models.ConverterIds.ConverterIds.Lighthouse */;
+        return "lighthouse" /* Models.ConverterIds.ConverterIds.LIGHTHOUSE */;
     }
     getFormatName() {
         return 'Puppeteer (including Lighthouse analysis)';

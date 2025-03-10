@@ -39,14 +39,14 @@
     "../../../../../../front_end/panels/application/CookieItemsView.ts",
     "../../../../../../front_end/panels/application/DOMStorageItemsView.ts",
     "../../../../../../front_end/panels/application/DOMStorageModel.ts",
-    "../../../../../../front_end/panels/application/DatabaseModel.ts",
-    "../../../../../../front_end/panels/application/DatabaseQueryView.ts",
-    "../../../../../../front_end/panels/application/DatabaseTableView.ts",
+    "../../../../../../front_end/panels/application/ExtensionStorageItemsView.ts",
+    "../../../../../../front_end/panels/application/ExtensionStorageModel.ts",
     "../../../../../../front_end/panels/application/IndexedDBModel.ts",
     "../../../../../../front_end/panels/application/IndexedDBViews.ts",
     "../../../../../../front_end/panels/application/InterestGroupStorageModel.ts",
     "../../../../../../front_end/panels/application/InterestGroupStorageView.ts",
     "../../../../../../front_end/panels/application/InterestGroupTreeElement.ts",
+    "../../../../../../front_end/panels/application/KeyValueStorageItemsView.ts",
     "../../../../../../front_end/panels/application/OpenedWindowDetailsView.ts",
     "../../../../../../front_end/panels/application/PreloadingTreeElement.ts",
     "../../../../../../front_end/panels/application/ReportingApiReportsView.ts",
@@ -62,14 +62,15 @@
     "../../../../../../front_end/panels/application/SharedStorageListTreeElement.ts",
     "../../../../../../front_end/panels/application/SharedStorageModel.ts",
     "../../../../../../front_end/panels/application/SharedStorageTreeElement.ts",
+    "../../../../../../front_end/panels/application/StorageBucketsTreeElement.ts",
     "../../../../../../front_end/panels/application/StorageItemsView.ts",
     "../../../../../../front_end/panels/application/StorageView.ts",
     "../../../../../../front_end/panels/application/TrustTokensTreeElement.ts",
     "../../../../../../front_end/panels/application/preloading/PreloadingView.ts",
     "../../../../../../front_end/legacy/legacy-defs.d.ts",
     "../../../../../../front_end/global_typings/global_defs.d.ts",
-    "../../../../../../front_end/global_typings/request_idle_callback.d.ts",
-    "../../../../../../node_modules/@types/filesystem/index.d.ts"
+    "../../../../../../node_modules/@types/filesystem/index.d.ts",
+    "../../../../../../node_modules/@types/wicg-task-scheduling/index.d.ts"
   ],
   "references": [
     {
@@ -121,7 +122,10 @@
       "path": "../network/forward/bundle-tsconfig.json"
     },
     {
-      "path": "../../ui/components/data_grid/bundle-tsconfig.json"
+      "path": "../../third_party/json5/bundle-tsconfig.json"
+    },
+    {
+      "path": "../../ui/components/buttons/bundle-tsconfig.json"
     },
     {
       "path": "../../ui/components/expandable_list/bundle-tsconfig.json"
@@ -158,6 +162,9 @@
     },
     {
       "path": "preloading/components/bundle-tsconfig.json"
+    },
+    {
+      "path": "preloading/helper/bundle-tsconfig.json"
     }
   ]
 }

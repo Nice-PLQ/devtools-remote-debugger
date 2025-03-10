@@ -265,7 +265,9 @@ class ModelInfo {
         if (resourceType !== Common.ResourceType.resourceTypes.Image &&
             resourceType !== Common.ResourceType.resourceTypes.Font &&
             resourceType !== Common.ResourceType.resourceTypes.Document &&
-            resourceType !== Common.ResourceType.resourceTypes.Manifest) {
+            resourceType !== Common.ResourceType.resourceTypes.Manifest &&
+            resourceType !== Common.ResourceType.resourceTypes.Fetch &&
+            resourceType !== Common.ResourceType.resourceTypes.XHR) {
             return false;
         }
         // Ignore non-images and non-fonts.
@@ -279,7 +281,7 @@ class ModelInfo {
         }
         if ((resourceType === Common.ResourceType.resourceTypes.Image ||
             resourceType === Common.ResourceType.resourceTypes.Font) &&
-            resource.contentURL().startsWith('data:')) {
+            Common.ParsedURL.schemeIs(resource.contentURL(), 'data:')) {
             return false;
         }
         return true;
@@ -395,9 +397,9 @@ class Binding {
         if (this.#edits.length > 1) {
             return;
         } // There is already a styleSheetChanged loop running
-        const { content } = await this.#uiSourceCode.requestContent();
-        if (content !== null) {
-            await this.innerStyleSheetChanged(content);
+        const content = await this.#uiSourceCode.requestContentData();
+        if (!TextUtils.ContentData.ContentData.isError(content)) {
+            await this.innerStyleSheetChanged(content.text);
         }
         this.#edits = [];
     }
@@ -467,6 +469,9 @@ class Binding {
     }
     requestContent() {
         return this.firstResource().requestContent();
+    }
+    requestContentData() {
+        return this.firstResource().requestContentData();
     }
     searchInContent(query, caseSensitive, isRegex) {
         return this.firstResource().searchInContent(query, caseSensitive, isRegex);

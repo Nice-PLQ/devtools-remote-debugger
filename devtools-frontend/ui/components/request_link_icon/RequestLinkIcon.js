@@ -1,15 +1,18 @@
 // Copyright (c) 2021 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
-import * as Root from '../../../core/root/root.js';
-import * as i18n from '../../../core/i18n/i18n.js';
+import '../../../ui/components/icon_button/icon_button.js';
 import * as Common from '../../../core/common/common.js';
+import * as i18n from '../../../core/i18n/i18n.js';
 import * as NetworkForward from '../../../panels/network/forward/forward.js';
-import * as ComponentHelpers from '../../../ui/components/helpers/helpers.js';
-import * as IconButton from '../../../ui/components/icon_button/icon_button.js';
-import * as LitHtml from '../../../ui/lit-html/lit-html.js';
-import * as Coordinator from '../../../ui/components/render_coordinator/render_coordinator.js';
-import requestLinkIconStyles from './requestLinkIcon.css.js';
+import * as RenderCoordinator from '../../../ui/components/render_coordinator/render_coordinator.js';
+import * as Lit from '../../../ui/lit/lit.js';
+import * as VisualLogging from '../../../ui/visual_logging/visual_logging.js';
+import requestLinkIconStylesRaw from './requestLinkIcon.css.js';
+// TODO(crbug.com/391381439): Fully migrate off of constructed style sheets.
+const requestLinkIconStyles = new CSSStyleSheet();
+requestLinkIconStyles.replaceSync(requestLinkIconStylesRaw.cssContent);
+const { html } = Lit;
 const UIStrings = {
     /**
      * @description Title for a link to show a request in the network panel
@@ -32,9 +35,7 @@ export const extractShortPath = (path) => {
     // if path ends with '/', 2nd regex returns everything between the last two '/'
     return (/[^/]+$/.exec(path) || /[^/]+\/$/.exec(path) || [''])[0];
 };
-const coordinator = Coordinator.RenderCoordinator.RenderCoordinator.instance();
 export class RequestLinkIcon extends HTMLElement {
-    static litTagName = LitHtml.literal `devtools-request-link-icon`;
     #shadow = this.attachShadow({ mode: 'open' });
     #linkToPreflight;
     // The value `null` indicates that the request is not available,
@@ -43,11 +44,11 @@ export class RequestLinkIcon extends HTMLElement {
     #highlightHeader;
     #requestResolver;
     #displayURL = false;
+    #urlToDisplay;
     #networkTab;
     #affectedRequest;
     #additionalOnClickAction;
     #reveal = Common.Revealer.reveal;
-    #requestResolvedPromise = Promise.resolve(undefined);
     set data(data) {
         this.#linkToPreflight = data.linkToPreflight;
         this.#request = data.request;
@@ -58,29 +59,28 @@ export class RequestLinkIcon extends HTMLElement {
         this.#networkTab = data.networkTab;
         this.#requestResolver = data.requestResolver;
         this.#displayURL = data.displayURL ?? false;
+        this.#urlToDisplay = data.urlToDisplay;
         this.#additionalOnClickAction = data.additionalOnClickAction;
         if (data.revealOverride) {
             this.#reveal = data.revealOverride;
         }
-        if (!this.#request && data.affectedRequest) {
-            this.#requestResolvedPromise = this.#resolveRequest(data.affectedRequest.requestId);
+        if (!this.#request && typeof data.affectedRequest?.requestId !== 'undefined') {
+            if (!this.#requestResolver) {
+                throw new Error('A `RequestResolver` must be provided if an `affectedRequest` is provided.');
+            }
+            this.#requestResolver.waitFor(data.affectedRequest.requestId)
+                .then(request => {
+                this.#request = request;
+                return this.#render();
+            })
+                .catch(() => {
+                this.#request = null;
+            });
         }
         void this.#render();
     }
     connectedCallback() {
         this.#shadow.adoptedStyleSheets = [requestLinkIconStyles];
-    }
-    #resolveRequest(requestId) {
-        if (!this.#requestResolver) {
-            throw new Error('A `RequestResolver` must be provided if an `affectedRequest` is provided.');
-        }
-        return this.#requestResolver.waitFor(requestId)
-            .then(request => {
-            this.#request = request;
-        })
-            .catch(() => {
-            this.#request = null;
-        });
     }
     get data() {
         return {
@@ -91,22 +91,9 @@ export class RequestLinkIcon extends HTMLElement {
             networkTab: this.#networkTab,
             requestResolver: this.#requestResolver,
             displayURL: this.#displayURL,
+            urlToDisplay: this.#urlToDisplay,
             additionalOnClickAction: this.#additionalOnClickAction,
             revealOverride: this.#reveal !== Common.Revealer.reveal ? this.#reveal : undefined,
-        };
-    }
-    #iconColor() {
-        if (!this.#request) {
-            return '--icon-no-request';
-        }
-        return '--icon-link';
-    }
-    iconData() {
-        return {
-            iconName: 'arrow-up-down-circle',
-            color: `var(${this.#iconColor()})`,
-            width: '16px',
-            height: '16px',
         };
     }
     handleClick(event) {
@@ -122,13 +109,11 @@ export class RequestLinkIcon extends HTMLElement {
             void this.#reveal(requestLocation);
         }
         else {
-            const headersTab = Root.Runtime.experiments.isEnabled(Root.Runtime.ExperimentName.HEADER_OVERRIDES) ?
-                NetworkForward.UIRequestLocation.UIRequestTabs.HeadersComponent :
-                NetworkForward.UIRequestLocation.UIRequestTabs.Headers;
-            const requestLocation = NetworkForward.UIRequestLocation.UIRequestLocation.tab(linkedRequest, this.#networkTab ?? headersTab);
+            const requestLocation = NetworkForward.UIRequestLocation.UIRequestLocation.tab(linkedRequest, this.#networkTab ?? "headers-component" /* NetworkForward.UIRequestLocation.UIRequestTabs.HEADERS_COMPONENT */);
             void this.#reveal(requestLocation);
         }
         this.#additionalOnClickAction?.();
+        event.consume();
     }
     #getTooltip() {
         if (this.#request) {
@@ -137,43 +122,46 @@ export class RequestLinkIcon extends HTMLElement {
         return i18nString(UIStrings.requestUnavailableInTheNetwork);
     }
     #getUrlForDisplaying() {
-        if (!this.#request) {
-            return this.#affectedRequest?.url;
+        if (!this.#displayURL) {
+            return undefined;
         }
-        return this.#request.url();
+        if (this.#request) {
+            return this.#request.url();
+        }
+        return this.#affectedRequest?.url;
     }
     #maybeRenderURL() {
-        if (!this.#displayURL) {
-            return LitHtml.nothing;
-        }
         const url = this.#getUrlForDisplaying();
         if (!url) {
-            return LitHtml.nothing;
+            return Lit.nothing;
+        }
+        if (this.#urlToDisplay) {
+            return html `<span title=${url}>${this.#urlToDisplay}</span>`;
         }
         const filename = extractShortPath(url);
-        return LitHtml.html `<span aria-label=${i18nString(UIStrings.shortenedURL)} title=${url}>${filename}</span>`;
+        return html `<span aria-label=${i18nString(UIStrings.shortenedURL)} title=${url}>${filename}</span>`;
     }
-    #render() {
-        return coordinator.write(() => {
-            // clang-format off
-            LitHtml.render(LitHtml.html `
-        ${LitHtml.Directives.until(this.#requestResolvedPromise.then(() => this.#renderComponent()), this.#renderComponent())}
-      `, this.#shadow, { host: this });
-            // clang-format on
+    async #render() {
+        return await RenderCoordinator.write(() => {
+            // By default we render just the URL for the request link. If we also know
+            // the concrete network request, or at least its request ID, we surround
+            // the URL with a button, that opens the request in the Network panel.
+            let template = this.#maybeRenderURL();
+            if (this.#request || this.#affectedRequest?.requestId !== undefined) {
+                // clang-format off
+                template = html `
+          <button class=${Lit.Directives.classMap({ link: Boolean(this.#request) })}
+                  title=${this.#getTooltip()}
+                  jslog=${VisualLogging.link('request').track({ click: true })}
+                  @click=${this.handleClick}>
+            <devtools-icon name="arrow-up-down-circle"></devtools-icon>
+            ${template}
+          </button>`;
+                // clang-format on
+            }
+            Lit.render(template, this.#shadow, { host: this });
         });
     }
-    #renderComponent() {
-        // clang-format off
-        return LitHtml.html `
-      <span class=${LitHtml.Directives.classMap({ 'link': Boolean(this.#request) })}
-            tabindex="0"
-            @click=${this.handleClick}>
-        <${IconButton.Icon.Icon.litTagName} .data=${this.iconData()}
-          title=${this.#getTooltip()}></${IconButton.Icon.Icon.litTagName}>
-        ${this.#maybeRenderURL()}
-      </span>`;
-        // clang-format on
-    }
 }
-ComponentHelpers.CustomElements.defineComponent('devtools-request-link-icon', RequestLinkIcon);
+customElements.define('devtools-request-link-icon', RequestLinkIcon);
 //# sourceMappingURL=RequestLinkIcon.js.map

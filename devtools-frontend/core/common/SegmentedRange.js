@@ -64,9 +64,6 @@ export class SegmentedRange {
         }
         this.#segmentsInternal.splice(startIndex, endIndex - startIndex, newSegment);
     }
-    appendRange(that) {
-        that.segments().forEach(segment => this.append(segment));
-    }
     segments() {
         return this.#segmentsInternal;
     }

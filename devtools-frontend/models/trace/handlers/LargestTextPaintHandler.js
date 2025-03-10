@@ -12,7 +12,7 @@ export function reset() {
     textPaintByDOMNodeId.clear();
 }
 export function handleEvent(event) {
-    if (!Types.TraceEvents.isTraceEventLargestTextPaintCandidate(event)) {
+    if (!Types.Events.isLargestTextPaintCandidate(event)) {
         return;
     }
     if (!event.args.data) {
@@ -20,7 +20,9 @@ export function handleEvent(event) {
     }
     textPaintByDOMNodeId.set(event.args.data.DOMNodeId, event);
 }
+export async function finalize() {
+}
 export function data() {
-    return new Map(textPaintByDOMNodeId);
+    return textPaintByDOMNodeId;
 }
 //# sourceMappingURL=LargestTextPaintHandler.js.map

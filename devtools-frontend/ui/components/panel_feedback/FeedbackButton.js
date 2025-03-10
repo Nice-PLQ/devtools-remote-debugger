@@ -5,7 +5,7 @@ import * as Host from '../../../core/host/host.js';
 import * as i18n from '../../../core/i18n/i18n.js';
 import * as Platform from '../../../core/platform/platform.js';
 import * as ComponentHelpers from '../../components/helpers/helpers.js';
-import * as LitHtml from '../../lit-html/lit-html.js';
+import { html, render } from '../../lit/lit.js';
 import * as Buttons from '../buttons/buttons.js';
 const UIStrings = {
     /**
@@ -15,9 +15,7 @@ const UIStrings = {
 };
 const str_ = i18n.i18n.registerUIStrings('ui/components/panel_feedback/FeedbackButton.ts', UIStrings);
 const i18nString = i18n.i18n.getLocalizedString.bind(undefined, str_);
-const feedbackIconUrl = new URL('../../../Images/review.svg', import.meta.url).toString();
 export class FeedbackButton extends HTMLElement {
-    static litTagName = LitHtml.literal `devtools-feedback-button`;
     #shadow = this.attachShadow({ mode: 'open' });
     #boundRender = this.#render.bind(this);
     #props = {
@@ -35,15 +33,16 @@ export class FeedbackButton extends HTMLElement {
             throw new Error('FeedbackButton render was not scheduled');
         }
         // clang-format off
-        LitHtml.render(LitHtml.html `
-      <${Buttons.Button.Button.litTagName}
+        render(html `
+      <devtools-button
           @click=${this.#onFeedbackClick}
-          .iconUrl=${feedbackIconUrl}
-          .variant=${"secondary" /* Buttons.Button.Variant.SECONDARY */}
-      >${i18nString(UIStrings.feedback)}</${Buttons.Button.Button.litTagName}>
+          .iconName=${'review'}
+          .variant=${"outlined" /* Buttons.Button.Variant.OUTLINED */}
+          .jslogContext=${'feedback'}
+      >${i18nString(UIStrings.feedback)}</devtools-button>
       `, this.#shadow, { host: this });
         // clang-format on
     }
 }
-ComponentHelpers.CustomElements.defineComponent('devtools-feedback-button', FeedbackButton);
+customElements.define('devtools-feedback-button', FeedbackButton);
 //# sourceMappingURL=FeedbackButton.js.map

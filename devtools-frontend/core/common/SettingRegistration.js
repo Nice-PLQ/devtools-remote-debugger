@@ -69,6 +69,10 @@ const UIStrings = {
      * section allows users to configure which DevTools data is synced via Chrome Sync.
      */
     sync: 'Sync',
+    /**
+     * @description Text for the privacy section of the page.
+     */
+    privacy: 'Privacy',
 };
 const str_ = i18n.i18n.registerUIStrings('core/common/SettingRegistration.ts', UIStrings);
 const i18nString = i18n.i18n.getLocalizedString.bind(undefined, str_);
@@ -83,7 +87,7 @@ export function registerSettingExtension(registration) {
     registeredSettings.push(registration);
 }
 export function getRegisteredSettings() {
-    return registeredSettings.filter(setting => Root.Runtime.Runtime.isDescriptorEnabled({ experiment: setting.experiment, condition: setting.condition }));
+    return registeredSettings.filter(setting => Root.Runtime.Runtime.isDescriptorEnabled(setting));
 }
 export function registerSettingsForTest(settings, forceReset = false) {
     if (registeredSettings.length === 0 || forceReset) {
@@ -110,76 +114,46 @@ export function maybeRemoveSettingExtension(settingName) {
     registeredSettings.splice(settingIndex, 1);
     return true;
 }
-// TODO(crbug.com/1167717): Make this a const enum again
-// eslint-disable-next-line rulesdir/const_enum
-export var SettingCategory;
-(function (SettingCategory) {
-    SettingCategory["NONE"] = "";
-    SettingCategory["ELEMENTS"] = "ELEMENTS";
-    SettingCategory["APPEARANCE"] = "APPEARANCE";
-    SettingCategory["SOURCES"] = "SOURCES";
-    SettingCategory["NETWORK"] = "NETWORK";
-    SettingCategory["PERFORMANCE"] = "PERFORMANCE";
-    SettingCategory["CONSOLE"] = "CONSOLE";
-    SettingCategory["PERSISTENCE"] = "PERSISTENCE";
-    SettingCategory["DEBUGGER"] = "DEBUGGER";
-    SettingCategory["GLOBAL"] = "GLOBAL";
-    SettingCategory["RENDERING"] = "RENDERING";
-    SettingCategory["GRID"] = "GRID";
-    SettingCategory["MOBILE"] = "MOBILE";
-    SettingCategory["EMULATION"] = "EMULATION";
-    SettingCategory["MEMORY"] = "MEMORY";
-    SettingCategory["EXTENSIONS"] = "EXTENSIONS";
-    SettingCategory["ADORNER"] = "ADORNER";
-    SettingCategory["SYNC"] = "SYNC";
-})(SettingCategory || (SettingCategory = {}));
 export function getLocalizedSettingsCategory(category) {
     switch (category) {
-        case SettingCategory.ELEMENTS:
+        case "ELEMENTS" /* SettingCategory.ELEMENTS */:
             return i18nString(UIStrings.elements);
-        case SettingCategory.APPEARANCE:
+        case "APPEARANCE" /* SettingCategory.APPEARANCE */:
             return i18nString(UIStrings.appearance);
-        case SettingCategory.SOURCES:
+        case "SOURCES" /* SettingCategory.SOURCES */:
             return i18nString(UIStrings.sources);
-        case SettingCategory.NETWORK:
+        case "NETWORK" /* SettingCategory.NETWORK */:
             return i18nString(UIStrings.network);
-        case SettingCategory.PERFORMANCE:
+        case "PERFORMANCE" /* SettingCategory.PERFORMANCE */:
             return i18nString(UIStrings.performance);
-        case SettingCategory.CONSOLE:
+        case "CONSOLE" /* SettingCategory.CONSOLE */:
             return i18nString(UIStrings.console);
-        case SettingCategory.PERSISTENCE:
+        case "PERSISTENCE" /* SettingCategory.PERSISTENCE */:
             return i18nString(UIStrings.persistence);
-        case SettingCategory.DEBUGGER:
+        case "DEBUGGER" /* SettingCategory.DEBUGGER */:
             return i18nString(UIStrings.debugger);
-        case SettingCategory.GLOBAL:
+        case "GLOBAL" /* SettingCategory.GLOBAL */:
             return i18nString(UIStrings.global);
-        case SettingCategory.RENDERING:
+        case "RENDERING" /* SettingCategory.RENDERING */:
             return i18nString(UIStrings.rendering);
-        case SettingCategory.GRID:
+        case "GRID" /* SettingCategory.GRID */:
             return i18nString(UIStrings.grid);
-        case SettingCategory.MOBILE:
+        case "MOBILE" /* SettingCategory.MOBILE */:
             return i18nString(UIStrings.mobile);
-        case SettingCategory.EMULATION:
+        case "EMULATION" /* SettingCategory.EMULATION */:
             return i18nString(UIStrings.console);
-        case SettingCategory.MEMORY:
+        case "MEMORY" /* SettingCategory.MEMORY */:
             return i18nString(UIStrings.memory);
-        case SettingCategory.EXTENSIONS:
+        case "EXTENSIONS" /* SettingCategory.EXTENSIONS */:
             return i18nString(UIStrings.extension);
-        case SettingCategory.ADORNER:
+        case "ADORNER" /* SettingCategory.ADORNER */:
             return i18nString(UIStrings.adorner);
-        case SettingCategory.NONE:
+        case "" /* SettingCategory.NONE */:
             return i18n.i18n.lockedString('');
-        case SettingCategory.SYNC:
+        case "SYNC" /* SettingCategory.SYNC */:
             return i18nString(UIStrings.sync);
+        case "PRIVACY" /* SettingCategory.PRIVACY */:
+            return i18nString(UIStrings.privacy);
     }
 }
-// TODO(crbug.com/1167717): Make this a const enum again
-// eslint-disable-next-line rulesdir/const_enum
-export var SettingType;
-(function (SettingType) {
-    SettingType["ARRAY"] = "array";
-    SettingType["REGEX"] = "regex";
-    SettingType["ENUM"] = "enum";
-    SettingType["BOOLEAN"] = "boolean";
-})(SettingType || (SettingType = {}));
 //# sourceMappingURL=SettingRegistration.js.map

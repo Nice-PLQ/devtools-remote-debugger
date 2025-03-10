@@ -1,19 +1,21 @@
 // Copyright (c) 2020 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
-import * as ComponentHelpers from '../../../ui/components/helpers/helpers.js';
-import * as LitHtml from '../../../ui/lit-html/lit-html.js';
-import computedStyleTraceStyles from './computedStyleTrace.css.js';
-const { render, html } = LitHtml;
+import * as UI from '../../../ui/legacy/legacy.js';
+import { html, render } from '../../../ui/lit/lit.js';
+import computedStyleTraceStylesRaw from './computedStyleTrace.css.js';
+// TODO(crbug.com/391381439): Fully migrate off of constructed style sheets.
+const computedStyleTraceStyles = new CSSStyleSheet();
+computedStyleTraceStyles.replaceSync(computedStyleTraceStylesRaw.cssContent);
 export class ComputedStyleTrace extends HTMLElement {
-    static litTagName = LitHtml.literal `devtools-computed-style-trace`;
     #shadow = this.attachShadow({ mode: 'open' });
     #selector = '';
     #active = false;
     #onNavigateToSource = () => { };
     #ruleOriginNode;
     connectedCallback() {
-        this.#shadow.adoptedStyleSheets = [computedStyleTraceStyles];
+        UI.UIUtils.injectCoreStyles(this.#shadow);
+        this.#shadow.adoptedStyleSheets.push(computedStyleTraceStyles);
     }
     set data(data) {
         this.#selector = data.selector;
@@ -38,5 +40,5 @@ export class ComputedStyleTrace extends HTMLElement {
         // clang-format on
     }
 }
-ComponentHelpers.CustomElements.defineComponent('devtools-computed-style-trace', ComputedStyleTrace);
+customElements.define('devtools-computed-style-trace', ComputedStyleTrace);
 //# sourceMappingURL=ComputedStyleTrace.js.map

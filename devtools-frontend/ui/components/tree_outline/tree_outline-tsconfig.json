@@ -33,8 +33,8 @@
     "../../../../../../../front_end/ui/components/tree_outline/TreeOutlineUtils.ts",
     "../../../../../../../front_end/legacy/legacy-defs.d.ts",
     "../../../../../../../front_end/global_typings/global_defs.d.ts",
-    "../../../../../../../front_end/global_typings/request_idle_callback.d.ts",
-    "../../../../../../../node_modules/@types/filesystem/index.d.ts"
+    "../../../../../../../node_modules/@types/filesystem/index.d.ts",
+    "../../../../../../../node_modules/@types/wicg-task-scheduling/index.d.ts"
   ],
   "references": [
     {
@@ -47,7 +47,10 @@
       "path": "../render_coordinator/bundle-tsconfig.json"
     },
     {
-      "path": "../../lit-html/bundle-tsconfig.json"
+      "path": "../../lit/bundle-tsconfig.json"
+    },
+    {
+      "path": "../../visual_logging/bundle-tsconfig.json"
     },
     {
       "path": "../code_highlighter/bundle-tsconfig.json"

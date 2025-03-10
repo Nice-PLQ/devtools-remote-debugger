@@ -14,7 +14,13 @@ export function substituteExpression(expression, nameMap) {
 // if the substitution target is 'this' within a function, it would become bound there).
 function computeSubstitution(expression, nameMap) {
     // Parse the expression and find variables and scopes.
-    const root = Acorn.parse(expression, { ecmaVersion: ECMA_VERSION, allowAwaitOutsideFunction: true, ranges: false });
+    const root = Acorn.parse(expression, {
+        ecmaVersion: ECMA_VERSION,
+        allowAwaitOutsideFunction: true,
+        allowImportExportEverywhere: true,
+        checkPrivateFields: false,
+        ranges: false,
+    });
     const scopeVariables = new ScopeVariableAnalysis(root);
     scopeVariables.run();
     const freeVariables = scopeVariables.getFreeVariables();
@@ -22,7 +28,9 @@ function computeSubstitution(expression, nameMap) {
     // Prepare the machinery for generating fresh names (to avoid variable captures).
     const allNames = scopeVariables.getAllNames();
     for (const rename of nameMap.values()) {
-        allNames.add(rename);
+        if (rename) {
+            allNames.add(rename);
+        }
     }
     function getNewName(base) {
         let i = 1;
@@ -39,6 +47,9 @@ function computeSubstitution(expression, nameMap) {
         if (!defUse) {
             continue;
         }
+        if (rename === null) {
+            throw new Error(`Cannot substitute '${name}' as the underlying variable '${rename}' is unavailable`);
+        }
         const binders = [];
         for (const use of defUse) {
             result.push({
@@ -51,7 +62,7 @@ function computeSubstitution(expression, nameMap) {
         }
         // If there is a capturing binder, rename the bound variable.
         for (const binder of binders) {
-            if (binder.definitionKind === 3 /* DefinitionKind.Fixed */) {
+            if (binder.definitionKind === 3 /* DefinitionKind.FIXED */) {
                 // If the identifier is bound to a fixed name, such as 'this',
                 // then refuse to do the substitution.
                 throw new Error(`Cannot avoid capture of '${rename}'`);

@@ -5,16 +5,14 @@ import * as Platform from '../../core/platform/platform.js';
 import * as ARIAUtils from './ARIAUtils.js';
 import { Keys } from './KeyboardShortcut.js';
 import { ElementFocusRestorer, markBeingEdited } from './UIUtils.js';
-// TODO(crbug.com/1172300) Ignored during the jsdoc to ts migration
-// eslint-disable-next-line @typescript-eslint/naming-convention
-let _defaultInstance = null;
+let inplaceEditorInstance = null;
 export class InplaceEditor {
     focusRestorer;
     static startEditing(element, config) {
-        if (!_defaultInstance) {
-            _defaultInstance = new InplaceEditor();
+        if (!inplaceEditorInstance) {
+            inplaceEditorInstance = new InplaceEditor();
         }
-        return _defaultInstance.startEditing(element, config);
+        return inplaceEditorInstance.startEditing(element, config);
     }
     editorContent(editingContext) {
         const element = editingContext.element;
@@ -67,12 +65,11 @@ export class InplaceEditor {
             element.textContent = editingContext.oldText;
         }
     }
-    startEditing(element, inputConfig) {
+    startEditing(element, config) {
         if (!markBeingEdited(element, true)) {
             return null;
         }
-        const config = inputConfig || new Config(function () { }, function () { });
-        const editingContext = { element: element, config: config, oldRole: null, oldTabIndex: null, oldText: null };
+        const editingContext = { element, config, oldRole: null, oldTabIndex: null, oldText: null };
         const committedCallback = config.commitHandler;
         const cancelledCallback = config.cancelHandler;
         const pasteCallback = config.pasteHandler;
@@ -82,7 +79,7 @@ export class InplaceEditor {
         this.setUpEditor(editingContext);
         editingContext.oldText = this.editorContent(editingContext);
         function blurEventListener(e) {
-            if (config.blurHandler && !config.blurHandler(element, e)) {
+            if (!config.blurHandler(element, e)) {
                 return;
             }
             editingCommitted.call(element);
@@ -106,7 +103,8 @@ export class InplaceEditor {
         }
         function editingCommitted() {
             cleanUpAfterEditing();
-            committedCallback(this, self.editorContent(editingContext), editingContext.oldText || '', context, moveDirection);
+            committedCallback(this, self.editorContent(editingContext), editingContext.oldText, context, moveDirection);
+            element.dispatchEvent(new Event('change'));
         }
         function defaultFinishHandler(event) {
             if (event.key === 'Enter') {
@@ -129,7 +127,7 @@ export class InplaceEditor {
                 editingCancelled.call(element);
                 event.consume(true);
             }
-            else if (result && result.startsWith('move-')) {
+            else if (result?.startsWith('move-')) {
                 moveDirection = result.substring(5);
                 if (event.key === 'Tab') {
                     event.consume(true);
@@ -170,14 +168,11 @@ export class Config {
     blurHandler;
     pasteHandler;
     postKeydownFinishHandler;
-    constructor(commitHandler, cancelHandler, context, blurHandler) {
+    constructor(commitHandler, cancelHandler, context, blurHandler = () => true) {
         this.commitHandler = commitHandler;
         this.cancelHandler = cancelHandler;
         this.context = context;
         this.blurHandler = blurHandler;
-    }
-    setPasteHandler(pasteHandler) {
-        this.pasteHandler = pasteHandler;
     }
     setPostKeydownFinishHandler(postKeydownFinishHandler) {
         this.postKeydownFinishHandler = postKeydownFinishHandler;

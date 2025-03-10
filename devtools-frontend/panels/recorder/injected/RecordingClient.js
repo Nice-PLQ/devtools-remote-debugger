@@ -4,7 +4,7 @@
 import { Logger } from './Logger.js';
 import { SelectorComputer } from './SelectorComputer.js';
 import { queryCSSSelectorAll } from './selectors/CSSSelector.js';
-import { getClickableTargetFromEvent, haultImmediateEvent, assert, createClickAttributes, } from './util.js';
+import { assert, createClickAttributes, getClickableTargetFromEvent, haultImmediateEvent, } from './util.js';
 /**
  * Determines whether an element is ignorable as an input.
  *

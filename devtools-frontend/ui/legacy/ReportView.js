@@ -1,9 +1,10 @@
 // Copyright (c) 2016 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
+import './Toolbar.js';
+import * as VisualLogging from '../visual_logging/visual_logging.js';
 import * as ARIAUtils from './ARIAUtils.js';
-import reportViewStyles from './reportView.css.legacy.js';
-import { Toolbar } from './Toolbar.js';
+import reportViewStyles from './reportView.css.js';
 import { Tooltip } from './Tooltip.js';
 import { VBox } from './Widget.js';
 /**
@@ -59,14 +60,13 @@ export class ReportView extends VBox {
         if (link) {
             this.urlElement.appendChild(link);
         }
+        this.urlElement.setAttribute('jslog', `${VisualLogging.link('source-location').track({ click: true })}`);
     }
     createToolbar() {
-        const toolbar = new Toolbar('');
-        this.headerElement.appendChild(toolbar.element);
-        return toolbar;
+        return this.headerElement.createChild('devtools-toolbar');
     }
-    appendSection(title, className) {
-        const section = new Section(title, className);
+    appendSection(title, className, jslogContext) {
+        const section = new Section(title, className, jslogContext);
         section.show(this.sectionList);
         return section;
     }
@@ -90,16 +90,24 @@ export class ReportView extends VBox {
     }
 }
 export class Section extends VBox {
+    jslogContext;
     headerElement;
+    headerButtons;
     titleElement;
     fieldList;
     fieldMap;
-    constructor(title, className) {
+    constructor(title, className, jslogContext) {
         super();
+        this.jslogContext = jslogContext;
         this.element.classList.add('report-section');
         if (className) {
             this.element.classList.add(className);
         }
+        if (jslogContext) {
+            this.element.setAttribute('jslog', `${VisualLogging.section(jslogContext)}`);
+        }
+        this.jslogContext = jslogContext;
+        this.headerButtons = [];
         this.headerElement = this.element.createChild('div', 'report-section-header');
         this.titleElement = this.headerElement.createChild('div', 'report-section-title');
         this.setTitle(title);
@@ -133,10 +141,14 @@ export class Section extends VBox {
         ARIAUtils.markAsGroup(this.element);
         ARIAUtils.setLabel(this.element, groupTitle);
     }
-    createToolbar() {
-        const toolbar = new Toolbar('');
-        this.headerElement.appendChild(toolbar.element);
-        return toolbar;
+    appendButtonToHeader(button) {
+        this.headerButtons.push(button);
+        this.headerElement.appendChild(button);
+    }
+    setHeaderButtonsState(disabled) {
+        this.headerButtons.map(button => {
+            button.disabled = disabled;
+        });
     }
     appendField(title, textValue) {
         let row = this.fieldMap.get(title);

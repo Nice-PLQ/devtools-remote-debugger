@@ -1,8 +1,8 @@
 // Copyright 2023 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
-import { StepType, } from './Schema.js';
 import * as PuppeteerReplay from '../../../third_party/puppeteer-replay/puppeteer-replay.js';
+import { StepType, } from './Schema.js';
 export function createViewportStep(viewport) {
     return {
         type: StepType.SetViewport,
@@ -16,7 +16,12 @@ export function createViewportStep(viewport) {
     };
 }
 export function createEmulateNetworkConditionsStep(conditions) {
-    return { type: StepType.EmulateNetworkConditions, ...conditions };
+    return {
+        type: StepType.EmulateNetworkConditions,
+        download: conditions.download,
+        upload: conditions.upload,
+        latency: conditions.latency,
+    };
 }
 export function areSelectorsEqual(stepA, stepB) {
     if ('selectors' in stepA && 'selectors' in stepB) {

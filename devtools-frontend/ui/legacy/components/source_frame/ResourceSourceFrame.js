@@ -29,10 +29,13 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+import '../../legacy.js';
+import * as Common from '../../../../core/common/common.js';
 import * as i18n from '../../../../core/i18n/i18n.js';
-import * as FormatterActions from '../../../../entrypoints/formatter_worker/FormatterActions.js'; // eslint-disable-line rulesdir/es_modules_import
+import * as FormatterActions from '../../../../entrypoints/formatter_worker/FormatterActions.js'; // eslint-disable-line rulesdir/es-modules-import
+import * as TextUtils from '../../../../models/text_utils/text_utils.js';
 import * as UI from '../../legacy.js';
-import resourceSourceFrameStyles from './resourceSourceFrame.css.legacy.js';
+import resourceSourceFrameStyles from './resourceSourceFrame.css.js';
 import { SourceFrameImpl } from './SourceFrame.js';
 const UIStrings = {
     /**
@@ -43,18 +46,31 @@ const UIStrings = {
 const str_ = i18n.i18n.registerUIStrings('ui/legacy/components/source_frame/ResourceSourceFrame.ts', UIStrings);
 const i18nString = i18n.i18n.getLocalizedString.bind(undefined, str_);
 export class ResourceSourceFrame extends SourceFrameImpl {
-    givenContentType;
     resourceInternal;
+    #givenContentType;
     constructor(resource, givenContentType, options) {
-        super(() => resource.requestContent(), options);
-        this.givenContentType = givenContentType;
+        const isStreamingProvider = TextUtils.ContentProvider.isStreamingContentProvider(resource);
+        const lazyContent = isStreamingProvider ?
+            () => resource.requestStreamingContent().then(TextUtils.StreamingContentData.asContentDataOrError) :
+            () => resource.requestContentData();
+        super(lazyContent, options);
+        this.#givenContentType = givenContentType;
         this.resourceInternal = resource;
+        if (isStreamingProvider) {
+            void resource.requestStreamingContent().then(streamingContent => {
+                if (!TextUtils.StreamingContentData.isError(streamingContent)) {
+                    streamingContent.addEventListener("ChunkAdded" /* TextUtils.StreamingContentData.Events.CHUNK_ADDED */, () => {
+                        void this.setContentDataOrError(Promise.resolve(streamingContent.content()));
+                    });
+                }
+            });
+        }
     }
-    static createSearchableView(resource, contentType, autoPrettyPrint) {
-        return new SearchableContainer(resource, contentType, autoPrettyPrint);
+    static createSearchableView(resource, contentType) {
+        return new SearchableContainer(resource, contentType);
     }
     getContentType() {
-        return this.givenContentType;
+        return this.#givenContentType;
     }
     get resource() {
         return this.resourceInternal;
@@ -66,26 +82,27 @@ export class ResourceSourceFrame extends SourceFrameImpl {
 }
 export class SearchableContainer extends UI.Widget.VBox {
     sourceFrame;
-    constructor(resource, contentType, autoPrettyPrint) {
+    constructor(resource, contentType) {
         super(true);
         this.registerRequiredCSS(resourceSourceFrameStyles);
-        const sourceFrame = new ResourceSourceFrame(resource, contentType);
+        const simpleContentType = Common.ResourceType.ResourceType.simplifyContentType(contentType);
+        const sourceFrame = new ResourceSourceFrame(resource, simpleContentType);
         this.sourceFrame = sourceFrame;
-        const canPrettyPrint = FormatterActions.FORMATTABLE_MEDIA_TYPES.includes(contentType);
-        sourceFrame.setCanPrettyPrint(canPrettyPrint, autoPrettyPrint);
+        const canPrettyPrint = FormatterActions.FORMATTABLE_MEDIA_TYPES.includes(simpleContentType);
+        sourceFrame.setCanPrettyPrint(canPrettyPrint, true /* autoPrettyPrint */);
         const searchableView = new UI.SearchableView.SearchableView(sourceFrame, sourceFrame);
         searchableView.element.classList.add('searchable-view');
         searchableView.setPlaceholder(i18nString(UIStrings.find));
         sourceFrame.show(searchableView.element);
         sourceFrame.setSearchableView(searchableView);
         searchableView.show(this.contentElement);
-        const toolbar = new UI.Toolbar.Toolbar('toolbar', this.contentElement);
+        const toolbar = this.contentElement.createChild('devtools-toolbar', 'toolbar');
         void sourceFrame.toolbarItems().then(items => {
             items.map(item => toolbar.appendToolbarItem(item));
         });
     }
-    async revealPosition(lineNumber, columnNumber) {
-        this.sourceFrame.revealPosition({ lineNumber, columnNumber }, true);
+    async revealPosition(position) {
+        this.sourceFrame.revealPosition(position, true);
     }
 }
 //# sourceMappingURL=ResourceSourceFrame.js.map

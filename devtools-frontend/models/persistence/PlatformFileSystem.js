@@ -10,12 +10,43 @@ const UIStrings = {
 };
 const str_ = i18n.i18n.registerUIStrings('models/persistence/PlatformFileSystem.ts', UIStrings);
 const i18nString = i18n.i18n.getLocalizedString.bind(undefined, str_);
+export var PlatformFileSystemType;
+(function (PlatformFileSystemType) {
+    /**
+     * Snippets are implemented as a PlatformFileSystem but they are
+     * actually stored in the browser's profile directory and do not
+     * create files on the actual filesystem.
+     *
+     * See Sources > Snippets in the UI.
+     */
+    PlatformFileSystemType["SNIPPETS"] = "snippets";
+    /**
+     * Overrides is a filesystem that represents a user-selected folder on
+     * disk. This folder is used to replace page resources using request
+     * interception.
+     *
+     * See Sources > Overrides in the UI.
+     */
+    PlatformFileSystemType["OVERRIDES"] = "overrides";
+    /**
+     * Represents a filesystem for a workspace folder that the user added
+     * to DevTools. It can be manually connected or it can be
+     * automatically discovered based on the hints found in devtools.json
+     * served by the inspected page (see
+     * https://goo.gle/devtools-json-design). DevTools tries to map the
+     * page content to the content in such folder but does not use request
+     * interception for this.
+     */
+    PlatformFileSystemType["WORKSPACE_PROJECT"] = "workspace-project";
+})(PlatformFileSystemType || (PlatformFileSystemType = {}));
 export class PlatformFileSystem {
     pathInternal;
-    typeInternal;
-    constructor(path, type) {
+    #type;
+    #automatic;
+    constructor(path, type, automatic) {
         this.pathInternal = path;
-        this.typeInternal = type;
+        this.#type = type;
+        this.#automatic = automatic;
     }
     getMetadata(_path) {
         return Promise.resolve(null);
@@ -33,20 +64,29 @@ export class PlatformFileSystem {
         throw new Error('Not implemented');
     }
     type() {
-        // TODO(kozyatinskiy): remove type, overrides should implement this interface.
-        return this.typeInternal;
+        return this.#type;
+    }
+    /**
+     * True if the filesystem was automatically discovered (see
+     * https://goo.gle/devtools-json-design).
+     */
+    automatic() {
+        return this.#automatic;
     }
     async createFile(_path, _name) {
-        return Promise.resolve(null);
+        return await Promise.resolve(null);
     }
     deleteFile(_path) {
+        return Promise.resolve(false);
+    }
+    deleteDirectoryRecursively(_path) {
         return Promise.resolve(false);
     }
     requestFileBlob(_path) {
         return Promise.resolve(null);
     }
     async requestFileContent(_path) {
-        return { content: null, error: i18nString(UIStrings.unableToReadFilesWithThis), isEncoded: false };
+        return { error: i18nString(UIStrings.unableToReadFilesWithThis) };
     }
     setFileContent(_path, _content, _isBase64) {
         throw new Error('Not implemented');

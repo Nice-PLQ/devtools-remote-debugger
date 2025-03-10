@@ -3,15 +3,37 @@
 // found in the LICENSE file.
 import * as Platform from '../../../core/platform/platform.js';
 import * as Helpers from '../helpers/helpers.js';
-import { data as metaHandlerData } from './MetaHandler.js';
-import { KNOWN_EVENTS } from './types.js';
 import * as Types from '../types/types.js';
+import { data as auctionWorkletsData } from './AuctionWorkletsHandler.js';
+import * as HandlerHelpers from './helpers.js';
+import { data as metaHandlerData } from './MetaHandler.js';
+import { data as networkRequestHandlerData } from './NetworkRequestsHandler.js';
+import { data as samplesHandlerData } from './SamplesHandler.js';
+/**
+ * This handler builds the hierarchy of trace events and profile calls
+ * on each thread on each process.
+ *
+ * Throughout the code, trace events and profile calls are referred to
+ * as "entries", but note they are different types of data. Trace events
+ * come directly from the backend and it's the type the engine commonly
+ * refers to. Profile calls on the other hand are built in the frontend,
+ * and, for compatibility purposes, typed as an extension to the trace
+ * event type.
+ */
 const processes = new Map();
-const traceEventToNode = new Map();
-const allRendererEvents = [];
-let nodeIdCount = 0;
-const makeRendererEventNodeId = () => (++nodeIdCount);
-let handlerState = 1 /* HandlerState.UNINITIALIZED */;
+let entityMappings = {
+    eventsByEntity: new Map(),
+    entityByEvent: new Map(),
+    createdEntityCache: new Map(),
+};
+// We track the compositor tile worker thread name events so that at the end we
+// can return these keyed by the process ID. These are used in the frontend to
+// show the user the rasterization thread(s) on the main frame as tracks.
+const compositorTileWorkers = Array();
+const entryToNode = new Map();
+let allTraceEntries = [];
+const completeEventStack = [];
+let config = Types.Configuration.defaults();
 const makeRendererProcess = () => ({
     url: null,
     isOnMainFrame: false,
@@ -19,19 +41,10 @@ const makeRendererProcess = () => ({
 });
 const makeRendererThread = () => ({
     name: null,
-    events: [],
-});
-const makeEmptyRendererEventTree = () => ({
-    nodes: new Map(),
-    roots: new Set(),
-    maxDepth: 0,
-});
-const makeEmptyRendererEventNode = (event, id) => ({
-    event,
-    id,
-    parentId: null,
-    childrenIds: new Set(),
-    depth: 0,
+    entries: [],
+    profileCalls: [],
+    layoutEvents: [],
+    updateLayoutTreeEvents: [],
 });
 const getOrCreateRendererProcess = (processes, pid) => {
     return Platform.MapUtilities.getWithDefault(processes, pid, makeRendererProcess);
@@ -39,50 +52,84 @@ const getOrCreateRendererProcess = (processes, pid) => {
 const getOrCreateRendererThread = (process, tid) => {
     return Platform.MapUtilities.getWithDefault(process.threads, tid, makeRendererThread);
 };
+export function handleUserConfig(userConfig) {
+    config = userConfig;
+}
 export function reset() {
     processes.clear();
-    traceEventToNode.clear();
-    allRendererEvents.length = 0;
-    nodeIdCount = -1;
-    handlerState = 1 /* HandlerState.UNINITIALIZED */;
-}
-export function initialize() {
-    if (handlerState !== 1 /* HandlerState.UNINITIALIZED */) {
-        throw new Error('Renderer Handler was not reset');
-    }
-    handlerState = 2 /* HandlerState.INITIALIZED */;
+    entryToNode.clear();
+    entityMappings.eventsByEntity.clear();
+    entityMappings.entityByEvent.clear();
+    entityMappings.createdEntityCache.clear();
+    allTraceEntries.length = 0;
+    completeEventStack.length = 0;
+    compositorTileWorkers.length = 0;
 }
 export function handleEvent(event) {
-    if (handlerState !== 2 /* HandlerState.INITIALIZED */) {
-        throw new Error('Renderer Handler is not initialized');
+    if (Types.Events.isThreadName(event) && event.args.name?.startsWith('CompositorTileWorker')) {
+        compositorTileWorkers.push({
+            pid: event.pid,
+            tid: event.tid,
+        });
     }
-    if (Types.TraceEvents.isTraceEventInstant(event) || Types.TraceEvents.isTraceEventComplete(event)) {
+    if (Types.Events.isBegin(event) || Types.Events.isEnd(event)) {
         const process = getOrCreateRendererProcess(processes, event.pid);
         const thread = getOrCreateRendererThread(process, event.tid);
-        thread.events.push(event);
-        allRendererEvents.push(event);
+        const completeEvent = makeCompleteEvent(event);
+        if (!completeEvent) {
+            return;
+        }
+        thread.entries.push(completeEvent);
+        allTraceEntries.push(completeEvent);
+        return;
+    }
+    if (Types.Events.isInstant(event) || Types.Events.isComplete(event)) {
+        const process = getOrCreateRendererProcess(processes, event.pid);
+        const thread = getOrCreateRendererThread(process, event.tid);
+        thread.entries.push(event);
+        allTraceEntries.push(event);
+    }
+    if (Types.Events.isLayout(event)) {
+        const process = getOrCreateRendererProcess(processes, event.pid);
+        const thread = getOrCreateRendererThread(process, event.tid);
+        thread.layoutEvents.push(event);
+    }
+    if (Types.Events.isUpdateLayoutTree(event)) {
+        const process = getOrCreateRendererProcess(processes, event.pid);
+        const thread = getOrCreateRendererThread(process, event.tid);
+        thread.updateLayoutTreeEvents.push(event);
     }
 }
 export async function finalize() {
-    if (handlerState !== 2 /* HandlerState.INITIALIZED */) {
-        throw new Error('Renderer Handler is not initialized');
-    }
     const { mainFrameId, rendererProcessesByFrame, threadsInProcess } = metaHandlerData();
+    entityMappings = networkRequestHandlerData().entityMappings;
     assignMeta(processes, mainFrameId, rendererProcessesByFrame, threadsInProcess);
     sanitizeProcesses(processes);
-    buildHierarchy(processes, { filter: KNOWN_EVENTS });
+    buildHierarchy(processes);
     sanitizeThreads(processes);
-    handlerState = 3 /* HandlerState.FINALIZED */;
+    Helpers.Trace.sortTraceEventsInPlace(allTraceEntries);
 }
 export function data() {
-    if (handlerState !== 3 /* HandlerState.FINALIZED */) {
-        throw new Error('Renderer Handler is not finalized');
-    }
     return {
         processes: new Map(processes),
-        traceEventToNode: new Map(traceEventToNode),
-        allRendererEvents: [...allRendererEvents],
+        compositorTileWorkers: new Map(gatherCompositorThreads()),
+        entryToNode: new Map(entryToNode),
+        allTraceEntries: [...allTraceEntries],
+        entityMappings: {
+            entityByEvent: new Map(entityMappings.entityByEvent),
+            eventsByEntity: new Map(entityMappings.eventsByEntity),
+            createdEntityCache: new Map(entityMappings.createdEntityCache),
+        },
     };
+}
+function gatherCompositorThreads() {
+    const threadsByProcess = new Map();
+    for (const worker of compositorTileWorkers) {
+        const byProcess = threadsByProcess.get(worker.pid) || [];
+        byProcess.push(worker.tid);
+        threadsByProcess.set(worker.pid, byProcess);
+    }
+    return threadsByProcess;
 }
 /**
  * Steps through all the renderer processes we've located so far in the meta
@@ -91,7 +138,7 @@ export function data() {
  * assigned to the renderer handler's data.
  */
 export function assignMeta(processes, mainFrameId, rendererProcessesByFrame, threadsInProcess) {
-    assignOrigin(processes, mainFrameId, rendererProcessesByFrame);
+    assignOrigin(processes, rendererProcessesByFrame);
     assignIsMainFrame(processes, mainFrameId, rendererProcessesByFrame);
     assignThreadName(processes, rendererProcessesByFrame, threadsInProcess);
 }
@@ -99,23 +146,28 @@ export function assignMeta(processes, mainFrameId, rendererProcessesByFrame, thr
  * Assigns origins to all threads in all processes.
  * @see assignMeta
  */
-export function assignOrigin(processes, mainFrameId, rendererProcessesByFrame) {
-    for (const [frameId, renderProcessesByPid] of rendererProcessesByFrame) {
-        for (const [pid, processInfo] of renderProcessesByPid) {
-            const process = getOrCreateRendererProcess(processes, pid);
-            // Sometimes a single process is responsible with rendering multiple
-            // frames at the same time. For example, see https://crbug.com/1334563.
-            // When this happens, we'd still like to assign a single url per process
-            // so: 1) use the first frame rendered by this process as the url source
-            // and 2) if there's a more "important" frame found, us its url instead.
-            if (process.url === null /* first frame */ || frameId === mainFrameId /* more important frame */) {
-                // If we are here, it's because we care about this process and the URL. But before we store it, we check if it is a valid URL by trying to create a URL object. If it isn't, we won't set it, and this process will be filtered out later.
-                try {
-                    new URL(processInfo.frame.url);
-                    process.url = processInfo.frame.url;
-                }
-                catch (e) {
-                    process.url = null;
+export function assignOrigin(processes, rendererProcessesByFrame) {
+    for (const renderProcessesByPid of rendererProcessesByFrame.values()) {
+        for (const [pid, processWindows] of renderProcessesByPid) {
+            for (const processInfo of processWindows.flat()) {
+                const process = getOrCreateRendererProcess(processes, pid);
+                // Sometimes a single process is responsible with rendering multiple
+                // frames at the same time. For example, see https://crbug.com/1334563.
+                // When this happens, we'd still like to assign a single url per process
+                // so: 1) use the first frame rendered by this process as the url source
+                // and 2) if the last url is "about:blank", use the next frame's url,
+                // data from about:blank is irrelevant.
+                if (process.url === null || process.url === 'about:blank') {
+                    // If we are here, it's because we care about this process and the URL. But before we store
+                    // it, we check if it is a valid URL by trying to create a URL object. If it isn't, we won't
+                    // set it, and this process will be filtered out later.
+                    try {
+                        new URL(processInfo.frame.url);
+                        process.url = processInfo.frame.url;
+                    }
+                    catch {
+                        process.url = null;
+                    }
                 }
             }
         }
@@ -144,34 +196,44 @@ export function assignIsMainFrame(processes, mainFrameId, rendererProcessesByFra
  * @see assignMeta
  */
 export function assignThreadName(processes, rendererProcessesByFrame, threadsInProcess) {
-    for (const [, renderProcessesByPid] of rendererProcessesByFrame) {
-        for (const [pid] of renderProcessesByPid) {
-            const process = getOrCreateRendererProcess(processes, pid);
-            for (const [tid, threadInfo] of threadsInProcess.get(pid) ?? []) {
-                const thread = getOrCreateRendererThread(process, tid);
-                thread.name = threadInfo?.args.name ?? `${tid}`;
-            }
+    for (const [pid, process] of processes) {
+        for (const [tid, threadInfo] of threadsInProcess.get(pid) ?? []) {
+            const thread = getOrCreateRendererThread(process, tid);
+            thread.name = threadInfo?.args.name ?? `${tid}`;
         }
     }
 }
 /**
  * Removes unneeded trace data opportunistically stored while handling events.
  * This currently does the following:
- *  - Deletes processes with an unkonwn origin.
+ *  - Deletes processes with an unknown origin.
  */
 export function sanitizeProcesses(processes) {
+    const auctionWorklets = auctionWorkletsData().worklets;
+    const metaData = metaHandlerData();
+    if (metaData.traceIsGeneric) {
+        return;
+    }
     for (const [pid, process] of processes) {
         // If the process had no url, or if it had a malformed url that could not be
         // parsed for some reason, or if it's an "about:" origin, delete it.
         // This is done because we don't really care about processes for which we
         // can't provide actionable insights to the user (e.g. about:blank pages).
+        //
+        // There is one exception; AuctionWorklet processes get parsed in a
+        // separate handler, so at this point we check to see if the process has
+        // been found by the AuctionWorkletsHandler, and if so we update the URL.
+        // This ensures that we keep this process around and do not drop it due to
+        // the lack of a URL.
         if (process.url === null) {
-            processes.delete(pid);
+            const maybeWorklet = auctionWorklets.get(pid);
+            if (maybeWorklet) {
+                process.url = maybeWorklet.host;
+            }
+            else {
+                processes.delete(pid);
+            }
             continue;
-        }
-        const asUrl = new URL(process.url);
-        if (asUrl.protocol === 'about:') {
-            processes.delete(pid);
         }
     }
 }
@@ -183,7 +245,7 @@ export function sanitizeProcesses(processes) {
 export function sanitizeThreads(processes) {
     for (const [, process] of processes) {
         for (const [tid, thread] of process.threads) {
-            // If the thread has no roots, also delete it. Otherwise, there's going to
+            // If the thread has no roots, delete it. Otherwise, there's going to
             // be space taken, even though nothing is rendered in the track manager.
             if (!thread.tree?.roots.size) {
                 process.threads.delete(tid);
@@ -214,124 +276,75 @@ export function sanitizeThreads(processes) {
  *   |- Task C -|
  */
 export function buildHierarchy(processes, options) {
-    for (const [, process] of processes) {
-        for (const [, thread] of process.threads) {
+    const samplesData = samplesHandlerData();
+    for (const [pid, process] of processes) {
+        for (const [tid, thread] of process.threads) {
+            if (!thread.entries.length) {
+                thread.tree = Helpers.TreeHelpers.makeEmptyTraceEntryTree();
+                continue;
+            }
             // Step 1. Massage the data.
-            Helpers.Trace.sortTraceEventsInPlace(thread.events);
-            // Step 2. Build the tree.
-            thread.tree = treify(thread.events, options);
+            Helpers.Trace.sortTraceEventsInPlace(thread.entries);
+            // Step 2. Inject profile calls from samples
+            const samplesDataForThread = samplesData.profilesInProcess.get(pid)?.get(tid);
+            if (samplesDataForThread) {
+                const cpuProfile = samplesDataForThread.parsedProfile;
+                const samplesIntegrator = cpuProfile &&
+                    new Helpers.SamplesIntegrator.SamplesIntegrator(cpuProfile, samplesDataForThread.profileId, pid, tid, config);
+                const profileCalls = samplesIntegrator?.buildProfileCalls(thread.entries);
+                if (samplesIntegrator && profileCalls) {
+                    allTraceEntries = [...allTraceEntries, ...profileCalls];
+                    thread.entries = Helpers.Trace.mergeEventsInOrder(thread.entries, profileCalls);
+                    thread.profileCalls = profileCalls;
+                    // We'll also inject the instant JSSample events (in debug mode only)
+                    const jsSamples = samplesIntegrator.jsSampleEvents;
+                    if (jsSamples) {
+                        allTraceEntries = [...allTraceEntries, ...jsSamples];
+                        thread.entries = Helpers.Trace.mergeEventsInOrder(thread.entries, jsSamples);
+                    }
+                }
+            }
+            // Step 3. Build the tree.
+            const treeData = Helpers.TreeHelpers.treify(thread.entries, options);
+            thread.tree = treeData.tree;
+            // Update the entryToNode map with the entries from this thread
+            for (const [entry, node] of treeData.entryToNode) {
+                entryToNode.set(entry, node);
+                // Entity mapping is unrelated to the tree, but calling here as we need to call on every node anyway.
+                HandlerHelpers.addEventToEntityMapping(entry, entityMappings);
+            }
         }
     }
 }
-/**
- * Builds a hierarchy of the trace events in a particular thread of a
- * particular process, assuming that they're sorted, by iterating through all of
- * the events in order.
- *
- * The approach is analogous to how a parser would be implemented. A stack
- * maintains local context. A scanner peeks and pops from the data stream.
- * Various "tokens" (events) are treated as "whitespace" (ignored).
- *
- * The tree starts out empty and is populated as the hierarchy is built. The
- * nodes are also assumed to be created empty, with no known parent or children.
- *
- * Complexity: O(n), where n = number of events
- */
-export function treify(events, options) {
-    const stack = [];
-    // Reset the node id counter for every new renderer.
-    nodeIdCount = -1;
-    const tree = makeEmptyRendererEventTree();
-    for (let i = 0; i < events.length; i++) {
-        const event = events[i];
-        // If the current event should not be part of the tree, then simply proceed
-        // with the next event.
-        if (!options.filter.has(event.name)) {
-            continue;
+export function makeCompleteEvent(event) {
+    if (Types.Events.isEnd(event)) {
+        // Quietly ignore unbalanced close events, they're legit (we could
+        // have missed start one).
+        const beginEvent = completeEventStack.pop();
+        if (!beginEvent) {
+            return null;
         }
-        const duration = event.dur || 0;
-        const nodeId = makeRendererEventNodeId();
-        const node = makeEmptyRendererEventNode(event, nodeId);
-        // If the parent stack is empty, then the current event is a root. Create a
-        // node for it, mark it as a root, then proceed with the next event.
-        if (stack.length === 0) {
-            tree.nodes.set(nodeId, node);
-            tree.roots.add(nodeId);
-            event.selfTime = Types.Timing.MicroSeconds(duration);
-            stack.push(node);
-            tree.maxDepth = Math.max(tree.maxDepth, stack.length);
-            traceEventToNode.set(event, node);
-            continue;
+        if (beginEvent.name !== event.name || beginEvent.cat !== event.cat) {
+            console.error('Begin/End events mismatch at ' + beginEvent.ts + ' (' + beginEvent.name + ') vs. ' + event.ts + ' (' +
+                event.name + ')');
+            return null;
         }
-        const parentNode = stack.at(-1);
-        if (parentNode === undefined) {
-            throw new Error('Impossible: no parent node found in the stack');
-        }
-        const parentEvent = parentNode.event;
-        const begin = event.ts;
-        const parentBegin = parentEvent.ts;
-        const parentDuration = parentEvent.dur || 0;
-        const end = begin + duration;
-        const parentEnd = parentBegin + parentDuration;
-        // Check the relationship between the parent event at the top of the stack,
-        // and the current event being processed. There are only 4 distinct
-        // possiblities, only 2 of them actually valid, given the assumed sorting:
-        // 1. Current event starts before the parent event, ends whenever. (invalid)
-        // 2. Current event starts after the parent event, ends whenever. (valid)
-        // 3. Current event starts during the parent event, ends after. (invalid)
-        // 4. Current event starts and ends during the parent event. (valid)
-        // 1. If the current event starts before the parent event, then the data is
-        //    not sorted properly, messed up some way, or this logic is incomplete.
-        const startsBeforeParent = begin < parentBegin;
-        if (startsBeforeParent) {
-            throw new Error('Impossible: current event starts before the parent event');
-        }
-        // 2. If the current event starts after the parent event, then it's a new
-        //    parent. Pop, then handle current event again.
-        const startsAfterParent = begin >= parentEnd;
-        if (startsAfterParent) {
-            stack.pop();
-            i--;
-            // The last created node has been discarded, so discard this id.
-            nodeIdCount--;
-            continue;
-        }
-        // 3. If the current event starts during the parent event, but ends after
-        //    it, then the data is messed up some way.
-        const endsAfterParent = end > parentEnd;
-        if (endsAfterParent) {
-            throw new Error('Impossible: current event starts during the parent event');
-        }
-        // 4. The only remaining case is the common case, where the current event is
-        //    contained within the parent event. Create a node for the current
-        //    event, establish the parent/child relationship, then proceed with the
-        //    next event.
-        tree.nodes.set(nodeId, node);
-        node.depth = stack.length;
-        node.parentId = parentNode.id;
-        parentNode.childrenIds.add(nodeId);
-        event.selfTime = Types.Timing.MicroSeconds(duration);
-        if (parentEvent.selfTime !== undefined) {
-            parentEvent.selfTime = Types.Timing.MicroSeconds(parentEvent.selfTime - (event.dur || 0));
-        }
-        stack.push(node);
-        tree.maxDepth = Math.max(tree.maxDepth, stack.length);
-        traceEventToNode.set(event, node);
+        // Update the begin event's duration using the timestamp of the end
+        // event.
+        beginEvent.dur = Types.Timing.Micro(event.ts - beginEvent.ts);
+        return null;
     }
-    return tree;
+    // Create a synthetic event using the begin event, when we find the
+    // matching end event later we will update its duration.
+    const syntheticComplete = {
+        ...event,
+        ph: "X" /* Types.Events.Phase.COMPLETE */,
+        dur: Types.Timing.Micro(0),
+    };
+    completeEventStack.push(syntheticComplete);
+    return syntheticComplete;
 }
-export const FORCED_LAYOUT_EVENT_NAMES = new Set([
-    "Layout" /* KnownEventName.Layout */,
-]);
-export const FORCED_RECALC_STYLE_EVENTS = new Set([
-    "RecalculateStyles" /* KnownEventName.RecalculateStyles */,
-    "UpdateLayoutTree" /* KnownEventName.UpdateLayoutTree */,
-]);
 export function deps() {
-    return ['Meta', 'Samples'];
-}
-class RendererEventNodeIdTag {
-    /* eslint-disable-next-line no-unused-private-class-members */
-    #tag;
+    return ['Meta', 'Samples', 'AuctionWorklets', 'NetworkRequests'];
 }
 //# sourceMappingURL=RendererHandler.js.map

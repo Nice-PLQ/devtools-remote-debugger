@@ -7,7 +7,7 @@ class HARBase {
     custom;
     constructor(data) {
         if (!data || typeof data !== 'object') {
-            throw 'First parameter is expected to be an object';
+            throw new Error('First parameter is expected to be an object');
         }
         this.custom = new Map();
     }
@@ -16,14 +16,14 @@ class HARBase {
         if (!Number.isNaN(date.getTime())) {
             return date;
         }
-        throw 'Invalid date format';
+        throw new Error('Invalid date format');
     }
     static safeNumber(data) {
         const result = Number(data);
         if (!Number.isNaN(result)) {
             return result;
         }
-        throw 'Casting to number results in NaN';
+        throw new Error('Casting to number results in NaN');
     }
     static optionalNumber(data) {
         return data !== undefined ? HARBase.safeNumber(data) : undefined;
@@ -81,7 +81,7 @@ export class HARLog extends HARBase {
         this.browser = data['browser'] ? new HARCreator(data['browser']) : undefined;
         this.pages = Array.isArray(data['pages']) ? data['pages'].map(page => new HARPage(page)) : [];
         if (!Array.isArray(data['entries'])) {
-            throw 'log.entries is expected to be an array';
+            throw new Error('log.entries is expected to be an array');
         }
         this.entries = data['entries'].map(entry => new HAREntry(entry));
         this.comment = HARBase.optionalString(data['comment']);
@@ -130,7 +130,6 @@ export class HAREntry extends HARBase {
     time;
     request;
     response;
-    cache;
     timings;
     serverIPAddress;
     connection;
@@ -142,12 +141,12 @@ export class HAREntry extends HARBase {
         this.time = HARBase.safeNumber(data['time']);
         this.request = new HARRequest(data['request']);
         this.response = new HARResponse(data['response']);
-        this.cache = {}; // Not yet implemented.
         this.timings = new HARTimings(data['timings']);
         this.serverIPAddress = HARBase.optionalString(data['serverIPAddress']);
         this.connection = HARBase.optionalString(data['connection']);
         this.comment = HARBase.optionalString(data['comment']);
         // Chrome specific.
+        this.custom.set('connectionId', HARBase.optionalString(data['_connectionId']));
         this.custom.set('fromCache', HARBase.optionalString(data['_fromCache']));
         this.custom.set('initiator', this.importInitiator(data['_initiator']));
         this.custom.set('priority', HARBase.optionalString(data['_priority']));
@@ -225,6 +224,9 @@ class HARResponse extends HARBase {
         // Chrome specific.
         this.custom.set('transferSize', HARBase.optionalNumber(data['_transferSize']));
         this.custom.set('error', HARBase.optionalString(data['_error']));
+        this.custom.set('fetchedViaServiceWorker', Boolean(data['_fetchedViaServiceWorker']));
+        this.custom.set('responseCacheStorageCacheName', HARBase.optionalString(data['_responseCacheStorageCacheName']));
+        this.custom.set('serviceWorkerResponseSource', HARBase.optionalString(data['_serviceWorkerResponseSource']));
     }
 }
 class HARCookie extends HARBase {
@@ -337,6 +339,11 @@ export class HARTimings extends HARBase {
         // Chrome specific.
         this.custom.set('blocked_queueing', HARBase.optionalNumber(data['_blocked_queueing']));
         this.custom.set('blocked_proxy', HARBase.optionalNumber(data['_blocked_proxy']));
+        // Service Worker timing info (Chrome specific).
+        this.custom.set('workerStart', HARBase.optionalNumber(data['_workerStart']));
+        this.custom.set('workerReady', HARBase.optionalNumber(data['_workerReady']));
+        this.custom.set('workerFetchStart', HARBase.optionalNumber(data['_workerFetchStart']));
+        this.custom.set('workerRespondWithSettled', HARBase.optionalNumber(data['_workerRespondWithSettled']));
     }
 }
 export class HARInitiator extends HARBase {
@@ -350,7 +357,7 @@ export class HARInitiator extends HARBase {
      */
     constructor(data) {
         super(data);
-        this.type = (HARBase.optionalString(data['type']) ?? SDK.NetworkRequest.InitiatorType.Other);
+        this.type = (HARBase.optionalString(data['type']) ?? "other" /* SDK.NetworkRequest.InitiatorType.OTHER */);
         this.url = HARBase.optionalString(data['url']);
         this.lineNumber = HARBase.optionalNumber(data['lineNumber']);
         this.requestId = HARBase.optionalString(data['requestId']);

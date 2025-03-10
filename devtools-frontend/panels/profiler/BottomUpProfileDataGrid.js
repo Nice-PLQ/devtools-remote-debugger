@@ -67,7 +67,7 @@ export class BottomUpProfileDataGridNode extends ProfileDataGridNode {
                 container.appendChild(child);
             }
             const parent = ancestor.parent;
-            if (parent && parent.parent) {
+            if (parent?.parent) {
                 nodeInfo.ancestor = parent;
                 if (!child.remainingNodeInfos) {
                     child.remainingNodeInfos = [];
@@ -121,7 +121,7 @@ export class BottomUpProfileDataGridNode extends ProfileDataGridNode {
     willHaveChildren(profileNode) {
         // In bottom up mode, our parents are our children since we display an inverted tree.
         // However, we don't want to show the very top parent since it is redundant.
-        return Boolean(profileNode.parent && profileNode.parent.parent);
+        return Boolean(profileNode.parent?.parent);
     }
 }
 export class BottomUpProfileDataGridTree extends ProfileDataGridTree {
@@ -169,7 +169,7 @@ export class BottomUpProfileDataGridTree extends ProfileDataGridTree {
                     if (uid) {
                         visitedNodes.add(uid);
                     }
-                    this.remainingNodeInfos.push({ ancestor: profileNode, focusNode: profileNode, totalAccountedFor: totalAccountedFor });
+                    this.remainingNodeInfos.push({ ancestor: profileNode, focusNode: profileNode, totalAccountedFor });
                 }
                 const children = profileNode.children;
                 if (children.length) {

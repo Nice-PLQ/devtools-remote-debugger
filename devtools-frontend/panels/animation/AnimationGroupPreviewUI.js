@@ -1,7 +1,9 @@
 // Copyright (c) 2015 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
+import * as IconButton from '../../ui/components/icon_button/icon_button.js';
 import * as UI from '../../ui/legacy/legacy.js';
+import * as VisualLogging from '../../ui/visual_logging/visual_logging.js';
 import { AnimationUI } from './AnimationUI.js';
 export class AnimationGroupPreviewUI {
     #model;
@@ -12,11 +14,24 @@ export class AnimationGroupPreviewUI {
     #viewBoxHeight;
     constructor(model) {
         this.#model = model;
-        this.element = document.createElement('div');
+        this.element = document.createElement('button');
+        this.element.setAttribute('jslog', `${VisualLogging.item(`animations.buffer-preview${model.isScrollDriven() ? '-sda' : ''}`).track({
+            click: true,
+        })}`);
         this.element.classList.add('animation-buffer-preview');
+        this.element.addEventListener('animationend', () => {
+            this.element.classList.add('no-animation');
+        });
         this.element.createChild('div', 'animation-paused fill');
-        this.#removeButtonInternal = this.element.createChild('div', 'animation-remove-button');
-        this.#removeButtonInternal.textContent = '\u2715';
+        if (model.isScrollDriven()) {
+            this.element.appendChild(IconButton.Icon.create('mouse', 'preview-icon'));
+        }
+        else {
+            this.element.appendChild(IconButton.Icon.create('watch', 'preview-icon'));
+        }
+        this.#removeButtonInternal = this.element.createChild('button', 'animation-remove-button');
+        this.#removeButtonInternal.setAttribute('jslog', `${VisualLogging.action('animations.remove-preview').track({ click: true })}`);
+        this.#removeButtonInternal.appendChild(IconButton.Icon.create('cross'));
         this.#replayOverlayElement = this.element.createChild('div', 'animation-buffer-preview-animation');
         this.#svg = UI.UIUtils.createSVGChild(this.element, 'svg');
         this.#svg.setAttribute('width', '100%');
@@ -26,16 +41,6 @@ export class AnimationGroupPreviewUI {
         this.#svg.setAttribute('viewBox', '0 0 100 ' + this.#viewBoxHeight);
         this.#svg.setAttribute('shape-rendering', 'crispEdges');
         this.render();
-    }
-    groupDuration() {
-        let duration = 0;
-        for (const anim of this.#model.animations()) {
-            const animDuration = anim.source().delay() + anim.source().duration();
-            if (animDuration > duration) {
-                duration = animDuration;
-            }
-        }
-        return duration;
     }
     removeButton() {
         return this.#removeButtonInternal;
@@ -51,12 +56,14 @@ export class AnimationGroupPreviewUI {
         this.#svg.removeChildren();
         const maxToShow = 10;
         const numberOfAnimations = Math.min(this.#model.animations().length, maxToShow);
-        const timeToPixelRatio = 100 / Math.max(this.groupDuration(), 750);
+        const timeToPixelRatio = 100 / Math.max(this.#model.groupDuration(), 750);
         for (let i = 0; i < numberOfAnimations; i++) {
-            const effect = this.#model.animations()[i].source();
+            const animation = this.#model.animations()[i];
             const line = UI.UIUtils.createSVGChild(this.#svg, 'line');
-            line.setAttribute('x1', String(effect.delay() * timeToPixelRatio));
-            line.setAttribute('x2', String((effect.delay() + effect.duration()) * timeToPixelRatio));
+            const startPoint = animation.delayOrStartTime();
+            const endPoint = startPoint + animation.iterationDuration();
+            line.setAttribute('x1', String(startPoint * timeToPixelRatio));
+            line.setAttribute('x2', String(endPoint * timeToPixelRatio));
             const y = String(Math.floor(this.#viewBoxHeight / Math.max(6, numberOfAnimations) * i + 1));
             line.setAttribute('y1', y);
             line.setAttribute('y2', y);

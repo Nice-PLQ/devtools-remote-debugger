@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 import * as Common from '../../../../core/common/common.js';
 import * as i18n from '../../../../core/i18n/i18n.js';
+import * as TextUtils from '../../../../models/text_utils/text_utils.js';
 import * as UI from '../../legacy.js';
 import { FontView } from './FontView.js';
 import { ImageView } from './ImageView.js';
@@ -11,7 +12,11 @@ import { ResourceSourceFrame } from './ResourceSourceFrame.js';
 import { XMLView } from './XMLView.js';
 const UIStrings = {
     /**
-     *@description Text in Preview Factory of the Sources panel
+     *@description Text in Preview Factory of the Sources panel if the data to preview can't be shown due to an error
+     */
+    failedToLoadData: 'Failed to load data',
+    /**
+     *@description Text in Preview Factory of the Sources panel if there's no data to preview
      */
     nothingToPreview: 'Nothing to preview',
 };
@@ -29,30 +34,26 @@ export class PreviewFactory {
             case Common.ResourceType.resourceTypes.Font:
                 return new FontView(mimeType, provider);
         }
-        const deferredContent = await provider.requestContent();
-        if (deferredContent.content === null) {
-            return new UI.EmptyWidget.EmptyWidget(deferredContent.error);
+        const contentData = await provider.requestContentData();
+        if (TextUtils.ContentData.ContentData.isError(contentData)) {
+            return new UI.EmptyWidget.EmptyWidget(i18nString(UIStrings.failedToLoadData), contentData.error);
         }
-        if (!deferredContent.content) {
-            return new UI.EmptyWidget.EmptyWidget(i18nString(UIStrings.nothingToPreview));
+        if (!contentData.isTextContent) {
+            return null;
         }
-        let content = deferredContent.content;
-        if (deferredContent.isEncoded) {
-            content = window.atob(content);
+        if (!contentData.text) {
+            return new UI.EmptyWidget.EmptyWidget(i18nString(UIStrings.nothingToPreview), '');
         }
-        const parsedXML = XMLView.parseXML(content, mimeType);
+        const parsedXML = XMLView.parseXML(contentData.text, contentData.mimeType);
         if (parsedXML) {
             return XMLView.createSearchableView(parsedXML);
         }
-        const jsonView = await JSONView.createView(content);
+        const jsonView = await JSONView.createView(contentData.text);
         if (jsonView) {
             return jsonView;
         }
-        if (resourceType.isTextType()) {
-            const highlighterType = mimeType.replace(/;.*/, '') /* remove charset */ || provider.contentType().canonicalMimeType();
-            return ResourceSourceFrame.createSearchableView(provider, highlighterType, true /* autoPrettyPrint */);
-        }
-        return null;
+        const highlighterType = mimeType.replace(/;.*/, '') /* remove charset */ || provider.contentType().canonicalMimeType();
+        return ResourceSourceFrame.createSearchableView(provider, highlighterType);
     }
 }
 //# sourceMappingURL=PreviewFactory.js.map

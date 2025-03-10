@@ -42,10 +42,10 @@ const UIStrings = {
 const str_ = i18n.i18n.registerUIStrings('models/logs/logs-meta.ts', UIStrings);
 const i18nLazyString = i18n.i18n.getLazilyComputedLocalizedString.bind(undefined, str_);
 Common.Settings.registerSettingExtension({
-    category: Common.Settings.SettingCategory.NETWORK,
+    category: "NETWORK" /* Common.Settings.SettingCategory.NETWORK */,
     title: i18nLazyString(UIStrings.preserveLog),
-    settingName: 'network_log.preserve-log',
-    settingType: Common.Settings.SettingType.BOOLEAN,
+    settingName: 'network-log.preserve-log',
+    settingType: "boolean" /* Common.Settings.SettingType.BOOLEAN */,
     defaultValue: false,
     tags: [
         i18nLazyString(UIStrings.preserve),
@@ -64,11 +64,11 @@ Common.Settings.registerSettingExtension({
     ],
 });
 Common.Settings.registerSettingExtension({
-    category: Common.Settings.SettingCategory.NETWORK,
+    category: "NETWORK" /* Common.Settings.SettingCategory.NETWORK */,
     title: i18nLazyString(UIStrings.recordNetworkLog),
-    settingName: 'network_log.record-log',
-    settingType: Common.Settings.SettingType.BOOLEAN,
+    settingName: 'network-log.record-log',
+    settingType: "boolean" /* Common.Settings.SettingType.BOOLEAN */,
     defaultValue: true,
-    storageType: Common.Settings.SettingStorageType.Session,
+    storageType: "Session" /* Common.Settings.SettingStorageType.SESSION */,
 });
 //# sourceMappingURL=logs-meta.js.map

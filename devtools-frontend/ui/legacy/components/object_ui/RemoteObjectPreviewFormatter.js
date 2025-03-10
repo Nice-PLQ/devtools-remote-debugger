@@ -32,14 +32,14 @@ export class RemoteObjectPreviewFormatter {
         return sortValue(a) - sortValue(b);
         function sortValue(property) {
             // TODO(einbinder) expose whether preview properties are actually internal.
-            if (property.name === "[[PromiseState]]" /* InternalName.PromiseState */) {
+            if (property.name === "[[PromiseState]]" /* InternalName.PROMISE_STATE */) {
                 return 1;
             }
-            if (property.name === "[[PromiseResult]]" /* InternalName.PromiseResult */) {
+            if (property.name === "[[PromiseResult]]" /* InternalName.PROMISE_RESULT */) {
                 return 2;
             }
-            if (property.name === "[[GeneratorState]]" /* InternalName.GeneratorState */ || property.name === "[[PrimitiveValue]]" /* InternalName.PrimitiveValue */ ||
-                property.name === "[[WeakRefTarget]]" /* InternalName.WeakRefTarget */) {
+            if (property.name === "[[GeneratorState]]" /* InternalName.GENERATOR_STATE */ || property.name === "[[PrimitiveValue]]" /* InternalName.PRIMITIVE_VALUE */ ||
+                property.name === "[[WeakRefTarget]]" /* InternalName.WEAK_REF_TARGET */) {
                 return 3;
             }
             if (property.type !== "function" /* Protocol.Runtime.PropertyPreviewType.Function */ && !property.name.startsWith('#')) {
@@ -117,10 +117,10 @@ export class RemoteObjectPreviewFormatter {
             const property = properties[i];
             const name = property.name;
             // Internal properties are given special formatting, e.g. Promises `<rejected>: 123`.
-            if (preview.subtype === "promise" /* Protocol.Runtime.ObjectPreviewSubtype.Promise */ && name === "[[PromiseState]]" /* InternalName.PromiseState */) {
+            if (preview.subtype === "promise" /* Protocol.Runtime.ObjectPreviewSubtype.Promise */ && name === "[[PromiseState]]" /* InternalName.PROMISE_STATE */) {
                 parentElement.appendChild(this.renderDisplayName('<' + property.value + '>'));
                 const nextProperty = i + 1 < properties.length ? properties[i + 1] : null;
-                if (nextProperty && nextProperty.name === "[[PromiseResult]]" /* InternalName.PromiseResult */) {
+                if (nextProperty && nextProperty.name === "[[PromiseResult]]" /* InternalName.PROMISE_RESULT */) {
                     if (property.value !== 'pending') {
                         UI.UIUtils.createTextChild(parentElement, ': ');
                         parentElement.appendChild(this.renderPropertyPreviewOrAccessor([nextProperty]));
@@ -128,13 +128,13 @@ export class RemoteObjectPreviewFormatter {
                     i++;
                 }
             }
-            else if (preview.subtype === 'generator' && name === "[[GeneratorState]]" /* InternalName.GeneratorState */) {
+            else if (preview.subtype === 'generator' && name === "[[GeneratorState]]" /* InternalName.GENERATOR_STATE */) {
                 parentElement.appendChild(this.renderDisplayName('<' + property.value + '>'));
             }
-            else if (name === "[[PrimitiveValue]]" /* InternalName.PrimitiveValue */) {
+            else if (name === "[[PrimitiveValue]]" /* InternalName.PRIMITIVE_VALUE */) {
                 parentElement.appendChild(this.renderPropertyPreviewOrAccessor([property]));
             }
-            else if (name === "[[WeakRefTarget]]" /* InternalName.WeakRefTarget */) {
+            else if (name === "[[WeakRefTarget]]" /* InternalName.WEAK_REF_TARGET */) {
                 if (property.type === "undefined" /* Protocol.Runtime.PropertyPreviewType.Undefined */) {
                     parentElement.appendChild(this.renderDisplayName('<cleared>'));
                 }

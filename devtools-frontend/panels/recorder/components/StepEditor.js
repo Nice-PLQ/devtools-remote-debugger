@@ -11,14 +11,18 @@ import * as Host from '../../../core/host/host.js';
 import * as i18n from '../../../core/i18n/i18n.js';
 import * as Platform from '../../../core/platform/platform.js';
 import * as Buttons from '../../../ui/components/buttons/buttons.js';
-import * as LitHtml from '../../../ui/lit-html/lit-html.js';
+import * as SuggestionInput from '../../../ui/components/suggestion_input/suggestion_input.js';
+import * as Lit from '../../../ui/lit/lit.js';
+import * as VisualLogging from '../../../ui/visual_logging/visual_logging.js';
 import * as Controllers from '../controllers/controllers.js';
 import * as Models from '../models/models.js';
 import * as Util from '../util/util.js';
-import { RecorderInput } from './RecorderInput.js';
-import stepEditorStyles from './stepEditor.css.js';
+import stepEditorStylesRaw from './stepEditor.css.js';
 import { ArrayAssignments, assert, deepFreeze, immutableDeepAssign, InsertAssignment, } from './util.js';
-const { html, Decorators, Directives, LitElement } = LitHtml;
+// TODO(crbug.com/391381439): Fully migrate off of constructed style sheets.
+const stepEditorStyles = new CSSStyleSheet();
+stepEditorStyles.replaceSync(stepEditorStylesRaw.cssContent);
+const { html, Decorators, Directives, LitElement } = Lit;
 const { customElement, property, state } = Decorators;
 const { live } = Directives;
 const typeConverters = Object.freeze({
@@ -280,7 +284,7 @@ export class EditorState {
         return Object.freeze(state);
     }
     static async defaultByAttribute(_state, attribute) {
-        return this.#puppeteer.run(puppeteer => {
+        return await this.#puppeteer.run(puppeteer => {
             switch (attribute) {
                 case 'assertedEvents': {
                     return immutableDeepAssign(defaultValuesByAttribute.assertedEvents, new ArrayAssignments({
@@ -310,6 +314,7 @@ export class EditorState {
         const state = structuredClone(step);
         for (const key of ['parameters', 'properties']) {
             if (key in step && step[key] !== undefined) {
+                // @ts-expect-error Potential infinite type instantiation.
                 state[key] = JSON.stringify(step[key]);
             }
         }
@@ -401,12 +406,15 @@ let RecorderSelectorPickerButton = class RecorderSelectorPickerButton extends Li
       .size=${"SMALL" /* Buttons.Button.Size.SMALL */}
       .iconName=${'select-element'}
       .active=${this.#picker.active}
-      .variant=${"secondary" /* Buttons.Button.Variant.SECONDARY */}
+      .variant=${"icon" /* Buttons.Button.Variant.ICON */}
+      jslog=${VisualLogging.toggle('selector-picker').track({
+            click: true,
+        })}
     ></devtools-button>`;
     }
 };
 __decorate([
-    property()
+    property({ type: Boolean })
 ], RecorderSelectorPickerButton.prototype, "disabled", void 0);
 RecorderSelectorPickerButton = __decorate([
     customElement('devtools-recorder-selector-picker-button')
@@ -415,7 +423,7 @@ RecorderSelectorPickerButton = __decorate([
  * @fires RequestSelectorAttributeEvent#requestselectorattribute
  * @fires StepEditedEvent#stepedited
  */
-export let StepEditor = class StepEditor extends LitElement {
+let StepEditor = class StepEditor extends LitElement {
     static styles = [stepEditorStyles];
     #renderedAttributes = new Set();
     constructor() {
@@ -469,10 +477,10 @@ export let StepEditor = class StepEditor extends LitElement {
     };
     #handleKeyDownEvent = (event) => {
         assert(event instanceof KeyboardEvent);
-        if (event.target instanceof RecorderInput && event.key === 'Enter') {
+        if (event.target instanceof SuggestionInput.SuggestionInput.SuggestionInput && event.key === 'Enter') {
             event.preventDefault();
             event.stopPropagation();
-            const elements = this.renderRoot.querySelectorAll('devtools-recorder-input');
+            const elements = this.renderRoot.querySelectorAll('devtools-suggestion-input');
             const element = [...elements].findIndex(value => value === event.target);
             if (element >= 0 && element + 1 < elements.length) {
                 elements[element + 1].focus();
@@ -483,7 +491,7 @@ export let StepEditor = class StepEditor extends LitElement {
         }
     };
     #handleInputBlur = (opts) => event => {
-        assert(event.target instanceof RecorderInput);
+        assert(event.target instanceof SuggestionInput.SuggestionInput.SuggestionInput);
         if (event.target.disabled) {
             return;
         }
@@ -499,7 +507,7 @@ export let StepEditor = class StepEditor extends LitElement {
         }
     };
     #handleTypeInputBlur = async (event) => {
-        assert(event.target instanceof RecorderInput);
+        assert(event.target instanceof SuggestionInput.SuggestionInput.SuggestionInput);
         if (event.target.disabled) {
             return;
         }
@@ -512,7 +520,7 @@ export let StepEditor = class StepEditor extends LitElement {
             return;
         }
         this.#commit(await EditorState.default(value));
-        Host.userMetrics.recordingEdited(Host.UserMetrics.RecordingEdited.TypeChanged);
+        Host.userMetrics.recordingEdited(9 /* Host.UserMetrics.RecordingEdited.TYPE_CHANGED */);
     };
     #handleAddRowClickEvent = async (event) => {
         event.preventDefault();
@@ -521,7 +529,7 @@ export let StepEditor = class StepEditor extends LitElement {
         this.#commit(immutableDeepAssign(this.state, {
             [attribute]: await EditorState.defaultByAttribute(this.state, attribute),
         }));
-        this.#ensureFocus(`[data-attribute=${attribute}].attribute devtools-recorder-input`);
+        this.#ensureFocus(`[data-attribute=${attribute}].attribute devtools-suggestion-input`);
     };
     #renderInlineButton(opts) {
         if (this.disabled) {
@@ -532,7 +540,10 @@ export let StepEditor = class StepEditor extends LitElement {
         title=${opts.title}
         .size=${"SMALL" /* Buttons.Button.Size.SMALL */}
         .iconName=${opts.iconName}
-        .variant=${"secondary" /* Buttons.Button.Variant.SECONDARY */}
+        .variant=${"icon" /* Buttons.Button.Variant.ICON */}
+        jslog=${VisualLogging.action(opts.class).track({
+            click: true,
+        })}
         class="inline-button ${opts.class}"
         @click=${opts.onClick}
       ></devtools-button>
@@ -551,10 +562,11 @@ export let StepEditor = class StepEditor extends LitElement {
         return html `<devtools-button
       .size=${"SMALL" /* Buttons.Button.Size.SMALL */}
       .iconName=${'bin'}
-      .variant=${"secondary" /* Buttons.Button.Variant.SECONDARY */}
+      .variant=${"icon" /* Buttons.Button.Variant.ICON */}
       .title=${i18nString(UIStrings.deleteRow)}
       class="inline-button delete-row"
       data-attribute=${attribute}
+      jslog=${VisualLogging.action('delete').track({ click: true })}
       @click=${(event) => {
             event.preventDefault();
             event.stopPropagation();
@@ -566,15 +578,15 @@ export let StepEditor = class StepEditor extends LitElement {
     #renderTypeRow(editable) {
         this.#renderedAttributes.add('type');
         // clang-format off
-        return html `<div class="row attribute" data-attribute="type">
+        return html `<div class="row attribute" data-attribute="type" jslog=${VisualLogging.treeItem('type')}>
       <div>type<span class="separator">:</span></div>
-      <devtools-recorder-input
+      <devtools-suggestion-input
         .disabled=${!editable || this.disabled}
         .options=${Object.values(Models.Schema.StepType)}
         .placeholder=${defaultValuesByAttribute.type}
         .value=${live(this.state.type)}
         @blur=${this.#handleTypeInputBlur}
-      ></devtools-recorder-input>
+      ></devtools-suggestion-input>
     </div>`;
         // clang-format on
     }
@@ -585,9 +597,9 @@ export let StepEditor = class StepEditor extends LitElement {
             return;
         }
         // clang-format off
-        return html `<div class="row attribute" data-attribute=${attribute}>
+        return html `<div class="row attribute" data-attribute=${attribute} jslog=${VisualLogging.treeItem(Platform.StringUtilities.toKebabCase(attribute))}>
       <div>${attribute}<span class="separator">:</span></div>
-      <devtools-recorder-input
+      <devtools-suggestion-input
         .disabled=${this.disabled}
         .placeholder=${defaultValuesByAttribute[attribute].toString()}
         .value=${live(attributeValue)}
@@ -609,14 +621,14 @@ export let StepEditor = class StepEditor extends LitElement {
                 }
                 switch (attribute) {
                     case 'properties':
-                        Host.userMetrics.recordingAssertion(Host.UserMetrics.RecordingAssertion.PropertyAssertionEdited);
+                        Host.userMetrics.recordingAssertion(2 /* Host.UserMetrics.RecordingAssertion.PROPERTY_ASSERTION_EDITED */);
                         break;
                 }
                 return { [attribute]: value };
             },
-            metric: Host.UserMetrics.RecordingEdited.OtherEditing,
+            metric: 10 /* Host.UserMetrics.RecordingEdited.OTHER_EDITING */,
         })}
-      ></devtools-recorder-input>
+      ></devtools-suggestion-input>
       ${this.#renderDeleteButton(attribute)}
     </div>`;
         // clang-format on
@@ -628,7 +640,7 @@ export let StepEditor = class StepEditor extends LitElement {
         }
         // clang-format off
         return html `
-      <div class="attribute" data-attribute="frame">
+      <div class="attribute" data-attribute="frame" jslog=${VisualLogging.treeItem('frame')}>
         <div class="row">
           <div>frame<span class="separator">:</span></div>
           ${this.#renderDeleteButton('frame')}
@@ -636,7 +648,7 @@ export let StepEditor = class StepEditor extends LitElement {
         ${this.state.frame.map((frame, index, frames) => {
             return html `
             <div class="padded row">
-              <devtools-recorder-input
+              <devtools-suggestion-input
                 .disabled=${this.disabled}
                 .placeholder=${defaultValuesByAttribute.frame[0].toString()}
                 .value=${live(frame.toString())}
@@ -651,9 +663,9 @@ export let StepEditor = class StepEditor extends LitElement {
                         frame: new ArrayAssignments({ [index]: value }),
                     };
                 },
-                metric: Host.UserMetrics.RecordingEdited.OtherEditing,
+                metric: 10 /* Host.UserMetrics.RecordingEdited.OTHER_EDITING */,
             })}
-              ></devtools-recorder-input>
+              ></devtools-suggestion-input>
               ${this.#renderInlineButton({
                 class: 'add-frame',
                 title: i18nString(UIStrings.addFrameIndex),
@@ -662,7 +674,7 @@ export let StepEditor = class StepEditor extends LitElement {
                     frame: new ArrayAssignments({
                         [index + 1]: new InsertAssignment(defaultValuesByAttribute.frame[0]),
                     }),
-                }, `devtools-recorder-input[data-path="frame.${index + 1}"]`, Host.UserMetrics.RecordingEdited.OtherEditing),
+                }, `devtools-suggestion-input[data-path="frame.${index + 1}"]`, 10 /* Host.UserMetrics.RecordingEdited.OTHER_EDITING */),
             })}
               ${this.#renderInlineButton({
                 class: 'remove-frame',
@@ -670,7 +682,7 @@ export let StepEditor = class StepEditor extends LitElement {
                 iconName: 'minus',
                 onClick: this.#handleAddOrRemoveClick({
                     frame: new ArrayAssignments({ [index]: undefined }),
-                }, `devtools-recorder-input[data-path="frame.${Math.min(index, frames.length - 2)}"]`, Host.UserMetrics.RecordingEdited.OtherEditing),
+                }, `devtools-suggestion-input[data-path="frame.${Math.min(index, frames.length - 2)}"]`, 10 /* Host.UserMetrics.RecordingEdited.OTHER_EDITING */),
             })}
             </div>
           `;
@@ -685,7 +697,7 @@ export let StepEditor = class StepEditor extends LitElement {
             return;
         }
         // clang-format off
-        return html `<div class="attribute" data-attribute="selectors">
+        return html `<div class="attribute" data-attribute="selectors" jslog=${VisualLogging.treeItem('selectors')}>
       <div class="row">
         <div>selectors<span class="separator">:</span></div>
         <devtools-recorder-selector-picker-button
@@ -705,13 +717,13 @@ export let StepEditor = class StepEditor extends LitElement {
                     selectors: new ArrayAssignments({
                         [index + 1]: new InsertAssignment(structuredClone(defaultValuesByAttribute.selectors[0])),
                     }),
-                }, `devtools-recorder-input[data-path="selectors.${index + 1}.0"]`, Host.UserMetrics.RecordingEdited.SelectorAdded),
+                }, `devtools-suggestion-input[data-path="selectors.${index + 1}.0"]`, 4 /* Host.UserMetrics.RecordingEdited.SELECTOR_ADDED */),
             })}
             ${this.#renderInlineButton({
                 class: 'remove-selector',
                 title: i18nString(UIStrings.removeSelector),
                 iconName: 'minus',
-                onClick: this.#handleAddOrRemoveClick({ selectors: new ArrayAssignments({ [index]: undefined }) }, `devtools-recorder-input[data-path="selectors.${Math.min(index, selectors.length - 2)}.0"]`, Host.UserMetrics.RecordingEdited.SelectorRemoved),
+                onClick: this.#handleAddOrRemoveClick({ selectors: new ArrayAssignments({ [index]: undefined }) }, `devtools-suggestion-input[data-path="selectors.${Math.min(index, selectors.length - 2)}.0"]`, 5 /* Host.UserMetrics.RecordingEdited.SELECTOR_REMOVED */),
             })}
           </div>
           ${selector.map((part, partIndex, parts) => {
@@ -719,7 +731,7 @@ export let StepEditor = class StepEditor extends LitElement {
               class="double padded row"
               data-selector-path="${index}.${partIndex}"
             >
-              <devtools-recorder-input
+              <devtools-suggestion-input
                 .disabled=${this.disabled}
                 .placeholder=${defaultValuesByAttribute.selectors[0][0]}
                 .value=${live(part)}
@@ -738,9 +750,9 @@ export let StepEditor = class StepEditor extends LitElement {
                             }),
                         };
                     },
-                    metric: Host.UserMetrics.RecordingEdited.SelectorPartEdited,
+                    metric: 7 /* Host.UserMetrics.RecordingEdited.SELECTOR_PART_EDITED */,
                 })}
-              ></devtools-recorder-input>
+              ></devtools-suggestion-input>
               ${this.#renderInlineButton({
                     class: 'add-selector-part',
                     title: i18nString(UIStrings.addSelectorPart),
@@ -751,7 +763,7 @@ export let StepEditor = class StepEditor extends LitElement {
                                 [partIndex + 1]: new InsertAssignment(defaultValuesByAttribute.selectors[0][0]),
                             }),
                         }),
-                    }, `devtools-recorder-input[data-path="selectors.${index}.${partIndex + 1}"]`, Host.UserMetrics.RecordingEdited.SelectorPartAdded),
+                    }, `devtools-suggestion-input[data-path="selectors.${index}.${partIndex + 1}"]`, 6 /* Host.UserMetrics.RecordingEdited.SELECTOR_PART_ADDED */),
                 })}
               ${this.#renderInlineButton({
                     class: 'remove-selector-part',
@@ -763,7 +775,7 @@ export let StepEditor = class StepEditor extends LitElement {
                                 [partIndex]: undefined,
                             }),
                         }),
-                    }, `devtools-recorder-input[data-path="selectors.${index}.${Math.min(partIndex, parts.length - 2)}"]`, Host.UserMetrics.RecordingEdited.SelectorPartRemoved),
+                    }, `devtools-suggestion-input[data-path="selectors.${index}.${Math.min(partIndex, parts.length - 2)}"]`, 8 /* Host.UserMetrics.RecordingEdited.SELECTOR_PART_REMOVED */),
                 })}
             </div>`;
             })}`;
@@ -777,19 +789,19 @@ export let StepEditor = class StepEditor extends LitElement {
             return;
         }
         // clang-format off
-        return html `<div class="attribute" data-attribute="assertedEvents">
+        return html `<div class="attribute" data-attribute="assertedEvents" jslog=${VisualLogging.treeItem('asserted-events')}>
       <div class="row">
         <div>asserted events<span class="separator">:</span></div>
         ${this.#renderDeleteButton('assertedEvents')}
       </div>
       ${this.state.assertedEvents.map((event, index) => {
-            return html ` <div class="padded row">
+            return html ` <div class="padded row" jslog=${VisualLogging.treeItem('event-type')}>
             <div>type<span class="separator">:</span></div>
             <div>${event.type}</div>
           </div>
-          <div class="padded row">
+          <div class="padded row" jslog=${VisualLogging.treeItem('event-title')}>
             <div>title<span class="separator">:</span></div>
-            <devtools-recorder-input
+            <devtools-suggestion-input
               .disabled=${this.disabled}
               .placeholder=${defaultValuesByAttribute.assertedEvents[0].title}
               .value=${live(event.title ?? '')}
@@ -805,13 +817,13 @@ export let StepEditor = class StepEditor extends LitElement {
                         }),
                     };
                 },
-                metric: Host.UserMetrics.RecordingEdited.OtherEditing,
+                metric: 10 /* Host.UserMetrics.RecordingEdited.OTHER_EDITING */,
             })}
-            ></devtools-recorder-input>
+            ></devtools-suggestion-input>
           </div>
-          <div class="padded row">
+          <div class="padded row" jslog=${VisualLogging.treeItem('event-url')}>
             <div>url<span class="separator">:</span></div>
-            <devtools-recorder-input
+            <devtools-suggestion-input
               .disabled=${this.disabled}
               .placeholder=${defaultValuesByAttribute.assertedEvents[0].url}
               .value=${live(event.url ?? '')}
@@ -827,9 +839,9 @@ export let StepEditor = class StepEditor extends LitElement {
                         }),
                     };
                 },
-                metric: Host.UserMetrics.RecordingEdited.OtherEditing,
+                metric: 10 /* Host.UserMetrics.RecordingEdited.OTHER_EDITING */,
             })}
-            ></devtools-recorder-input>
+            ></devtools-suggestion-input>
           </div>`;
         })}
     </div> `;
@@ -841,34 +853,35 @@ export let StepEditor = class StepEditor extends LitElement {
             return;
         }
         // clang-format off
-        return html `<div class="attribute" data-attribute="attributes">
+        return html `<div class="attribute" data-attribute="attributes" jslog=${VisualLogging.treeItem('attributes')}>
       <div class="row">
         <div>attributes<span class="separator">:</span></div>
         ${this.#renderDeleteButton('attributes')}
       </div>
       ${this.state.attributes.map(({ name, value }, index, attributes) => {
-            return html `<div class="padded row">
-          <devtools-recorder-input
+            return html `<div class="padded row" jslog=${VisualLogging.treeItem('attribute')}>
+          <devtools-suggestion-input
             .disabled=${this.disabled}
             .placeholder=${defaultValuesByAttribute.attributes[0].name}
             .value=${live(name)}
             data-path=${`attributes.${index}.name`}
+            jslog=${VisualLogging.key().track({ change: true })}
             @blur=${this.#handleInputBlur({
                 attribute: 'attributes',
                 from(name) {
                     if (this.state.attributes?.[index]?.name === undefined) {
                         return;
                     }
-                    Host.userMetrics.recordingAssertion(Host.UserMetrics.RecordingAssertion.AttributeAssertionEdited);
+                    Host.userMetrics.recordingAssertion(3 /* Host.UserMetrics.RecordingAssertion.ATTRIBUTE_ASSERTION_EDITED */);
                     return {
                         attributes: new ArrayAssignments({ [index]: { name } }),
                     };
                 },
-                metric: Host.UserMetrics.RecordingEdited.OtherEditing,
+                metric: 10 /* Host.UserMetrics.RecordingEdited.OTHER_EDITING */,
             })}
-          ></devtools-recorder-input>
+          ></devtools-suggestion-input>
           <span class="separator">:</span>
-          <devtools-recorder-input
+          <devtools-suggestion-input
             .disabled=${this.disabled}
             .placeholder=${defaultValuesByAttribute.attributes[0].value}
             .value=${live(value)}
@@ -879,14 +892,14 @@ export let StepEditor = class StepEditor extends LitElement {
                     if (this.state.attributes?.[index]?.value === undefined) {
                         return;
                     }
-                    Host.userMetrics.recordingAssertion(Host.UserMetrics.RecordingAssertion.AttributeAssertionEdited);
+                    Host.userMetrics.recordingAssertion(3 /* Host.UserMetrics.RecordingAssertion.ATTRIBUTE_ASSERTION_EDITED */);
                     return {
                         attributes: new ArrayAssignments({ [index]: { value } }),
                     };
                 },
-                metric: Host.UserMetrics.RecordingEdited.OtherEditing,
+                metric: 10 /* Host.UserMetrics.RecordingEdited.OTHER_EDITING */,
             })}
-          ></devtools-recorder-input>
+          ></devtools-suggestion-input>
           ${this.#renderInlineButton({
                 class: 'add-attribute-assertion',
                 title: i18nString(UIStrings.addSelectorPart),
@@ -907,13 +920,13 @@ export let StepEditor = class StepEditor extends LitElement {
                             }
                         })()),
                     }),
-                }, `devtools-recorder-input[data-path="attributes.${index + 1}.name"]`, Host.UserMetrics.RecordingEdited.OtherEditing),
+                }, `devtools-suggestion-input[data-path="attributes.${index + 1}.name"]`, 10 /* Host.UserMetrics.RecordingEdited.OTHER_EDITING */),
             })}
           ${this.#renderInlineButton({
                 class: 'remove-attribute-assertion',
                 title: i18nString(UIStrings.removeSelectorPart),
                 iconName: 'minus',
-                onClick: this.#handleAddOrRemoveClick({ attributes: new ArrayAssignments({ [index]: undefined }) }, `devtools-recorder-input[data-path="attributes.${Math.min(index, attributes.length - 2)}.value"]`, Host.UserMetrics.RecordingEdited.OtherEditing),
+                onClick: this.#handleAddOrRemoveClick({ attributes: new ArrayAssignments({ [index]: undefined }) }, `devtools-suggestion-input[data-path="attributes.${Math.min(index, attributes.length - 2)}.value"]`, 10 /* Host.UserMetrics.RecordingEdited.OTHER_EDITING */),
             })}
         </div>`;
         })}
@@ -925,9 +938,10 @@ export let StepEditor = class StepEditor extends LitElement {
         return [...attributes.optional].filter(attr => this.state[attr] === undefined).map(attr => {
             // clang-format off
             return html `<devtools-button
-          .variant=${"secondary" /* Buttons.Button.Variant.SECONDARY */}
+          .variant=${"outlined" /* Buttons.Button.Variant.OUTLINED */}
           class="add-row"
           data-attribute=${attr}
+          jslog=${VisualLogging.action(`add-${Platform.StringUtilities.toKebabCase(attr)}`)}
           @click=${this.#handleAddRowClickEvent}
         >
           ${i18nString(UIStrings.addAttribute, {
@@ -947,7 +961,7 @@ export let StepEditor = class StepEditor extends LitElement {
         this.#renderedAttributes = new Set();
         // clang-format off
         const result = html `
-      <div class="wrapper">
+      <div class="wrapper" jslog=${VisualLogging.tree('step-editor')}>
         ${this.#renderTypeRow(this.isTypeEditable)} ${this.#renderRow('target')}
         ${this.#renderFrameRow()} ${this.#renderSelectorsRow()}
         ${this.#renderRow('deviceType')} ${this.#renderRow('button')}
@@ -984,14 +998,11 @@ export let StepEditor = class StepEditor extends LitElement {
       </div>
     `;
         // clang-format on
-        Platform.DCHECK(() => {
-            for (const key of Object.keys(dataTypeByAttribute)) {
-                if (!this.#renderedAttributes.has(key)) {
-                    return false;
-                }
+        for (const key of Object.keys(dataTypeByAttribute)) {
+            if (!this.#renderedAttributes.has(key)) {
+                throw new Error(`The editable attribute ${key} does not have UI`);
             }
-            return true;
-        }, 'One of the editable attributes does not have UI');
+        }
         return result;
     }
 };
@@ -1002,12 +1013,13 @@ __decorate([
     state()
 ], StepEditor.prototype, "error", void 0);
 __decorate([
-    property()
+    property({ type: Boolean })
 ], StepEditor.prototype, "isTypeEditable", void 0);
 __decorate([
-    property()
+    property({ type: Boolean })
 ], StepEditor.prototype, "disabled", void 0);
 StepEditor = __decorate([
     customElement('devtools-recorder-step-editor')
 ], StepEditor);
+export { StepEditor };
 //# sourceMappingURL=StepEditor.js.map

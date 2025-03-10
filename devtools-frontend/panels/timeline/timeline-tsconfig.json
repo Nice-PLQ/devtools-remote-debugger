@@ -29,16 +29,31 @@
     "useUnknownInCatchVariables": false
   },
   "files": [
+    "../../../../../../front_end/panels/timeline/ActiveFilters.ts",
+    "../../../../../../front_end/panels/timeline/AnimationsTrackAppender.ts",
+    "../../../../../../front_end/panels/timeline/AnnotationHelpers.ts",
     "../../../../../../front_end/panels/timeline/AppenderUtils.ts",
+    "../../../../../../front_end/panels/timeline/BenchmarkEvents.ts",
     "../../../../../../front_end/panels/timeline/CLSLinkifier.ts",
     "../../../../../../front_end/panels/timeline/CompatibilityTracksAppender.ts",
     "../../../../../../front_end/panels/timeline/CountersGraph.ts",
+    "../../../../../../front_end/panels/timeline/EntriesFilter.ts",
+    "../../../../../../front_end/panels/timeline/EventsSerializer.ts",
     "../../../../../../front_end/panels/timeline/EventsTimelineTreeView.ts",
+    "../../../../../../front_end/panels/timeline/ExtensionTrackAppender.ts",
+    "../../../../../../front_end/panels/timeline/FreshRecording.ts",
     "../../../../../../front_end/panels/timeline/GPUTrackAppender.ts",
+    "../../../../../../front_end/panels/timeline/Initiators.ts",
     "../../../../../../front_end/panels/timeline/InteractionsTrackAppender.ts",
+    "../../../../../../front_end/panels/timeline/IsolateSelector.ts",
     "../../../../../../front_end/panels/timeline/LayoutShiftsTrackAppender.ts",
-    "../../../../../../front_end/panels/timeline/PerformanceModel.ts",
+    "../../../../../../front_end/panels/timeline/ModificationsManager.ts",
+    "../../../../../../front_end/panels/timeline/NetworkTrackAppender.ts",
     "../../../../../../front_end/panels/timeline/SaveFileFormatter.ts",
+    "../../../../../../front_end/panels/timeline/ServerTimingsTrackAppender.ts",
+    "../../../../../../front_end/panels/timeline/TargetForEvent.ts",
+    "../../../../../../front_end/panels/timeline/ThirdPartyTreeView.ts",
+    "../../../../../../front_end/panels/timeline/ThreadAppender.ts",
     "../../../../../../front_end/panels/timeline/TimelineController.ts",
     "../../../../../../front_end/panels/timeline/TimelineDetailsView.ts",
     "../../../../../../front_end/panels/timeline/TimelineEventOverview.ts",
@@ -49,20 +64,26 @@
     "../../../../../../front_end/panels/timeline/TimelineHistoryManager.ts",
     "../../../../../../front_end/panels/timeline/TimelineLayersView.ts",
     "../../../../../../front_end/panels/timeline/TimelineLoader.ts",
+    "../../../../../../front_end/panels/timeline/TimelineMiniMap.ts",
     "../../../../../../front_end/panels/timeline/TimelinePaintProfilerView.ts",
     "../../../../../../front_end/panels/timeline/TimelinePanel.ts",
     "../../../../../../front_end/panels/timeline/TimelineSelection.ts",
+    "../../../../../../front_end/panels/timeline/TimelineSelectorStatsView.ts",
     "../../../../../../front_end/panels/timeline/TimelineTreeView.ts",
     "../../../../../../front_end/panels/timeline/TimelineUIUtils.ts",
     "../../../../../../front_end/panels/timeline/TimingsTrackAppender.ts",
+    "../../../../../../front_end/panels/timeline/TracingLayerTree.ts",
     "../../../../../../front_end/panels/timeline/UIDevtoolsController.ts",
     "../../../../../../front_end/panels/timeline/UIDevtoolsUtils.ts",
     "../../../../../../front_end/legacy/legacy-defs.d.ts",
     "../../../../../../front_end/global_typings/global_defs.d.ts",
-    "../../../../../../front_end/global_typings/request_idle_callback.d.ts",
-    "../../../../../../node_modules/@types/filesystem/index.d.ts"
+    "../../../../../../node_modules/@types/filesystem/index.d.ts",
+    "../../../../../../node_modules/@types/wicg-task-scheduling/index.d.ts"
   ],
   "references": [
+    {
+      "path": "./easter-egg-tsconfig.json"
+    },
     {
       "path": "../../core/host/bundle-tsconfig.json"
     },
@@ -73,16 +94,19 @@
       "path": "../../generated/protocol-tsconfig.json"
     },
     {
+      "path": "../../models/cpu_profile/bundle-tsconfig.json"
+    },
+    {
       "path": "../../models/extensions/bundle-tsconfig.json"
     },
     {
       "path": "../../models/source_map_scopes/bundle-tsconfig.json"
     },
     {
-      "path": "../../models/timeline_model/bundle-tsconfig.json"
+      "path": "../../models/trace/bundle-tsconfig.json"
     },
     {
-      "path": "../../models/trace/bundle-tsconfig.json"
+      "path": "../../models/workspace/bundle-tsconfig.json"
     },
     {
       "path": "../coverage/bundle-tsconfig.json"
@@ -95,6 +119,24 @@
     },
     {
       "path": "../profiler/bundle-tsconfig.json"
+    },
+    {
+      "path": "../../services/trace_bounds/bundle-tsconfig.json"
+    },
+    {
+      "path": "../../ui/components/buttons/bundle-tsconfig.json"
+    },
+    {
+      "path": "../../ui/components/code_highlighter/bundle-tsconfig.json"
+    },
+    {
+      "path": "../../ui/components/icon_button/bundle-tsconfig.json"
+    },
+    {
+      "path": "../../ui/components/linkifier/bundle-tsconfig.json"
+    },
+    {
+      "path": "../../ui/components/menus/bundle-tsconfig.json"
     },
     {
       "path": "../../ui/components/panel_feedback/bundle-tsconfig.json"
@@ -112,7 +154,19 @@
       "path": "../../ui/legacy/theme_support/bundle-tsconfig.json"
     },
     {
-      "path": "../../ui/lit-html/bundle-tsconfig.json"
+      "path": "../../ui/lit/bundle-tsconfig.json"
+    },
+    {
+      "path": "components/bundle-tsconfig.json"
+    },
+    {
+      "path": "extensions/bundle-tsconfig.json"
+    },
+    {
+      "path": "overlays/bundle-tsconfig.json"
+    },
+    {
+      "path": "utils/bundle-tsconfig.json"
     }
   ]
 }

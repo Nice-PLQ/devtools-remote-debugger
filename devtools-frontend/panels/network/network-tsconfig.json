@@ -46,7 +46,6 @@
     "../../../../../../front_end/panels/network/NetworkWaterfallColumn.ts",
     "../../../../../../front_end/panels/network/RequestCookiesView.ts",
     "../../../../../../front_end/panels/network/RequestHTMLView.ts",
-    "../../../../../../front_end/panels/network/RequestHeadersView.ts",
     "../../../../../../front_end/panels/network/RequestInitiatorView.ts",
     "../../../../../../front_end/panels/network/RequestPayloadView.ts",
     "../../../../../../front_end/panels/network/RequestPreviewView.ts",
@@ -56,8 +55,8 @@
     "../../../../../../front_end/panels/network/SignedExchangeInfoView.ts",
     "../../../../../../front_end/legacy/legacy-defs.d.ts",
     "../../../../../../front_end/global_typings/global_defs.d.ts",
-    "../../../../../../front_end/global_typings/request_idle_callback.d.ts",
-    "../../../../../../node_modules/@types/filesystem/index.d.ts"
+    "../../../../../../node_modules/@types/filesystem/index.d.ts",
+    "../../../../../../node_modules/@types/wicg-task-scheduling/index.d.ts"
   ],
   "references": [
     {
@@ -94,10 +93,16 @@
       "path": "../../models/text_utils/bundle-tsconfig.json"
     },
     {
+      "path": "../../models/trace/bundle-tsconfig.json"
+    },
+    {
       "path": "../../models/workspace/bundle-tsconfig.json"
     },
     {
       "path": "../elements/bundle-tsconfig.json"
+    },
+    {
+      "path": "../linear_memory_inspector/bundle-tsconfig.json"
     },
     {
       "path": "../mobile_throttling/bundle-tsconfig.json"
@@ -116,6 +121,9 @@
     },
     {
       "path": "../../ui/components/expandable_list/bundle-tsconfig.json"
+    },
+    {
+      "path": "../../ui/components/floating_button/bundle-tsconfig.json"
     },
     {
       "path": "../../ui/components/icon_button/bundle-tsconfig.json"
@@ -145,7 +153,7 @@
       "path": "../../ui/legacy/theme_support/bundle-tsconfig.json"
     },
     {
-      "path": "../../ui/lit-html/bundle-tsconfig.json"
+      "path": "../../ui/lit/bundle-tsconfig.json"
     },
     {
       "path": "../settings/emulation/components/bundle-tsconfig.json"

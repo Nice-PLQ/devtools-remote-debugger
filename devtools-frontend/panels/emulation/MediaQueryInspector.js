@@ -7,7 +7,8 @@ import * as Platform from '../../core/platform/platform.js';
 import * as SDK from '../../core/sdk/sdk.js';
 import * as Bindings from '../../models/bindings/bindings.js';
 import * as UI from '../../ui/legacy/legacy.js';
-import mediaQueryInspectorStyles from './mediaQueryInspector.css.legacy.js';
+import * as VisualLogging from '../../ui/visual_logging/visual_logging.js';
+import mediaQueryInspectorStyles from './mediaQueryInspector.css.js';
 const UIStrings = {
     /**
      * @description A context menu item/command in the Media Query Inspector of the Device Toolbar.
@@ -30,6 +31,7 @@ export class MediaQueryInspector extends UI.Widget.Widget {
         super(true);
         this.registerRequiredCSS(mediaQueryInspectorStyles);
         this.contentElement.classList.add('media-inspector-view');
+        this.contentElement.setAttribute('jslog', `${VisualLogging.mediaInspectorView().track({ click: true })}`);
         this.contentElement.addEventListener('click', this.onMediaQueryClicked.bind(this), false);
         this.contentElement.addEventListener('contextmenu', this.onContextMenu.bind(this), false);
         this.mediaThrottler = mediaThrottler;
@@ -39,7 +41,7 @@ export class MediaQueryInspector extends UI.Widget.Widget {
         this.elementsToMediaQueryModel = new WeakMap();
         this.elementsToCSSLocations = new WeakMap();
         SDK.TargetManager.TargetManager.instance().observeModels(SDK.CSSModel.CSSModel, this);
-        UI.ZoomManager.ZoomManager.instance().addEventListener("ZoomChanged" /* UI.ZoomManager.Events.ZoomChanged */, this.renderMediaQueries.bind(this), this);
+        UI.ZoomManager.ZoomManager.instance().addEventListener("ZoomChanged" /* UI.ZoomManager.Events.ZOOM_CHANGED */, this.renderMediaQueries.bind(this), this);
     }
     modelAdded(cssModel) {
         // FIXME: adapt this to multiple targets.
@@ -80,11 +82,11 @@ export class MediaQueryInspector extends UI.Widget.Widget {
         }
         const modelMaxWidth = model.maxWidthExpression();
         const modelMinWidth = model.minWidthExpression();
-        if (model.section() === 0 /* Section.Max */) {
+        if (model.section() === 0 /* Section.MAX */) {
             this.setWidthCallback(modelMaxWidth ? modelMaxWidth.computedLength() || 0 : 0);
             return;
         }
-        if (model.section() === 2 /* Section.Min */) {
+        if (model.section() === 2 /* Section.MIN */) {
             this.setWidthCallback(modelMinWidth ? modelMinWidth.computedLength() || 0 : 0);
             return;
         }
@@ -97,7 +99,7 @@ export class MediaQueryInspector extends UI.Widget.Widget {
         }
     }
     onContextMenu(event) {
-        if (!this.cssModel || !this.cssModel.isEnabled()) {
+        if (!this.cssModel?.isEnabled()) {
             return;
         }
         const mediaQueryMarker = event.target.enclosingNodeOrSelfWithClass('media-inspector-bar');
@@ -118,10 +120,10 @@ export class MediaQueryInspector extends UI.Widget.Widget {
         }
         const contextMenuItems = [...uiLocations.keys()].sort();
         const contextMenu = new UI.ContextMenu.ContextMenu(event);
-        const subMenuItem = contextMenu.defaultSection().appendSubMenuItem(i18nString(UIStrings.revealInSourceCode));
+        const subMenuItem = contextMenu.defaultSection().appendSubMenuItem(i18nString(UIStrings.revealInSourceCode), undefined, 'reveal-in-source-list');
         for (let i = 0; i < contextMenuItems.length; ++i) {
             const title = contextMenuItems[i];
-            subMenuItem.defaultSection().appendItem(title, this.revealSourceLocation.bind(this, uiLocations.get(title)));
+            subMenuItem.defaultSection().appendItem(title, this.revealSourceLocation.bind(this, uiLocations.get(title)), { jslogContext: 'reveal-in-source' });
         }
         void contextMenu.show();
     }
@@ -144,7 +146,7 @@ export class MediaQueryInspector extends UI.Widget.Widget {
         const filtered = [];
         for (let i = 0; i < models.length; ++i) {
             const last = filtered[filtered.length - 1];
-            if (!last || !last.equals(models[i])) {
+            if (!last?.equals(models[i])) {
                 filtered.push(models[i]);
             }
         }
@@ -169,7 +171,7 @@ export class MediaQueryInspector extends UI.Widget.Widget {
         queryModels = this.squashAdjacentEqual(queryModels);
         let allEqual = this.cachedQueryModels && this.cachedQueryModels.length === queryModels.length;
         for (let i = 0; allEqual && i < queryModels.length; ++i) {
-            allEqual = allEqual && this.cachedQueryModels && this.cachedQueryModels[i].equals(queryModels[i]);
+            allEqual = allEqual && this.cachedQueryModels?.[i].equals(queryModels[i]);
         }
         if (allEqual) {
             return;
@@ -186,9 +188,8 @@ export class MediaQueryInspector extends UI.Widget.Widget {
         }
         const markers = [];
         let lastMarker = null;
-        for (let i = 0; i < this.cachedQueryModels.length; ++i) {
-            const model = this.cachedQueryModels[i];
-            if (lastMarker && lastMarker.model.dimensionsEqual(model)) {
+        for (const model of this.cachedQueryModels) {
+            if (lastMarker?.model.dimensionsEqual(model)) {
                 lastMarker.active = lastMarker.active || model.active();
             }
             else {
@@ -236,7 +237,7 @@ export class MediaQueryInspector extends UI.Widget.Widget {
         const maxWidthValue = maxWidthExpression ? (maxWidthExpression.computedLength() || 0) / zoomFactor : 0;
         const result = document.createElement('div');
         result.classList.add('media-inspector-bar');
-        if (model.section() === 0 /* Section.Max */) {
+        if (model.section() === 0 /* Section.MAX */) {
             result.createChild('div', 'media-inspector-marker-spacer');
             const markerElement = result.createChild('div', 'media-inspector-marker media-inspector-marker-max-width');
             markerElement.style.width = maxWidthValue + 'px';
@@ -245,7 +246,7 @@ export class MediaQueryInspector extends UI.Widget.Widget {
             appendLabel(markerElement, model.maxWidthExpression(), true, true);
             result.createChild('div', 'media-inspector-marker-spacer');
         }
-        if (model.section() === 1 /* Section.MinMax */) {
+        if (model.section() === 1 /* Section.MIN_MAX */) {
             result.createChild('div', 'media-inspector-marker-spacer');
             const leftElement = result.createChild('div', 'media-inspector-marker media-inspector-marker-min-max-width');
             leftElement.style.width = (maxWidthValue - minWidthValue) * 0.5 + 'px';
@@ -260,7 +261,7 @@ export class MediaQueryInspector extends UI.Widget.Widget {
             appendLabel(rightElement, model.maxWidthExpression(), false, true);
             result.createChild('div', 'media-inspector-marker-spacer');
         }
-        if (model.section() === 2 /* Section.Min */) {
+        if (model.section() === 2 /* Section.MIN */) {
             const leftElement = result.createChild('div', 'media-inspector-marker media-inspector-marker-min-width media-inspector-marker-min-width-left');
             UI.Tooltip.Tooltip.install(leftElement, model.mediaText());
             appendLabel(leftElement, model.minWidthExpression(), false, false);
@@ -297,13 +298,13 @@ export class MediaQueryUIModel {
         this.maxWidthExpressionInternal = maxWidthExpression;
         this.activeInternal = active;
         if (maxWidthExpression && !minWidthExpression) {
-            this.sectionInternal = 0 /* Section.Max */;
+            this.sectionInternal = 0 /* Section.MAX */;
         }
         else if (minWidthExpression && maxWidthExpression) {
-            this.sectionInternal = 1 /* Section.MinMax */;
+            this.sectionInternal = 1 /* Section.MIN_MAX */;
         }
         else {
-            this.sectionInternal = 2 /* Section.Min */;
+            this.sectionInternal = 2 /* Section.MIN */;
         }
     }
     static createFromMediaQuery(cssMedia, mediaQuery) {
@@ -388,10 +389,10 @@ export class MediaQueryUIModel {
         const otherMinWidthExpression = other.minWidthExpression();
         const thisMinLength = thisMinWidthExpression ? thisMinWidthExpression.computedLength() || 0 : 0;
         const otherMinLength = otherMinWidthExpression ? otherMinWidthExpression.computedLength() || 0 : 0;
-        if (this.section() === 0 /* Section.Max */) {
+        if (this.section() === 0 /* Section.MAX */) {
             return otherMaxLength - thisMaxLength;
         }
-        if (this.section() === 2 /* Section.Min */) {
+        if (this.section() === 2 /* Section.MIN */) {
             return thisMinLength - otherMinLength;
         }
         return thisMinLength - otherMinLength || otherMaxLength - thisMaxLength;

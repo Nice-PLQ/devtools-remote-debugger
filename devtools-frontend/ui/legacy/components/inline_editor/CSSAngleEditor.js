@@ -2,19 +2,21 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 import * as Common from '../../../../core/common/common.js';
-import * as ComponentHelpers from '../../../components/helpers/helpers.js';
-import * as LitHtml from '../../../lit-html/lit-html.js';
-import cssAngleEditorStyles from './cssAngleEditor.css.js';
+import * as Lit from '../../../lit/lit.js';
+import * as VisualLogging from '../../../visual_logging/visual_logging.js';
+import cssAngleEditorStylesRaw from './cssAngleEditor.css.js';
 import { get2DTranslationsForAngle, getAngleFromRadians, getNewAngleFromEvent, getRadiansFromAngle, } from './CSSAngleUtils.js';
-const { render, html } = LitHtml;
-const styleMap = LitHtml.Directives.styleMap;
+// TODO(crbug.com/391381439): Fully migrate off of constructed style sheets.
+const cssAngleEditorStyles = new CSSStyleSheet();
+cssAngleEditorStyles.replaceSync(cssAngleEditorStylesRaw.cssContent);
+const { render, html } = Lit;
+const styleMap = Lit.Directives.styleMap;
 const CLOCK_DIAL_LENGTH = 6;
 export class CSSAngleEditor extends HTMLElement {
-    static litTagName = LitHtml.literal `devtools-css-angle-editor`;
     shadow = this.attachShadow({ mode: 'open' });
     angle = {
         value: 0,
-        unit: "rad" /* AngleUnit.Rad */,
+        unit: "rad" /* AngleUnit.RAD */,
     };
     onAngleUpdate;
     background = '';
@@ -24,7 +26,7 @@ export class CSSAngleEditor extends HTMLElement {
     mousemoveListener = this.onMousemove.bind(this);
     connectedCallback() {
         this.shadow.adoptedStyleSheets = [cssAngleEditorStyles];
-        ComponentHelpers.SetCSSProperty.set(this, '--clock-dial-length', `${CLOCK_DIAL_LENGTH}px`);
+        this.style.setProperty('--clock-dial-length', `${CLOCK_DIAL_LENGTH}px`);
     }
     set data(data) {
         this.angle = data.angle;
@@ -45,7 +47,7 @@ export class CSSAngleEditor extends HTMLElement {
         if (shouldSnapToMultipleOf15Degrees) {
             const multipleInRadian = getRadiansFromAngle({
                 value: 15,
-                unit: "deg" /* AngleUnit.Deg */,
+                unit: "deg" /* AngleUnit.DEG */,
             });
             const closestMultipleOf15Degrees = Math.round(radian / multipleInRadian) * multipleInRadian;
             this.onAngleUpdate(getAngleFromRadians(closestMultipleOf15Degrees, this.angle.unit));
@@ -100,7 +102,7 @@ export class CSSAngleEditor extends HTMLElement {
         // Disabled until https://crbug.com/1079231 is fixed.
         // clang-format off
         render(html `
-      <div class="editor">
+      <div class="editor" jslog=${VisualLogging.dialog('cssAngleEditor').track({ click: true, drag: true, resize: true, keydown: 'Enter|Escape' })}>
         <span class="pointer"></span>
         <div
           class="clock"
@@ -125,7 +127,7 @@ export class CSSAngleEditor extends HTMLElement {
                 const radius = this.clockRadius - CLOCK_DIAL_LENGTH - 3 /* clock border */;
                 const { translateX, translateY } = get2DTranslationsForAngle({
                     value: deg,
-                    unit: "deg" /* AngleUnit.Deg */,
+                    unit: "deg" /* AngleUnit.DEG */,
                 }, radius);
                 const dialStyles = {
                     transform: `translate(${translateX}px, ${translateY}px) rotate(${deg}deg)`,
@@ -137,5 +139,5 @@ export class CSSAngleEditor extends HTMLElement {
         return this.dialTemplates;
     }
 }
-ComponentHelpers.CustomElements.defineComponent('devtools-css-angle-editor', CSSAngleEditor);
+customElements.define('devtools-css-angle-editor', CSSAngleEditor);
 //# sourceMappingURL=CSSAngleEditor.js.map

@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 import * as i18n from '../../core/i18n/i18n.js';
 import * as SDK from '../../core/sdk/sdk.js';
+import * as TextUtils from '../../models/text_utils/text_utils.js';
 import * as CodeMirror from '../../third_party/codemirror.next/codemirror.next.js';
 import * as SourceFrame from '../../ui/legacy/components/source_frame/source_frame.js';
 import * as UI from '../../ui/legacy/legacy.js';
@@ -35,12 +36,14 @@ export class CoveragePlugin extends Plugin {
     infoInToolbar;
     model;
     coverage;
-    constructor(uiSourceCode) {
+    #transformer;
+    constructor(uiSourceCode, transformer) {
         super(uiSourceCode);
         this.originalSourceCode = this.uiSourceCode;
-        this.infoInToolbar = new UI.Toolbar.ToolbarButton(i18nString(UIStrings.clickToShowCoveragePanel));
+        this.#transformer = transformer;
+        this.infoInToolbar = new UI.Toolbar.ToolbarButton(i18nString(UIStrings.clickToShowCoveragePanel), undefined, undefined, 'debugger.show-coverage');
         this.infoInToolbar.setSecondary();
-        this.infoInToolbar.addEventListener(UI.Toolbar.ToolbarButton.Events.Click, () => {
+        this.infoInToolbar.addEventListener("Click" /* UI.Toolbar.ToolbarButton.Events.CLICK */, () => {
             void UI.ViewManager.ViewManager.instance().showView('coverage');
         });
         const mainTarget = SDK.TargetManager.TargetManager.instance().primaryPageTarget();
@@ -95,7 +98,7 @@ export class CoveragePlugin extends Plugin {
         return coverageCompartment.of([]);
     }
     getCoverageManager() {
-        return this.uiSourceCode.getDecorationData(SourceFrame.SourceFrame.DecoratorType.COVERAGE);
+        return this.uiSourceCode.getDecorationData("coverage" /* SourceFrame.SourceFrame.DecoratorType.COVERAGE */);
     }
     editorInitialized(editor) {
         if (this.getCoverageManager()) {
@@ -103,13 +106,14 @@ export class CoveragePlugin extends Plugin {
         }
     }
     decorationChanged(type, editor) {
-        if (type === SourceFrame.SourceFrame.DecoratorType.COVERAGE) {
+        if (type === "coverage" /* SourceFrame.SourceFrame.DecoratorType.COVERAGE */) {
             this.startDecoUpdate(editor);
         }
     }
     startDecoUpdate(editor) {
         const manager = this.getCoverageManager();
-        void (manager ? manager.usageByLine(this.uiSourceCode) : Promise.resolve([])).then(usageByLine => {
+        void (manager ? manager.usageByLine(this.uiSourceCode, this.#editorLines(editor)) : Promise.resolve([]))
+            .then(usageByLine => {
             const enabled = Boolean(editor.state.field(coverageState, false));
             if (!usageByLine.length) {
                 if (enabled) {
@@ -129,6 +133,20 @@ export class CoveragePlugin extends Plugin {
                 editor.dispatch({ effects: setCoverageState.of(usageByLine) });
             }
         });
+    }
+    /**
+     * @returns The current lines of the CodeMirror editor expressed in terms of UISourceCode.
+     */
+    #editorLines(editor) {
+        const result = [];
+        for (let n = 1; n <= editor.state.doc.lines; ++n) {
+            const line = editor.state.doc.line(n);
+            // CodeMirror lines are 1-based where-as the transformer expects 0-based.
+            const { lineNumber: startLine, columnNumber: startColumn } = this.#transformer.editorLocationToUILocation(n - 1, 0);
+            const { lineNumber: endLine, columnNumber: endColumn } = this.#transformer.editorLocationToUILocation(n - 1, line.length);
+            result.push(new TextUtils.TextRange.TextRange(startLine, startColumn, endLine, endColumn));
+        }
+        return result;
     }
 }
 const coveredMarker = new (class extends CodeMirror.GutterMarker {
@@ -161,18 +179,18 @@ const coverageState = CodeMirror.StateField.define({
 });
 function coverageGutter(url) {
     return CodeMirror.gutter({
-        markers: (view) => view.state.field(coverageState),
+        markers: view => view.state.field(coverageState),
         domEventHandlers: {
             click() {
                 void UI.ViewManager.ViewManager.instance()
                     .showView('coverage')
                     .then(() => {
                     const view = UI.ViewManager.ViewManager.instance().view('coverage');
-                    return view && view.widget();
+                    return view?.widget();
                 })
                     .then(widget => {
                     const matchFormattedSuffix = url.match(/(.*):formatted$/);
-                    const urlWithoutFormattedSuffix = (matchFormattedSuffix && matchFormattedSuffix[1]) || url;
+                    const urlWithoutFormattedSuffix = (matchFormattedSuffix?.[1]) || url;
                     widget.selectCoverageItemByUrl(urlWithoutFormattedSuffix);
                 });
                 return true;
@@ -183,15 +201,19 @@ function coverageGutter(url) {
 }
 const coverageCompartment = new CodeMirror.Compartment();
 const theme = CodeMirror.EditorView.baseTheme({
+    '.cm-line::selection': {
+        backgroundColor: 'transparent',
+        color: 'currentColor',
+    },
     '.cm-coverageGutter': {
         width: '5px',
         marginLeft: '3px',
     },
     '.cm-coverageUnused': {
-        backgroundColor: 'var(--color-accent-red)',
+        backgroundColor: 'var(--app-color-coverage-unused)',
     },
     '.cm-coverageUsed': {
-        backgroundColor: 'var(--color-coverage-used)',
+        backgroundColor: 'var(--app-color-coverage-used)',
     },
 });
 //# sourceMappingURL=CoveragePlugin.js.map

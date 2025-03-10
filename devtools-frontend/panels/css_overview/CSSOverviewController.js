@@ -8,14 +8,14 @@ export class OverviewController extends Common.ObjectWrapper.ObjectWrapper {
     constructor() {
         super();
         this.currentUrl = SDK.TargetManager.TargetManager.instance().inspectedURL();
-        SDK.TargetManager.TargetManager.instance().addEventListener(SDK.TargetManager.Events.InspectedURLChanged, this.#checkUrlAndResetIfChanged, this);
+        SDK.TargetManager.TargetManager.instance().addEventListener("InspectedURLChanged" /* SDK.TargetManager.Events.INSPECTED_URL_CHANGED */, this.#checkUrlAndResetIfChanged, this);
     }
     #checkUrlAndResetIfChanged() {
         if (this.currentUrl === SDK.TargetManager.TargetManager.instance().inspectedURL()) {
             return;
         }
         this.currentUrl = SDK.TargetManager.TargetManager.instance().inspectedURL();
-        this.dispatchEventToListeners("Reset" /* Events.Reset */);
+        this.dispatchEventToListeners("Reset" /* Events.RESET */);
     }
 }
 //# sourceMappingURL=CSSOverviewController.js.map

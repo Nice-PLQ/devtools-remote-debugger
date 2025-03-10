@@ -31,7 +31,7 @@ import { NodeURL } from './NodeURL.js';
 export const DevToolsStubErrorCode = -32015;
 // TODO(dgozman): we are not reporting generic errors in tests, but we should
 // instead report them and just have some expected errors in test expectations.
-const GenericError = -32000;
+const GenericErrorCode = -32000;
 const ConnectionClosedErrorCode = -32001;
 export const splitQualifiedName = (string) => {
     const [domain, eventName] = string.split('.');
@@ -44,6 +44,8 @@ export class InspectorBackend {
     agentPrototypes = new Map();
     #initialized = false;
     #eventParameterNamesForDomain = new Map();
+    typeMap = new Map();
+    enumMap = new Map();
     getOrCreateEventParameterNamesForDomain(domain) {
         let map = this.#eventParameterNamesForDomain.get(domain);
         if (!map) {
@@ -70,25 +72,30 @@ export class InspectorBackend {
     agentPrototype(domain) {
         let prototype = this.agentPrototypes.get(domain);
         if (!prototype) {
-            prototype = new _AgentPrototype(domain);
+            prototype = new AgentPrototype(domain);
             this.agentPrototypes.set(domain, prototype);
         }
         return prototype;
     }
-    registerCommand(method, parameters, replyArgs) {
+    registerCommand(method, parameters, replyArgs, description) {
         const [domain, command] = splitQualifiedName(method);
-        this.agentPrototype(domain).registerCommand(command, parameters, replyArgs);
+        this.agentPrototype(domain).registerCommand(command, parameters, replyArgs, description);
         this.#initialized = true;
     }
     registerEnum(type, values) {
         const [domain, name] = splitQualifiedName(type);
-        // @ts-ignore globalThis global namespace pollution
+        // @ts-expect-error globalThis global namespace pollution
         if (!globalThis.Protocol[domain]) {
-            // @ts-ignore globalThis global namespace pollution
+            // @ts-expect-error globalThis global namespace pollution
             globalThis.Protocol[domain] = {};
         }
-        // @ts-ignore globalThis global namespace pollution
+        // @ts-expect-error globalThis global namespace pollution
         globalThis.Protocol[domain][name] = values;
+        this.enumMap.set(type, values);
+        this.#initialized = true;
+    }
+    registerType(method, parameters) {
+        this.typeMap.set(method, parameters);
         this.#initialized = true;
     }
     registerEvent(eventName, params) {
@@ -213,7 +220,7 @@ export class SessionRouter {
         const messageId = this.nextMessageId();
         const messageObject = {
             id: messageId,
-            method: method,
+            method,
         };
         if (params) {
             messageObject.params = params;
@@ -366,7 +373,7 @@ export class TargetBase {
             throw new Error('Either connection or sessionId (but not both) must be supplied for a child target');
         }
         let router;
-        if (sessionId && parentTarget && parentTarget.routerInternal) {
+        if (sessionId && parentTarget?.routerInternal) {
             router = parentTarget.routerInternal;
         }
         else if (connection) {
@@ -378,7 +385,7 @@ export class TargetBase {
         this.routerInternal = router;
         router.registerSession(this, this.sessionId);
         for (const [domain, agentPrototype] of inspectorBackend.agentPrototypes) {
-            const agent = Object.create(agentPrototype);
+            const agent = Object.create((agentPrototype));
             agent.target = this;
             this.#agents.set(domain, agent);
         }
@@ -432,6 +439,9 @@ export class TargetBase {
     auditsAgent() {
         return this.getAgent('Audits');
     }
+    autofillAgent() {
+        return this.getAgent('Autofill');
+    }
     browserAgent() {
         return this.getAgent('Browser');
     }
@@ -443,9 +453,6 @@ export class TargetBase {
     }
     cssAgent() {
         return this.getAgent('CSS');
-    }
-    databaseAgent() {
-        return this.getAgent('Database');
     }
     debuggerAgent() {
         return this.getAgent('Debugger');
@@ -470,6 +477,9 @@ export class TargetBase {
     }
     eventBreakpointsAgent() {
         return this.getAgent('EventBreakpoints');
+    }
+    extensionsAgent() {
+        return this.getAgent('Extensions');
     }
     fetchAgent() {
         return this.getAgent('Fetch');
@@ -572,6 +582,9 @@ export class TargetBase {
     registerAccessibilityDispatcher(dispatcher) {
         this.registerDispatcher('Accessibility', dispatcher);
     }
+    registerAutofillDispatcher(dispatcher) {
+        this.registerDispatcher('Autofill', dispatcher);
+    }
     registerAnimationDispatcher(dispatcher) {
         this.registerDispatcher('Animation', dispatcher);
     }
@@ -580,9 +593,6 @@ export class TargetBase {
     }
     registerCSSDispatcher(dispatcher) {
         this.registerDispatcher('CSS', dispatcher);
-    }
-    registerDatabaseDispatcher(dispatcher) {
-        this.registerDispatcher('Database', dispatcher);
     }
     registerBackgroundServiceDispatcher(dispatcher) {
         this.registerDispatcher('BackgroundService', dispatcher);
@@ -669,30 +679,29 @@ export class TargetBase {
  * The reasons this is done is so that on the prototypes we can install the implementations
  * of the invoke_enable, etc. methods that the front-end uses.
  */
-// TODO(crbug.com/1172300) Ignored during the jsdoc to ts migration
-// eslint-disable-next-line @typescript-eslint/naming-convention
-class _AgentPrototype {
+class AgentPrototype {
     replyArgs;
-    commandParameters;
+    description = '';
+    metadata;
     domain;
     target;
     constructor(domain) {
         this.replyArgs = {};
         this.domain = domain;
-        this.commandParameters = {};
+        this.metadata = {};
     }
-    registerCommand(methodName, parameters, replyArgs) {
+    registerCommand(methodName, parameters, replyArgs, description) {
         const domainAndMethod = qualifyName(this.domain, methodName);
         function sendMessagePromise(...args) {
-            return _AgentPrototype.prototype.sendMessageToBackendPromise.call(this, domainAndMethod, parameters, args);
+            return AgentPrototype.prototype.sendMessageToBackendPromise.call(this, domainAndMethod, parameters, args);
         }
-        // @ts-ignore Method code generation
+        // @ts-expect-error Method code generation
         this[methodName] = sendMessagePromise;
-        this.commandParameters[domainAndMethod] = parameters;
+        this.metadata[domainAndMethod] = { parameters, description, replyArgs };
         function invoke(request = {}) {
             return this.invoke(domainAndMethod, request);
         }
-        // @ts-ignore Method code generation
+        // @ts-expect-error Method code generation
         this['invoke_' + methodName] = invoke;
         this.replyArgs[domainAndMethod] = replyArgs;
     }
@@ -712,7 +721,8 @@ class _AgentPrototype {
             if (optionalFlag && typeof value === 'undefined') {
                 continue;
             }
-            if (typeof value !== typeName) {
+            const expectedJSType = typeName === 'array' ? 'object' : typeName;
+            if (typeof value !== expectedJSType) {
                 errorCallback(`Protocol Error: Invalid type of argument '${paramName}' for method '${method}' call. ` +
                     `It must be '${typeName}' but it is '${typeof value}'.`);
                 return null;
@@ -741,7 +751,7 @@ class _AgentPrototype {
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             const callback = (error, result) => {
                 if (error) {
-                    if (!test.suppressRequestErrors && error.code !== DevToolsStubErrorCode && error.code !== GenericError &&
+                    if (!test.suppressRequestErrors && error.code !== DevToolsStubErrorCode && error.code !== GenericErrorCode &&
                         error.code !== ConnectionClosedErrorCode) {
                         console.error('Request ' + method + ' failed. ' + JSON.stringify(error));
                     }
@@ -764,7 +774,7 @@ class _AgentPrototype {
         return new Promise(fulfill => {
             const callback = (error, result) => {
                 if (error && !test.suppressRequestErrors && error.code !== DevToolsStubErrorCode &&
-                    error.code !== GenericError && error.code !== ConnectionClosedErrorCode) {
+                    error.code !== GenericErrorCode && error.code !== ConnectionClosedErrorCode) {
                     console.error('Request ' + method + ' failed. ' + JSON.stringify(error));
                 }
                 const errorMessage = error?.message;
@@ -811,13 +821,12 @@ class DispatcherManager {
             InspectorBackend.reportProtocolWarning(`Protocol Warning: Attempted to dispatch an unspecified event '${messageObject.method}'`, messageObject);
             return;
         }
-        const messageParams = { ...messageObject.params };
         for (let index = 0; index < this.#dispatchers.length; ++index) {
             const dispatcher = this.#dispatchers[index];
             if (event in dispatcher) {
                 const f = dispatcher[event];
-                // @ts-ignore Can't type check the dispatch.
-                f.call(dispatcher, messageParams);
+                // @ts-expect-error Can't type check the dispatch.
+                f.call(dispatcher, messageObject.params);
             }
         }
     }

@@ -2,13 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 import * as i18n from '../../core/i18n/i18n.js';
-import { Issue, IssueCategory, IssueKind } from './Issue.js';
+import { Issue } from './Issue.js';
 import { resolveLazyDescription, } from './MarkdownIssueDescription.js';
 const UIStrings = {
-    /**
-     *@description Title for cross-origin portal post message error
-     */
-    crossOriginPortalPostMessage: 'Portals - Same-origin communication channels',
     /**
      *@description title for autofill documentation page
      */
@@ -25,6 +21,10 @@ const UIStrings = {
      *@description title for autocomplete attribute documentation page.
      */
     autocompleteAttributePageTitle: 'HTML attribute: autocomplete',
+    /**
+     * @description title for CORB explainer.
+     */
+    corbExplainerPageTitle: 'CORB explainer',
 };
 const str_ = i18n.i18n.registerUIStrings('models/issues_manager/GenericIssue.ts', UIStrings);
 const i18nLazyString = i18n.i18n.getLazilyComputedLocalizedString.bind(undefined, str_);
@@ -38,11 +38,18 @@ export class GenericIssue extends Issue {
         super(issueCode, issuesModel, issueId);
         this.#issueDetails = issueDetails;
     }
+    requests() {
+        if (this.#issueDetails.request) {
+            return [this.#issueDetails.request];
+        }
+        return [];
+    }
     getCategory() {
-        return IssueCategory.Generic;
+        return "Generic" /* IssueCategory.GENERIC */;
     }
     primaryKey() {
-        return `${this.code()}-(${this.#issueDetails.frameId})-(${this.#issueDetails.violatingNodeId})-(${this.#issueDetails.violatingNodeAttribute})`;
+        const requestId = this.#issueDetails.request ? this.#issueDetails.request.requestId : 'no-request';
+        return `${this.code()}-(${this.#issueDetails.frameId})-(${this.#issueDetails.violatingNodeId})-(${this.#issueDetails.violatingNodeAttribute})-(${requestId})`;
     }
     getDescription() {
         const description = issueDescriptions.get(this.#issueDetails.errorType);
@@ -55,7 +62,7 @@ export class GenericIssue extends Issue {
         return this.#issueDetails;
     }
     getKind() {
-        return issueTypes.get(this.#issueDetails.errorType) || IssueKind.Improvement;
+        return issueTypes.get(this.#issueDetails.errorType) || "Improvement" /* IssueKind.IMPROVEMENT */;
     }
     static fromInspectorIssue(issuesModel, inspectorIssue) {
         const genericDetails = inspectorIssue.details.genericIssueDetails;
@@ -66,13 +73,6 @@ export class GenericIssue extends Issue {
         return [new GenericIssue(genericDetails, issuesModel, inspectorIssue.issueId)];
     }
 }
-export const genericCrossOriginPortalPostMessageError = {
-    file: 'genericCrossOriginPortalPostMessageError.md',
-    links: [{
-            link: 'https://github.com/WICG/portals#same-origin-communication-channels',
-            linkTitle: i18nLazyString(UIStrings.crossOriginPortalPostMessage),
-        }],
-};
 export const genericFormLabelForNameError = {
     file: 'genericFormLabelForNameError.md',
     links: [{
@@ -139,8 +139,14 @@ export const genericFormLabelHasNeitherForNorNestedInput = {
             linkTitle: i18nLazyString(UIStrings.labelFormlementsPageTitle),
         }],
 };
+export const genericResponseWasBlockedbyORB = {
+    file: 'genericResponseWasBlockedByORB.md',
+    links: [{
+            link: 'https://www.chromium.org/Home/chromium-security/corb-for-developers/',
+            linkTitle: i18nLazyString(UIStrings.corbExplainerPageTitle),
+        }],
+};
 const issueDescriptions = new Map([
-    ["CrossOriginPortalPostMessageError" /* Protocol.Audits.GenericIssueErrorType.CrossOriginPortalPostMessageError */, genericCrossOriginPortalPostMessageError],
     ["FormLabelForNameError" /* Protocol.Audits.GenericIssueErrorType.FormLabelForNameError */, genericFormLabelForNameError],
     ["FormInputWithNoLabelError" /* Protocol.Audits.GenericIssueErrorType.FormInputWithNoLabelError */, genericFormInputWithNoLabelError],
     [
@@ -169,21 +175,24 @@ const issueDescriptions = new Map([
         "FormInputHasWrongButWellIntendedAutocompleteValueError" /* Protocol.Audits.GenericIssueErrorType.FormInputHasWrongButWellIntendedAutocompleteValueError */,
         genericFormInputHasWrongButWellIntendedAutocompleteValue,
     ],
+    [
+        "ResponseWasBlockedByORB" /* Protocol.Audits.GenericIssueErrorType.ResponseWasBlockedByORB */,
+        genericResponseWasBlockedbyORB,
+    ],
 ]);
 const issueTypes = new Map([
-    ["CrossOriginPortalPostMessageError" /* Protocol.Audits.GenericIssueErrorType.CrossOriginPortalPostMessageError */, IssueKind.Improvement],
-    ["FormLabelForNameError" /* Protocol.Audits.GenericIssueErrorType.FormLabelForNameError */, IssueKind.PageError],
-    ["FormInputWithNoLabelError" /* Protocol.Audits.GenericIssueErrorType.FormInputWithNoLabelError */, IssueKind.Improvement],
-    ["FormAutocompleteAttributeEmptyError" /* Protocol.Audits.GenericIssueErrorType.FormAutocompleteAttributeEmptyError */, IssueKind.PageError],
-    ["FormDuplicateIdForInputError" /* Protocol.Audits.GenericIssueErrorType.FormDuplicateIdForInputError */, IssueKind.PageError],
-    ["FormAriaLabelledByToNonExistingId" /* Protocol.Audits.GenericIssueErrorType.FormAriaLabelledByToNonExistingId */, IssueKind.Improvement],
-    ["FormEmptyIdAndNameAttributesForInputError" /* Protocol.Audits.GenericIssueErrorType.FormEmptyIdAndNameAttributesForInputError */, IssueKind.Improvement],
+    ["FormLabelForNameError" /* Protocol.Audits.GenericIssueErrorType.FormLabelForNameError */, "PageError" /* IssueKind.PAGE_ERROR */],
+    ["FormInputWithNoLabelError" /* Protocol.Audits.GenericIssueErrorType.FormInputWithNoLabelError */, "Improvement" /* IssueKind.IMPROVEMENT */],
+    ["FormAutocompleteAttributeEmptyError" /* Protocol.Audits.GenericIssueErrorType.FormAutocompleteAttributeEmptyError */, "PageError" /* IssueKind.PAGE_ERROR */],
+    ["FormDuplicateIdForInputError" /* Protocol.Audits.GenericIssueErrorType.FormDuplicateIdForInputError */, "PageError" /* IssueKind.PAGE_ERROR */],
+    ["FormAriaLabelledByToNonExistingId" /* Protocol.Audits.GenericIssueErrorType.FormAriaLabelledByToNonExistingId */, "Improvement" /* IssueKind.IMPROVEMENT */],
+    ["FormEmptyIdAndNameAttributesForInputError" /* Protocol.Audits.GenericIssueErrorType.FormEmptyIdAndNameAttributesForInputError */, "Improvement" /* IssueKind.IMPROVEMENT */],
     [
         "FormInputAssignedAutocompleteValueToIdOrNameAttributeError" /* Protocol.Audits.GenericIssueErrorType.FormInputAssignedAutocompleteValueToIdOrNameAttributeError */,
-        IssueKind.Improvement,
+        "Improvement" /* IssueKind.IMPROVEMENT */,
     ],
-    ["FormLabelForMatchesNonExistingIdError" /* Protocol.Audits.GenericIssueErrorType.FormLabelForMatchesNonExistingIdError */, IssueKind.PageError],
-    ["FormLabelHasNeitherForNorNestedInput" /* Protocol.Audits.GenericIssueErrorType.FormLabelHasNeitherForNorNestedInput */, IssueKind.Improvement],
-    ["FormInputHasWrongButWellIntendedAutocompleteValueError" /* Protocol.Audits.GenericIssueErrorType.FormInputHasWrongButWellIntendedAutocompleteValueError */, IssueKind.Improvement],
+    ["FormLabelForMatchesNonExistingIdError" /* Protocol.Audits.GenericIssueErrorType.FormLabelForMatchesNonExistingIdError */, "PageError" /* IssueKind.PAGE_ERROR */],
+    ["FormLabelHasNeitherForNorNestedInput" /* Protocol.Audits.GenericIssueErrorType.FormLabelHasNeitherForNorNestedInput */, "Improvement" /* IssueKind.IMPROVEMENT */],
+    ["FormInputHasWrongButWellIntendedAutocompleteValueError" /* Protocol.Audits.GenericIssueErrorType.FormInputHasWrongButWellIntendedAutocompleteValueError */, "Improvement" /* IssueKind.IMPROVEMENT */],
 ]);
 //# sourceMappingURL=GenericIssue.js.map

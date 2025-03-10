@@ -28,7 +28,7 @@ export class IssueResolver extends Common.ResolverBase.ResolverBase {
             return;
         }
         this.#issuesListener =
-            this.#issuesManager.addEventListener("IssueAdded" /* IssueManagerEvents.IssueAdded */, this.#onIssueAdded, this);
+            this.#issuesManager.addEventListener("IssueAdded" /* IssueManagerEvents.ISSUE_ADDED */, this.#onIssueAdded, this);
     }
     stopListening() {
         if (!this.#issuesListener) {

@@ -3,7 +3,6 @@
 // found in the LICENSE file.
 import * as Common from '../common/common.js';
 import { RemoteObject } from './RemoteObject.js';
-import { Capability } from './Target.js';
 import { SDKModel } from './SDKModel.js';
 export class IOModel extends SDKModel {
     constructor(target) {
@@ -58,5 +57,5 @@ export class IOModel extends SDKModel {
         return strings.join('');
     }
 }
-SDKModel.register(IOModel, { capabilities: Capability.IO, autostart: true });
+SDKModel.register(IOModel, { capabilities: 131072 /* Capability.IO */, autostart: true });
 //# sourceMappingURL=IOModel.js.map

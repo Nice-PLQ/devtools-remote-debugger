@@ -29,10 +29,10 @@ const createShortcuts = (descriptors) => {
             const { keyCode, modifiers } = UI.KeyboardShortcut.KeyboardShortcut.keyCodeAndModifiersFromKey(key);
             shortcutBase.keyCode = keyCode;
             const modifiersMap = UI.KeyboardShortcut.Modifiers;
-            shortcutBase.ctrl = Boolean(modifiers & modifiersMap.Ctrl);
-            shortcutBase.meta = Boolean(modifiers & modifiersMap.Meta);
-            shortcutBase.shift = Boolean(modifiers & modifiersMap.Shift);
-            shortcutBase.shift = Boolean(modifiers & modifiersMap.Alt);
+            shortcutBase.ctrl = Boolean(modifiers & modifiersMap.Ctrl.value);
+            shortcutBase.meta = Boolean(modifiers & modifiersMap.Meta.value);
+            shortcutBase.shift = Boolean(modifiers & modifiersMap.Shift.value);
+            shortcutBase.shift = Boolean(modifiers & modifiersMap.Alt.value);
             if (shortcutBase.keyCode !== -1) {
                 shortcuts.push(shortcutBase);
             }
@@ -98,25 +98,19 @@ export class RecordingSession extends Common.ObjectWrapper.ObjectWrapper {
             throw new Error('The session has started');
         }
         this.#started = true;
-        await this.#pageAgent.invoke_setPrerenderingAllowed({
-            isAllowed: false,
-        });
-        this.#networkManager.addEventListener(SDK.NetworkManager.MultitargetNetworkManager.Events.ConditionsChanged, this.#appendCurrentNetworkStep, this);
+        this.#networkManager.addEventListener("ConditionsChanged" /* SDK.NetworkManager.MultitargetNetworkManager.Events.CONDITIONS_CHANGED */, this.#appendCurrentNetworkStep, this);
         await this.#appendInitialSteps();
         // Focus the target so that events can be captured without additional actions.
         await this.#pageAgent.invoke_bringToFront();
         await this.#setUpTarget(this.#target);
     }
     async stop() {
-        await this.#pageAgent.invoke_setPrerenderingAllowed({
-            isAllowed: true,
-        });
         // Wait for any remaining updates.
         await this.#dispatchRecordingUpdate();
         // Create a deadlock for the remaining events.
         void this.#mutex.acquire();
         await Promise.all([...this.#targets.values()].map(this.#tearDownTarget));
-        this.#networkManager.removeEventListener(SDK.NetworkManager.MultitargetNetworkManager.Events.ConditionsChanged, this.#appendCurrentNetworkStep, this);
+        this.#networkManager.removeEventListener("ConditionsChanged" /* SDK.NetworkManager.MultitargetNetworkManager.Events.CONDITIONS_CHANGED */, this.#appendCurrentNetworkStep, this);
     }
     async #appendInitialSteps() {
         // Quick validation before doing anything.
@@ -171,7 +165,7 @@ export class RecordingSession extends Common.ObjectWrapper.ObjectWrapper {
         }
         this.#updateTimeout = setTimeout(() => {
             // Making a copy to prevent mutations of this.userFlow by event consumers.
-            this.dispatchEventToListeners("recordingupdated" /* Events.RecordingUpdated */, structuredClone(this.#userFlow));
+            this.dispatchEventToListeners("recordingupdated" /* Events.RECORDING_UPDATED */, structuredClone(this.#userFlow));
             this.#updateTimeout = undefined;
             for (const resolve of this.#updateListeners) {
                 resolve();
@@ -285,7 +279,7 @@ export class RecordingSession extends Common.ObjectWrapper.ObjectWrapper {
         for (let index = 0; index < shortcutLength - 1; index++) {
             this.#userFlow.steps.pop();
         }
-        this.dispatchEventToListeners("recordingstopped" /* Events.RecordingStopped */, structuredClone(this.#userFlow));
+        this.dispatchEventToListeners("recordingstopped" /* Events.RECORDING_STOPPED */, structuredClone(this.#userFlow));
     }
     #receiveBindingCalled(target, event) {
         switch (event.data.name) {
@@ -388,7 +382,7 @@ export class RecordingSession extends Common.ObjectWrapper.ObjectWrapper {
     }
     #getStopShortcuts() {
         const descriptors = UI.ShortcutRegistry.ShortcutRegistry.instance()
-            .shortcutsForAction('chrome_recorder.start-recording')
+            .shortcutsForAction('chrome-recorder.start-recording')
             .map(key => key.descriptors.map(press => press.key));
         return createShortcuts(descriptors);
     }
@@ -396,7 +390,7 @@ export class RecordingSession extends Common.ObjectWrapper.ObjectWrapper {
         try {
             // This setting is set during the test to work around the fact that Puppeteer cannot
             // send trusted change and input events.
-            Common.Settings.Settings.instance().settingForTest('untrustedRecorderEvents');
+            Common.Settings.Settings.instance().settingForTest('untrusted-recorder-events');
             return true;
         }
         catch {
@@ -404,7 +398,7 @@ export class RecordingSession extends Common.ObjectWrapper.ObjectWrapper {
         return false;
     }
     #setUpTarget = async (target) => {
-        if (target.type() !== SDK.Target.Type.Frame) {
+        if (target.type() !== SDK.Target.Type.FRAME) {
             return;
         }
         this.#targets.set(target.id(), target);
@@ -416,9 +410,9 @@ export class RecordingSession extends Common.ObjectWrapper.ObjectWrapper {
         const childTargetManager = target.model(SDK.ChildTargetManager.ChildTargetManager);
         Platform.assertNotNullOrUndefined(childTargetManager);
         this.#childTargetEventDescriptors.set(target, [
-            childTargetManager.addEventListener(SDK.ChildTargetManager.Events.TargetCreated, this.#receiveTargetCreated.bind(this, target)),
-            childTargetManager.addEventListener(SDK.ChildTargetManager.Events.TargetDestroyed, this.#receiveTargetClosed.bind(this, target)),
-            childTargetManager.addEventListener(SDK.ChildTargetManager.Events.TargetInfoChanged, this.#receiveTargetInfoChanged.bind(this, target)),
+            childTargetManager.addEventListener("TargetCreated" /* SDK.ChildTargetManager.Events.TARGET_CREATED */, this.#receiveTargetCreated.bind(this, target)),
+            childTargetManager.addEventListener("TargetDestroyed" /* SDK.ChildTargetManager.Events.TARGET_DESTROYED */, this.#receiveTargetClosed.bind(this, target)),
+            childTargetManager.addEventListener("TargetInfoChanged" /* SDK.ChildTargetManager.Events.TARGET_INFO_CHANGED */, this.#receiveTargetInfoChanged.bind(this, target)),
         ]);
         await Promise.all(childTargetManager.childTargets().map(this.#setUpTarget));
     };
@@ -590,10 +584,7 @@ export class RecordingSession extends Common.ObjectWrapper.ObjectWrapper {
         }
     }
     async #waitForDOMContentLoadedWithTimeout(resourceTreeModel, timeout) {
-        let resolver = () => Promise.resolve();
-        const contentLoadedPromise = new Promise(resolve => {
-            resolver = resolve;
-        });
+        const { resolve: resolver, promise: contentLoadedPromise } = Promise.withResolvers();
         const onDomContentLoaded = () => {
             resourceTreeModel.removeEventListener(SDK.ResourceTreeModel.Events.DOMContentLoaded, onDomContentLoaded);
             resolver();

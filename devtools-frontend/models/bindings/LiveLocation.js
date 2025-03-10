@@ -28,7 +28,7 @@ export class LiveLocationWithPool {
         }
     }
     async uiLocation() {
-        throw 'Not implemented';
+        throw new Error('Not implemented');
     }
     dispose() {
         this.#locationPool.delete(this);
@@ -38,7 +38,7 @@ export class LiveLocationWithPool {
         return !this.#locationPool.has(this);
     }
     async isIgnoreListed() {
-        throw 'Not implemented';
+        throw new Error('Not implemented');
     }
 }
 export class LiveLocationPool {

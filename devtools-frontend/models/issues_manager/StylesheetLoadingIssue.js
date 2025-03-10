@@ -1,7 +1,7 @@
 // Copyright 2023 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
-import { Issue, IssueCategory, IssueKind } from './Issue.js';
+import { Issue } from './Issue.js';
 export const lateImportStylesheetLoadingCode = [
     "StylesheetLoadingIssue" /* Protocol.Audits.InspectorIssueCode.StylesheetLoadingIssue */,
     "LateImportRule" /* Protocol.Audits.StyleSheetLoadingIssueReason.LateImportRule */,
@@ -47,10 +47,10 @@ export class StylesheetLoadingIssue extends Issue {
         }
     }
     getCategory() {
-        return IssueCategory.Other;
+        return "Other" /* IssueCategory.OTHER */;
     }
     getKind() {
-        return IssueKind.PageError;
+        return "PageError" /* IssueKind.PAGE_ERROR */;
     }
     static fromInspectorIssue(issueModel, inspectorIssue) {
         const stylesheetLoadingDetails = inspectorIssue.details.stylesheetLoadingIssueDetails;

@@ -45,7 +45,7 @@ export class ContrastInfo extends Common.ObjectWrapper.ObjectWrapper {
         this.fgColor = fgColor;
         this.colorFormatInternal = colorFormat;
         this.updateContrastRatio();
-        this.dispatchEventToListeners("ContrastInfoUpdated" /* Events.ContrastInfoUpdated */);
+        this.dispatchEventToListeners("ContrastInfoUpdated" /* Events.CONTRAST_INFO_UPDATED */);
     }
     colorFormat() {
         return this.colorFormatInternal;
@@ -64,7 +64,7 @@ export class ContrastInfo extends Common.ObjectWrapper.ObjectWrapper {
     }
     setBgColor(bgColor) {
         this.setBgColorInternal(bgColor);
-        this.dispatchEventToListeners("ContrastInfoUpdated" /* Events.ContrastInfoUpdated */);
+        this.dispatchEventToListeners("ContrastInfoUpdated" /* Events.CONTRAST_INFO_UPDATED */);
     }
     setBgColorInternal(bgColor) {
         this.bgColorInternal = bgColor;

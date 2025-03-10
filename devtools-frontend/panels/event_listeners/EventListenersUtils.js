@@ -9,7 +9,7 @@ export async function frameworkEventListeners(object) {
         return { eventListeners: [], internalHandlers: null };
     }
     const listenersResult = { internalHandlers: null, eventListeners: [] };
-    return object.callFunction(frameworkEventListenersImpl, undefined)
+    return await object.callFunction(frameworkEventListenersImpl, undefined)
         .then(assertCallFunctionResult)
         .then(getOwnProperties)
         .then(createEventListeners)
@@ -112,7 +112,7 @@ export async function frameworkEventListeners(object) {
                 if (!location) {
                     throw new Error('Empty event listener\'s location');
                 }
-                return new SDK.DOMDebuggerModel.EventListener(domDebuggerModel, object, type, useCapture, passive, once, handler, originalHandler, location, removeFunctionObject, SDK.DOMDebuggerModel.EventListener.Origin.FrameworkUser);
+                return new SDK.DOMDebuggerModel.EventListener(domDebuggerModel, object, type, useCapture, passive, once, handler, originalHandler, location, removeFunctionObject, "FrameworkUser" /* SDK.DOMDebuggerModel.EventListener.Origin.FRAMEWORK_USER */);
             }
         }
     }
@@ -177,9 +177,9 @@ export async function frameworkEventListeners(object) {
         let internalHandlers = [];
         let fetchers = [jQueryFetcher];
         try {
-            // @ts-ignore Here because of layout tests.
+            // @ts-expect-error Here because of layout tests.
             if (self.devtoolsFrameworkEventListeners && isArrayLike(self.devtoolsFrameworkEventListeners)) {
-                // @ts-ignore Here because of layout tests.
+                // @ts-expect-error Here because of layout tests.
                 fetchers = fetchers.concat(self.devtoolsFrameworkEventListeners);
             }
         }
@@ -213,7 +213,7 @@ export async function frameworkEventListeners(object) {
             }
         }
         const result = {
-            eventListeners: eventListeners,
+            eventListeners,
             internalHandlers: internalHandlers.length ? internalHandlers : undefined,
             errorString: undefined,
         };
@@ -245,7 +245,7 @@ export async function frameworkEventListeners(object) {
                     return typeof len === 'number' && (len >>> 0 === len && (len > 0 || 1 / len > 0));
                 }
             }
-            catch (e) {
+            catch {
             }
             return false;
         }
@@ -282,12 +282,12 @@ export async function frameworkEventListeners(object) {
                     }
                     if (!errorString) {
                         return {
-                            type: type,
-                            useCapture: useCapture,
-                            passive: passive,
-                            once: once,
-                            handler: handler,
-                            remove: remove,
+                            type,
+                            useCapture,
+                            passive,
+                            once,
+                            handler,
+                            remove,
                         };
                     }
                 }
@@ -313,7 +313,7 @@ export async function frameworkEventListeners(object) {
             try {
                 return String(obj);
             }
-            catch (e) {
+            catch {
                 return '<error>';
             }
         }
@@ -327,7 +327,7 @@ export async function frameworkEventListeners(object) {
             }
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             const jQuery = window['jQuery'];
-            if (!jQuery || !jQuery.fn) {
+            if (!jQuery?.fn) {
                 return { eventListeners: [] };
             }
             const jQueryFunction = jQuery;
@@ -345,7 +345,7 @@ export async function frameworkEventListeners(object) {
                                 useCapture: true,
                                 passive: false,
                                 once: false,
-                                type: type,
+                                type,
                                 remove: jQueryRemove.bind(node, frameworkListener.selector),
                             };
                             eventListeners.push(listener);
@@ -364,17 +364,17 @@ export async function frameworkEventListeners(object) {
                     const events = entryEvents[type];
                     for (const key in events) {
                         if (typeof events[key] === 'function') {
-                            const listener = { handler: events[key], useCapture: true, passive: false, once: false, type: type };
+                            const listener = { handler: events[key], useCapture: true, passive: false, once: false, type };
                             // We don't support removing for old version < 1.4 of jQuery because it doesn't provide API for getting "selector".
                             eventListeners.push(listener);
                         }
                     }
                 }
-                if (entry && entry['$handle']) {
+                if (entry?.['$handle']) {
                     internalHandlers.push(entry['$handle']);
                 }
             }
-            return { eventListeners: eventListeners, internalHandlers: internalHandlers };
+            return { eventListeners, internalHandlers };
         }
         function jQueryRemove(selector, type, handler) {
             if (!this || !(this instanceof Node)) {
@@ -383,7 +383,7 @@ export async function frameworkEventListeners(object) {
             const node = this;
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             const jQuery = window['jQuery'];
-            if (!jQuery || !jQuery.fn) {
+            if (!jQuery?.fn) {
                 return;
             }
             const jQueryFunction = jQuery;

@@ -3,7 +3,6 @@
 // found in the LICENSE file.
 import * as Common from '../../core/common/common.js';
 import * as Platform from '../../core/platform/platform.js';
-import * as Root from '../../core/root/root.js';
 import * as SDK from '../../core/sdk/sdk.js';
 import * as Workspace from '../workspace/workspace.js';
 import { CompilerScriptMapping } from './CompilerScriptMapping.js';
@@ -20,7 +19,6 @@ export class DebuggerWorkspaceBinding {
     #debuggerModelToData;
     #liveLocationPromises;
     pluginManager;
-    #targetManager;
     constructor(resourceMapping, targetManager) {
         this.resourceMapping = resourceMapping;
         this.#sourceMappings = [];
@@ -28,23 +26,13 @@ export class DebuggerWorkspaceBinding {
         targetManager.addModelListener(SDK.DebuggerModel.DebuggerModel, SDK.DebuggerModel.Events.GlobalObjectCleared, this.globalObjectCleared, this);
         targetManager.addModelListener(SDK.DebuggerModel.DebuggerModel, SDK.DebuggerModel.Events.DebuggerResumed, this.debuggerResumed, this);
         targetManager.observeModels(SDK.DebuggerModel.DebuggerModel, this);
-        this.#targetManager = targetManager;
         this.#liveLocationPromises = new Set();
-        this.pluginManager = Root.Runtime.experiments.isEnabled('wasmDWARFDebugging') ?
-            new DebuggerLanguagePluginManager(targetManager, resourceMapping.workspace, this) :
-            null;
+        this.pluginManager = new DebuggerLanguagePluginManager(targetManager, resourceMapping.workspace, this);
     }
-    initPluginManagerForTest() {
-        if (Root.Runtime.experiments.isEnabled('wasmDWARFDebugging')) {
-            if (!this.pluginManager) {
-                this.pluginManager =
-                    new DebuggerLanguagePluginManager(this.#targetManager, this.resourceMapping.workspace, this);
-            }
+    setFunctionRanges(uiSourceCode, ranges) {
+        for (const modelData of this.#debuggerModelToData.values()) {
+            modelData.compilerMapping.setFunctionRanges(uiSourceCode, ranges);
         }
-        else {
-            this.pluginManager = null;
-        }
-        return this.pluginManager;
     }
     static instance(opts = { forceNew: null, resourceMapping: null, targetManager: null }) {
         const { forceNew, resourceMapping, targetManager } = opts;
@@ -91,32 +79,24 @@ export class DebuggerWorkspaceBinding {
         }
         const pluginManager = this.pluginManager;
         let ranges = [];
-        if (pluginManager) {
-            if (mode === SDK.DebuggerModel.StepMode.StepOut) {
-                // Step out of inline function.
-                return await pluginManager.getInlinedFunctionRanges(rawLocation);
+        if (mode === "StepOut" /* SDK.DebuggerModel.StepMode.STEP_OUT */) {
+            // Step out of inline function.
+            return await pluginManager.getInlinedFunctionRanges(rawLocation);
+        }
+        const uiLocation = await pluginManager.rawLocationToUILocation(rawLocation);
+        if (uiLocation) {
+            ranges = await pluginManager.uiLocationToRawLocationRanges(uiLocation.uiSourceCode, uiLocation.lineNumber, uiLocation.columnNumber) ||
+                [];
+            // TODO(bmeurer): Remove the {rawLocation} from the {ranges}?
+            ranges = ranges.filter(range => contained(rawLocation, range));
+            if (mode === "StepOver" /* SDK.DebuggerModel.StepMode.STEP_OVER */) {
+                // Step over an inlined function.
+                ranges = ranges.concat(await pluginManager.getInlinedCalleesRanges(rawLocation));
             }
-            const uiLocation = await pluginManager.rawLocationToUILocation(rawLocation);
-            if (uiLocation) {
-                ranges = await pluginManager.uiLocationToRawLocationRanges(uiLocation.uiSourceCode, uiLocation.lineNumber, uiLocation.columnNumber) ||
-                    [];
-                // TODO(bmeurer): Remove the {rawLocation} from the {ranges}?
-                ranges = ranges.filter(range => contained(rawLocation, range));
-                if (mode === SDK.DebuggerModel.StepMode.StepOver) {
-                    // Step over an inlined function.
-                    ranges = ranges.concat(await pluginManager.getInlinedCalleesRanges(rawLocation));
-                }
-                return ranges;
-            }
+            return ranges;
         }
         const compilerMapping = this.#debuggerModelToData.get(rawLocation.debuggerModel)?.compilerMapping;
         if (!compilerMapping) {
-            return [];
-        }
-        if (mode === SDK.DebuggerModel.StepMode.StepOut) {
-            // We should actually return the source range for the entire function
-            // to skip over. Since we don't have that, we return an empty range
-            // instead, to signal that we should perform a regular step-out.
             return [];
         }
         ranges = compilerMapping.getLocationRangesForSameSourceLocation(rawLocation);
@@ -164,13 +144,13 @@ export class DebuggerWorkspaceBinding {
         }
         const liveLocationPromise = modelData.createLiveLocation(rawLocation, updateDelegate, locationPool);
         this.recordLiveLocationChange(liveLocationPromise);
-        return liveLocationPromise;
+        return await liveLocationPromise;
     }
     async createStackTraceTopFrameLiveLocation(rawLocations, updateDelegate, locationPool) {
         console.assert(rawLocations.length > 0);
         const locationPromise = StackTraceTopFrameLocation.createStackTraceTopFrameLocation(rawLocations, this, updateDelegate, locationPool);
         this.recordLiveLocationChange(locationPromise);
-        return locationPromise;
+        return await locationPromise;
     }
     async createCallFrameLiveLocation(location, updateDelegate, locationPool) {
         const script = location.script();
@@ -194,11 +174,9 @@ export class DebuggerWorkspaceBinding {
                 return uiLocation;
             }
         }
-        if (this.pluginManager) {
-            const uiLocation = await this.pluginManager.rawLocationToUILocation(rawLocation);
-            if (uiLocation) {
-                return uiLocation;
-            }
+        const uiLocation = await this.pluginManager.rawLocationToUILocation(rawLocation);
+        if (uiLocation) {
+            return uiLocation;
         }
         const modelData = this.#debuggerModelToData.get(rawLocation.debuggerModel);
         return modelData ? modelData.rawLocationToUILocation(rawLocation) : null;
@@ -212,14 +190,11 @@ export class DebuggerWorkspaceBinding {
     }
     async uiSourceCodeForSourceMapSourceURLPromise(debuggerModel, url, isContentScript) {
         const uiSourceCode = this.uiSourceCodeForSourceMapSourceURL(debuggerModel, url, isContentScript);
-        return uiSourceCode || this.waitForUISourceCodeAdded(url, debuggerModel.target());
+        return await (uiSourceCode || this.waitForUISourceCodeAdded(url, debuggerModel.target()));
     }
     async uiSourceCodeForDebuggerLanguagePluginSourceURLPromise(debuggerModel, url) {
-        if (this.pluginManager) {
-            const uiSourceCode = this.pluginManager.uiSourceCodeForURL(debuggerModel, url);
-            return uiSourceCode || this.waitForUISourceCodeAdded(url, debuggerModel.target());
-        }
-        return null;
+        const uiSourceCode = this.pluginManager.uiSourceCodeForURL(debuggerModel, url);
+        return await (uiSourceCode || this.waitForUISourceCodeAdded(url, debuggerModel.target()));
     }
     uiSourceCodeForScript(script) {
         const modelData = this.#debuggerModelToData.get(script.debuggerModel);
@@ -247,7 +222,7 @@ export class DebuggerWorkspaceBinding {
                 return locations;
             }
         }
-        const locations = await this.pluginManager?.uiLocationToRawLocations(uiSourceCode, lineNumber, columnNumber);
+        const locations = await this.pluginManager.uiLocationToRawLocations(uiSourceCode, lineNumber, columnNumber);
         if (locations) {
             return locations;
         }
@@ -286,11 +261,9 @@ export class DebuggerWorkspaceBinding {
                 return ranges;
             }
         }
-        if (this.pluginManager !== null) {
-            const ranges = await this.pluginManager.uiLocationRangeToRawLocationRanges(uiSourceCode, textRange);
-            if (ranges) {
-                return ranges;
-            }
+        const ranges = await this.pluginManager.uiLocationRangeToRawLocationRanges(uiSourceCode, textRange);
+        if (ranges) {
+            return ranges;
         }
         for (const modelData of this.#debuggerModelToData.values()) {
             const ranges = modelData.uiLocationRangeToRawLocationRanges(uiSourceCode, textRange);
@@ -299,14 +272,6 @@ export class DebuggerWorkspaceBinding {
             }
         }
         return [];
-    }
-    uiLocationToRawLocationsForUnformattedJavaScript(uiSourceCode, lineNumber, columnNumber) {
-        console.assert(uiSourceCode.contentType().isScript());
-        const locations = [];
-        for (const modelData of this.#debuggerModelToData.values()) {
-            locations.push(...modelData.uiLocationToRawLocations(uiSourceCode, lineNumber, columnNumber));
-        }
-        return locations;
     }
     async normalizeUILocation(uiLocation) {
         const rawLocations = await this.uiLocationToRawLocations(uiLocation.uiSourceCode, uiLocation.lineNumber, uiLocation.columnNumber);
@@ -335,11 +300,7 @@ export class DebuggerWorkspaceBinding {
                 return mappedLines;
             }
         }
-        const { pluginManager } = this;
-        if (!pluginManager) {
-            return null;
-        }
-        return await pluginManager.getMappedLines(uiSourceCode);
+        return await this.pluginManager.getMappedLines(uiSourceCode);
     }
     scriptFile(uiSourceCode, debuggerModel) {
         const modelData = this.#debuggerModelToData.get(debuggerModel);
@@ -347,12 +308,10 @@ export class DebuggerWorkspaceBinding {
     }
     scriptsForUISourceCode(uiSourceCode) {
         const scripts = new Set();
-        if (this.pluginManager) {
-            this.pluginManager.scriptsForUISourceCode(uiSourceCode).forEach(script => scripts.add(script));
-        }
+        this.pluginManager.scriptsForUISourceCode(uiSourceCode).forEach(script => scripts.add(script));
         for (const modelData of this.#debuggerModelToData.values()) {
             const resourceScriptFile = modelData.getResourceScriptMapping().scriptFile(uiSourceCode);
-            if (resourceScriptFile && resourceScriptFile.script) {
+            if (resourceScriptFile?.script) {
                 scripts.add(resourceScriptFile.script);
             }
             modelData.compilerMapping.scriptsForUISourceCode(uiSourceCode).forEach(script => scripts.add(script));
@@ -360,11 +319,6 @@ export class DebuggerWorkspaceBinding {
         return [...scripts];
     }
     supportsConditionalBreakpoints(uiSourceCode) {
-        // DevTools traditionally supported (JavaScript) conditions
-        // for breakpoints everywhere, so we keep that behavior...
-        if (!this.pluginManager) {
-            return true;
-        }
         const scripts = this.pluginManager.scriptsForUISourceCode(uiSourceCode);
         return scripts.every(script => script.isJavaScript());
     }
@@ -412,8 +366,7 @@ export class DebuggerWorkspaceBinding {
         }
         const functionLocation = frame.functionLocation();
         if (!autoSteppingContext || debuggerPausedDetails.reason !== "step" /* Protocol.Debugger.PausedEventReason.Step */ ||
-            !functionLocation || !this.pluginManager || !frame.script.isWasm() ||
-            !Common.Settings.moduleSetting('wasmAutoStepping').get() ||
+            !functionLocation || !frame.script.isWasm() || !Common.Settings.moduleSetting('wasm-auto-stepping').get() ||
             !this.pluginManager.hasPluginForScript(frame.script)) {
             return true;
         }
@@ -528,7 +481,7 @@ export class Location extends LiveLocationWithPool {
     }
     async uiLocation() {
         const debuggerModelLocation = this.rawLocation;
-        return this.#binding.rawLocationToUILocation(debuggerModelLocation);
+        return await this.#binding.rawLocationToUILocation(debuggerModelLocation);
     }
     dispose() {
         super.dispose();
@@ -560,10 +513,10 @@ class StackTraceTopFrameLocation extends LiveLocationWithPool {
         return location;
     }
     async uiLocation() {
-        return this.#current ? this.#current.uiLocation() : null;
+        return this.#current ? await this.#current.uiLocation() : null;
     }
     async isIgnoreListed() {
-        return this.#current ? this.#current.isIgnoreListed() : false;
+        return this.#current ? await this.#current.isIgnoreListed() : false;
     }
     dispose() {
         super.dispose();

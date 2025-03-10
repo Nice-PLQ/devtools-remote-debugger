@@ -12,6 +12,7 @@ import '../../panels/sensors/sensors-meta.js';
 import '../../panels/accessibility/accessibility-meta.js';
 import '../../panels/animation/animation-meta.js';
 import '../../panels/developer_resources/developer_resources-meta.js';
+import '../../panels/autofill/autofill-meta.js';
 import '../inspector_main/inspector_main-meta.js';
 import '../../panels/application/application-meta.js';
 import '../../panels/issues/issues-meta.js';
@@ -25,10 +26,11 @@ import '../../panels/web_audio/web_audio-meta.js';
 import '../../panels/webauthn/webauthn-meta.js';
 import '../../panels/layer_viewer/layer_viewer-meta.js';
 import '../../panels/recorder/recorder-meta.js';
+import '../../panels/whats_new/whats_new-meta.js';
 import '../../panels/screen_preview/screen_preview-meta.js';
 import * as Root from '../../core/root/root.js';
 import * as Main from '../main/main.js';
-// @ts-ignore Exposed for legacy layout tests
+// @ts-expect-error Exposed for legacy layout tests
 self.runtime = Root.Runtime.Runtime.instance({ forceNew: true });
 new Main.MainImpl.MainImpl();
 //# sourceMappingURL=devtools_app.js.map

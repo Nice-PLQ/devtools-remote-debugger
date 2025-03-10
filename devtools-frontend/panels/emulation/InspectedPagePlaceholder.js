@@ -3,14 +3,14 @@
 // found in the LICENSE file.
 import * as Common from '../../core/common/common.js';
 import * as UI from '../../ui/legacy/legacy.js';
-import inspectedPagePlaceholderStyles from './inspectedPagePlaceholder.css.legacy.js';
+import inspectedPagePlaceholderStyles from './inspectedPagePlaceholder.css.js';
 let inspectedPagePlaceholderInstance;
 export class InspectedPagePlaceholder extends Common.ObjectWrapper.eventMixin(UI.Widget.Widget) {
     updateId;
     constructor() {
         super(true);
         this.registerRequiredCSS(inspectedPagePlaceholderStyles);
-        UI.ZoomManager.ZoomManager.instance().addEventListener("ZoomChanged" /* UI.ZoomManager.Events.ZoomChanged */, this.onResize, this);
+        UI.ZoomManager.ZoomManager.instance().addEventListener("ZoomChanged" /* UI.ZoomManager.Events.ZOOM_CHANGED */, this.onResize, this);
         this.restoreMinimumSize();
     }
     static instance(opts = { forceNew: null }) {
@@ -54,10 +54,10 @@ export class InspectedPagePlaceholder extends Common.ObjectWrapper.eventMixin(UI
         if (force) {
             // Short term fix for Lighthouse interop.
             --bounds.height;
-            this.dispatchEventToListeners("Update" /* Events.Update */, bounds);
+            this.dispatchEventToListeners("Update" /* Events.UPDATE */, bounds);
             ++bounds.height;
         }
-        this.dispatchEventToListeners("Update" /* Events.Update */, bounds);
+        this.dispatchEventToListeners("Update" /* Events.UPDATE */, bounds);
     }
 }
 //# sourceMappingURL=InspectedPagePlaceholder.js.map

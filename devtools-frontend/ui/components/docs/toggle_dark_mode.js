@@ -1,15 +1,14 @@
 // Copyright 2020 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
-const DARK_THEME_CLASS = '-theme-with-dark-background';
-function toggleDarkMode() {
-    document.body.classList.toggle(DARK_THEME_CLASS);
+const DARK_THEME_CLASS = 'theme-with-dark-background';
+function toggleDarkMode(force) {
+    // Only use the second arg if its not undefined. The spec treats `undefined` as falsy. :/
+    document.body.classList.toggle(...[DARK_THEME_CLASS, ...force !== undefined ? [force] : []]);
 }
 export function init() {
-    const isDarkAlready = window.matchMedia('(prefers-color-scheme: dark)').matches;
-    if (isDarkAlready) {
-        document.body.classList.add(DARK_THEME_CLASS);
-    }
+    // To keep consistent test results, we don't auto-initialize darkmode. This'd do it, though:
+    //    toggleDarkMode(window.matchMedia('(prefers-color-scheme: dark)').matches);
     window.addEventListener('load', () => {
         const button = document.createElement('button');
         button.innerText = 'Toggle light/dark mode';

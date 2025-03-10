@@ -32,24 +32,24 @@
  */
 import * as Common from '../../core/common/common.js';
 import * as Platform from '../../core/platform/platform.js';
+import * as VisualLogging from '../visual_logging/visual_logging.js';
 import * as ARIAUtils from './ARIAUtils.js';
-import * as ThemeSupport from './theme_support/theme_support.js';
-import * as Utils from './utils/utils.js';
 import { InplaceEditor } from './InplaceEditor.js';
 import { Keys } from './KeyboardShortcut.js';
+import * as ThemeSupport from './theme_support/theme_support.js';
 import { Tooltip } from './Tooltip.js';
-import { deepElementFromPoint, enclosingNodeOrSelfWithNodeNameInArray, isEditing } from './UIUtils.js';
-import treeoutlineStyles from './treeoutline.css.legacy.js';
+import treeoutlineStyles from './treeoutline.css.js';
+import { createShadowRootWithCoreStyles, deepElementFromPoint, enclosingNodeOrSelfWithNodeNameInArray, isEditing, } from './UIUtils.js';
 const nodeToParentTreeElementMap = new WeakMap();
-// TODO(crbug.com/1167717): Make this a const enum again
-// eslint-disable-next-line rulesdir/const_enum
 export var Events;
 (function (Events) {
+    /* eslint-disable @typescript-eslint/naming-convention -- Used by web_tests. */
     Events["ElementAttached"] = "ElementAttached";
     Events["ElementsDetached"] = "ElementsDetached";
     Events["ElementExpanded"] = "ElementExpanded";
     Events["ElementCollapsed"] = "ElementCollapsed";
     Events["ElementSelected"] = "ElementSelected";
+    /* eslint-enable @typescript-eslint/naming-convention */
 })(Events || (Events = {}));
 export class TreeOutline extends Common.ObjectWrapper.ObjectWrapper {
     rootElementInternal;
@@ -79,6 +79,7 @@ export class TreeOutline extends Common.ObjectWrapper.ObjectWrapper {
         this.focusable = true;
         this.setFocusable(true);
         this.element = this.contentElement;
+        this.element.setAttribute('jslog', `${VisualLogging.tree()}`);
         ARIAUtils.markAsTree(this.element);
         this.useLightSelectionColor = false;
         this.treeElementToScrollIntoView = null;
@@ -191,7 +192,7 @@ export class TreeOutline extends Common.ObjectWrapper.ObjectWrapper {
         element.treeOutline = null;
     }
     selectPrevious() {
-        let nextSelectedElement = this.selectedTreeElement && this.selectedTreeElement.traversePreviousTreeElement(true);
+        let nextSelectedElement = this.selectedTreeElement?.traversePreviousTreeElement(true) ?? null;
         while (nextSelectedElement && !nextSelectedElement.selectable) {
             nextSelectedElement = nextSelectedElement.traversePreviousTreeElement(!this.expandTreeElementsWhenArrowing);
         }
@@ -202,7 +203,7 @@ export class TreeOutline extends Common.ObjectWrapper.ObjectWrapper {
         return true;
     }
     selectNext() {
-        let nextSelectedElement = this.selectedTreeElement && this.selectedTreeElement.traverseNextTreeElement(true);
+        let nextSelectedElement = this.selectedTreeElement?.traverseNextTreeElement(true) ?? null;
         while (nextSelectedElement && !nextSelectedElement.selectable) {
             nextSelectedElement = nextSelectedElement.traverseNextTreeElement(!this.expandTreeElementsWhenArrowing);
         }
@@ -303,8 +304,11 @@ export class TreeOutline extends Common.ObjectWrapper.ObjectWrapper {
             // Usually, this.element is the tree container that scrolls. But sometimes
             // (i.e. in the Elements panel), its parent is.
             let scrollParentElement = this.element;
-            while (getComputedStyle(scrollParentElement).overflow === 'visible' && scrollParentElement.parentElement) {
-                scrollParentElement = scrollParentElement.parentElement;
+            while (getComputedStyle(scrollParentElement).overflow === 'visible' &&
+                scrollParentElement.parentElementOrShadowHost()) {
+                const parent = scrollParentElement.parentElementOrShadowHost();
+                Platform.assertNotNullOrUndefined(parent);
+                scrollParentElement = parent;
             }
             const viewRect = scrollParentElement.getBoundingClientRect();
             const currentScrollX = viewRect.left - treeRect.left;
@@ -343,21 +347,22 @@ export class TreeOutlineInShadow extends TreeOutline {
     shadowRoot;
     disclosureElement;
     renderSelection;
-    constructor() {
+    constructor(variant = "Other" /* TreeVariant.OTHER */) {
         super();
         this.contentElement.classList.add('tree-outline');
         this.element = document.createElement('div');
-        this.shadowRoot =
-            Utils.createShadowRootWithCoreStyles(this.element, { cssFile: treeoutlineStyles, delegatesFocus: undefined });
+        this.shadowRoot = createShadowRootWithCoreStyles(this.element, { cssFile: treeoutlineStyles });
         this.disclosureElement = this.shadowRoot.createChild('div', 'tree-outline-disclosure');
         this.disclosureElement.appendChild(this.contentElement);
         this.renderSelection = true;
+        if (variant === "NavigationTree" /* TreeVariant.NAVIGATION_TREE */) {
+            this.contentElement.classList.add('tree-variant-navigation');
+        }
     }
-    registerRequiredCSS(cssFile) {
-        ThemeSupport.ThemeSupport.instance().appendStyle(this.shadowRoot, cssFile);
-    }
-    registerCSSFiles(cssFiles) {
-        this.shadowRoot.adoptedStyleSheets = this.shadowRoot.adoptedStyleSheets.concat(cssFiles);
+    registerRequiredCSS(...cssFiles) {
+        for (const cssFile of cssFiles) {
+            ThemeSupport.ThemeSupport.instance().appendStyle(this.shadowRoot, cssFile);
+        }
     }
     hideOverflow() {
         this.disclosureElement.classList.add('tree-outline-disclosure-hide-overflow');
@@ -385,6 +390,7 @@ export class TreeElement {
     titleInternal;
     childrenInternal;
     childrenListNode;
+    expandLoggable = {};
     hiddenInternal;
     selectableInternal;
     expanded;
@@ -400,7 +406,7 @@ export class TreeElement {
     trailingIconsElement;
     selectionElementInternal;
     disableSelectFocus;
-    constructor(title, expandable) {
+    constructor(title, expandable, jslogContext) {
         this.treeOutline = null;
         this.parent = null;
         this.previousSibling = null;
@@ -417,6 +423,10 @@ export class TreeElement {
         this.listItemNode.addEventListener('mousedown', this.handleMouseDown.bind(this), false);
         this.listItemNode.addEventListener('click', this.treeElementToggled.bind(this), false);
         this.listItemNode.addEventListener('dblclick', this.handleDoubleClick.bind(this), false);
+        this.listItemNode.setAttribute('jslog', `${VisualLogging.treeItem().parent('parentTreeItem').context(jslogContext).track({
+            click: true,
+            keydown: 'ArrowUp|ArrowDown|ArrowLeft|ArrowRight|Backspace|Delete|Enter|Space|Home|End',
+        })}`);
         ARIAUtils.markAsTreeitem(this.listItemNode);
         this.childrenInternal = null;
         this.childrenListNode = document.createElement('ol');
@@ -496,7 +506,7 @@ export class TreeElement {
         if (comparator) {
             insertionIndex = Platform.ArrayUtilities.lowerBound(this.childrenInternal, child, comparator);
         }
-        else if (this.treeOutline && this.treeOutline.comparator) {
+        else if (this.treeOutline?.comparator) {
             insertionIndex = Platform.ArrayUtilities.lowerBound(this.childrenInternal, child, this.treeOutline.comparator);
         }
         else {
@@ -509,7 +519,7 @@ export class TreeElement {
             this.childrenInternal = [];
         }
         if (!child) {
-            throw 'child can\'t be undefined or null';
+            throw new Error('child can\'t be undefined or null');
         }
         console.assert(!child.parent, 'Attempting to insert a child that is already in the tree, reparenting is not supported.');
         const previousChild = (index > 0 ? this.childrenInternal[index - 1] : null);
@@ -554,13 +564,12 @@ export class TreeElement {
     }
     removeChildAtIndex(childIndex) {
         if (!this.childrenInternal || childIndex < 0 || childIndex >= this.childrenInternal.length) {
-            throw 'childIndex out of range';
+            throw new Error('childIndex out of range');
         }
         const child = this.childrenInternal[childIndex];
         this.childrenInternal.splice(childIndex, 1);
         const parent = child.parent;
-        if (this.treeOutline && this.treeOutline.selectedTreeElement &&
-            this.treeOutline.selectedTreeElement.hasAncestorOrSelf(child)) {
+        if (this.treeOutline?.selectedTreeElement?.hasAncestorOrSelf(child)) {
             if (child.nextSibling) {
                 child.nextSibling.select(true);
             }
@@ -591,20 +600,19 @@ export class TreeElement {
     }
     removeChild(child) {
         if (!child) {
-            throw 'child can\'t be undefined or null';
+            throw new Error('child can\'t be undefined or null');
         }
         if (child.parent !== this) {
             return;
         }
         const childIndex = this.childrenInternal ? this.childrenInternal.indexOf(child) : -1;
         if (childIndex === -1) {
-            throw 'child not found in this node\'s children';
+            throw new Error('child not found in this node\'s children');
         }
         this.removeChildAtIndex(childIndex);
     }
     removeChildren() {
-        if (!this.root && this.treeOutline && this.treeOutline.selectedTreeElement &&
-            this.treeOutline.selectedTreeElement.hasAncestorOrSelf(this)) {
+        if (!this.root && this.treeOutline?.selectedTreeElement?.hasAncestorOrSelf(this)) {
             this.select(true);
         }
         if (this.childrenInternal) {
@@ -698,22 +706,6 @@ export class TreeElement {
             this.leadingIconsElement.appendChild(icon);
         }
     }
-    setTrailingIcons(icons) {
-        if (!this.trailingIconsElement && !icons.length) {
-            return;
-        }
-        if (!this.trailingIconsElement) {
-            this.trailingIconsElement = document.createElement('div');
-            this.trailingIconsElement.classList.add('trailing-icons');
-            this.trailingIconsElement.classList.add('icons-container');
-            this.listItemNode.appendChild(this.trailingIconsElement);
-            this.ensureSelection();
-        }
-        this.trailingIconsElement.removeChildren();
-        for (const icon of icons) {
-            this.trailingIconsElement.appendChild(icon);
-        }
-    }
     get tooltip() {
         return this.tooltipInternal;
     }
@@ -738,6 +730,7 @@ export class TreeElement {
             ARIAUtils.unsetExpandable(this.listItemNode);
         }
         else {
+            VisualLogging.registerLoggable(this.expandLoggable, `${VisualLogging.expand()}`, this.listItemNode);
             ARIAUtils.setExpanded(this.listItemNode, false);
         }
     }
@@ -770,8 +763,7 @@ export class TreeElement {
         this.hiddenInternal = x;
         this.listItemNode.classList.toggle('hidden', x);
         this.childrenListNode.classList.toggle('hidden', x);
-        if (x && this.treeOutline && this.treeOutline.selectedTreeElement &&
-            this.treeOutline.selectedTreeElement.hasAncestorOrSelf(this)) {
+        if (x && this.treeOutline?.selectedTreeElement?.hasAncestorOrSelf(this)) {
             const hadFocus = this.treeOutline.selectedTreeElement.listItemElement.hasFocus();
             this.treeOutline.forceSelect(!hadFocus, /* selectedByUser */ false);
         }
@@ -783,7 +775,7 @@ export class TreeElement {
         }
     }
     ensureSelection() {
-        if (!this.treeOutline || !this.treeOutline.renderSelection) {
+        if (!this.treeOutline?.renderSelection) {
             return;
         }
         if (!this.selectionElementInternal) {
@@ -813,14 +805,13 @@ export class TreeElement {
                 this.collapse();
             }
         }
-        else {
-            if (event.altKey) {
-                void this.expandRecursively();
-            }
-            else {
-                this.expand();
-            }
+        else if (event.altKey) {
+            void this.expandRecursively();
         }
+        else {
+            this.expand();
+        }
+        void VisualLogging.logClick(this.expandLoggable, event);
         event.consume();
     }
     handleMouseDown(event) {
@@ -868,8 +859,8 @@ export class TreeElement {
         if (this.treeOutline) {
             this.treeOutline.dispatchEventToListeners(Events.ElementCollapsed, this);
         }
-        const selectedTreeElement = this.treeOutline && this.treeOutline.selectedTreeElement;
-        if (selectedTreeElement && selectedTreeElement.hasAncestor(this)) {
+        const selectedTreeElement = this.treeOutline?.selectedTreeElement;
+        if (selectedTreeElement?.hasAncestor(this)) {
             this.select(/* omitFocus */ true, /* selectedByUser */ true);
         }
     }
@@ -1048,7 +1039,7 @@ export class TreeElement {
     }
     setFocusable(focusable) {
         if (focusable) {
-            this.listItemNode.setAttribute('tabIndex', (this.treeOutline && this.treeOutline.preventTabOrder) ? '-1' : '0');
+            this.listItemNode.setAttribute('tabIndex', (this.treeOutline?.preventTabOrder) ? '-1' : '0');
             this.listItemNode.addEventListener('focus', this.boundOnFocus, false);
             this.listItemNode.addEventListener('blur', this.boundOnBlur, false);
         }
@@ -1102,6 +1093,14 @@ export class TreeElement {
         // Overridden by subclasses.
     }
     onenter() {
+        if (this.expandable && !this.expanded) {
+            this.expand();
+            return true;
+        }
+        if (this.collapsible && this.expanded) {
+            this.collapse();
+            return true;
+        }
         return false;
     }
     ondelete() {
@@ -1197,4 +1196,10 @@ export class TreeElement {
         this.disableSelectFocus = toggle;
     }
 }
+function loggingParentProvider(e) {
+    const treeElement = TreeElement.getTreeElementBylistItemNode(e);
+    const parentElement = treeElement?.parent?.listItemElement;
+    return parentElement?.isConnected && parentElement || treeElement?.treeOutline?.contentElement;
+}
+VisualLogging.registerParentProvider('parentTreeItem', loggingParentProvider);
 //# sourceMappingURL=Treeoutline.js.map

@@ -6,7 +6,7 @@
 import * as Common from '../../core/common/common.js';
 import * as i18n from '../../core/i18n/i18n.js';
 import * as SDK from '../../core/sdk/sdk.js';
-import { MaxDeviceSize, MinDeviceSize, Insets } from './DeviceModeModel.js';
+import { Insets, MaxDeviceSize, MinDeviceSize } from './DeviceModeModel.js';
 const UIStrings = {
     /**
      *@description Title of the Laptop with touch device
@@ -40,6 +40,7 @@ export class EmulatedDevice {
     userAgentMetadata;
     modes;
     isDualScreen;
+    isFoldableScreen;
     verticalSpanned;
     horizontalSpanned;
     #showInternal;
@@ -50,14 +51,15 @@ export class EmulatedDevice {
         this.vertical = { width: 0, height: 0, outlineInsets: null, outlineImage: null, hinge: null };
         this.horizontal = { width: 0, height: 0, outlineInsets: null, outlineImage: null, hinge: null };
         this.deviceScaleFactor = 1;
-        this.capabilities = [Capability.Touch, Capability.Mobile];
+        this.capabilities = ["touch" /* Capability.TOUCH */, "mobile" /* Capability.MOBILE */];
         this.userAgent = '';
         this.userAgentMetadata = null;
         this.modes = [];
         this.isDualScreen = false;
+        this.isFoldableScreen = false;
         this.verticalSpanned = { width: 0, height: 0, outlineInsets: null, outlineImage: null, hinge: null };
         this.horizontalSpanned = { width: 0, height: 0, outlineInsets: null, outlineImage: null, hinge: null };
-        this.#showInternal = _Show.Default;
+        this.#showInternal = Show.Default;
         this.#showByDefault = true;
     }
     static fromJSONV1(json) {
@@ -156,7 +158,11 @@ export class EmulatedDevice {
             }
             const result = new EmulatedDevice();
             result.title = parseValue(json, 'title', 'string');
-            result.type = parseValue(json, 'type', 'string');
+            const type = parseValue(json, 'type', 'string');
+            if (!Object.values(Type).includes(type)) {
+                throw new Error('Emulated device has wrong type: ' + type);
+            }
+            result.type = type;
             result.order = parseValue(json, 'order', 'number', 0);
             const rawUserAgent = parseValue(json, 'user-agent', 'string');
             result.userAgent = SDK.NetworkManager.MultitargetNetworkManager.patchUserAgentWithChromeVersion(rawUserAgent);
@@ -179,16 +185,17 @@ export class EmulatedDevice {
             result.vertical = parseOrientation(parseValue(json['screen'], 'vertical', 'object'));
             result.horizontal = parseOrientation(parseValue(json['screen'], 'horizontal', 'object'));
             result.isDualScreen = parseValue(json, 'dual-screen', 'boolean', false);
-            if (result.isDualScreen) {
+            result.isFoldableScreen = parseValue(json, 'foldable-screen', 'boolean', false);
+            if (result.isDualScreen || result.isFoldableScreen) {
                 result.verticalSpanned = parseOrientation(parseValue(json['screen'], 'vertical-spanned', 'object', null));
                 result.horizontalSpanned = parseOrientation(parseValue(json['screen'], 'horizontal-spanned', 'object', null));
             }
-            if (result.isDualScreen && (!result.verticalSpanned || !result.horizontalSpanned)) {
+            if ((result.isDualScreen || result.isFoldableScreen) && (!result.verticalSpanned || !result.horizontalSpanned)) {
                 throw new Error('Emulated device \'' + result.title + '\'has dual screen without spanned orientations');
             }
             const modes = parseValue(json, 'modes', 'object', [
-                { 'title': 'default', 'orientation': 'vertical' },
-                { 'title': 'default', 'orientation': 'horizontal' },
+                { title: 'default', orientation: 'vertical' },
+                { title: 'default', orientation: 'horizontal' },
             ]);
             if (!Array.isArray(modes)) {
                 throw new Error('Emulated device modes must be an array');
@@ -213,10 +220,14 @@ export class EmulatedDevice {
                 result.modes.push(mode);
             }
             result.#showByDefault = parseValue(json, 'show-by-default', 'boolean', undefined);
-            result.#showInternal = parseValue(json, 'show', 'string', _Show.Default);
+            const show = parseValue(json, 'show', 'string', Show.Default);
+            if (!Object.values(Show).includes(show)) {
+                throw new Error('Emulated device has wrong show mode: ' + show);
+            }
+            result.#showInternal = show;
             return result;
         }
-        catch (e) {
+        catch {
             return null;
         }
     }
@@ -277,20 +288,20 @@ export class EmulatedDevice {
             'vertical-spanned': undefined,
             'horizontal-spanned': undefined,
         };
-        if (this.isDualScreen) {
+        if (this.isDualScreen || this.isFoldableScreen) {
             json['screen']['vertical-spanned'] = this.orientationToJSON(this.verticalSpanned);
             json['screen']['horizontal-spanned'] = this.orientationToJSON(this.horizontalSpanned);
         }
         json['modes'] = [];
         for (let i = 0; i < this.modes.length; ++i) {
             const mode = {
-                'title': this.modes[i].title,
-                'orientation': this.modes[i].orientation,
-                'insets': {
-                    'left': this.modes[i].insets.left,
-                    'top': this.modes[i].insets.top,
-                    'right': this.modes[i].insets.right,
-                    'bottom': this.modes[i].insets.bottom,
+                title: this.modes[i].title,
+                orientation: this.modes[i].orientation,
+                insets: {
+                    left: this.modes[i].insets.left,
+                    top: this.modes[i].insets.top,
+                    right: this.modes[i].insets.right,
+                    bottom: this.modes[i].insets.bottom,
                 },
                 image: this.modes[i].image || undefined,
             };
@@ -298,6 +309,7 @@ export class EmulatedDevice {
         }
         json['show-by-default'] = this.#showByDefault;
         json['dual-screen'] = this.isDualScreen;
+        json['foldable-screen'] = this.isFoldableScreen;
         json['show'] = this.#showInternal;
         if (this.userAgentMetadata) {
             json['user-agent-metadata'] = this.userAgentMetadata;
@@ -311,37 +323,37 @@ export class EmulatedDevice {
         if (orientation.outlineInsets) {
             json.outline = {
                 insets: {
-                    'left': orientation.outlineInsets.left,
-                    'top': orientation.outlineInsets.top,
-                    'right': orientation.outlineInsets.right,
-                    'bottom': orientation.outlineInsets.bottom,
+                    left: orientation.outlineInsets.left,
+                    top: orientation.outlineInsets.top,
+                    right: orientation.outlineInsets.right,
+                    bottom: orientation.outlineInsets.bottom,
                 },
                 image: orientation.outlineImage,
             };
         }
         if (orientation.hinge) {
             json.hinge = {
-                'width': orientation.hinge.width,
-                'height': orientation.hinge.height,
-                'x': orientation.hinge.x,
-                'y': orientation.hinge.y,
+                width: orientation.hinge.width,
+                height: orientation.hinge.height,
+                x: orientation.hinge.x,
+                y: orientation.hinge.y,
                 contentColor: undefined,
                 outlineColor: undefined,
             };
             if (orientation.hinge.contentColor) {
                 json.hinge.contentColor = {
-                    'r': orientation.hinge.contentColor.r,
-                    'g': orientation.hinge.contentColor.g,
-                    'b': orientation.hinge.contentColor.b,
-                    'a': orientation.hinge.contentColor.a,
+                    r: orientation.hinge.contentColor.r,
+                    g: orientation.hinge.contentColor.g,
+                    b: orientation.hinge.contentColor.b,
+                    a: orientation.hinge.contentColor.a,
                 };
             }
             if (orientation.hinge.outlineColor) {
                 json.hinge.outlineColor = {
-                    'r': orientation.hinge.outlineColor.r,
-                    'g': orientation.hinge.outlineColor.g,
-                    'b': orientation.hinge.outlineColor.b,
-                    'a': orientation.hinge.outlineColor.a,
+                    r: orientation.hinge.outlineColor.r,
+                    g: orientation.hinge.outlineColor.g,
+                    b: orientation.hinge.outlineColor.b,
+                    a: orientation.hinge.outlineColor.a,
                 };
             }
         }
@@ -373,49 +385,47 @@ export class EmulatedDevice {
         }
     }
     show() {
-        if (this.#showInternal === _Show.Default) {
+        if (this.#showInternal === Show.Default) {
             return this.#showByDefault;
         }
-        return this.#showInternal === _Show.Always;
+        return this.#showInternal === Show.Always;
     }
     setShow(show) {
-        this.#showInternal = show ? _Show.Always : _Show.Never;
+        this.#showInternal = show ? Show.Always : Show.Never;
     }
     copyShowFrom(other) {
         this.#showInternal = other.#showInternal;
     }
     touch() {
-        return this.capabilities.indexOf(Capability.Touch) !== -1;
+        return this.capabilities.indexOf("touch" /* Capability.TOUCH */) !== -1;
     }
     mobile() {
-        return this.capabilities.indexOf(Capability.Mobile) !== -1;
+        return this.capabilities.indexOf("mobile" /* Capability.MOBILE */) !== -1;
     }
 }
 export const Horizontal = 'horizontal';
 export const Vertical = 'vertical';
 export const HorizontalSpanned = 'horizontal-spanned';
 export const VerticalSpanned = 'vertical-spanned';
-export const Type = {
-    Phone: 'phone',
-    Tablet: 'tablet',
-    Notebook: 'notebook',
-    Desktop: 'desktop',
-    Unknown: 'unknown',
-};
-export const Capability = {
-    Touch: 'touch',
-    Mobile: 'mobile',
-};
-// TODO(crbug.com/1172300) Ignored during the jsdoc to ts migration
-// eslint-disable-next-line @typescript-eslint/naming-convention
-export const _Show = {
-    Always: 'Always',
-    Default: 'Default',
-    Never: 'Never',
-};
-// TODO(crbug.com/1172300) Ignored during the jsdoc to ts migration
-// eslint-disable-next-line @typescript-eslint/naming-convention
-let _instance;
+var Type;
+(function (Type) {
+    /* eslint-disable @typescript-eslint/naming-convention -- Indexed access. */
+    Type["Phone"] = "phone";
+    Type["Tablet"] = "tablet";
+    Type["Notebook"] = "notebook";
+    Type["Desktop"] = "desktop";
+    Type["Unknown"] = "unknown";
+    /* eslint-enable @typescript-eslint/naming-convention */
+})(Type || (Type = {}));
+var Show;
+(function (Show) {
+    /* eslint-disable @typescript-eslint/naming-convention -- Indexed access. */
+    Show["Always"] = "Always";
+    Show["Default"] = "Default";
+    Show["Never"] = "Never";
+    /* eslint-enable @typescript-eslint/naming-convention */
+})(Show || (Show = {}));
+let emulatedDevicesListInstance;
 export class EmulatedDevicesList extends Common.ObjectWrapper.ObjectWrapper {
     #standardSetting;
     #standardInternal;
@@ -423,26 +433,26 @@ export class EmulatedDevicesList extends Common.ObjectWrapper.ObjectWrapper {
     #customInternal;
     constructor() {
         super();
-        this.#standardSetting = Common.Settings.Settings.instance().createSetting('standardEmulatedDeviceList', []);
+        this.#standardSetting = Common.Settings.Settings.instance().createSetting('standard-emulated-device-list', []);
         this.#standardInternal = new Set();
         this.listFromJSONV1(this.#standardSetting.get(), this.#standardInternal);
         this.updateStandardDevices();
-        this.#customSetting = Common.Settings.Settings.instance().createSetting('customEmulatedDeviceList', []);
+        this.#customSetting = Common.Settings.Settings.instance().createSetting('custom-emulated-device-list', []);
         this.#customInternal = new Set();
         if (!this.listFromJSONV1(this.#customSetting.get(), this.#customInternal)) {
             this.saveCustomDevices();
         }
     }
     static instance() {
-        if (!_instance) {
-            _instance = new EmulatedDevicesList();
+        if (!emulatedDevicesListInstance) {
+            emulatedDevicesListInstance = new EmulatedDevicesList();
         }
-        return _instance;
+        return emulatedDevicesListInstance;
     }
     updateStandardDevices() {
         const devices = new Set();
-        for (const extension of emulatedDevices) {
-            const device = EmulatedDevice.fromJSONV1(extension);
+        for (const emulatedDevice of emulatedDevices) {
+            const device = EmulatedDevice.fromJSONV1(emulatedDevice);
             if (device) {
                 devices.add(device);
             }
@@ -471,6 +481,9 @@ export class EmulatedDevicesList extends Common.ObjectWrapper.ObjectWrapper {
         }
         return success;
     }
+    static rawEmulatedDevicesForTest() {
+        return emulatedDevices;
+    }
     standard() {
         return [...this.#standardInternal];
     }
@@ -492,13 +505,13 @@ export class EmulatedDevicesList extends Common.ObjectWrapper.ObjectWrapper {
         const json = [];
         this.#customInternal.forEach(device => json.push(device.toJSON()));
         this.#customSetting.set(json);
-        this.dispatchEventToListeners("CustomDevicesUpdated" /* Events.CustomDevicesUpdated */);
+        this.dispatchEventToListeners("CustomDevicesUpdated" /* Events.CUSTOM_DEVICES_UPDATED */);
     }
     saveStandardDevices() {
         const json = [];
         this.#standardInternal.forEach(device => json.push(device.toJSON()));
         this.#standardSetting.set(json);
-        this.dispatchEventToListeners("StandardDevicesUpdated" /* Events.StandardDevicesUpdated */);
+        this.dispatchEventToListeners("StandardDevicesUpdated" /* Events.STANDARD_DEVICES_UPDATED */);
     }
     copyShowValues(from, to) {
         const fromDeviceById = new Map();
@@ -513,6 +526,8 @@ export class EmulatedDevicesList extends Common.ObjectWrapper.ObjectWrapper {
         }
     }
 }
+// These props should quoted for the script to work properly
+/* eslint-disable @stylistic/quote-props */
 const emulatedDevices = [
     // This is used by a python script to keep this list up-to-date with
     // chromedriver native code.
@@ -534,7 +549,7 @@ const emulatedDevices = [
             },
         },
         'capabilities': ['touch', 'mobile'],
-        'user-agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 13_2_3 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/13.0.3 Mobile/15E148 Safari/604.1',
+        'user-agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 Mobile/15E148 Safari/604.1',
         'type': 'phone',
     },
     {
@@ -553,7 +568,7 @@ const emulatedDevices = [
             },
         },
         'capabilities': ['touch', 'mobile'],
-        'user-agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 13_2_3 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/13.0.3 Mobile/15E148 Safari/604.1',
+        'user-agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 Mobile/15E148 Safari/604.1',
         'type': 'phone',
     },
     {
@@ -572,7 +587,26 @@ const emulatedDevices = [
             },
         },
         'capabilities': ['touch', 'mobile'],
-        'user-agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 13_2_3 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/13.0.3 Mobile/15E148 Safari/604.1',
+        'user-agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 Mobile/15E148 Safari/604.1',
+        'type': 'phone',
+    },
+    {
+        'order': 15,
+        'show-by-default': true,
+        'title': 'iPhone 14 Pro Max',
+        'screen': {
+            'horizontal': {
+                'width': 932,
+                'height': 430,
+            },
+            'device-pixel-ratio': 3,
+            'vertical': {
+                'width': 430,
+                'height': 932,
+            },
+        },
+        'capabilities': ['touch', 'mobile'],
+        'user-agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 Mobile/15E148 Safari/604.1',
         'type': 'phone',
     },
     {
@@ -591,28 +625,28 @@ const emulatedDevices = [
             },
         },
         'capabilities': ['touch', 'mobile'],
-        'user-agent': 'Mozilla/5.0 (Linux; Android 11; Pixel 3) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/88.0.4324.181 Mobile Safari/537.36',
+        'user-agent': 'Mozilla/5.0 (Linux; Android 11; Pixel 3) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/%s Mobile Safari/537.36',
         'user-agent-metadata': { 'platform': 'Android', 'platformVersion': '11', 'architecture': '', 'model': 'Pixel 3', 'mobile': true },
         'type': 'phone',
     },
     {
         'order': 18,
         'show-by-default': true,
-        'title': 'Pixel 5',
+        'title': 'Pixel 7',
         'screen': {
             'horizontal': {
-                'width': 851,
-                'height': 393,
+                'width': 915,
+                'height': 412,
             },
-            'device-pixel-ratio': 2.75,
+            'device-pixel-ratio': 2.625,
             'vertical': {
-                'width': 393,
-                'height': 851,
+                'width': 412,
+                'height': 915,
             },
         },
         'capabilities': ['touch', 'mobile'],
-        'user-agent': 'Mozilla/5.0 (Linux; Android 11; Pixel 5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/90.0.4430.91 Mobile Safari/537.36',
-        'user-agent-metadata': { 'platform': 'Android', 'platformVersion': '11', 'architecture': '', 'model': 'Pixel 5', 'mobile': true },
+        'user-agent': 'Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/%s Mobile Safari/537.36',
+        'user-agent-metadata': { 'platform': 'Android', 'platformVersion': '13', 'architecture': '', 'model': 'Pixel 5', 'mobile': true },
         'type': 'phone',
     },
     {
@@ -631,7 +665,7 @@ const emulatedDevices = [
             },
         },
         'capabilities': ['touch', 'mobile'],
-        'user-agent': 'Mozilla/5.0 (Linux; Android 8.0.0; SM-G955U Build/R16NW) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/87.0.4280.141 Mobile Safari/537.36',
+        'user-agent': 'Mozilla/5.0 (Linux; Android 8.0.0; SM-G955U Build/R16NW) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/%s Mobile Safari/537.36',
         'user-agent-metadata': { 'platform': 'Android', 'platformVersion': '8.0.0', 'architecture': '', 'model': 'SM-G955U', 'mobile': true },
         'type': 'phone',
     },
@@ -651,31 +685,12 @@ const emulatedDevices = [
             },
         },
         'capabilities': ['touch', 'mobile'],
-        'user-agent': 'Mozilla/5.0 (Linux; Android 10; SM-G981B) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/80.0.3987.162 Mobile Safari/537.36',
-        'user-agent-metadata': { 'platform': 'Android', 'platformVersion': '10', 'architecture': '', 'model': 'SM-G981B', 'mobile': true },
+        'user-agent': 'Mozilla/5.0 (Linux; Android 13; SM-G981B) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/%s Mobile Safari/537.36',
+        'user-agent-metadata': { 'platform': 'Android', 'platformVersion': '13', 'architecture': '', 'model': 'SM-G981B', 'mobile': true },
         'type': 'phone',
     },
     {
         'order': 26,
-        'show-by-default': true,
-        'title': 'iPad Air',
-        'screen': {
-            'horizontal': {
-                'width': 1180,
-                'height': 820,
-            },
-            'device-pixel-ratio': 2,
-            'vertical': {
-                'width': 820,
-                'height': 1180,
-            },
-        },
-        'capabilities': ['touch', 'mobile'],
-        'user-agent': 'Mozilla/5.0 (iPad; CPU OS 13_3 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) CriOS/87.0.4280.77 Mobile/15E148 Safari/604.1',
-        'type': 'tablet',
-    },
-    {
-        'order': 28,
         'show-by-default': true,
         'title': 'iPad Mini',
         'screen': {
@@ -690,7 +705,45 @@ const emulatedDevices = [
             },
         },
         'capabilities': ['touch', 'mobile'],
-        'user-agent': 'Mozilla/5.0 (iPad; CPU OS 13_3 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) CriOS/87.0.4280.77 Mobile/15E148 Safari/604.1',
+        'user-agent': 'Mozilla/5.0 (iPad; CPU OS 16_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 Mobile/15E148 Safari/604.1',
+        'type': 'tablet',
+    },
+    {
+        'order': 28,
+        'show-by-default': true,
+        'title': 'iPad Air',
+        'screen': {
+            'horizontal': {
+                'width': 1180,
+                'height': 820,
+            },
+            'device-pixel-ratio': 2,
+            'vertical': {
+                'width': 820,
+                'height': 1180,
+            },
+        },
+        'capabilities': ['touch'],
+        'user-agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.0 Safari/605.1.15',
+        'type': 'tablet',
+    },
+    {
+        'order': 29,
+        'show-by-default': true,
+        'title': 'iPad Pro',
+        'screen': {
+            'horizontal': {
+                'width': 1366,
+                'height': 1024,
+            },
+            'device-pixel-ratio': 2,
+            'vertical': {
+                'width': 1024,
+                'height': 1366,
+            },
+        },
+        'capabilities': ['touch'],
+        'user-agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.0 Safari/605.1.15',
         'type': 'tablet',
     },
     {
@@ -709,7 +762,7 @@ const emulatedDevices = [
             },
         },
         'capabilities': ['touch', 'mobile'],
-        'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/98.0.4758.82 Safari/537.36',
+        'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/%s Safari/537.36',
         'type': 'tablet',
     },
     {
@@ -750,23 +803,98 @@ const emulatedDevices = [
     {
         'order': 34,
         'show-by-default': true,
-        'dual-screen': true,
-        'title': 'Galaxy Fold',
+        'foldable-screen': true,
+        'title': 'Galaxy Z Fold 5',
         'screen': {
-            'horizontal': { 'width': 653, 'height': 280 },
-            'device-pixel-ratio': 3,
-            'vertical': { 'width': 280, 'height': 653 },
-            'vertical-spanned': { 'width': 717, 'height': 512 },
-            'horizontal-spanned': { 'width': 512, 'height': 717 },
+            'horizontal': { 'width': 882, 'height': 344 },
+            'device-pixel-ratio': 2.625,
+            'vertical': { 'width': 344, 'height': 882 },
+            'vertical-spanned': {
+                'width': 690,
+                'height': 829,
+                'hinge': {
+                    'width': 0,
+                    'height': 829,
+                    'x': 345,
+                    'y': 0,
+                    'contentColor': { 'r': 38, 'g': 38, 'b': 38, 'a': 0.2 },
+                    'outlineColor': { 'r': 38, 'g': 38, 'b': 38, 'a': 0.7 },
+                },
+            },
+            'horizontal-spanned': {
+                'width': 829,
+                'height': 690,
+                'hinge': {
+                    'width': 829,
+                    'height': 0,
+                    'x': 0,
+                    'y': 345,
+                    'contentColor': { 'r': 38, 'g': 38, 'b': 38, 'a': 0.2 },
+                    'outlineColor': { 'r': 38, 'g': 38, 'b': 38, 'a': 0.7 },
+                },
+            },
         },
         'capabilities': ['touch', 'mobile'],
-        'user-agent': 'Mozilla/5.0 (Linux; Android 9.0; SAMSUNG SM-F900U Build/PPR1.180610.011) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/%s Mobile Safari/537.36',
-        'user-agent-metadata': { 'platform': 'Android', 'platformVersion': '9.0', 'architecture': '', 'model': 'SM-F900U', 'mobile': true },
+        'user-agent': 'Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/%s Mobile Safari/537.36',
+        'user-agent-metadata': { 'platform': 'Android', 'platformVersion': '10.0', 'architecture': '', 'model': 'SM-F946U', 'mobile': true },
         'type': 'phone',
         'modes': [
             { 'title': 'default', 'orientation': 'vertical', 'insets': { 'left': 0, 'top': 0, 'right': 0, 'bottom': 0 } },
             { 'title': 'default', 'orientation': 'horizontal', 'insets': { 'left': 0, 'top': 0, 'right': 0, 'bottom': 0 } },
             { 'title': 'spanned', 'orientation': 'vertical-spanned', 'insets': { 'left': 0, 'top': 0, 'right': 0, 'bottom': 0 } },
+            {
+                'title': 'spanned',
+                'orientation': 'horizontal-spanned',
+                'insets': { 'left': 0, 'top': 0, 'right': 0, 'bottom': 0 },
+            },
+        ],
+    },
+    {
+        'order': 35,
+        'show-by-default': true,
+        'foldable-screen': true,
+        'title': 'Asus Zenbook Fold',
+        'screen': {
+            'horizontal': { 'width': 1280, 'height': 853 },
+            'device-pixel-ratio': 1.5,
+            'vertical': { 'width': 853, 'height': 1280 },
+            'vertical-spanned': {
+                'width': 1706,
+                'height': 1280,
+                'hinge': {
+                    'width': 107,
+                    'height': 1280,
+                    'x': 800,
+                    'y': 0,
+                    'contentColor': { 'r': 38, 'g': 38, 'b': 38, 'a': 0.2 },
+                    'outlineColor': { 'r': 38, 'g': 38, 'b': 38, 'a': 0.7 },
+                },
+            },
+            'horizontal-spanned': {
+                'width': 1280,
+                'height': 1706,
+                'hinge': {
+                    'width': 1706,
+                    'height': 107,
+                    'x': 0,
+                    'y': 800,
+                    'contentColor': { 'r': 38, 'g': 38, 'b': 38, 'a': 0.2 },
+                    'outlineColor': { 'r': 38, 'g': 38, 'b': 38, 'a': 0.7 },
+                },
+            },
+        },
+        'capabilities': ['touch'],
+        'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/%s Safari/537.36',
+        'user-agent-metadata': { 'platform': 'Windows', 'platformVersion': '11.0', 'architecture': '', 'model': 'UX9702AA', 'mobile': false },
+        'type': 'tablet',
+        'modes': [
+            { 'title': 'default', 'orientation': 'vertical', 'insets': { 'left': 0, 'top': 0, 'right': 0, 'bottom': 0 } },
+            { 'title': 'default', 'orientation': 'horizontal', 'insets': { 'left': 0, 'top': 0, 'right': 0, 'bottom': 0 } },
+            {
+                'title': 'spanned',
+                'orientation': 'vertical-spanned',
+                'insets': { 'left': 0, 'top': 0, 'right': 0, 'bottom': 0 },
+            },
             {
                 'title': 'spanned',
                 'orientation': 'horizontal-spanned',
@@ -790,7 +918,7 @@ const emulatedDevices = [
             },
         },
         'capabilities': ['touch', 'mobile'],
-        'user-agent': 'Mozilla/5.0 (Linux; Android 8.0.0; SM-G955U Build/R16NW) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/87.0.4280.141 Mobile Safari/537.36',
+        'user-agent': 'Mozilla/5.0 (Linux; Android 8.0.0; SM-G955U Build/R16NW) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/%s Mobile Safari/537.36',
         'user-agent-metadata': { 'platform': 'Android', 'platformVersion': '8.0.0', 'architecture': '', 'model': 'SM-G955U', 'mobile': true },
         'type': 'phone',
     },
@@ -814,7 +942,7 @@ const emulatedDevices = [
             },
         },
         'capabilities': ['touch', 'mobile'],
-        'user-agent': 'Mozilla/5.0 (X11; Linux aarch64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/88.0.4324.188 Safari/537.36 CrKey/1.54.250320',
+        'user-agent': 'Mozilla/5.0 (X11; Linux aarch64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/%s Safari/537.36 CrKey/1.54.250320',
         'type': 'tablet',
         'modes': [{ 'title': 'default', 'orientation': 'horizontal' }],
     },
@@ -838,12 +966,13 @@ const emulatedDevices = [
             },
         },
         'capabilities': ['touch', 'mobile'],
-        'user-agent': 'Mozilla/5.0 (Linux; Android) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/88.0.4324.109 Safari/537.36 CrKey/1.54.248666',
+        'user-agent': 'Mozilla/5.0 (Linux; Android) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/%s Safari/537.36 CrKey/1.54.248666',
         'user-agent-metadata': { 'platform': 'Android', 'platformVersion': '', 'architecture': '', 'model': '', 'mobile': false },
         'type': 'tablet',
         'modes': [{ 'title': 'default', 'orientation': 'horizontal' }],
     },
     {
+        'order': 129,
         'show-by-default': false,
         'title': 'iPhone 4',
         'screen': {
@@ -1167,7 +1296,7 @@ const emulatedDevices = [
             'vertical': { 'width': 393, 'height': 786 },
         },
         'capabilities': ['touch', 'mobile'],
-        'user-agent': 'Mozilla/5.0 (Linux; Android 9; Pixel 3 Build/PQ1A.181105.017.A1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/66.0.3359.158 Mobile Safari/537.36',
+        'user-agent': 'Mozilla/5.0 (Linux; Android 9; Pixel 3 Build/PQ1A.181105.017.A1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/%s Mobile Safari/537.36',
         'user-agent-metadata': { 'platform': 'Android', 'platformVersion': '9', 'architecture': '', 'model': 'Pixel 3', 'mobile': true },
         'type': 'phone',
     },
@@ -1180,7 +1309,7 @@ const emulatedDevices = [
             'vertical': { 'width': 353, 'height': 745 },
         },
         'capabilities': ['touch', 'mobile'],
-        'user-agent': 'Mozilla/5.0 (Linux; Android 10; Pixel 4) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/81.0.4044.138 Mobile Safari/537.36',
+        'user-agent': 'Mozilla/5.0 (Linux; Android 10; Pixel 4) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/%s Mobile Safari/537.36',
         'user-agent-metadata': { 'platform': 'Android', 'platformVersion': '10', 'architecture': '', 'model': 'Pixel 4', 'mobile': true },
         'type': 'phone',
     },
@@ -1230,7 +1359,7 @@ const emulatedDevices = [
             'vertical': { 'width': 640, 'height': 360 },
         },
         'capabilities': ['touch', 'mobile'],
-        'user-agent': 'Mozilla/5.0 (Windows Phone 10.0; Android 4.2.1; Microsoft; Lumia 550) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/46.0.2486.0 Mobile Safari/537.36 Edge/14.14263',
+        'user-agent': 'Mozilla/5.0 (Windows Phone 10.0; Android 4.2.1; Microsoft; Lumia 550) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/%s Mobile Safari/537.36 Edge/14.14263',
         'user-agent-metadata': { 'platform': 'Android', 'platformVersion': '4.2.1', 'architecture': '', 'model': 'Lumia 550', 'mobile': true },
         'type': 'phone',
     },
@@ -1243,7 +1372,7 @@ const emulatedDevices = [
             'vertical': { 'width': 360, 'height': 640 },
         },
         'capabilities': ['touch', 'mobile'],
-        'user-agent': 'Mozilla/5.0 (Windows Phone 10.0; Android 4.2.1; Microsoft; Lumia 950) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/46.0.2486.0 Mobile Safari/537.36 Edge/14.14263',
+        'user-agent': 'Mozilla/5.0 (Windows Phone 10.0; Android 4.2.1; Microsoft; Lumia 950) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/%s Mobile Safari/537.36 Edge/14.14263',
         'user-agent-metadata': { 'platform': 'Android', 'platformVersion': '4.2.1', 'architecture': '', 'model': 'Lumia 950', 'mobile': true },
         'type': 'phone',
     },
@@ -1283,7 +1412,7 @@ const emulatedDevices = [
             'vertical': { 'width': 360, 'height': 740 },
         },
         'capabilities': ['touch', 'mobile'],
-        'user-agent': 'Mozilla/5.0 (Linux; Android 7.0; SM-G950U Build/NRD90M) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/62.0.3202.84 Mobile Safari/537.36',
+        'user-agent': 'Mozilla/5.0 (Linux; Android 7.0; SM-G950U Build/NRD90M) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/%s Mobile Safari/537.36',
         'user-agent-metadata': { 'platform': 'Android', 'platformVersion': '7.0', 'architecture': '', 'model': 'SM-G950U', 'mobile': true },
         'type': 'phone',
     },
@@ -1296,7 +1425,7 @@ const emulatedDevices = [
             'vertical': { 'width': 320, 'height': 658 },
         },
         'capabilities': ['touch', 'mobile'],
-        'user-agent': 'Mozilla/5.0 (Linux; Android 8.0.0; SM-G965U Build/R16NW) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/63.0.3239.111 Mobile Safari/537.36',
+        'user-agent': 'Mozilla/5.0 (Linux; Android 8.0.0; SM-G965U Build/R16NW) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/%s Mobile Safari/537.36',
         'user-agent-metadata': { 'platform': 'Android', 'platformVersion': '8.0.0', 'architecture': '', 'model': 'SM-G965U', 'mobile': true },
         'type': 'phone',
     },
@@ -1309,7 +1438,7 @@ const emulatedDevices = [
             'vertical': { 'width': 712, 'height': 1138 },
         },
         'capabilities': ['touch', 'mobile'],
-        'user-agent': 'Mozilla/5.0 (Linux; Android 8.1.0; SM-T837A) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/70.0.3538.80 Safari/537.36',
+        'user-agent': 'Mozilla/5.0 (Linux; Android 8.1.0; SM-T837A) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/%s Safari/537.36',
         'user-agent-metadata': { 'platform': 'Android', 'platformVersion': '8.1.0', 'architecture': '', 'model': 'SM-T837A', 'mobile': false },
         'type': 'phone',
     },
@@ -1554,8 +1683,8 @@ const emulatedDevices = [
     },
     {
         'order': 200,
-        'show-by-default': true,
-        'title': 'Facebook for Android v407 on Pixel 6',
+        'show-by-default': false,
+        'title': 'Facebook on Android',
         'screen': {
             'horizontal': {
                 'width': 892,
@@ -1574,4 +1703,5 @@ const emulatedDevices = [
     },
     // DEVICE-LIST-END
 ];
+/* eslint-enable @stylistic/quote-props */
 //# sourceMappingURL=EmulatedDevices.js.map

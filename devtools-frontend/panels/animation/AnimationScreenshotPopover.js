@@ -12,6 +12,7 @@ export class AnimationScreenshotPopover extends UI.Widget.VBox {
     #endDelay;
     constructor(images) {
         super(true);
+        this.registerRequiredCSS(animationScreenshotPopoverStyles);
         console.assert(images.length > 0);
         this.contentElement.classList.add('animation-screenshot-popover');
         this.#frames = images;
@@ -25,8 +26,8 @@ export class AnimationScreenshotPopover extends UI.Widget.VBox {
         this.#progressBar = this.contentElement.createChild('div', 'animation-progress');
     }
     wasShown() {
+        super.wasShown();
         this.#rafId = this.contentElement.window().requestAnimationFrame(this.changeFrame.bind(this));
-        this.registerCSSFiles([animationScreenshotPopoverStyles]);
     }
     willHide() {
         this.contentElement.window().cancelAnimationFrame(this.#rafId);

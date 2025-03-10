@@ -45,7 +45,7 @@ const str_ = i18n.i18n.registerUIStrings('panels/layer_viewer/layer_viewer-meta.
 const i18nLazyString = i18n.i18n.getLazilyComputedLocalizedString.bind(undefined, str_);
 UI.ActionRegistration.registerActionExtension({
     actionId: 'layers.reset-view',
-    category: UI.ActionRegistration.ActionCategory.LAYERS,
+    category: "LAYERS" /* UI.ActionRegistration.ActionCategory.LAYERS */,
     title: i18nLazyString(UIStrings.resetView),
     bindings: [
         {
@@ -55,7 +55,7 @@ UI.ActionRegistration.registerActionExtension({
 });
 UI.ActionRegistration.registerActionExtension({
     actionId: 'layers.pan-mode',
-    category: UI.ActionRegistration.ActionCategory.LAYERS,
+    category: "LAYERS" /* UI.ActionRegistration.ActionCategory.LAYERS */,
     title: i18nLazyString(UIStrings.switchToPanMode),
     bindings: [
         {
@@ -65,7 +65,7 @@ UI.ActionRegistration.registerActionExtension({
 });
 UI.ActionRegistration.registerActionExtension({
     actionId: 'layers.rotate-mode',
-    category: UI.ActionRegistration.ActionCategory.LAYERS,
+    category: "LAYERS" /* UI.ActionRegistration.ActionCategory.LAYERS */,
     title: i18nLazyString(UIStrings.switchToRotateMode),
     bindings: [
         {
@@ -75,7 +75,7 @@ UI.ActionRegistration.registerActionExtension({
 });
 UI.ActionRegistration.registerActionExtension({
     actionId: 'layers.zoom-in',
-    category: UI.ActionRegistration.ActionCategory.LAYERS,
+    category: "LAYERS" /* UI.ActionRegistration.ActionCategory.LAYERS */,
     title: i18nLazyString(UIStrings.zoomIn),
     bindings: [
         {
@@ -88,7 +88,7 @@ UI.ActionRegistration.registerActionExtension({
 });
 UI.ActionRegistration.registerActionExtension({
     actionId: 'layers.zoom-out',
-    category: UI.ActionRegistration.ActionCategory.LAYERS,
+    category: "LAYERS" /* UI.ActionRegistration.ActionCategory.LAYERS */,
     title: i18nLazyString(UIStrings.zoomOut),
     bindings: [
         {
@@ -101,7 +101,7 @@ UI.ActionRegistration.registerActionExtension({
 });
 UI.ActionRegistration.registerActionExtension({
     actionId: 'layers.up',
-    category: UI.ActionRegistration.ActionCategory.LAYERS,
+    category: "LAYERS" /* UI.ActionRegistration.ActionCategory.LAYERS */,
     title: i18nLazyString(UIStrings.panOrRotateUp),
     bindings: [
         {
@@ -114,7 +114,7 @@ UI.ActionRegistration.registerActionExtension({
 });
 UI.ActionRegistration.registerActionExtension({
     actionId: 'layers.down',
-    category: UI.ActionRegistration.ActionCategory.LAYERS,
+    category: "LAYERS" /* UI.ActionRegistration.ActionCategory.LAYERS */,
     title: i18nLazyString(UIStrings.panOrRotateDown),
     bindings: [
         {
@@ -127,7 +127,7 @@ UI.ActionRegistration.registerActionExtension({
 });
 UI.ActionRegistration.registerActionExtension({
     actionId: 'layers.left',
-    category: UI.ActionRegistration.ActionCategory.LAYERS,
+    category: "LAYERS" /* UI.ActionRegistration.ActionCategory.LAYERS */,
     title: i18nLazyString(UIStrings.panOrRotateLeft),
     bindings: [
         {
@@ -140,7 +140,7 @@ UI.ActionRegistration.registerActionExtension({
 });
 UI.ActionRegistration.registerActionExtension({
     actionId: 'layers.right',
-    category: UI.ActionRegistration.ActionCategory.LAYERS,
+    category: "LAYERS" /* UI.ActionRegistration.ActionCategory.LAYERS */,
     title: i18nLazyString(UIStrings.panOrRotateRight),
     bindings: [
         {

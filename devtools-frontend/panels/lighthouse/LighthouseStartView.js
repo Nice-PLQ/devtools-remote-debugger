@@ -1,11 +1,13 @@
 // Copyright 2022 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
+import '../../ui/legacy/legacy.js';
 import * as i18n from '../../core/i18n/i18n.js';
+import * as Buttons from '../../ui/components/buttons/buttons.js';
 import * as UI from '../../ui/legacy/legacy.js';
 import { Presets, RuntimeSettings } from './LighthouseController.js';
-import { RadioSetting } from './RadioSetting.js';
 import lighthouseStartViewStyles from './lighthouseStartView.css.js';
+import { RadioSetting } from './RadioSetting.js';
 const UIStrings = {
     /**
      * @description Text displayed as the title of a panel that can be used to audit a web page with Lighthouse.
@@ -19,10 +21,6 @@ const UIStrings = {
      * @description Title in the Lighthouse Start View for list of categories to run during audit
      */
     categories: 'Categories',
-    /**
-     * @description Title in the Lighthouse Start View for list of available start plugins
-     */
-    plugins: 'Plugins',
     /**
      * @description Label for a button to start analyzing a page navigation with Lighthouse
      */
@@ -56,22 +54,24 @@ export class StartView extends UI.Widget.Widget {
     checkboxes = [];
     changeFormMode;
     constructor(controller, panel) {
-        super();
+        super(true /* useShadowDom */);
+        this.registerRequiredCSS(lighthouseStartViewStyles);
         this.controller = controller;
         this.panel = panel;
-        this.settingsToolbarInternal = new UI.Toolbar.Toolbar('');
+        this.settingsToolbarInternal = document.createElement('devtools-toolbar');
+        this.settingsToolbarInternal.classList.add('lighthouse-settings-toolbar');
         this.render();
     }
     populateRuntimeSettingAsRadio(settingName, label, parentElement) {
         const runtimeSetting = RuntimeSettings.find(item => item.setting.name === settingName);
-        if (!runtimeSetting || !runtimeSetting.options) {
+        if (!runtimeSetting?.options) {
             throw new Error(`${settingName} is not a setting with options`);
         }
         const labelEl = document.createElement('div');
         labelEl.classList.add('lighthouse-form-section-label');
         labelEl.textContent = label;
         if (runtimeSetting.learnMore) {
-            const link = UI.XLink.XLink.create(runtimeSetting.learnMore, i18nString(UIStrings.learnMore), 'lighthouse-learn-more');
+            const link = UI.XLink.XLink.create(runtimeSetting.learnMore, i18nString(UIStrings.learnMore), 'lighthouse-learn-more', undefined, 'learn-more');
             labelEl.append(link);
         }
         parentElement.appendChild(labelEl);
@@ -81,21 +81,21 @@ export class StartView extends UI.Widget.Widget {
     }
     populateRuntimeSettingAsToolbarCheckbox(settingName, toolbar) {
         const runtimeSetting = RuntimeSettings.find(item => item.setting.name === settingName);
-        if (!runtimeSetting || !runtimeSetting.title) {
+        if (!runtimeSetting?.title) {
             throw new Error(`${settingName} is not a setting with a title`);
         }
         runtimeSetting.setting.setTitle(runtimeSetting.title());
         const control = new UI.Toolbar.ToolbarSettingCheckbox(runtimeSetting.setting, runtimeSetting.description());
         toolbar.appendToolbarItem(control);
         if (runtimeSetting.learnMore) {
-            const link = UI.XLink.XLink.create(runtimeSetting.learnMore, i18nString(UIStrings.learnMore), 'lighthouse-learn-more');
+            const link = UI.XLink.XLink.create(runtimeSetting.learnMore, i18nString(UIStrings.learnMore), 'lighthouse-learn-more', undefined, 'learn-more');
             link.style.margin = '5px';
             control.element.appendChild(link);
         }
     }
     populateRuntimeSettingAsToolbarDropdown(settingName, toolbar) {
         const runtimeSetting = RuntimeSettings.find(item => item.setting.name === settingName);
-        if (!runtimeSetting || !runtimeSetting.title) {
+        if (!runtimeSetting?.title) {
             throw new Error(`${settingName} is not a setting with a title`);
         }
         const options = runtimeSetting.options?.map(option => ({ label: option.label(), value: option.value })) || [];
@@ -104,7 +104,7 @@ export class StartView extends UI.Widget.Widget {
         control.setTitle(runtimeSetting.description());
         toolbar.appendToolbarItem(control);
         if (runtimeSetting.learnMore) {
-            const link = UI.XLink.XLink.create(runtimeSetting.learnMore, i18nString(UIStrings.learnMore), 'lighthouse-learn-more');
+            const link = UI.XLink.XLink.create(runtimeSetting.learnMore, i18nString(UIStrings.learnMore), 'lighthouse-learn-more', undefined, 'learn-more');
             link.style.margin = '5px';
             control.element.appendChild(link);
         }
@@ -112,16 +112,14 @@ export class StartView extends UI.Widget.Widget {
     populateFormControls(fragment, mode) {
         // Populate the device type
         const deviceTypeFormElements = fragment.$('device-type-form-elements');
-        this.populateRuntimeSettingAsRadio('lighthouse.device_type', i18nString(UIStrings.device), deviceTypeFormElements);
+        this.populateRuntimeSettingAsRadio('lighthouse.device-type', i18nString(UIStrings.device), deviceTypeFormElements);
         // Populate the categories
         const categoryFormElements = fragment.$('categories-form-elements');
-        const pluginFormElements = fragment.$('plugins-form-elements');
         this.checkboxes = [];
         for (const preset of Presets) {
-            const formElements = preset.plugin ? pluginFormElements : categoryFormElements;
             preset.setting.setTitle(preset.title());
             const checkbox = new UI.Toolbar.ToolbarSettingCheckbox(preset.setting, preset.description());
-            const row = formElements.createChild('div', 'vbox lighthouse-launcher-row');
+            const row = categoryFormElements.createChild('div', 'vbox lighthouse-launcher-row');
             row.appendChild(checkbox.element);
             checkbox.element.setAttribute('data-lh-category', preset.configID);
             this.checkboxes.push({ preset, checkbox });
@@ -132,12 +130,10 @@ export class StartView extends UI.Widget.Widget {
         }
         UI.ARIAUtils.markAsGroup(categoryFormElements);
         UI.ARIAUtils.setLabel(categoryFormElements, i18nString(UIStrings.categories));
-        UI.ARIAUtils.markAsGroup(pluginFormElements);
-        UI.ARIAUtils.setLabel(pluginFormElements, i18nString(UIStrings.plugins));
     }
     render() {
-        this.populateRuntimeSettingAsToolbarCheckbox('lighthouse.legacy_navigation', this.settingsToolbarInternal);
-        this.populateRuntimeSettingAsToolbarCheckbox('lighthouse.clear_storage', this.settingsToolbarInternal);
+        this.populateRuntimeSettingAsToolbarCheckbox('lighthouse.clear-storage', this.settingsToolbarInternal);
+        this.populateRuntimeSettingAsToolbarCheckbox('lighthouse.enable-sampling', this.settingsToolbarInternal);
         this.populateRuntimeSettingAsToolbarDropdown('lighthouse.throttling', this.settingsToolbarInternal);
         const { mode } = this.controller.getFlags();
         this.populateStartButton(mode);
@@ -160,12 +156,6 @@ export class StartView extends UI.Widget.Widget {
       <div class="lighthouse-form-section">
         <div class="lighthouse-form-section-label">${i18nString(UIStrings.categories)}</div>
         <div class="lighthouse-form-elements" $="categories-form-elements"></div>
-      </div>
-      <div class="lighthouse-form-section">
-        <div class="lighthouse-form-section-label">
-          <div class="lighthouse-icon-label">${i18nString(UIStrings.plugins)}</div>
-        </div>
-        <div class="lighthouse-form-elements" $="plugins-form-elements"></div>
       </div>
     </div>
   </div>
@@ -205,9 +195,7 @@ export class StartView extends UI.Widget.Widget {
         const startButtonContainer = this.contentElement.querySelector('.lighthouse-start-button-container');
         if (startButtonContainer) {
             startButtonContainer.textContent = '';
-            this.startButton = UI.UIUtils.createTextButton(buttonLabel, callback, 
-            /* className */ '', 
-            /* primary */ true);
+            this.startButton = UI.UIUtils.createTextButton(buttonLabel, callback, { variant: "primary" /* Buttons.Button.Variant.PRIMARY */, jslogContext: 'lighthouse.start' });
             startButtonContainer.append(this.startButton);
         }
     }
@@ -266,7 +254,6 @@ export class StartView extends UI.Widget.Widget {
     wasShown() {
         super.wasShown();
         this.controller.recomputePageAuditability();
-        this.registerCSSFiles([lighthouseStartViewStyles]);
     }
     settingsToolbar() {
         return this.settingsToolbarInternal;

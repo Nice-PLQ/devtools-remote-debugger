@@ -10,7 +10,7 @@ async function loadScreenPreviewModule() {
 
 UI.ViewManager.registerViewExtension({
     location: 'panel' /* PANEL */,
-    id: 'screenPreview',
+    id: 'screen-preview',
     commandPrompt: () => 'ScreenPreview',
     title: () => 'ScreenPreview',
     order: 9999,

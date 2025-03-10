@@ -1,7 +1,7 @@
 // Copyright 2020 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
-import * as FrontendHelpers from '../../../../../test/unittests/front_end/helpers/EnvironmentHelpers.js';
+import * as FrontendHelpers from '../../../../testing/EnvironmentHelpers.js';
 import * as ComponentHelpers from '../../helpers/helpers.js';
 import * as TreeOutline from '../../tree_outline/tree_outline.js';
 await ComponentHelpers.ComponentServerSetup.setup();
@@ -28,7 +28,7 @@ async function loadInSomeNodes() {
             ]),
         },
     ];
-    return new Promise(resolve => {
+    return await new Promise(resolve => {
         setTimeout(() => resolve(europeanOffices), 250);
     });
 }
@@ -74,7 +74,7 @@ const data = {
     ],
 };
 const component = new TreeOutline.TreeOutline.TreeOutline();
-component.setAttribute('toplevelbordercolor', 'var(--color-syntax-1)');
+component.setAttribute('toplevelbordercolor', 'var(--sys-color-token-property-special)');
 component.data = data;
 document.getElementById('container')?.appendChild(component);
 document.getElementById('recursively-expand')?.addEventListener('click', () => {

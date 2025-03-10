@@ -2,17 +2,17 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 import * as Common from '../../core/common/common.js';
-import * as Root from '../../core/root/root.js';
+import * as Host from '../../core/host/host.js';
+import * as i18n from '../../core/i18n/i18n.js';
 import * as SDK from '../../core/sdk/sdk.js';
 import * as Workspace from '../../models/workspace/workspace.js';
 import * as Components from '../../ui/legacy/components/utils/utils.js';
 import * as UI from '../../ui/legacy/legacy.js';
-import * as i18n from '../../core/i18n/i18n.js';
 const UIStrings = {
     /**
      *@description Text in Main
      */
-    focusDebuggee: 'Focus debuggee',
+    focusDebuggee: 'Focus page',
     /**
      *@description Text in the Shortcuts page in settings to explain a keyboard shortcut
      */
@@ -68,11 +68,11 @@ const UIStrings = {
     /**
      *@description Title of a setting under the Appearance category that can be invoked through the Command Menu
      */
-    switchToSystemPreferredColor: 'Switch to system preferred color theme',
+    switchToBrowserPreferredTheme: 'Switch to browser\'s preferred theme',
     /**
-     *@description A drop-down menu option to switch to system preferred color theme
+     *@description A drop-down menu option to switch to the same (light or dark) theme as the browser
      */
-    systemPreference: 'System preference',
+    autoTheme: 'Auto',
     /**
      *@description Title of a setting under the Appearance category that can be invoked through the Command Menu
      */
@@ -125,30 +125,6 @@ const UIStrings = {
      *@description Text short for automatic
      */
     auto: 'auto',
-    /**
-     *@description Title of a setting under the Appearance category in Settings
-     */
-    colorFormat: 'Color format:',
-    /**
-     *@description Title of a setting under the Appearance category that can be invoked through the Command Menu
-     */
-    setColorFormatAsAuthored: 'Set color format as authored',
-    /**
-     *@description A drop-down menu option to set color format as authored
-     */
-    asAuthored: 'As authored',
-    /**
-     *@description Title of a setting under the Appearance category that can be invoked through the Command Menu
-     */
-    setColorFormatToHex: 'Set color format to HEX',
-    /**
-     *@description Title of a setting under the Appearance category that can be invoked through the Command Menu
-     */
-    setColorFormatToRgb: 'Set color format to RGB',
-    /**
-     *@description Title of a setting under the Appearance category that can be invoked through the Command Menu
-     */
-    setColorFormatToHsl: 'Set color format to HSL',
     /**
      *@description Title of a setting under the Appearance category in Settings
      */
@@ -210,10 +186,6 @@ const UIStrings = {
      */
     enableSync: 'Enable settings sync',
     /**
-     *@description Tooltip for the colorFormat setting to inform of its deprecation
-     */
-    colorFormatSettingDisabled: 'This setting is deprecated because it is incompatible with modern color spaces. To re-enable it, disable the corresponding experiment.',
-    /**
      * @description A command available in the command menu to perform searches, for example in the
      * elements panel, as user types, rather than only when they press Enter.
      */
@@ -228,6 +200,23 @@ const UIStrings = {
      * elements panel, only when the user presses Enter.
      */
     searchOnEnterCommand: 'Disable search as you type (press Enter to search)',
+    /**
+     * @description Label of a checkbox under the Appearance category in Settings. Allows developers
+     * to opt-in / opt-out of syncing DevTools' color theme with Chrome's color theme.
+     */
+    matchChromeColorScheme: 'Match Chrome color scheme',
+    /**
+     * @description Tooltip for the learn more link of the Match Chrome color scheme Setting.
+     */
+    matchChromeColorSchemeDocumentation: 'Match DevTools colors to your customized Chrome theme (when enabled)',
+    /**
+     * @description Command to turn the browser color scheme matching on through the command menu.
+     */
+    matchChromeColorSchemeCommand: 'Match Chrome color scheme',
+    /**
+     * @description Command to turn the browser color scheme matching off through the command menu.
+     */
+    dontMatchChromeColorSchemeCommand: 'Don\'t match Chrome color scheme',
 };
 const str_ = i18n.i18n.registerUIStrings('entrypoints/main/main-meta.ts', UIStrings);
 const i18nLazyString = i18n.i18n.getLazilyComputedLocalizedString.bind(undefined, str_);
@@ -250,20 +239,20 @@ async function loadInspectorMainModule() {
     return loadedInspectorMainModule;
 }
 UI.ActionRegistration.registerActionExtension({
-    category: UI.ActionRegistration.ActionCategory.DRAWER,
-    actionId: 'inspector_main.focus-debuggee',
+    category: "DRAWER" /* UI.ActionRegistration.ActionCategory.DRAWER */,
+    actionId: 'inspector-main.focus-debuggee',
     async loadActionDelegate() {
         const InspectorMain = await loadInspectorMainModule();
-        return InspectorMain.InspectorMain.FocusDebuggeeActionDelegate.instance();
+        return new InspectorMain.InspectorMain.FocusDebuggeeActionDelegate();
     },
     order: 100,
     title: i18nLazyString(UIStrings.focusDebuggee),
 });
 UI.ActionRegistration.registerActionExtension({
-    category: UI.ActionRegistration.ActionCategory.DRAWER,
+    category: "DRAWER" /* UI.ActionRegistration.ActionCategory.DRAWER */,
     actionId: 'main.toggle-drawer',
     async loadActionDelegate() {
-        return UI.InspectorView.ActionDelegate.instance();
+        return new UI.InspectorView.ActionDelegate();
     },
     order: 101,
     title: i18nLazyString(UIStrings.toggleDrawer),
@@ -275,47 +264,47 @@ UI.ActionRegistration.registerActionExtension({
 });
 UI.ActionRegistration.registerActionExtension({
     actionId: 'main.next-tab',
-    category: UI.ActionRegistration.ActionCategory.GLOBAL,
+    category: "GLOBAL" /* UI.ActionRegistration.ActionCategory.GLOBAL */,
     title: i18nLazyString(UIStrings.nextPanel),
     async loadActionDelegate() {
-        return UI.InspectorView.ActionDelegate.instance();
+        return new UI.InspectorView.ActionDelegate();
     },
     bindings: [
         {
-            platform: "windows,linux" /* UI.ActionRegistration.Platforms.WindowsLinux */,
+            platform: "windows,linux" /* UI.ActionRegistration.Platforms.WINDOWS_LINUX */,
             shortcut: 'Ctrl+]',
         },
         {
-            platform: "mac" /* UI.ActionRegistration.Platforms.Mac */,
+            platform: "mac" /* UI.ActionRegistration.Platforms.MAC */,
             shortcut: 'Meta+]',
         },
     ],
 });
 UI.ActionRegistration.registerActionExtension({
     actionId: 'main.previous-tab',
-    category: UI.ActionRegistration.ActionCategory.GLOBAL,
+    category: "GLOBAL" /* UI.ActionRegistration.ActionCategory.GLOBAL */,
     title: i18nLazyString(UIStrings.previousPanel),
     async loadActionDelegate() {
-        return UI.InspectorView.ActionDelegate.instance();
+        return new UI.InspectorView.ActionDelegate();
     },
     bindings: [
         {
-            platform: "windows,linux" /* UI.ActionRegistration.Platforms.WindowsLinux */,
+            platform: "windows,linux" /* UI.ActionRegistration.Platforms.WINDOWS_LINUX */,
             shortcut: 'Ctrl+[',
         },
         {
-            platform: "mac" /* UI.ActionRegistration.Platforms.Mac */,
+            platform: "mac" /* UI.ActionRegistration.Platforms.MAC */,
             shortcut: 'Meta+[',
         },
     ],
 });
 UI.ActionRegistration.registerActionExtension({
     actionId: 'main.debug-reload',
-    category: UI.ActionRegistration.ActionCategory.GLOBAL,
+    category: "GLOBAL" /* UI.ActionRegistration.ActionCategory.GLOBAL */,
     title: i18nLazyString(UIStrings.reloadDevtools),
     async loadActionDelegate() {
         const Main = await loadMainModule();
-        return Main.MainImpl.ReloadActionDelegate.instance();
+        return new Main.MainImpl.ReloadActionDelegate();
     },
     bindings: [
         {
@@ -324,34 +313,34 @@ UI.ActionRegistration.registerActionExtension({
     ],
 });
 UI.ActionRegistration.registerActionExtension({
-    category: UI.ActionRegistration.ActionCategory.GLOBAL,
+    category: "GLOBAL" /* UI.ActionRegistration.ActionCategory.GLOBAL */,
     title: i18nLazyString(UIStrings.restoreLastDockPosition),
     actionId: 'main.toggle-dock',
     async loadActionDelegate() {
-        return UI.DockController.ToggleDockActionDelegate.instance();
+        return new UI.DockController.ToggleDockActionDelegate();
     },
     bindings: [
         {
-            platform: "windows,linux" /* UI.ActionRegistration.Platforms.WindowsLinux */,
+            platform: "windows,linux" /* UI.ActionRegistration.Platforms.WINDOWS_LINUX */,
             shortcut: 'Ctrl+Shift+D',
         },
         {
-            platform: "mac" /* UI.ActionRegistration.Platforms.Mac */,
+            platform: "mac" /* UI.ActionRegistration.Platforms.MAC */,
             shortcut: 'Meta+Shift+D',
         },
     ],
 });
 UI.ActionRegistration.registerActionExtension({
     actionId: 'main.zoom-in',
-    category: UI.ActionRegistration.ActionCategory.GLOBAL,
+    category: "GLOBAL" /* UI.ActionRegistration.ActionCategory.GLOBAL */,
     title: i18nLazyString(UIStrings.zoomIn),
     async loadActionDelegate() {
         const Main = await loadMainModule();
-        return Main.MainImpl.ZoomActionDelegate.instance();
+        return new Main.MainImpl.ZoomActionDelegate();
     },
     bindings: [
         {
-            platform: "windows,linux" /* UI.ActionRegistration.Platforms.WindowsLinux */,
+            platform: "windows,linux" /* UI.ActionRegistration.Platforms.WINDOWS_LINUX */,
             shortcut: 'Ctrl+Plus',
             keybindSets: [
                 "devToolsDefault" /* UI.ActionRegistration.KeybindSet.DEVTOOLS_DEFAULT */,
@@ -359,19 +348,19 @@ UI.ActionRegistration.registerActionExtension({
             ],
         },
         {
-            platform: "windows,linux" /* UI.ActionRegistration.Platforms.WindowsLinux */,
+            platform: "windows,linux" /* UI.ActionRegistration.Platforms.WINDOWS_LINUX */,
             shortcut: 'Ctrl+Shift+Plus',
         },
         {
-            platform: "windows,linux" /* UI.ActionRegistration.Platforms.WindowsLinux */,
+            platform: "windows,linux" /* UI.ActionRegistration.Platforms.WINDOWS_LINUX */,
             shortcut: 'Ctrl+NumpadPlus',
         },
         {
-            platform: "windows,linux" /* UI.ActionRegistration.Platforms.WindowsLinux */,
+            platform: "windows,linux" /* UI.ActionRegistration.Platforms.WINDOWS_LINUX */,
             shortcut: 'Ctrl+Shift+NumpadPlus',
         },
         {
-            platform: "mac" /* UI.ActionRegistration.Platforms.Mac */,
+            platform: "mac" /* UI.ActionRegistration.Platforms.MAC */,
             shortcut: 'Meta+Plus',
             keybindSets: [
                 "devToolsDefault" /* UI.ActionRegistration.KeybindSet.DEVTOOLS_DEFAULT */,
@@ -379,30 +368,30 @@ UI.ActionRegistration.registerActionExtension({
             ],
         },
         {
-            platform: "mac" /* UI.ActionRegistration.Platforms.Mac */,
+            platform: "mac" /* UI.ActionRegistration.Platforms.MAC */,
             shortcut: 'Meta+Shift+Plus',
         },
         {
-            platform: "mac" /* UI.ActionRegistration.Platforms.Mac */,
+            platform: "mac" /* UI.ActionRegistration.Platforms.MAC */,
             shortcut: 'Meta+NumpadPlus',
         },
         {
-            platform: "mac" /* UI.ActionRegistration.Platforms.Mac */,
+            platform: "mac" /* UI.ActionRegistration.Platforms.MAC */,
             shortcut: 'Meta+Shift+NumpadPlus',
         },
     ],
 });
 UI.ActionRegistration.registerActionExtension({
     actionId: 'main.zoom-out',
-    category: UI.ActionRegistration.ActionCategory.GLOBAL,
+    category: "GLOBAL" /* UI.ActionRegistration.ActionCategory.GLOBAL */,
     title: i18nLazyString(UIStrings.zoomOut),
     async loadActionDelegate() {
         const Main = await loadMainModule();
-        return Main.MainImpl.ZoomActionDelegate.instance();
+        return new Main.MainImpl.ZoomActionDelegate();
     },
     bindings: [
         {
-            platform: "windows,linux" /* UI.ActionRegistration.Platforms.WindowsLinux */,
+            platform: "windows,linux" /* UI.ActionRegistration.Platforms.WINDOWS_LINUX */,
             shortcut: 'Ctrl+Minus',
             keybindSets: [
                 "devToolsDefault" /* UI.ActionRegistration.KeybindSet.DEVTOOLS_DEFAULT */,
@@ -410,19 +399,19 @@ UI.ActionRegistration.registerActionExtension({
             ],
         },
         {
-            platform: "windows,linux" /* UI.ActionRegistration.Platforms.WindowsLinux */,
+            platform: "windows,linux" /* UI.ActionRegistration.Platforms.WINDOWS_LINUX */,
             shortcut: 'Ctrl+Shift+Minus',
         },
         {
-            platform: "windows,linux" /* UI.ActionRegistration.Platforms.WindowsLinux */,
+            platform: "windows,linux" /* UI.ActionRegistration.Platforms.WINDOWS_LINUX */,
             shortcut: 'Ctrl+NumpadMinus',
         },
         {
-            platform: "windows,linux" /* UI.ActionRegistration.Platforms.WindowsLinux */,
+            platform: "windows,linux" /* UI.ActionRegistration.Platforms.WINDOWS_LINUX */,
             shortcut: 'Ctrl+Shift+NumpadMinus',
         },
         {
-            platform: "mac" /* UI.ActionRegistration.Platforms.Mac */,
+            platform: "mac" /* UI.ActionRegistration.Platforms.MAC */,
             shortcut: 'Meta+Minus',
             keybindSets: [
                 "devToolsDefault" /* UI.ActionRegistration.KeybindSet.DEVTOOLS_DEFAULT */,
@@ -430,57 +419,57 @@ UI.ActionRegistration.registerActionExtension({
             ],
         },
         {
-            platform: "mac" /* UI.ActionRegistration.Platforms.Mac */,
+            platform: "mac" /* UI.ActionRegistration.Platforms.MAC */,
             shortcut: 'Meta+Shift+Minus',
         },
         {
-            platform: "mac" /* UI.ActionRegistration.Platforms.Mac */,
+            platform: "mac" /* UI.ActionRegistration.Platforms.MAC */,
             shortcut: 'Meta+NumpadMinus',
         },
         {
-            platform: "mac" /* UI.ActionRegistration.Platforms.Mac */,
+            platform: "mac" /* UI.ActionRegistration.Platforms.MAC */,
             shortcut: 'Meta+Shift+NumpadMinus',
         },
     ],
 });
 UI.ActionRegistration.registerActionExtension({
     actionId: 'main.zoom-reset',
-    category: UI.ActionRegistration.ActionCategory.GLOBAL,
+    category: "GLOBAL" /* UI.ActionRegistration.ActionCategory.GLOBAL */,
     title: i18nLazyString(UIStrings.resetZoomLevel),
     async loadActionDelegate() {
         const Main = await loadMainModule();
-        return Main.MainImpl.ZoomActionDelegate.instance();
+        return new Main.MainImpl.ZoomActionDelegate();
     },
     bindings: [
         {
-            platform: "windows,linux" /* UI.ActionRegistration.Platforms.WindowsLinux */,
+            platform: "windows,linux" /* UI.ActionRegistration.Platforms.WINDOWS_LINUX */,
             shortcut: 'Ctrl+0',
         },
         {
-            platform: "windows,linux" /* UI.ActionRegistration.Platforms.WindowsLinux */,
+            platform: "windows,linux" /* UI.ActionRegistration.Platforms.WINDOWS_LINUX */,
             shortcut: 'Ctrl+Numpad0',
         },
         {
-            platform: "mac" /* UI.ActionRegistration.Platforms.Mac */,
+            platform: "mac" /* UI.ActionRegistration.Platforms.MAC */,
             shortcut: 'Meta+Numpad0',
         },
         {
-            platform: "mac" /* UI.ActionRegistration.Platforms.Mac */,
+            platform: "mac" /* UI.ActionRegistration.Platforms.MAC */,
             shortcut: 'Meta+0',
         },
     ],
 });
 UI.ActionRegistration.registerActionExtension({
     actionId: 'main.search-in-panel.find',
-    category: UI.ActionRegistration.ActionCategory.GLOBAL,
+    category: "GLOBAL" /* UI.ActionRegistration.ActionCategory.GLOBAL */,
     title: i18nLazyString(UIStrings.searchInPanel),
     async loadActionDelegate() {
         const Main = await loadMainModule();
-        return Main.MainImpl.SearchActionDelegate.instance();
+        return new Main.MainImpl.SearchActionDelegate();
     },
     bindings: [
         {
-            platform: "windows,linux" /* UI.ActionRegistration.Platforms.WindowsLinux */,
+            platform: "windows,linux" /* UI.ActionRegistration.Platforms.WINDOWS_LINUX */,
             shortcut: 'Ctrl+F',
             keybindSets: [
                 "devToolsDefault" /* UI.ActionRegistration.KeybindSet.DEVTOOLS_DEFAULT */,
@@ -488,7 +477,7 @@ UI.ActionRegistration.registerActionExtension({
             ],
         },
         {
-            platform: "mac" /* UI.ActionRegistration.Platforms.Mac */,
+            platform: "mac" /* UI.ActionRegistration.Platforms.MAC */,
             shortcut: 'Meta+F',
             keybindSets: [
                 "devToolsDefault" /* UI.ActionRegistration.KeybindSet.DEVTOOLS_DEFAULT */,
@@ -496,18 +485,18 @@ UI.ActionRegistration.registerActionExtension({
             ],
         },
         {
-            platform: "mac" /* UI.ActionRegistration.Platforms.Mac */,
+            platform: "mac" /* UI.ActionRegistration.Platforms.MAC */,
             shortcut: 'F3',
         },
     ],
 });
 UI.ActionRegistration.registerActionExtension({
     actionId: 'main.search-in-panel.cancel',
-    category: UI.ActionRegistration.ActionCategory.GLOBAL,
+    category: "GLOBAL" /* UI.ActionRegistration.ActionCategory.GLOBAL */,
     title: i18nLazyString(UIStrings.cancelSearch),
     async loadActionDelegate() {
         const Main = await loadMainModule();
-        return Main.MainImpl.SearchActionDelegate.instance();
+        return new Main.MainImpl.SearchActionDelegate();
     },
     order: 10,
     bindings: [
@@ -518,15 +507,15 @@ UI.ActionRegistration.registerActionExtension({
 });
 UI.ActionRegistration.registerActionExtension({
     actionId: 'main.search-in-panel.find-next',
-    category: UI.ActionRegistration.ActionCategory.GLOBAL,
+    category: "GLOBAL" /* UI.ActionRegistration.ActionCategory.GLOBAL */,
     title: i18nLazyString(UIStrings.findNextResult),
     async loadActionDelegate() {
         const Main = await loadMainModule();
-        return Main.MainImpl.SearchActionDelegate.instance();
+        return new Main.MainImpl.SearchActionDelegate();
     },
     bindings: [
         {
-            platform: "mac" /* UI.ActionRegistration.Platforms.Mac */,
+            platform: "mac" /* UI.ActionRegistration.Platforms.MAC */,
             shortcut: 'Meta+G',
             keybindSets: [
                 "devToolsDefault" /* UI.ActionRegistration.KeybindSet.DEVTOOLS_DEFAULT */,
@@ -534,11 +523,11 @@ UI.ActionRegistration.registerActionExtension({
             ],
         },
         {
-            platform: "windows,linux" /* UI.ActionRegistration.Platforms.WindowsLinux */,
+            platform: "windows,linux" /* UI.ActionRegistration.Platforms.WINDOWS_LINUX */,
             shortcut: 'Ctrl+G',
         },
         {
-            platform: "windows,linux" /* UI.ActionRegistration.Platforms.WindowsLinux */,
+            platform: "windows,linux" /* UI.ActionRegistration.Platforms.WINDOWS_LINUX */,
             shortcut: 'F3',
             keybindSets: [
                 "devToolsDefault" /* UI.ActionRegistration.KeybindSet.DEVTOOLS_DEFAULT */,
@@ -549,15 +538,15 @@ UI.ActionRegistration.registerActionExtension({
 });
 UI.ActionRegistration.registerActionExtension({
     actionId: 'main.search-in-panel.find-previous',
-    category: UI.ActionRegistration.ActionCategory.GLOBAL,
+    category: "GLOBAL" /* UI.ActionRegistration.ActionCategory.GLOBAL */,
     title: i18nLazyString(UIStrings.findPreviousResult),
     async loadActionDelegate() {
         const Main = await loadMainModule();
-        return Main.MainImpl.SearchActionDelegate.instance();
+        return new Main.MainImpl.SearchActionDelegate();
     },
     bindings: [
         {
-            platform: "mac" /* UI.ActionRegistration.Platforms.Mac */,
+            platform: "mac" /* UI.ActionRegistration.Platforms.MAC */,
             shortcut: 'Meta+Shift+G',
             keybindSets: [
                 "devToolsDefault" /* UI.ActionRegistration.KeybindSet.DEVTOOLS_DEFAULT */,
@@ -565,11 +554,11 @@ UI.ActionRegistration.registerActionExtension({
             ],
         },
         {
-            platform: "windows,linux" /* UI.ActionRegistration.Platforms.WindowsLinux */,
+            platform: "windows,linux" /* UI.ActionRegistration.Platforms.WINDOWS_LINUX */,
             shortcut: 'Ctrl+Shift+G',
         },
         {
-            platform: "windows,linux" /* UI.ActionRegistration.Platforms.WindowsLinux */,
+            platform: "windows,linux" /* UI.ActionRegistration.Platforms.WINDOWS_LINUX */,
             shortcut: 'Shift+F3',
             keybindSets: [
                 "devToolsDefault" /* UI.ActionRegistration.KeybindSet.DEVTOOLS_DEFAULT */,
@@ -579,17 +568,17 @@ UI.ActionRegistration.registerActionExtension({
     ],
 });
 Common.Settings.registerSettingExtension({
-    category: Common.Settings.SettingCategory.APPEARANCE,
-    storageType: Common.Settings.SettingStorageType.Synced,
+    category: "APPEARANCE" /* Common.Settings.SettingCategory.APPEARANCE */,
+    storageType: "Synced" /* Common.Settings.SettingStorageType.SYNCED */,
     title: i18nLazyString(UIStrings.theme),
-    settingName: 'uiTheme',
-    settingType: Common.Settings.SettingType.ENUM,
+    settingName: 'ui-theme',
+    settingType: "enum" /* Common.Settings.SettingType.ENUM */,
     defaultValue: 'systemPreferred',
     reloadRequired: false,
     options: [
         {
-            title: i18nLazyString(UIStrings.switchToSystemPreferredColor),
-            text: i18nLazyString(UIStrings.systemPreference),
+            title: i18nLazyString(UIStrings.switchToBrowserPreferredTheme),
+            text: i18nLazyString(UIStrings.autoTheme),
             value: 'systemPreferred',
         },
         {
@@ -609,11 +598,34 @@ Common.Settings.registerSettingExtension({
     ],
 });
 Common.Settings.registerSettingExtension({
-    category: Common.Settings.SettingCategory.APPEARANCE,
-    storageType: Common.Settings.SettingStorageType.Synced,
+    category: "APPEARANCE" /* Common.Settings.SettingCategory.APPEARANCE */,
+    storageType: "Synced" /* Common.Settings.SettingStorageType.SYNCED */,
+    title: i18nLazyString(UIStrings.matchChromeColorScheme),
+    settingName: 'chrome-theme-colors',
+    settingType: "boolean" /* Common.Settings.SettingType.BOOLEAN */,
+    defaultValue: true,
+    options: [
+        {
+            value: true,
+            title: i18nLazyString(UIStrings.matchChromeColorSchemeCommand),
+        },
+        {
+            value: false,
+            title: i18nLazyString(UIStrings.dontMatchChromeColorSchemeCommand),
+        },
+    ],
+    reloadRequired: true,
+    learnMore: {
+        url: 'https://goo.gle/devtools-customize-theme',
+        tooltip: i18nLazyString(UIStrings.matchChromeColorSchemeDocumentation),
+    },
+});
+Common.Settings.registerSettingExtension({
+    category: "APPEARANCE" /* Common.Settings.SettingCategory.APPEARANCE */,
+    storageType: "Synced" /* Common.Settings.SettingStorageType.SYNCED */,
     title: i18nLazyString(UIStrings.panelLayout),
-    settingName: 'sidebarPosition',
-    settingType: Common.Settings.SettingType.ENUM,
+    settingName: 'sidebar-position',
+    settingType: "enum" /* Common.Settings.SettingType.ENUM */,
     defaultValue: 'auto',
     options: [
         {
@@ -633,50 +645,11 @@ Common.Settings.registerSettingExtension({
         },
     ],
 });
-// TODO(chromium:1392054) This setting is deprecated, to be removed after a grace period!
 Common.Settings.registerSettingExtension({
-    category: Common.Settings.SettingCategory.APPEARANCE,
-    storageType: Common.Settings.SettingStorageType.Synced,
-    title: i18nLazyString(UIStrings.colorFormat),
-    settingName: 'colorFormat',
-    settingType: Common.Settings.SettingType.ENUM,
-    defaultValue: 'original',
-    options: [
-        {
-            title: i18nLazyString(UIStrings.setColorFormatAsAuthored),
-            text: i18nLazyString(UIStrings.asAuthored),
-            value: 'original',
-        },
-        {
-            title: i18nLazyString(UIStrings.setColorFormatToHex),
-            text: 'HEX: #dac0de',
-            value: 'hex',
-            raw: true,
-        },
-        {
-            title: i18nLazyString(UIStrings.setColorFormatToRgb),
-            text: 'RGB: rgb(128 255 255)',
-            value: 'rgb',
-            raw: true,
-        },
-        {
-            title: i18nLazyString(UIStrings.setColorFormatToHsl),
-            text: 'HSL: hsl(300deg 80% 90%)',
-            value: 'hsl',
-            raw: true,
-        },
-    ],
-    deprecationNotice: {
-        disabled: true,
-        warning: i18nLazyString(UIStrings.colorFormatSettingDisabled),
-        experiment: Root.Runtime.ExperimentName.DISABLE_COLOR_FORMAT_SETTING,
-    },
-});
-Common.Settings.registerSettingExtension({
-    category: Common.Settings.SettingCategory.APPEARANCE,
-    storageType: Common.Settings.SettingStorageType.Synced,
+    category: "APPEARANCE" /* Common.Settings.SettingCategory.APPEARANCE */,
+    storageType: "Synced" /* Common.Settings.SettingStorageType.SYNCED */,
     settingName: 'language',
-    settingType: Common.Settings.SettingType.ENUM,
+    settingType: "enum" /* Common.Settings.SettingType.ENUM */,
     title: i18nLazyString(UIStrings.language),
     defaultValue: 'en-US',
     options: [
@@ -690,18 +663,18 @@ Common.Settings.registerSettingExtension({
     reloadRequired: true,
 });
 Common.Settings.registerSettingExtension({
-    category: Common.Settings.SettingCategory.APPEARANCE,
-    storageType: Common.Settings.SettingStorageType.Synced,
-    title: i18nLazyString(UIStrings.enableCtrlShortcutToSwitchPanels),
-    titleMac: i18nLazyString(UIStrings.enableShortcutToSwitchPanels),
-    settingName: 'shortcutPanelSwitch',
-    settingType: Common.Settings.SettingType.BOOLEAN,
+    category: "APPEARANCE" /* Common.Settings.SettingCategory.APPEARANCE */,
+    storageType: "Synced" /* Common.Settings.SettingStorageType.SYNCED */,
+    title: Host.Platform.platform() === 'mac' ? i18nLazyString(UIStrings.enableShortcutToSwitchPanels) :
+        i18nLazyString(UIStrings.enableCtrlShortcutToSwitchPanels),
+    settingName: 'shortcut-panel-switch',
+    settingType: "boolean" /* Common.Settings.SettingType.BOOLEAN */,
     defaultValue: false,
 });
 Common.Settings.registerSettingExtension({
-    category: Common.Settings.SettingCategory.GLOBAL,
+    category: "GLOBAL" /* Common.Settings.SettingCategory.GLOBAL */,
     settingName: 'currentDockState',
-    settingType: Common.Settings.SettingType.ENUM,
+    settingType: "enum" /* Common.Settings.SettingType.ENUM */,
     defaultValue: 'right',
     options: [
         {
@@ -727,9 +700,9 @@ Common.Settings.registerSettingExtension({
     ],
 });
 Common.Settings.registerSettingExtension({
-    storageType: Common.Settings.SettingStorageType.Synced,
-    settingName: 'activeKeybindSet',
-    settingType: Common.Settings.SettingType.ENUM,
+    storageType: "Synced" /* Common.Settings.SettingStorageType.SYNCED */,
+    settingName: 'active-keybind-set',
+    settingType: "enum" /* Common.Settings.SettingType.ENUM */,
     defaultValue: 'devToolsDefault',
     options: [
         {
@@ -755,26 +728,26 @@ function createOptionForLocale(localeString) {
     };
 }
 Common.Settings.registerSettingExtension({
-    category: Common.Settings.SettingCategory.SYNC,
+    category: "SYNC" /* Common.Settings.SettingCategory.SYNC */,
     // This name must be kept in sync with DevToolsSettings::kSyncDevToolsPreferencesFrontendName.
-    settingName: 'sync_preferences',
-    settingType: Common.Settings.SettingType.BOOLEAN,
+    settingName: 'sync-preferences',
+    settingType: "boolean" /* Common.Settings.SettingType.BOOLEAN */,
     title: i18nLazyString(UIStrings.enableSync),
     defaultValue: false,
     reloadRequired: true,
 });
 Common.Settings.registerSettingExtension({
-    storageType: Common.Settings.SettingStorageType.Synced,
-    settingName: 'userShortcuts',
-    settingType: Common.Settings.SettingType.ARRAY,
+    storageType: "Synced" /* Common.Settings.SettingStorageType.SYNCED */,
+    settingName: 'user-shortcuts',
+    settingType: "array" /* Common.Settings.SettingType.ARRAY */,
     defaultValue: [],
 });
 Common.Settings.registerSettingExtension({
-    category: Common.Settings.SettingCategory.GLOBAL,
-    storageType: Common.Settings.SettingStorageType.Local,
+    category: "GLOBAL" /* Common.Settings.SettingCategory.GLOBAL */,
+    storageType: "Local" /* Common.Settings.SettingStorageType.LOCAL */,
     title: i18nLazyString(UIStrings.searchAsYouTypeSetting),
-    settingName: 'searchAsYouType',
-    settingType: Common.Settings.SettingType.BOOLEAN,
+    settingName: 'search-as-you-type',
+    settingType: "boolean" /* Common.Settings.SettingType.BOOLEAN */,
     order: 3,
     defaultValue: true,
     options: [
@@ -790,21 +763,21 @@ Common.Settings.registerSettingExtension({
 });
 UI.ViewManager.registerLocationResolver({
     name: "drawer-view" /* UI.ViewManager.ViewLocationValues.DRAWER_VIEW */,
-    category: UI.ViewManager.ViewLocationCategory.DRAWER,
+    category: "DRAWER" /* UI.ViewManager.ViewLocationCategory.DRAWER */,
     async loadResolver() {
         return UI.InspectorView.InspectorView.instance();
     },
 });
 UI.ViewManager.registerLocationResolver({
     name: "drawer-sidebar" /* UI.ViewManager.ViewLocationValues.DRAWER_SIDEBAR */,
-    category: UI.ViewManager.ViewLocationCategory.DRAWER_SIDEBAR,
+    category: "DRAWER_SIDEBAR" /* UI.ViewManager.ViewLocationCategory.DRAWER_SIDEBAR */,
     async loadResolver() {
         return UI.InspectorView.InspectorView.instance();
     },
 });
 UI.ViewManager.registerLocationResolver({
     name: "panel" /* UI.ViewManager.ViewLocationValues.PANEL */,
-    category: UI.ViewManager.ViewLocationCategory.PANEL,
+    category: "PANEL" /* UI.ViewManager.ViewLocationCategory.PANEL */,
     async loadResolver() {
         return UI.InspectorView.InspectorView.instance();
     },
@@ -818,7 +791,7 @@ UI.ContextMenu.registerProvider({
         ];
     },
     async loadProvider() {
-        return Components.Linkifier.ContentProviderContextMenuProvider.instance();
+        return new Components.Linkifier.ContentProviderContextMenuProvider();
     },
     experiment: undefined,
 });
@@ -829,7 +802,7 @@ UI.ContextMenu.registerProvider({
         ];
     },
     async loadProvider() {
-        return UI.XLink.ContextMenuProvider.instance();
+        return new UI.XLink.ContextMenuProvider();
     },
     experiment: undefined,
 });
@@ -840,27 +813,19 @@ UI.ContextMenu.registerProvider({
         ];
     },
     async loadProvider() {
-        return Components.Linkifier.LinkContextMenuProvider.instance();
+        return new Components.Linkifier.LinkContextMenuProvider();
     },
     experiment: undefined,
 });
 UI.Toolbar.registerToolbarItem({
     separator: true,
-    location: UI.Toolbar.ToolbarItemLocation.MAIN_TOOLBAR_LEFT,
+    location: "main-toolbar-left" /* UI.Toolbar.ToolbarItemLocation.MAIN_TOOLBAR_LEFT */,
     order: 100,
-    showLabel: undefined,
-    actionId: undefined,
-    condition: undefined,
-    loadItem: undefined,
 });
 UI.Toolbar.registerToolbarItem({
     separator: true,
     order: 97,
-    location: UI.Toolbar.ToolbarItemLocation.MAIN_TOOLBAR_RIGHT,
-    showLabel: undefined,
-    actionId: undefined,
-    condition: undefined,
-    loadItem: undefined,
+    location: "main-toolbar-right" /* UI.Toolbar.ToolbarItemLocation.MAIN_TOOLBAR_RIGHT */,
 });
 UI.Toolbar.registerToolbarItem({
     async loadItem() {
@@ -868,11 +833,7 @@ UI.Toolbar.registerToolbarItem({
         return Main.MainImpl.SettingsButtonProvider.instance();
     },
     order: 99,
-    location: UI.Toolbar.ToolbarItemLocation.MAIN_TOOLBAR_RIGHT,
-    showLabel: undefined,
-    condition: undefined,
-    separator: undefined,
-    actionId: undefined,
+    location: "main-toolbar-right" /* UI.Toolbar.ToolbarItemLocation.MAIN_TOOLBAR_RIGHT */,
 });
 UI.Toolbar.registerToolbarItem({
     async loadItem() {
@@ -880,22 +841,14 @@ UI.Toolbar.registerToolbarItem({
         return Main.MainImpl.MainMenuItem.instance();
     },
     order: 100,
-    location: UI.Toolbar.ToolbarItemLocation.MAIN_TOOLBAR_RIGHT,
-    showLabel: undefined,
-    condition: undefined,
-    separator: undefined,
-    actionId: undefined,
+    location: "main-toolbar-right" /* UI.Toolbar.ToolbarItemLocation.MAIN_TOOLBAR_RIGHT */,
 });
 UI.Toolbar.registerToolbarItem({
     async loadItem() {
         return UI.DockController.CloseButtonProvider.instance();
     },
     order: 101,
-    location: UI.Toolbar.ToolbarItemLocation.MAIN_TOOLBAR_RIGHT,
-    showLabel: undefined,
-    condition: undefined,
-    separator: undefined,
-    actionId: undefined,
+    location: "main-toolbar-right" /* UI.Toolbar.ToolbarItemLocation.MAIN_TOOLBAR_RIGHT */,
 });
 Common.AppProvider.registerAppProvider({
     async loadAppProvider() {
@@ -903,6 +856,5 @@ Common.AppProvider.registerAppProvider({
         return Main.SimpleApp.SimpleAppProvider.instance();
     },
     order: 10,
-    condition: undefined,
 });
 //# sourceMappingURL=main-meta.js.map

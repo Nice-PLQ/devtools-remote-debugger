@@ -4,7 +4,7 @@
 import * as Host from '../../core/host/host.js';
 import * as i18n from '../../core/i18n/i18n.js';
 import * as SDK from '../../core/sdk/sdk.js';
-import * as UI from '../../ui/legacy/legacy.js';
+import * as IconButton from '../../ui/components/icon_button/icon_button.js';
 import { ApplicationPanelTreeElement } from './ApplicationPanelTreeElement.js';
 import { InterestGroupStorageView } from './InterestGroupStorageView.js';
 const UIStrings = {
@@ -14,15 +14,15 @@ const UIStrings = {
      * be used to show a certain set of advertisements in the future as the
      * outcome of a FLEDGE auction. (https://developer.chrome.com/blog/fledge-api/)
      */
-    interestGroups: 'Interest Groups',
+    interestGroups: 'Interest groups',
 };
 const str_ = i18n.i18n.registerUIStrings('panels/application/InterestGroupTreeElement.ts', UIStrings);
 export const i18nString = i18n.i18n.getLocalizedString.bind(undefined, str_);
 export class InterestGroupTreeElement extends ApplicationPanelTreeElement {
     view;
     constructor(storagePanel) {
-        super(storagePanel, i18nString(UIStrings.interestGroups), false);
-        const interestGroupIcon = UI.Icon.Icon.create('database', 'resource-tree-item');
+        super(storagePanel, i18nString(UIStrings.interestGroups), false, 'interest-groups');
+        const interestGroupIcon = IconButton.Icon.create('database');
         this.setLeadingIcons([interestGroupIcon]);
         this.view = new InterestGroupStorageView(this);
     }
@@ -34,13 +34,13 @@ export class InterestGroupTreeElement extends ApplicationPanelTreeElement {
         if (!mainTarget) {
             return null;
         }
-        const response = await mainTarget.storageAgent().invoke_getInterestGroupDetails({ 'ownerOrigin': owner, 'name': name });
+        const response = await mainTarget.storageAgent().invoke_getInterestGroupDetails({ ownerOrigin: owner, name });
         return response.details;
     }
     onselect(selectedByUser) {
         super.onselect(selectedByUser);
         this.showView(this.view);
-        Host.userMetrics.panelShown(Host.UserMetrics.PanelCodes[Host.UserMetrics.PanelCodes.interest_groups]);
+        Host.userMetrics.panelShown('interest-groups');
         return false;
     }
     addEvent(event) {

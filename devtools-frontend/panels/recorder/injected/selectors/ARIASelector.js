@@ -41,7 +41,8 @@ class ARIASelectorComputer {
         if (!name) {
             return null;
         }
-        const result = this.#queryA11yTree(parent, name);
+        const maxResults = 2;
+        const result = this.#queryA11yTree(parent, name, undefined, maxResults);
         if (result.length !== 1) {
             return null;
         }
@@ -51,7 +52,8 @@ class ARIASelectorComputer {
         if (!role) {
             return null;
         }
-        const result = this.#queryA11yTree(parent, undefined, role);
+        const maxResults = 2;
+        const result = this.#queryA11yTree(parent, undefined, role, maxResults);
         if (result.length !== 1) {
             return null;
         }
@@ -61,7 +63,8 @@ class ARIASelectorComputer {
         if (!role || !name) {
             return null;
         }
-        const result = this.#queryA11yTree(parent, name, role);
+        const maxResults = 2;
+        const result = this.#queryA11yTree(parent, name, role, maxResults);
         if (result.length !== 1) {
             return null;
         }
@@ -69,7 +72,7 @@ class ARIASelectorComputer {
     };
     // Queries the DOM tree for elements with matching accessibility name and role.
     // It attempts to mimic https://chromedevtools.github.io/devtools-protocol/tot/Accessibility/#method-queryAXTree.
-    #queryA11yTree = (parent, name, role) => {
+    #queryA11yTree = (parent, name, role, maxResults = 0) => {
         const result = [];
         if (!name && !role) {
             throw new Error('Both role and name are empty');
@@ -93,6 +96,9 @@ class ARIASelectorComputer {
                     continue;
                 }
                 result.push(currentNode);
+                if (maxResults && result.length >= maxResults) {
+                    return;
+                }
             } while (iter.nextNode());
         };
         collect(parent instanceof Document ? document.documentElement : parent);

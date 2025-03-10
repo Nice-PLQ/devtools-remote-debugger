@@ -27,9 +27,17 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+import * as VisualLogging from '../visual_logging/visual_logging.js';
 import { GlassPane } from './GlassPane.js';
-import popoverStyles from './popover.css.legacy.js';
+import popoverStyles from './popover.css.js';
 export class PopoverHelper {
+    static createPopover = (jslogContext) => {
+        const popover = new GlassPane(`${VisualLogging.popover(jslogContext).parent('mapped')}`);
+        popover.registerRequiredCSS(popoverStyles);
+        popover.setSizeBehavior("MeasureContent" /* SizeBehavior.MEASURE_CONTENT */);
+        popover.setMarginBehavior("Arrow" /* MarginBehavior.ARROW */);
+        return popover;
+    };
     disableOnClick;
     hasPadding;
     getRequest;
@@ -43,10 +51,13 @@ export class PopoverHelper {
     boundMouseDown;
     boundMouseMove;
     boundMouseOut;
-    constructor(container, getRequest) {
+    boundKeyUp;
+    jslogContext;
+    constructor(container, getRequest, jslogContext) {
         this.disableOnClick = false;
         this.hasPadding = false;
         this.getRequest = getRequest;
+        this.jslogContext = jslogContext;
         this.scheduledRequest = null;
         this.hidePopoverCallback = null;
         this.container = container;
@@ -57,9 +68,11 @@ export class PopoverHelper {
         this.boundMouseDown = this.mouseDown.bind(this);
         this.boundMouseMove = this.mouseMove.bind(this);
         this.boundMouseOut = this.mouseOut.bind(this);
+        this.boundKeyUp = this.keyUp.bind(this);
         this.container.addEventListener('mousedown', this.boundMouseDown, false);
         this.container.addEventListener('mousemove', this.boundMouseMove, false);
         this.container.addEventListener('mouseout', this.boundMouseOut, false);
+        this.container.addEventListener('keyup', this.boundKeyUp, false);
         this.setTimeout(1000);
     }
     setTimeout(showTimeout, hideTimeout) {
@@ -88,6 +101,24 @@ export class PopoverHelper {
         this.stopShowPopoverTimer();
         this.startShowPopoverTimer(event, 0);
     }
+    keyUp(ev) {
+        const event = ev;
+        if (event.altKey && event.key === 'ArrowDown') {
+            if (this.isPopoverVisible()) {
+                this.hidePopover();
+            }
+            else {
+                this.stopShowPopoverTimer();
+                this.startHidePopoverTimer(0);
+                this.startShowPopoverTimer(event, 0);
+            }
+            ev.stopPropagation();
+        }
+        else if (event.key === 'Escape' && this.isPopoverVisible()) {
+            this.hidePopover();
+            ev.stopPropagation();
+        }
+    }
     mouseMove(ev) {
         const event = ev;
         if (this.eventInScheduledContent(event)) {
@@ -100,7 +131,7 @@ export class PopoverHelper {
         }
         this.startHidePopoverTimer(this.hideTimeout);
         this.stopShowPopoverTimer();
-        if (event.which && this.disableOnClick) {
+        if (event.buttons && this.disableOnClick) {
             return;
         }
         this.startShowPopoverTimer(event, this.isPopoverVisible() ? this.showTimeout * 0.6 : this.showTimeout);
@@ -171,10 +202,7 @@ export class PopoverHelper {
         this.hidePopoverCallback = null;
     }
     showPopover(document) {
-        const popover = new GlassPane();
-        popover.registerRequiredCSS(popoverStyles);
-        popover.setSizeBehavior("MeasureContent" /* SizeBehavior.MeasureContent */);
-        popover.setMarginBehavior("Arrow" /* MarginBehavior.Arrow */);
+        const popover = PopoverHelper.createPopover(this.jslogContext);
         const request = this.scheduledRequest;
         if (!request) {
             return;
@@ -191,11 +219,12 @@ export class PopoverHelper {
             }
             // This should not happen, but we hide previous popover to be on the safe side.
             if (popoverHelperInstance) {
-                console.error('One popover is already visible');
                 popoverHelperInstance.hidePopover();
             }
             popoverHelperInstance = this;
+            VisualLogging.setMappedParent(popover.contentElement, this.container);
             popover.contentElement.classList.toggle('has-padding', this.hasPadding);
+            popover.contentElement.style.scrollbarGutter = 'stable';
             popover.contentElement.addEventListener('mousemove', this.popoverMouseMove.bind(this), true);
             popover.contentElement.addEventListener('mouseout', this.popoverMouseOut.bind(this, popover), true);
             popover.setContentAnchorBox(request.box);

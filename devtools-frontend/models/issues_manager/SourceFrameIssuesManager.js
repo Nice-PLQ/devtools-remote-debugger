@@ -7,21 +7,22 @@ import * as Workspace from '../../models/workspace/workspace.js';
 import { ContentSecurityPolicyIssue, trustedTypesPolicyViolationCode, trustedTypesSinkViolationCode, } from './ContentSecurityPolicyIssue.js';
 import { toZeroBasedLocation } from './Issue.js';
 import { getIssueTitleFromMarkdownDescription } from './MarkdownIssueDescription.js';
+import { PropertyRuleIssue } from './PropertyRuleIssue.js';
 import { lateImportStylesheetLoadingCode } from './StylesheetLoadingIssue.js';
 export class SourceFrameIssuesManager {
     issuesManager;
     #sourceFrameMessageManager = new Bindings.PresentationConsoleMessageHelper.PresentationSourceFrameMessageManager();
     constructor(issuesManager) {
         this.issuesManager = issuesManager;
-        this.issuesManager.addEventListener("IssueAdded" /* Events.IssueAdded */, this.#onIssueAdded, this);
-        this.issuesManager.addEventListener("FullUpdateRequired" /* Events.FullUpdateRequired */, this.#onFullUpdateRequired, this);
+        this.issuesManager.addEventListener("IssueAdded" /* Events.ISSUE_ADDED */, this.#onIssueAdded, this);
+        this.issuesManager.addEventListener("FullUpdateRequired" /* Events.FULL_UPDATE_REQUIRED */, this.#onFullUpdateRequired, this);
     }
     #onIssueAdded(event) {
         const { issue } = event.data;
         void this.#addIssue(issue);
     }
     async #addIssue(issue) {
-        if (!this.#isTrustedTypeIssue(issue) && !this.#isLateImportIssue(issue)) {
+        if (!this.#isTrustedTypeIssue(issue) && !this.#isLateImportIssue(issue) && !this.#isPropertyRuleIssue(issue)) {
             return;
         }
         const issuesModel = issue.model();
@@ -58,6 +59,9 @@ export class SourceFrameIssuesManager {
         return issue instanceof ContentSecurityPolicyIssue && issue.code() === trustedTypesSinkViolationCode ||
             issue.code() === trustedTypesPolicyViolationCode;
     }
+    #isPropertyRuleIssue(issue) {
+        return issue instanceof PropertyRuleIssue;
+    }
     #isLateImportIssue(issue) {
         return issue.code() === lateImportStylesheetLoadingCode;
     }
@@ -68,7 +72,7 @@ export class SourceFrameIssuesManager {
 export class IssueMessage extends Workspace.UISourceCode.Message {
     #kind;
     constructor(title, kind, clickHandler) {
-        super(Workspace.UISourceCode.Message.Level.Issue, title, clickHandler);
+        super("Issue" /* Workspace.UISourceCode.Message.Level.ISSUE */, title, clickHandler);
         this.#kind = kind;
     }
     getIssueKind() {

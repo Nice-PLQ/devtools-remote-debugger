@@ -77,18 +77,10 @@ export class QuickOpenImpl {
     providerLoadedForTest(_provider) {
     }
 }
-let showActionDelegateInstance;
 export class ShowActionDelegate {
-    static instance(opts = { forceNew: null }) {
-        const { forceNew } = opts;
-        if (!showActionDelegateInstance || forceNew) {
-            showActionDelegateInstance = new ShowActionDelegate();
-        }
-        return showActionDelegateInstance;
-    }
-    handleAction(context, actionId) {
+    handleAction(_context, actionId) {
         switch (actionId) {
-            case 'quickOpen.show':
+            case 'quick-open.show':
                 QuickOpenImpl.show('');
                 return true;
         }

@@ -30,9 +30,9 @@
 import * as SDK from '../../core/sdk/sdk.js';
 import * as TextUtils from '../text_utils/text_utils.js';
 import * as Workspace from '../workspace/workspace.js';
+import { CSSWorkspaceBinding } from './CSSWorkspaceBinding.js';
 import { DebuggerWorkspaceBinding } from './DebuggerWorkspaceBinding.js';
 import { LiveLocationPool, LiveLocationWithPool } from './LiveLocation.js';
-import { CSSWorkspaceBinding } from './CSSWorkspaceBinding.js';
 export class PresentationSourceFrameMessageManager {
     #targetToMessageHelperMap = new WeakMap();
     constructor() {
@@ -80,8 +80,8 @@ export class PresentationConsoleMessageManager {
             return;
         }
         const level = consoleMessage.level === "error" /* Protocol.Log.LogEntryLevel.Error */ ?
-            Workspace.UISourceCode.Message.Level.Error :
-            Workspace.UISourceCode.Message.Level.Warning;
+            "Error" /* Workspace.UISourceCode.Message.Level.ERROR */ :
+            "Warning" /* Workspace.UISourceCode.Message.Level.WARNING */;
         this.#sourceFrameMessageManager.addMessage(new Workspace.UISourceCode.Message(level, consoleMessage.messageText), consoleMessage, runtimeModel.target());
     }
 }
@@ -153,7 +153,7 @@ export class PresentationSourceFrameMessageHelper {
         if (source.scriptId) {
             return this.#debuggerModel.createRawLocationByScriptId(source.scriptId, source.line, source.column);
         }
-        const callFrame = source.stackTrace && source.stackTrace.callFrames ? source.stackTrace.callFrames[0] : null;
+        const callFrame = source.stackTrace?.callFrames ? source.stackTrace.callFrames[0] : null;
         if (callFrame) {
             return this.#debuggerModel.createRawLocationByScriptId(callFrame.scriptId, callFrame.lineNumber, callFrame.columnNumber);
         }

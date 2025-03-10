@@ -1,7 +1,7 @@
 // Copyright 2021 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
-import * as IconButton from '../../ui/components/icon_button/icon_button.js';
+import * as Buttons from '../../ui/components/buttons/buttons.js';
 import * as UI from '../../ui/legacy/legacy.js';
 import { StylePropertyTreeElement } from './StylePropertyTreeElement.js';
 let instance = null;
@@ -113,17 +113,19 @@ export class StyleEditorWidget extends UI.Widget.VBox {
     }
 }
 function createButton(buttonTitle) {
-    const button = document.createElement('button');
+    const button = new Buttons.Button.Button();
+    button.data = {
+        variant: "icon" /* Buttons.Button.Variant.ICON */,
+        size: "SMALL" /* Buttons.Button.Size.SMALL */,
+        iconName: 'flex-wrap',
+        title: buttonTitle,
+        jslogContext: 'flex-wrap',
+    };
     button.classList.add('styles-pane-button');
-    button.tabIndex = 0;
-    button.title = buttonTitle;
-    button.onmouseup = (event) => {
+    button.onmouseup = event => {
         // Stop propagation to prevent the property editor from being activated.
         event.stopPropagation();
     };
-    const icon = new IconButton.Icon.Icon();
-    icon.data = { iconName: 'flex-wrap', color: 'var(--color-text-secondary)', width: '16px', height: '16px' };
-    button.appendChild(icon);
     return button;
 }
 function ensureTreeElementForProperty(section, propertyName) {

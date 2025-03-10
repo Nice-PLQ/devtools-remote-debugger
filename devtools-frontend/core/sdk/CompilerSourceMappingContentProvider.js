@@ -56,22 +56,23 @@ export class CompilerSourceMappingContentProvider {
         return this.#contentTypeInternal;
     }
     async requestContent() {
+        const contentData = await this.requestContentData();
+        return TextUtils.ContentData.ContentData.asDeferredContent(contentData);
+    }
+    async requestContentData() {
         try {
             const { content } = await PageResourceLoader.instance().loadResource(this.#sourceURL, this.#initiator);
-            return { content, isEncoded: false };
+            return new TextUtils.ContentData.ContentData(content, /* isBase64=*/ false, this.#contentTypeInternal.canonicalMimeType());
         }
         catch (e) {
             const error = i18nString(UIStrings.couldNotLoadContentForSS, { PH1: this.#sourceURL, PH2: e.message });
             console.error(error);
-            return { content: null, error, isEncoded: false };
+            return { error };
         }
     }
     async searchInContent(query, caseSensitive, isRegex) {
-        const { content } = await this.requestContent();
-        if (typeof content !== 'string') {
-            return [];
-        }
-        return TextUtils.TextUtils.performSearchInContent(content, query, caseSensitive, isRegex);
+        const contentData = await this.requestContentData();
+        return TextUtils.TextUtils.performSearchInContentData(contentData, query, caseSensitive, isRegex);
     }
 }
 //# sourceMappingURL=CompilerSourceMappingContentProvider.js.map

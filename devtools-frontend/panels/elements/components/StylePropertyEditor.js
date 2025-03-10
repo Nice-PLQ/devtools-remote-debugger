@@ -1,12 +1,15 @@
 // Copyright (c) 2021 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
+import '../../../ui/components/icon_button/icon_button.js';
 import * as i18n from '../../../core/i18n/i18n.js';
-import * as ComponentHelpers from '../../../ui/components/helpers/helpers.js';
-import * as IconButton from '../../../ui/components/icon_button/icon_button.js';
-import * as LitHtml from '../../../ui/lit-html/lit-html.js';
-import stylePropertyEditorStyles from './stylePropertyEditor.css.js';
+import * as Lit from '../../../ui/lit/lit.js';
+import * as VisualLogging from '../../../ui/visual_logging/visual_logging.js';
 import { findFlexContainerIcon, findGridContainerIcon } from './CSSPropertyIconResolver.js';
+import stylePropertyEditorStylesRaw from './stylePropertyEditor.css.js';
+// TODO(crbug.com/391381439): Fully migrate off of constructed style sheets.
+const stylePropertyEditorStyles = new CSSStyleSheet();
+stylePropertyEditorStyles.replaceSync(stylePropertyEditorStylesRaw.cssContent);
 const UIStrings = {
     /**
      * @description Title of the button that selects a flex property.
@@ -23,7 +26,7 @@ const UIStrings = {
 };
 const str_ = i18n.i18n.registerUIStrings('panels/elements/components/StylePropertyEditor.ts', UIStrings);
 const i18nString = i18n.i18n.getLocalizedString.bind(undefined, str_);
-const { render, html, Directives } = LitHtml;
+const { render, html, Directives } = Lit;
 export class PropertySelectedEvent extends Event {
     static eventName = 'propertyselected';
     data;
@@ -40,7 +43,6 @@ export class PropertyDeselectedEvent extends Event {
         this.data = { name, value };
     }
 }
-// eslint-disable-next-line rulesdir/check_component_naming
 export class StylePropertyEditor extends HTMLElement {
     #shadow = this.attachShadow({ mode: 'open' });
     #authoredProperties = new Map();
@@ -97,14 +99,20 @@ export class StylePropertyEditor extends HTMLElement {
         }
         const transform = `transform: rotate(${iconInfo.rotate}deg) scale(${iconInfo.scaleX}, ${iconInfo.scaleY})`;
         const classes = Directives.classMap({
-            'button': true,
-            'selected': selected,
+            button: true,
+            selected,
         });
         const values = { propertyName, propertyValue };
         const title = selected ? i18nString(UIStrings.deselectButton, values) : i18nString(UIStrings.selectButton, values);
-        return html `<button title=${title} class=${classes} @click=${() => this.#onButtonClick(propertyName, propertyValue, selected)}>
-       <${IconButton.Icon.Icon.litTagName} style=${transform} .data=${{ iconName: iconInfo.iconName, color: 'var(--icon-color)', width: '20px', height: '20px' }}></${IconButton.Icon.Icon.litTagName}>
-    </button>`;
+        return html `
+      <button title=${title}
+              class=${classes}
+              jslog=${VisualLogging.item().track({ click: true }).context(`${propertyName}-${propertyValue}`)}
+              @click=${() => this.#onButtonClick(propertyName, propertyValue, selected)}>
+        <devtools-icon style=${transform} name=${iconInfo.iconName}>
+        </devtools-icon>
+      </button>
+    `;
     }
     #onButtonClick(propertyName, propertyValue, selected) {
         if (selected) {
@@ -119,19 +127,21 @@ export class StylePropertyEditor extends HTMLElement {
     }
 }
 export class FlexboxEditor extends StylePropertyEditor {
+    jslogContext = 'cssFlexboxEditor';
     editableProperties = FlexboxEditableProperties;
     findIcon(query, computedProperties) {
         return findFlexContainerIcon(query, computedProperties);
     }
 }
-ComponentHelpers.CustomElements.defineComponent('devtools-flexbox-editor', FlexboxEditor);
+customElements.define('devtools-flexbox-editor', FlexboxEditor);
 export class GridEditor extends StylePropertyEditor {
+    jslogContext = 'cssGridEditor';
     editableProperties = GridEditableProperties;
     findIcon(query, computedProperties) {
         return findGridContainerIcon(query, computedProperties);
     }
 }
-ComponentHelpers.CustomElements.defineComponent('devtools-grid-editor', GridEditor);
+customElements.define('devtools-grid-editor', GridEditor);
 export const FlexboxEditableProperties = [
     {
         propertyName: 'flex-direction',

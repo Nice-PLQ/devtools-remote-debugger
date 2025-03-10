@@ -31,27 +31,27 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+import './Toolbar.js';
 import * as Host from '../../core/host/host.js';
 import * as i18n from '../../core/i18n/i18n.js';
 import * as Platform from '../../core/platform/platform.js';
 import * as TextUtils from '../../models/text_utils/text_utils.js';
+import * as Buttons from '../components/buttons/buttons.js';
 import * as IconButton from '../components/icon_button/icon_button.js';
+import * as VisualLogging from '../visual_logging/visual_logging.js';
 import * as ARIAUtils from './ARIAUtils.js';
+import checkboxTextLabelStyles from './checkboxTextLabel.css.js';
+import confirmDialogStyles from './confirmDialog.css.js';
 import { Dialog } from './Dialog.js';
 import { Size } from './Geometry.js';
 import { GlassPane } from './GlassPane.js';
-import { Icon } from './Icon.js';
-import { KeyboardShortcut } from './KeyboardShortcut.js';
-import * as Utils from './utils/utils.js';
-import { Toolbar } from './Toolbar.js';
+import inlineButtonStyles from './inlineButton.css.js';
+import inspectorCommonStyles from './inspectorCommon.css.js';
+import { KeyboardShortcut, Keys } from './KeyboardShortcut.js';
+import smallBubbleStyles from './smallBubble.css.js';
+import * as ThemeSupport from './theme_support/theme_support.js';
 import { Tooltip } from './Tooltip.js';
-import checkboxTextLabelStyles from './checkboxTextLabel.css.legacy.js';
-import closeButtonStyles from './closeButton.css.legacy.js';
-import confirmDialogStyles from './confirmDialog.css.legacy.js';
-import inlineButtonStyles from './inlineButton.css.legacy.js';
-import radioButtonStyles from './radioButton.css.legacy.js';
-import sliderStyles from './slider.css.legacy.js';
-import smallBubbleStyles from './smallBubble.css.legacy.js';
+import { Widget } from './Widget.js';
 const UIStrings = {
     /**
      *@description label to open link externally
@@ -77,11 +77,6 @@ const UIStrings = {
      *@description Text in UIUtils
      */
     promiseRejectedAsync: 'Promise rejected (async)',
-    /**
-     *@description Text in UIUtils
-     *@example {Promise} PH1
-     */
-    sAsync: '{PH1} (async)',
     /**
      *@description Text for the title of asynchronous function calls group in Call Stack
      */
@@ -153,7 +148,7 @@ class DragHandler {
         this.glassPaneInUse = true;
         if (!DragHandler.glassPaneUsageCount++) {
             DragHandler.glassPane = new GlassPane();
-            DragHandler.glassPane.setPointerEventsBehavior("BlockedByGlassPane" /* PointerEventsBehavior.BlockedByGlassPane */);
+            DragHandler.glassPane.setPointerEventsBehavior("BlockedByGlassPane" /* PointerEventsBehavior.BLOCKED_BY_GLASS_PANE */);
             if (DragHandler.documentForMouseOut) {
                 DragHandler.glassPane.show(DragHandler.documentForMouseOut);
             }
@@ -183,7 +178,7 @@ class DragHandler {
         if (this.elementDraggingEventListener) {
             return;
         }
-        if (elementDragStart && !elementDragStart(event)) {
+        if (elementDragStart && !elementDragStart((event))) {
             return;
         }
         const targetDocument = (event.target instanceof Node && event.target.ownerDocument);
@@ -198,7 +193,7 @@ class DragHandler {
                 this.dragEventsTargetDocumentTop = targetDocument.defaultView.top.document;
             }
         }
-        catch (e) {
+        catch {
             this.dragEventsTargetDocumentTop = this.dragEventsTargetDocument;
         }
         targetDocument.addEventListener('pointermove', this.elementDragMove, true);
@@ -330,22 +325,28 @@ const numberRegex = /^(-?(?:\d+(?:\.\d+)?|\.\d+))$/;
 export const StyleValueDelimiters = ' \xA0\t\n"\':;,/()';
 export function getValueModificationDirection(event) {
     let direction = null;
-    if (event.type === 'wheel') {
+    if (event instanceof WheelEvent) {
         // When shift is pressed while spinning mousewheel, delta comes as wheelDeltaX.
-        const wheelEvent = event;
-        if (wheelEvent.deltaY < 0 || wheelEvent.deltaX < 0) {
+        if (event.deltaY < 0 || event.deltaX < 0) {
             direction = 'Up';
         }
-        else if (wheelEvent.deltaY > 0 || wheelEvent.deltaX > 0) {
+        else if (event.deltaY > 0 || event.deltaX > 0) {
             direction = 'Down';
         }
     }
-    else {
-        const keyEvent = event;
-        if (keyEvent.key === 'ArrowUp' || keyEvent.key === 'PageUp') {
+    else if (event instanceof MouseEvent) {
+        if (event.movementX < 0) {
+            direction = 'Down';
+        }
+        else if (event.movementX > 0) {
             direction = 'Up';
         }
-        else if (keyEvent.key === 'ArrowDown' || keyEvent.key === 'PageDown') {
+    }
+    else if (event instanceof KeyboardEvent) {
+        if (event.key === 'ArrowUp' || event.key === 'PageUp') {
+            direction = 'Up';
+        }
+        else if (event.key === 'ArrowDown' || event.key === 'PageDown') {
             direction = 'Down';
         }
     }
@@ -410,15 +411,15 @@ export function modifiedFloatNumber(number, event, modifierMultiplier) {
     // When shift is pressed, increase by 10.
     // When alt is pressed, increase by 0.1.
     // Otherwise increase by 1.
-    let delta = 1;
+    let delta = mouseEvent.type === 'mousemove' ? Math.abs(mouseEvent.movementX) : 1;
     if (KeyboardShortcut.eventHasCtrlEquivalentKey(mouseEvent)) {
-        delta = 100;
+        delta *= 100;
     }
     else if (mouseEvent.shiftKey) {
-        delta = 10;
+        delta *= 10;
     }
     else if (mouseEvent.altKey) {
-        delta = 0.1;
+        delta *= 0.1;
     }
     if (direction === 'Down') {
         delta *= -1;
@@ -440,7 +441,7 @@ export function createReplacementString(wordString, event, customNumberHandler) 
     let number;
     let replacementString = null;
     let matches = /(.*#)([\da-fA-F]+)(.*)/.exec(wordString);
-    if (matches && matches.length) {
+    if (matches?.length) {
         prefix = matches[1];
         suffix = matches[3];
         number = modifiedHexValue(matches[2], event);
@@ -450,7 +451,7 @@ export function createReplacementString(wordString, event, customNumberHandler) 
     }
     else {
         matches = /(.*?)(-?(?:\d+(?:\.\d+)?|\.\d+))(.*)/.exec(wordString);
-        if (matches && matches.length) {
+        if (matches?.length) {
             prefix = matches[1];
             suffix = matches[3];
             number = modifiedFloatNumber(parseFloat(matches[2]), event);
@@ -462,15 +463,24 @@ export function createReplacementString(wordString, event, customNumberHandler) 
     }
     return replacementString;
 }
+export function isElementValueModification(event) {
+    if (event instanceof MouseEvent) {
+        const { type } = event;
+        return type === 'mousemove' || type === 'wheel';
+    }
+    if (event instanceof KeyboardEvent) {
+        const { key } = event;
+        return key === 'ArrowUp' || key === 'ArrowDown' || key === 'PageUp' || key === 'PageDown';
+    }
+    return false;
+}
 export function handleElementValueModifications(event, element, finishHandler, suggestionHandler, customNumberHandler) {
-    const arrowKeyOrWheelEvent = (event.key === 'ArrowUp' || event.key === 'ArrowDown' ||
-        event.type === 'wheel');
-    const pageKeyPressed = (event.key === 'PageUp' || event.key === 'PageDown');
-    if (!arrowKeyOrWheelEvent && !pageKeyPressed) {
+    if (!isElementValueModification(event)) {
         return false;
     }
+    void VisualLogging.logKeyDown(event.currentTarget, event, 'element-value-modification');
     const selection = element.getComponentSelection();
-    if (!selection || !selection.rangeCount) {
+    if (!selection?.rangeCount) {
         return false;
     }
     const selectionRange = selection.getRangeAt(0);
@@ -480,7 +490,7 @@ export function handleElementValueModifications(event, element, finishHandler, s
     const originalValue = element.textContent;
     const wordRange = Platform.DOMUtilities.rangeOfWord(selectionRange.startContainer, selectionRange.startOffset, StyleValueDelimiters, element);
     const wordString = wordRange.toString();
-    if (suggestionHandler && suggestionHandler(wordString)) {
+    if (suggestionHandler?.(wordString)) {
         return false;
     }
     const replacementString = createReplacementString(wordString, event, customNumberHandler);
@@ -522,22 +532,22 @@ export function asyncStackTraceLabel(description, previousCallFrames) {
         if (description === 'Promise.reject') {
             return i18nString(UIStrings.promiseRejectedAsync);
         }
-        // TODO(crbug.com/1254259): Remove the check for 'async function'
-        // once the relevant V8 inspector CL rolls into Node LTS.
-        if ((description === 'await' || description === 'async function') && previousCallFrames.length !== 0) {
+        if (description === 'await' && previousCallFrames.length !== 0) {
             const lastPreviousFrame = previousCallFrames[previousCallFrames.length - 1];
             const lastPreviousFrameName = beautifyFunctionName(lastPreviousFrame.functionName);
             description = `await in ${lastPreviousFrameName}`;
         }
-        return i18nString(UIStrings.sAsync, { PH1: description });
+        return description;
     }
     return i18nString(UIStrings.asyncCall);
 }
-export function installComponentRootStyles(element) {
-    Utils.injectCoreStyles(element);
+export function addPlatformClass(element) {
     element.classList.add('platform-' + Host.Platform.platform());
+}
+export function installComponentRootStyles(element) {
+    injectCoreStyles(element);
     // Detect overlay scrollbar enable by checking for nonzero scrollbar width.
-    if (!Host.Platform.isMac() && Utils.measuredScrollbarWidth(element.ownerDocument) === 0) {
+    if (!Host.Platform.isMac() && measuredScrollbarWidth(element.ownerDocument) === 0) {
         element.classList.add('overlay-scrollbar-enabled');
     }
 }
@@ -581,11 +591,13 @@ export function runCSSAnimationOnce(element, className) {
     function animationEndCallback() {
         element.classList.remove(className);
         element.removeEventListener('webkitAnimationEnd', animationEndCallback, false);
+        element.removeEventListener('animationcancel', animationEndCallback, false);
     }
     if (element.classList.contains(className)) {
         element.classList.remove(className);
     }
     element.addEventListener('webkitAnimationEnd', animationEndCallback, false);
+    element.addEventListener('animationcancel', animationEndCallback, false);
     element.classList.add(className);
 }
 export function highlightRangesWithStyleClass(element, resultRanges, styleClass, changes) {
@@ -704,6 +716,7 @@ export function highlightRangesWithStyleClass(element, resultRanges, styleClass,
     }
     return highlightNodes;
 }
+// Used in chromium/src/third_party/blink/web_tests/http/tests/devtools/components/utilities-highlight-results.js
 export function applyDomChanges(domChanges) {
     for (let i = 0, size = domChanges.length; i < size; ++i) {
         const entry = domChanges[i];
@@ -898,7 +911,7 @@ export function initializeUIUtils(document) {
         document.defaultView.addEventListener('focus', windowFocused.bind(undefined, document), false);
         document.defaultView.addEventListener('blur', windowBlurred.bind(undefined, document), false);
     }
-    document.addEventListener('focus', Utils.focusChanged.bind(undefined), true);
+    document.addEventListener('focus', focusChanged.bind(undefined), true);
     const body = document.body;
     GlassPane.setContainer(body);
 }
@@ -915,23 +928,27 @@ export const createTextChildren = (element, ...childrenText) => {
         createTextChild(element, child);
     }
 };
-export function createTextButton(text, eventHandler, className, primary, alternativeEvent) {
-    const element = document.createElement('button');
-    if (className) {
-        element.className = className;
+export function createTextButton(text, clickHandler, opts) {
+    const button = new Buttons.Button.Button();
+    if (opts?.className) {
+        button.className = opts.className;
     }
-    element.textContent = text;
-    element.classList.add('text-button');
-    if (primary) {
-        element.classList.add('primary-button');
+    button.textContent = text;
+    button.iconName = opts?.icon;
+    button.variant = opts?.variant ? opts.variant : "outlined" /* Buttons.Button.Variant.OUTLINED */;
+    if (clickHandler) {
+        button.addEventListener('click', clickHandler);
     }
-    if (eventHandler) {
-        element.addEventListener(alternativeEvent || 'click', eventHandler);
+    if (opts?.jslogContext) {
+        button.setAttribute('jslog', `${VisualLogging.action().track({ click: true }).context(opts.jslogContext)}`);
     }
-    element.type = 'button';
-    return element;
+    if (opts?.title) {
+        button.setAttribute('title', opts.title);
+    }
+    button.type = 'button';
+    return button;
 }
-export function createInput(className, type) {
+export function createInput(className, type, jslogContext) {
     const element = document.createElement('input');
     if (className) {
         element.className = className;
@@ -941,11 +958,52 @@ export function createInput(className, type) {
     if (type) {
         element.type = type;
     }
+    if (jslogContext) {
+        element.setAttribute('jslog', `${VisualLogging.textField().track({ keydown: 'Enter', change: true }).context(jslogContext)}`);
+    }
     return element;
+}
+export function createHistoryInput(type = 'search', className) {
+    const history = [''];
+    let historyPosition = 0;
+    const historyInput = document.createElement('input');
+    historyInput.type = type;
+    if (className) {
+        historyInput.className = className;
+    }
+    historyInput.addEventListener('input', onInput, false);
+    historyInput.addEventListener('keydown', onKeydown, false);
+    return historyInput;
+    function onInput(_event) {
+        if (history.length === historyPosition + 1) {
+            history[historyPosition] = historyInput.value;
+        }
+    }
+    function onKeydown(event) {
+        if (event.keyCode === Keys.Up.code) {
+            historyPosition = Math.max(historyPosition - 1, 0);
+            historyInput.value = history[historyPosition];
+            historyInput.dispatchEvent(new Event('input', { bubbles: true, cancelable: true }));
+            event.consume(true);
+        }
+        else if (event.keyCode === Keys.Down.code) {
+            historyPosition = Math.min(historyPosition + 1, history.length - 1);
+            historyInput.value = history[historyPosition];
+            historyInput.dispatchEvent(new Event('input', { bubbles: true, cancelable: true }));
+            event.consume(true);
+        }
+        else if (event.keyCode === Keys.Enter.code) {
+            if (history.length > 1 && history[history.length - 2] === historyInput.value) {
+                return;
+            }
+            history[history.length - 1] = historyInput.value;
+            historyPosition = history.length - 1;
+            history.push('');
+        }
+    }
 }
 export function createSelect(name, options) {
     const select = document.createElement('select');
-    select.classList.add('chrome-select');
     ARIAUtils.setLabel(select, name);
     for (const option of options) {
         if (option instanceof Map) {
@@ -954,16 +1012,23 @@ export function createSelect(name, options) {
                 optGroup.label = key;
                 for (const child of value) {
                     if (typeof child === 'string') {
-                        optGroup.appendChild(new Option(child, child));
+                        optGroup.appendChild(createOption(child, child, Platform.StringUtilities.toKebabCase(child)));
                     }
                 }
             }
         }
         else if (typeof option === 'string') {
-            select.add(new Option(option, option));
+            select.add(createOption(option, option, Platform.StringUtilities.toKebabCase(option)));
         }
     }
     return select;
+}
+export function createOption(title, value, jslogContext) {
+    const result = new Option(title, value || title);
+    if (jslogContext) {
+        result.setAttribute('jslog', `${VisualLogging.item(jslogContext).track({ click: true })}`);
+    }
+    return result;
 }
 export function createLabel(title, className, associatedControl) {
     const element = document.createElement('label');
@@ -976,15 +1041,8 @@ export function createLabel(title, className, associatedControl) {
     }
     return element;
 }
-export function createRadioLabel(name, title, checked) {
-    const element = document.createElement('span', { is: 'dt-radio' });
-    element.radioElement.name = name;
-    element.radioElement.checked = Boolean(checked);
-    createTextChild(element.labelElement, title);
-    return element;
-}
 export function createIconLabel(options) {
-    const element = document.createElement('span', { is: 'dt-icon-label' });
+    const element = document.createElement('dt-icon-label');
     if (options.title) {
         element.createChild('span').textContent = options.title;
     }
@@ -996,19 +1054,68 @@ export function createIconLabel(options) {
     };
     return element;
 }
+/**
+ * Creates a radio button, which is comprised of a `<label>` and an `<input type="radio">` element.
+ *
+ * The returned pair contains the `label` element and and the `radio` input element. The latter is
+ * a child of the `label`, and therefore no association via `for` attribute is necessary to make
+ * the radio button accessible.
+ *
+ * The element is automatically styled correctly, as long as the core styles (in particular
+ * `inspectorCommon.css` is injected into the current document / shadow root). The lit
+ * equivalent of calling this method is:
+ *
+ * ```js
+ * const jslog = VisualLogging.toggle().track({change: true}).context(jslogContext);
+ * html`<label><input type="radio" name=${name} jslog=${jslog}>${title}</label>`
+ * ```
+ *
+ * @param name the name of the radio group.
+ * @param title the label text for the radio button.
+ * @param jslogContext the context string for the `jslog` attribute.
+ * @returns the pair of `HTMLLabelElement` and `HTMLInputElement`.
+ * @see https://developer.mozilla.org/en-US/docs/Web/HTML/Element/input/radio
+ */
+export function createRadioButton(name, title, jslogContext) {
+    const label = document.createElement('label');
+    const radio = label.createChild('input');
+    radio.type = 'radio';
+    radio.name = name;
+    radio.setAttribute('jslog', `${VisualLogging.toggle().track({ change: true }).context(jslogContext)}`);
+    createTextChild(label, title);
+    return { label, radio };
+}
+/**
+ * Creates an `<input type="range">` element with the specified parameters (a slider)
+ * and a `step` of 1 (the default for the element).
+ *
+ * The element is automatically styled correctly, as long as the core styles (in particular
+ * `inspectorCommon.css` is injected into the current document / shadow root). The lit
+ * equivalent of calling this method is:
+ *
+ * ```js
+ * html`<input type="range" min=${min} max=${max} tabindex=${tabIndex}>`
+ * ```
+ *
+ * @param min the minimum allowed value.
+ * @param max the maximum allowed value.
+ * @param tabIndex the value for the `tabindex` attribute.
+ * @returns the newly created `HTMLInputElement` for the slider.
+ * @see https://developer.mozilla.org/en-US/docs/Web/HTML/Element/input/range
+ */
 export function createSlider(min, max, tabIndex) {
-    const element = document.createElement('span', { is: 'dt-slider' });
-    element.sliderElement.min = String(min);
-    element.sliderElement.max = String(max);
-    element.sliderElement.step = String(1);
-    element.sliderElement.tabIndex = tabIndex;
+    const element = document.createElement('input');
+    element.type = 'range';
+    element.min = String(min);
+    element.max = String(max);
+    element.tabIndex = tabIndex;
     return element;
 }
 export function setTitle(element, title) {
     ARIAUtils.setLabel(element, title);
     Tooltip.install(element, title);
 }
-export class CheckboxLabel extends HTMLSpanElement {
+export class CheckboxLabel extends HTMLElement {
     shadowRootInternal;
     checkboxElement;
     textElement;
@@ -1016,8 +1123,7 @@ export class CheckboxLabel extends HTMLSpanElement {
         super();
         CheckboxLabel.lastId = CheckboxLabel.lastId + 1;
         const id = 'ui-checkbox-label' + CheckboxLabel.lastId;
-        this.shadowRootInternal =
-            Utils.createShadowRootWithCoreStyles(this, { cssFile: checkboxTextLabelStyles, delegatesFocus: undefined });
+        this.shadowRootInternal = createShadowRootWithCoreStyles(this, { cssFile: checkboxTextLabelStyles });
         this.checkboxElement = this.shadowRootInternal.createChild('input');
         this.checkboxElement.type = 'checkbox';
         this.checkboxElement.setAttribute('id', id);
@@ -1025,12 +1131,12 @@ export class CheckboxLabel extends HTMLSpanElement {
         this.textElement.setAttribute('for', id);
         this.shadowRootInternal.createChild('slot');
     }
-    static create(title, checked, subtitle) {
-        if (!CheckboxLabel.constructorInternal) {
-            CheckboxLabel.constructorInternal = Utils.registerCustomElement('span', 'dt-checkbox', CheckboxLabel);
-        }
-        const element = CheckboxLabel.constructorInternal();
+    static create(title, checked, subtitle, jslogContext, small) {
+        const element = document.createElement('dt-checkbox');
         element.checkboxElement.checked = Boolean(checked);
+        if (jslogContext) {
+            element.checkboxElement.setAttribute('jslog', `${VisualLogging.toggle().track({ change: true }).context(jslogContext)}`);
+        }
         if (title !== undefined) {
             element.textElement.textContent = title;
             element.checkboxElement.title = title;
@@ -1038,21 +1144,25 @@ export class CheckboxLabel extends HTMLSpanElement {
                 element.textElement.createChild('div', 'dt-checkbox-subtitle').textContent = subtitle;
             }
         }
+        element.checkboxElement.classList.toggle('small', small);
         return element;
     }
+    /** Only to be used when the checkbox label is 'generated' (a regex, a className, etc). Most checkboxes should be create()'d with UIStrings */
+    static createWithStringLiteral(title, checked, subtitle, jslogContext, small) {
+        const stringLiteral = title;
+        return CheckboxLabel.create(stringLiteral, checked, subtitle, jslogContext, small);
+    }
     static lastId = 0;
-    static constructorInternal = null;
 }
-export class DevToolsIconLabel extends HTMLSpanElement {
+customElements.define('dt-checkbox', CheckboxLabel);
+export class DevToolsIconLabel extends HTMLElement {
     #icon;
     constructor() {
         super();
-        const root = Utils.createShadowRootWithCoreStyles(this, {
-            cssFile: undefined,
-            delegatesFocus: undefined,
-        });
+        const root = createShadowRootWithCoreStyles(this);
         this.#icon = new IconButton.Icon.Icon();
         this.#icon.style.setProperty('margin-right', '4px');
+        this.#icon.style.setProperty('vertical-align', 'baseline');
         root.appendChild(this.#icon);
         root.createChild('slot');
     }
@@ -1068,55 +1178,12 @@ export class DevToolsIconLabel extends HTMLSpanElement {
         }
     }
 }
-let labelId = 0;
-export class DevToolsRadioButton extends HTMLSpanElement {
-    radioElement;
-    labelElement;
-    constructor() {
-        super();
-        this.radioElement = this.createChild('input', 'dt-radio-button');
-        this.labelElement = this.createChild('label');
-        const id = 'dt-radio-button-id' + (++labelId);
-        this.radioElement.id = id;
-        this.radioElement.type = 'radio';
-        this.labelElement.htmlFor = id;
-        const root = Utils.createShadowRootWithCoreStyles(this, { cssFile: radioButtonStyles, delegatesFocus: undefined });
-        root.createChild('slot');
-        this.addEventListener('click', this.radioClickHandler.bind(this), false);
-    }
-    radioClickHandler() {
-        if (this.radioElement.checked || this.radioElement.disabled) {
-            return;
-        }
-        this.radioElement.checked = true;
-        this.radioElement.dispatchEvent(new Event('change'));
-    }
-}
-Utils.registerCustomElement('span', 'dt-radio', DevToolsRadioButton);
-Utils.registerCustomElement('span', 'dt-icon-label', DevToolsIconLabel);
-export class DevToolsSlider extends HTMLSpanElement {
-    sliderElement;
-    constructor() {
-        super();
-        const root = Utils.createShadowRootWithCoreStyles(this, { cssFile: sliderStyles, delegatesFocus: undefined });
-        this.sliderElement = document.createElement('input');
-        this.sliderElement.classList.add('dt-range-input');
-        this.sliderElement.type = 'range';
-        root.appendChild(this.sliderElement);
-    }
-    set value(amount) {
-        this.sliderElement.value = String(amount);
-    }
-    get value() {
-        return Number(this.sliderElement.value);
-    }
-}
-Utils.registerCustomElement('span', 'dt-slider', DevToolsSlider);
-export class DevToolsSmallBubble extends HTMLSpanElement {
+customElements.define('dt-icon-label', DevToolsIconLabel);
+export class DevToolsSmallBubble extends HTMLElement {
     textElement;
     constructor() {
         super();
-        const root = Utils.createShadowRootWithCoreStyles(this, { cssFile: smallBubbleStyles, delegatesFocus: undefined });
+        const root = createShadowRootWithCoreStyles(this, { cssFile: smallBubbleStyles });
         this.textElement = root.createChild('div');
         this.textElement.className = 'info';
         this.textElement.createChild('slot');
@@ -1125,32 +1192,36 @@ export class DevToolsSmallBubble extends HTMLSpanElement {
         this.textElement.className = type;
     }
 }
-Utils.registerCustomElement('span', 'dt-small-bubble', DevToolsSmallBubble);
-export class DevToolsCloseButton extends HTMLDivElement {
-    buttonElement;
+customElements.define('dt-small-bubble', DevToolsSmallBubble);
+export class DevToolsCloseButton extends HTMLElement {
+    #button;
     constructor() {
         super();
-        const root = Utils.createShadowRootWithCoreStyles(this, { cssFile: closeButtonStyles, delegatesFocus: undefined });
-        this.buttonElement = root.createChild('div', 'close-button');
-        Tooltip.install(this.buttonElement, i18nString(UIStrings.close));
-        ARIAUtils.setLabel(this.buttonElement, i18nString(UIStrings.close));
-        ARIAUtils.markAsButton(this.buttonElement);
-        const regularIcon = Icon.create('cross', 'default-icon');
-        this.buttonElement.appendChild(regularIcon);
+        const root = createShadowRootWithCoreStyles(this);
+        this.#button = new Buttons.Button.Button();
+        this.#button.data = { variant: "icon" /* Buttons.Button.Variant.ICON */, iconName: 'cross' };
+        this.#button.classList.add('close-button');
+        this.#button.setAttribute('jslog', `${VisualLogging.close().track({ click: true })}`);
+        Tooltip.install(this.#button, i18nString(UIStrings.close));
+        ARIAUtils.setLabel(this.#button, i18nString(UIStrings.close));
+        root.appendChild(this.#button);
     }
     setAccessibleName(name) {
-        ARIAUtils.setLabel(this.buttonElement, name);
+        ARIAUtils.setLabel(this.#button, name);
+    }
+    setSize(size) {
+        this.#button.size = size;
     }
     setTabbable(tabbable) {
         if (tabbable) {
-            this.buttonElement.tabIndex = 0;
+            this.#button.tabIndex = 0;
         }
         else {
-            this.buttonElement.tabIndex = -1;
+            this.#button.tabIndex = -1;
         }
     }
 }
-Utils.registerCustomElement('div', 'dt-close-button', DevToolsCloseButton);
+customElements.define('dt-close-button', DevToolsCloseButton);
 export function bindInput(input, apply, validate, numeric, modifierMultiplier) {
     input.addEventListener('change', onChange, false);
     input.addEventListener('input', onInput, false);
@@ -1179,13 +1250,14 @@ export function bindInput(input, apply, validate, numeric, modifierMultiplier) {
             return;
         }
         const value = modifiedFloatNumber(parseFloat(input.value), event, modifierMultiplier);
-        const stringValue = value ? String(value) : '';
-        const { valid } = validate(stringValue);
-        if (!valid || !value) {
+        if (value === null) {
             return;
         }
-        input.value = stringValue;
-        apply(input.value);
+        const stringValue = String(value);
+        const { valid } = validate(stringValue);
+        if (valid) {
+            setValue(stringValue);
+        }
         event.preventDefault();
     }
     function setValue(value) {
@@ -1291,31 +1363,40 @@ export function loadImage(url) {
         image.src = url;
     });
 }
-export function loadImageFromData(data) {
-    return data ? loadImage('data:image/jpg;base64,' + data) : Promise.resolve(null);
-}
-export function createFileSelectorElement(callback) {
+/**
+ * Creates a file selector element.
+ * @param callback - the function that will be called with the file the user selected
+ * @param accept - optionally used to set the [`accept`](https://developer.mozilla.org/en-US/docs/Web/HTML/Attributes/accept) parameter to limit file-types the user can pick.
+ */
+export function createFileSelectorElement(callback, accept) {
     const fileSelectorElement = document.createElement('input');
     fileSelectorElement.type = 'file';
+    if (accept) {
+        fileSelectorElement.setAttribute('accept', accept);
+    }
     fileSelectorElement.style.display = 'none';
     fileSelectorElement.tabIndex = -1;
-    fileSelectorElement.onchange = () => {
-        if (fileSelectorElement.files) {
+    fileSelectorElement.addEventListener('change', () => {
+        if (fileSelectorElement.files?.length) {
             callback(fileSelectorElement.files[0]);
         }
-    };
+    });
+    fileSelectorElement.addEventListener('click', () => {
+        fileSelectorElement.value = '';
+    });
     return fileSelectorElement;
 }
 export const MaxLengthForDisplayedURLs = 150;
 export class MessageDialog {
-    static async show(message, where) {
-        const dialog = new Dialog();
-        dialog.setSizeBehavior("MeasureContent" /* SizeBehavior.MeasureContent */);
+    static async show(header, message, where, jslogContext) {
+        const dialog = new Dialog(jslogContext);
+        dialog.setSizeBehavior("MeasureContent" /* SizeBehavior.MEASURE_CONTENT */);
         dialog.setDimmed(true);
-        const shadowRoot = Utils.createShadowRootWithCoreStyles(dialog.contentElement, { cssFile: confirmDialogStyles, delegatesFocus: undefined });
+        const shadowRoot = createShadowRootWithCoreStyles(dialog.contentElement, { cssFile: confirmDialogStyles });
         const content = shadowRoot.createChild('div', 'widget');
         await new Promise(resolve => {
-            const okButton = createTextButton(i18nString(UIStrings.ok), resolve, '', true);
+            const okButton = createTextButton(i18nString(UIStrings.ok), resolve, { jslogContext: 'confirm', variant: "primary" /* Buttons.Button.Variant.PRIMARY */ });
+            content.createChild('span', 'header').textContent = header;
             content.createChild('div', 'message').createChild('span').textContent = message;
             content.createChild('div', 'button').appendChild(okButton);
             dialog.setOutsideClickCallback(event => {
@@ -1329,21 +1410,23 @@ export class MessageDialog {
     }
 }
 export class ConfirmDialog {
-    static async show(message, where) {
-        const dialog = new Dialog();
-        dialog.setSizeBehavior("MeasureContent" /* SizeBehavior.MeasureContent */);
+    static async show(message, header, where, options) {
+        const dialog = new Dialog(options?.jslogContext);
+        dialog.setSizeBehavior("MeasureContent" /* SizeBehavior.MEASURE_CONTENT */);
         dialog.setDimmed(true);
         ARIAUtils.setLabel(dialog.contentElement, message);
-        const shadowRoot = Utils.createShadowRootWithCoreStyles(dialog.contentElement, { cssFile: confirmDialogStyles, delegatesFocus: undefined });
+        const shadowRoot = createShadowRootWithCoreStyles(dialog.contentElement, { cssFile: confirmDialogStyles });
         const content = shadowRoot.createChild('div', 'widget');
+        if (header) {
+            content.createChild('span', 'header').textContent = header;
+        }
         content.createChild('div', 'message').createChild('span').textContent = message;
         const buttonsBar = content.createChild('div', 'button');
         const result = await new Promise(resolve => {
             const okButton = createTextButton(
-            /* text= */ i18nString(UIStrings.ok), /* clickHandler= */ () => resolve(true), /* className= */ '', 
-            /* primary= */ true);
+            /* text= */ options?.okButtonLabel || i18nString(UIStrings.ok), /* clickHandler= */ () => resolve(true), { jslogContext: 'confirm', variant: "primary" /* Buttons.Button.Variant.PRIMARY */ });
             buttonsBar.appendChild(okButton);
-            buttonsBar.appendChild(createTextButton(i18nString(UIStrings.cancel), () => resolve(false)));
+            buttonsBar.appendChild(createTextButton(options?.cancelButtonLabel || i18nString(UIStrings.cancel), () => resolve(false), { jslogContext: 'cancel' }));
             dialog.setOutsideClickCallback(event => {
                 event.consume();
                 resolve(false);
@@ -1357,11 +1440,10 @@ export class ConfirmDialog {
 }
 export function createInlineButton(toolbarButton) {
     const element = document.createElement('span');
-    const shadowRoot = Utils.createShadowRootWithCoreStyles(element, { cssFile: inlineButtonStyles, delegatesFocus: undefined });
+    const shadowRoot = createShadowRootWithCoreStyles(element, { cssFile: inlineButtonStyles });
     element.classList.add('inline-button');
-    const toolbar = new Toolbar('');
+    const toolbar = shadowRoot.createChild('devtools-toolbar');
     toolbar.appendToolbarItem(toolbarButton);
-    shadowRoot.appendChild(toolbar.element);
     return element;
 }
 export class Renderer {
@@ -1374,7 +1456,7 @@ export class Renderer {
             return null;
         }
         const renderer = await extension.loadRenderer();
-        return renderer.render(object, options);
+        return await renderer.render(object, options);
     }
 }
 export function formatTimestamp(timestamp, full) {
@@ -1459,5 +1541,100 @@ export function getApplicableRegisteredRenderers(object) {
         }
         return false;
     }
+}
+function updateWidgetfocusWidgetForNode(node) {
+    while (node) {
+        if (Widget.get(node)) {
+            break;
+        }
+        node = node.parentNodeOrShadowHost();
+    }
+    if (!node) {
+        return;
+    }
+    let widget = Widget.get(node);
+    while (widget?.parentWidget()) {
+        const parentWidget = widget.parentWidget();
+        if (!parentWidget) {
+            break;
+        }
+        parentWidget.defaultFocusedChild = widget;
+        widget = parentWidget;
+    }
+}
+function updateXWidgetfocusWidgetForNode(node) {
+    node = node?.parentNodeOrShadowHost() ?? null;
+    const XWidgetCtor = customElements.get('x-widget');
+    let widget = null;
+    while (node) {
+        if (XWidgetCtor && node instanceof XWidgetCtor) {
+            if (widget) {
+                // TODO(crbug.com/1172300) Ignored during the jsdoc to ts migration
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                node.defaultFocusedElement = widget;
+            }
+            widget = node;
+        }
+        node = node.parentNodeOrShadowHost();
+    }
+}
+function focusChanged(event) {
+    const target = event.target;
+    const document = target ? target.ownerDocument : null;
+    const element = document ? Platform.DOMUtilities.deepActiveElement(document) : null;
+    updateWidgetfocusWidgetForNode(element);
+    updateXWidgetfocusWidgetForNode(element);
+}
+export function injectCoreStyles(elementOrShadowRoot) {
+    ThemeSupport.ThemeSupport.instance().appendStyle(elementOrShadowRoot, inspectorCommonStyles);
+    ThemeSupport.ThemeSupport.instance().appendStyle(elementOrShadowRoot, Buttons.textButtonStyles);
+}
+/**
+ * Creates a new shadow DOM tree with the core styles and an optional list of
+ * additional styles, and attaches it to the specified `element`.
+ *
+ * @param element the `Element` to attach the shadow DOM tree to.
+ * @param options optional additional style sheets and options for `Element#attachShadow()`.
+ * @returns the newly created `ShadowRoot`.
+ * @see https://developer.mozilla.org/en-US/docs/Web/API/Element/attachShadow
+ */
+export function createShadowRootWithCoreStyles(element, options = {
+    delegatesFocus: undefined,
+    cssFile: undefined,
+}) {
+    const { cssFile, delegatesFocus, } = options;
+    const shadowRoot = element.attachShadow({ mode: 'open', delegatesFocus });
+    injectCoreStyles(shadowRoot);
+    if (Array.isArray(cssFile)) {
+        for (const cf of cssFile) {
+            ThemeSupport.ThemeSupport.instance().appendStyle(shadowRoot, cf);
+        }
+    }
+    else if (cssFile) {
+        ThemeSupport.ThemeSupport.instance().appendStyle(shadowRoot, cssFile);
+    }
+    shadowRoot.addEventListener('focus', focusChanged, true);
+    return shadowRoot;
+}
+let cachedMeasuredScrollbarWidth;
+export function resetMeasuredScrollbarWidthForTest() {
+    cachedMeasuredScrollbarWidth = undefined;
+}
+export function measuredScrollbarWidth(document) {
+    if (typeof cachedMeasuredScrollbarWidth === 'number') {
+        return cachedMeasuredScrollbarWidth;
+    }
+    if (!document) {
+        return 16;
+    }
+    const scrollDiv = document.createElement('div');
+    const innerDiv = document.createElement('div');
+    scrollDiv.setAttribute('style', 'display: block; width: 100px; height: 100px; overflow: scroll;');
+    innerDiv.setAttribute('style', 'height: 200px');
+    scrollDiv.appendChild(innerDiv);
+    document.body.appendChild(scrollDiv);
+    cachedMeasuredScrollbarWidth = scrollDiv.offsetWidth - scrollDiv.clientWidth;
+    document.body.removeChild(scrollDiv);
+    return cachedMeasuredScrollbarWidth;
 }
 //# sourceMappingURL=UIUtils.js.map

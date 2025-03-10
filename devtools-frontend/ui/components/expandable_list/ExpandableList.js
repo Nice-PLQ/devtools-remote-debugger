@@ -1,16 +1,21 @@
 // Copyright 2021 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
-import * as ComponentHelpers from '../../components/helpers/helpers.js';
-import * as LitHtml from '../../lit-html/lit-html.js';
-import expandableListStyles from './expandableList.css.js';
+import * as Lit from '../../lit/lit.js';
+import * as VisualLogging from '../../visual_logging/visual_logging.js';
+import expandableListStylesRaw from './expandableList.css.js';
+// TODO(crbug.com/391381439): Fully migrate off of constructed style sheets.
+const expandableListStyles = new CSSStyleSheet();
+expandableListStyles.replaceSync(expandableListStylesRaw.cssContent);
+const { html, Directives: { ifDefined } } = Lit;
 export class ExpandableList extends HTMLElement {
-    static litTagName = LitHtml.literal `devtools-expandable-list`;
     #shadow = this.attachShadow({ mode: 'open' });
     #expanded = false;
     #rows = [];
+    #title;
     set data(data) {
         this.#rows = data.rows;
+        this.#title = data.title;
         this.#render();
     }
     #onArrowClick() {
@@ -26,19 +31,20 @@ export class ExpandableList extends HTMLElement {
         }
         // Disabled until https://crbug.com/1079231 is fixed.
         // clang-format off
-        LitHtml.render(LitHtml.html `
+        Lit.render(html `
       <div class="expandable-list-container">
         <div>
           ${this.#rows.length > 1 ?
-            LitHtml.html `
-              <button @click=${() => this.#onArrowClick()} class="arrow-icon-button">
-                <span class="arrow-icon ${this.#expanded ? 'expanded' : ''}"></span>
+            html `
+              <button title='${ifDefined(this.#title)}' aria-label='${ifDefined(this.#title)}' aria-expanded=${this.#expanded ? 'true' : 'false'} @click=${() => this.#onArrowClick()} class="arrow-icon-button">
+                <span class="arrow-icon ${this.#expanded ? 'expanded' : ''}"
+                jslog=${VisualLogging.expand().track({ click: true })}></span>
               </button>
             `
-            : LitHtml.nothing}
+            : Lit.nothing}
         </div>
         <div class="expandable-list-items">
-          ${this.#rows.filter((_, index) => (this.#expanded || index === 0)).map(row => LitHtml.html `
+          ${this.#rows.filter((_, index) => (this.#expanded || index === 0)).map(row => html `
             ${row}
           `)}
         </div>
@@ -47,5 +53,5 @@ export class ExpandableList extends HTMLElement {
         // clang-format on
     }
 }
-ComponentHelpers.CustomElements.defineComponent('devtools-expandable-list', ExpandableList);
+customElements.define('devtools-expandable-list', ExpandableList);
 //# sourceMappingURL=ExpandableList.js.map

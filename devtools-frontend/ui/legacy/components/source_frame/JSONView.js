@@ -30,9 +30,10 @@
 import * as i18n from '../../../../core/i18n/i18n.js';
 import * as Platform from '../../../../core/platform/platform.js';
 import * as SDK from '../../../../core/sdk/sdk.js';
+import * as VisualLogging from '../../../visual_logging/visual_logging.js';
 import * as UI from '../../legacy.js';
 import * as ObjectUI from '../object_ui/object_ui.js';
-import jsonViewStyles from './jsonView.css.legacy.js';
+import jsonViewStyles from './jsonView.css.js';
 const UIStrings = {
     /**
      *@description Text to find an item
@@ -57,6 +58,7 @@ export class JSONView extends UI.Widget.VBox {
         this.parsedJSON = parsedJSON;
         this.startCollapsed = Boolean(startCollapsed);
         this.element.classList.add('json-view');
+        this.element.setAttribute('jslog', `${VisualLogging.section('json-view')}`);
         this.currentSearchFocusIndex = 0;
         this.currentSearchTreeElements = [];
         this.searchRegex = null;
@@ -86,7 +88,7 @@ export class JSONView extends UI.Widget.VBox {
     static parseJSON(text) {
         let returnObj = null;
         if (text) {
-            returnObj = JSONView.extractJSON(text);
+            returnObj = JSONView.extractJSON((text));
         }
         if (!returnObj) {
             return Promise.resolve(null);
@@ -98,7 +100,7 @@ export class JSONView extends UI.Widget.VBox {
             }
             returnObj.data = json;
         }
-        catch (e) {
+        catch {
             returnObj = null;
         }
         return Promise.resolve(returnObj);
@@ -131,7 +133,7 @@ export class JSONView extends UI.Widget.VBox {
         if (start === -1 || end === -1 || end < start) {
             length = -1;
         }
-        return { start: start, end: end, length: length };
+        return { start, end, length };
     }
     wasShown() {
         this.initialize();

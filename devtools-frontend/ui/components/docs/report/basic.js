@@ -1,38 +1,39 @@
 // Copyright 2020 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
-import * as LitHtml from '../../../lit-html/lit-html.js';
+import '../../report_view/report_view.js';
+import * as Lit from '../../../lit/lit.js';
 import * as ComponentHelpers from '../../helpers/helpers.js';
-import * as ReportView from '../../report_view/report_view.js';
+const { html } = Lit;
 await ComponentHelpers.ComponentServerSetup.setup();
-const exampleRenderHelper = (key, value) => LitHtml.html `
-          <${ReportView.ReportView.ReportKey.litTagName}>${key}</${ReportView.ReportView.ReportKey.litTagName}>
-          <${ReportView.ReportView.ReportValue.litTagName}>${value}</${ReportView.ReportView.ReportValue.litTagName}>
+const exampleRenderHelper = (key, value) => html `
+          <devtools-report-key>${key}</devtools-report-key>
+          <devtools-report-value>${value}</devtools-report-value>
         `;
 const container = document.querySelector('#container');
 if (!container) {
     throw new Error('Could not find container');
 }
-LitHtml.render(LitHtml.html `
+Lit.render(html `
         <style>
           .source-code {
             font-family: monospace;
           }
         </style>
 
-        <${ReportView.ReportView.Report.litTagName} .data=${{
+        <devtools-report .data=${{
     reportTitle: 'Optional Title',
 }}>
-          <${ReportView.ReportView.ReportSectionHeader.litTagName}>Section 1</${ReportView.ReportView.ReportSectionHeader.litTagName}>
-          <${ReportView.ReportView.ReportKey.litTagName}>Basic plain text field</${ReportView.ReportView.ReportKey.litTagName}>
-          <${ReportView.ReportView.ReportValue.litTagName}>And this is the value</${ReportView.ReportView.ReportValue.litTagName}>
-          <${ReportView.ReportView.ReportKey.litTagName}>A field with a code value</${ReportView.ReportView.ReportKey.litTagName}>
-          <${ReportView.ReportView.ReportValue.litTagName} class="source-code">SomeCodeValue</${ReportView.ReportView.ReportValue.litTagName}>
-          <${ReportView.ReportView.ReportSectionDivider.litTagName}></${ReportView.ReportView.ReportSectionDivider.litTagName}>
-          <${ReportView.ReportView.ReportSectionHeader.litTagName}>Section 2</${ReportView.ReportView.ReportSectionHeader.litTagName}>
+          <devtools-report-section-header>Section 1</devtools-report-section-header>
+          <devtools-report-key>Basic plain text field</devtools-report-key>
+          <devtools-report-value>And this is the value</devtools-report-value>
+          <devtools-report-key>A field with a code value</devtools-report-key>
+          <devtools-report-value class="source-code">SomeCodeValue</devtools-report-value>
+          <devtools-report-divider></devtools-report-divider>
+          <devtools-report-section-header>Section 2</devtools-report-section-header>
           ${exampleRenderHelper('Using a small helper', 'to render report rows')}
           ${exampleRenderHelper('This wide column defines the column width', 'for all rows')}
-          <${ReportView.ReportView.ReportSectionDivider.litTagName}></${ReportView.ReportView.ReportSectionDivider.litTagName}>
-        </${ReportView.ReportView.Report.litTagName}>
+          <devtools-report-divider></devtools-report-divider>
+        </devtools-report>
       `, container);
 //# sourceMappingURL=basic.js.map

@@ -2,9 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import '../../core/sdk/sdk-legacy.js';
-
 import * as Platform from '../../core/platform/platform.js';
+import * as ProtocolClient from '../../core/protocol_client/protocol_client.js';
+import * as SDK from '../../core/sdk/sdk.js';
+import * as Bindings from '../../models/bindings/bindings.js';
+import * as TextUtils from '../../models/text_utils/text_utils.js';
 import {TestRunner} from '../test_runner/test_runner.js';
 
 /**
@@ -18,10 +20,12 @@ function nextId(prefix) {
   return (prefix || '') + ++id;
 }
 
+const defaultContentScriptDomain = 'chrome-extension://ahfhijdlegdabablpippeagghigmibma';
+
 SDKTestRunner.PageMock = class {
   constructor(url) {
     this.url = url;
-    this.type = SDK.Target.Type.Frame;
+    this.type = SDK.Target.Type.FRAME;
     this.enabledDomains = new Set();
     this.children = new Map();
 
@@ -36,6 +40,7 @@ SDKTestRunner.PageMock = class {
       'Debugger.enable': this.debuggerEnable,
       'Debugger.getScriptSource': this.debuggerGetScriptSource,
       'Debugger.setBlackboxPatterns': (id, params) => this.sendResponse(id, {}),
+      'Debugger.setBlackboxExecutionContexts': (id, params) => {},
       'Runtime.enable': this.runtimeEnable,
       'Page.enable': this.pageEnable,
       'Page.getResourceTree': this.pageGetResourceTree
@@ -47,21 +52,23 @@ SDKTestRunner.PageMock = class {
   }
 
   connectAsMainTarget(targetName) {
-    self.Bindings.debuggerWorkspaceBinding.resetForTest(TestRunner.mainTarget);
-    self.Bindings.resourceMapping.resetForTest(TestRunner.mainTarget);
+    Bindings.DebuggerWorkspaceBinding.DebuggerWorkspaceBinding.instance().resetForTest(TestRunner.mainTarget);
+    Bindings.DebuggerWorkspaceBinding.DebuggerWorkspaceBinding.instance().resourceMapping.resetForTest(
+        TestRunner.mainTarget);
     this.enabledDomains.clear();
-    self.SDK.targetManager.clearAllTargetsForTest();
+    SDK.TargetManager.TargetManager.instance().clearAllTargetsForTest();
 
-    const oldFactory = ProtocolClient.Connection.getFactory();
-    ProtocolClient.Connection.setFactory(() => {
+    const oldFactory = ProtocolClient.InspectorBackend.Connection.getFactory();
+    ProtocolClient.InspectorBackend.Connection.setFactory(() => {
       this.connection = new MockPageConnection(this);
       return this.connection;
     });
-    const target = self.SDK.targetManager.createTarget(nextId('mock-target-'), targetName, this.type, null);
-    ProtocolClient.Connection.setFactory(oldFactory);
+    const target =
+        SDK.TargetManager.TargetManager.instance().createTarget(nextId('mock-target-'), targetName, this.type, null);
+    ProtocolClient.InspectorBackend.Connection.setFactory(oldFactory);
 
     this.target = target;
-    self.SDK.targetManager.setScopeTarget(target);
+    SDK.TargetManager.TargetManager.instance().setScopeTarget(target);
     return target;
   }
 
@@ -70,8 +77,8 @@ SDKTestRunner.PageMock = class {
     this.sessionId = nextId('mock-target-');
     this.root = parentMock.root || parentMock;
     this.root.children.set(this.sessionId, this);
-    const target =
-        self.SDK.targetManager.createTarget(this.sessionId, targetName, this.type, parentMock.target, this.sessionId);
+    const target = SDK.TargetManager.TargetManager.instance().createTarget(
+        this.sessionId, targetName, this.type, parentMock.target, this.sessionId);
     this.target = target;
     return target;
   }
@@ -91,6 +98,13 @@ SDKTestRunner.PageMock = class {
 
   evalScript(url, content, isContentScript) {
     const id = nextId();
+
+    // If the input is a filename but not a complete URL just add it to the default
+    // content script domain.
+    if (isContentScript && url.match(/.*\.js$/) && !url.match(/^[a-z\-]+:\/\//)) {
+      url = defaultContentScriptDomain + '/' + url;
+    }
+
     content += '\n//# sourceURL=' + url;
     this.scriptContents.set(id, content);
     let context = this.executionContexts.find(context => context.auxData.isDefault !== isContentScript);
@@ -99,14 +113,14 @@ SDKTestRunner.PageMock = class {
       context = this.createExecutionContext(this.mainFrame, isContentScript);
       this.executionContexts.push(context);
 
-      this.fireEvent('Runtime.executionContextCreated', {context: context});
+      this.fireEvent('Runtime.executionContextCreated', {context});
     }
 
-    const text = new TextUtils.Text(content);
+    const text = new TextUtils.Text.Text(content);
 
     const script = {
       scriptId: id,
-      url: url,
+      url,
       startLine: 0,
       startColumn: 0,
       endLine: text.lineCount(),
@@ -147,7 +161,7 @@ SDKTestRunner.PageMock = class {
     this.executionContexts.push(this.createExecutionContext(this.mainFrame, false));
 
     for (const context of this.executionContexts) {
-      this.fireEvent('Runtime.executionContextCreated', {context: context});
+      this.fireEvent('Runtime.executionContextCreated', {context});
     }
 
     this.fireEvent('Page.frameNavigated', {frame: this.mainFrame});
@@ -160,12 +174,13 @@ SDKTestRunner.PageMock = class {
   }
 
   createExecutionContext(frame, isContentScript) {
+    const id = nextId();
     return {
-      id: nextId(),
-
+      id,
+      uniqueId: `unique-id-${id}`,
       auxData: {isDefault: !isContentScript, frameId: frame.id},
 
-      origin: frame.securityOrigin,
+      origin: isContentScript ? defaultContentScriptDomain : frame.securityOrigin,
       name: isContentScript ? 'content-script-context' : ''
     };
   }
@@ -196,7 +211,7 @@ SDKTestRunner.PageMock = class {
     this.sendResponse(id, {});
 
     for (const context of this.executionContexts) {
-      this.fireEvent('Runtime.executionContextCreated', {context: context});
+      this.fireEvent('Runtime.executionContextCreated', {context});
     }
   }
 
@@ -215,7 +230,7 @@ SDKTestRunner.PageMock = class {
     const domain = methodName.split('.')[0];
 
     if (domain === 'Page') {
-      return this.type === SDK.Target.Type.Frame;
+      return this.type === SDK.Target.Type.FRAME;
     }
 
     return true;
@@ -237,11 +252,12 @@ SDKTestRunner.PageMock = class {
     }
 
     this.sendResponse(
-        id, undefined, {message: 'Can\'t handle command ' + methodName, code: ProtocolClient.DevToolsStubErrorCode});
+        id, undefined,
+        {message: 'Can\'t handle command ' + methodName, code: ProtocolClient.InspectorBackend.DevToolsStubErrorCode});
   }
 
   sendResponse(id, result, error) {
-    const message = {id: id, result: result, error: error};
+    const message = {id, result, error};
     if (this.root) {
       message.sessionId = this.sessionId;
       this.root.connection.sendMessageToDevTools(message);
@@ -257,7 +273,7 @@ SDKTestRunner.PageMock = class {
       return;
     }
 
-    const message = {method: methodName, params: params};
+    const message = {method: methodName, params};
     if (this.root) {
       message.sessionId = this.sessionId;
       this.root.connection.sendMessageToDevTools(message);

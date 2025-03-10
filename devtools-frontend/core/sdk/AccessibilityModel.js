@@ -2,17 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 import { DeferredDOMNode } from './DOMModel.js';
-import { Capability } from './Target.js';
 import { SDKModel } from './SDKModel.js';
-// TODO(crbug.com/1167717): Make this a const enum again
-// eslint-disable-next-line rulesdir/const_enum
-export var CoreAxPropertyName;
-(function (CoreAxPropertyName) {
-    CoreAxPropertyName["Name"] = "name";
-    CoreAxPropertyName["Description"] = "description";
-    CoreAxPropertyName["Value"] = "value";
-    CoreAxPropertyName["Role"] = "role";
-})(CoreAxPropertyName || (CoreAxPropertyName = {}));
 export class AccessibilityNode {
     #accessibilityModelInternal;
     #idInternal;
@@ -50,7 +40,7 @@ export class AccessibilityNode {
         this.#descriptionInternal = payload.description || null;
         this.#valueInternal = payload.value || null;
         this.#propertiesInternal = payload.properties || null;
-        this.#childIds = payload.childIds || null;
+        this.#childIds = [...new Set(payload.childIds)];
         this.#parentId = payload.parentId || null;
         if (payload.frameId && !payload.parentId) {
             this.#frameId = payload.frameId;
@@ -78,13 +68,13 @@ export class AccessibilityNode {
     coreProperties() {
         const properties = [];
         if (this.#nameInternal) {
-            properties.push({ name: CoreAxPropertyName.Name, value: this.#nameInternal });
+            properties.push({ name: "name" /* CoreAxPropertyName.NAME */, value: this.#nameInternal });
         }
         if (this.#descriptionInternal) {
-            properties.push({ name: CoreAxPropertyName.Description, value: this.#descriptionInternal });
+            properties.push({ name: "description" /* CoreAxPropertyName.DESCRIPTION */, value: this.#descriptionInternal });
         }
         if (this.#valueInternal) {
-            properties.push({ name: CoreAxPropertyName.Value, value: this.#valueInternal });
+            properties.push({ name: "value" /* CoreAxPropertyName.VALUE */, value: this.#valueInternal });
         }
         return properties;
     }
@@ -159,12 +149,6 @@ export class AccessibilityNode {
         return this.#frameId || this.parentNode()?.getFrameId() || null;
     }
 }
-// TODO(crbug.com/1167717): Make this a const enum again
-// eslint-disable-next-line rulesdir/const_enum
-export var Events;
-(function (Events) {
-    Events["TreeUpdated"] = "TreeUpdated";
-})(Events || (Events = {}));
 export class AccessibilityModel extends SDKModel {
     agent;
     #axIdToAXNode;
@@ -208,11 +192,11 @@ export class AccessibilityModel extends SDKModel {
     loadComplete({ root }) {
         this.clear();
         this.#root = new AccessibilityNode(this, root);
-        this.dispatchEventToListeners(Events.TreeUpdated, { root: this.#root });
+        this.dispatchEventToListeners("TreeUpdated" /* Events.TREE_UPDATED */, { root: this.#root });
     }
     nodesUpdated({ nodes }) {
         this.createNodesFromPayload(nodes);
-        this.dispatchEventToListeners(Events.TreeUpdated, {});
+        this.dispatchEventToListeners("TreeUpdated" /* Events.TREE_UPDATED */, {});
         return;
     }
     createNodesFromPayload(payloadNodes) {
@@ -238,7 +222,7 @@ export class AccessibilityModel extends SDKModel {
     async requestAXChildren(nodeId, frameId) {
         const parent = this.#axIdToAXNode.get(nodeId);
         if (!parent) {
-            throw Error('Cannot request children before parent');
+            throw new Error('Cannot request children before parent');
         }
         if (!parent.hasUnloadedChildren()) {
             return parent.children();
@@ -283,9 +267,6 @@ export class AccessibilityModel extends SDKModel {
     setRootAXNodeForFrameId(frameId, axNode) {
         this.#frameIdToAXNode.set(frameId, axNode);
     }
-    axNodeForFrameId(frameId) {
-        return this.#frameIdToAXNode.get(frameId) ?? null;
-    }
     setAXNodeForAXId(axId, axNode) {
         this.#axIdToAXNode.set(axId, axNode);
     }
@@ -302,5 +283,5 @@ export class AccessibilityModel extends SDKModel {
         return this.agent;
     }
 }
-SDKModel.register(AccessibilityModel, { capabilities: Capability.DOM, autostart: false });
+SDKModel.register(AccessibilityModel, { capabilities: 2 /* Capability.DOM */, autostart: false });
 //# sourceMappingURL=AccessibilityModel.js.map

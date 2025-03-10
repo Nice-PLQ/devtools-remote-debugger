@@ -2,7 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 import * as i18n from '../../core/i18n/i18n.js';
-import * as Platform from '../../core/platform/platform.js';
 import * as Root from '../../core/root/root.js';
 import { PreRegisteredView } from './ViewManager.js';
 const UIStrings = {
@@ -41,7 +40,9 @@ const registeredViewExtensions = [];
 const viewIdSet = new Set();
 export function registerViewExtension(registration) {
     const viewId = registration.id;
-    Platform.DCHECK(() => !viewIdSet.has(viewId), `Duplicate view id '${viewId}'`);
+    if (viewIdSet.has(viewId)) {
+        throw new Error(`Duplicate view id '${viewId}'`);
+    }
     viewIdSet.add(viewId);
     registeredViewExtensions.push(new PreRegisteredView(registration));
 }
@@ -75,35 +76,23 @@ export function resetViewRegistration() {
     viewLocationNameSet.clear();
     viewIdSet.clear();
 }
-// eslint-disable-next-line rulesdir/const_enum
-export var ViewLocationCategory;
-(function (ViewLocationCategory) {
-    ViewLocationCategory["NONE"] = "";
-    ViewLocationCategory["ELEMENTS"] = "ELEMENTS";
-    ViewLocationCategory["DRAWER"] = "DRAWER";
-    ViewLocationCategory["DRAWER_SIDEBAR"] = "DRAWER_SIDEBAR";
-    ViewLocationCategory["PANEL"] = "PANEL";
-    ViewLocationCategory["NETWORK"] = "NETWORK";
-    ViewLocationCategory["SETTINGS"] = "SETTINGS";
-    ViewLocationCategory["SOURCES"] = "SOURCES";
-})(ViewLocationCategory || (ViewLocationCategory = {}));
 export function getLocalizedViewLocationCategory(category) {
     switch (category) {
-        case ViewLocationCategory.ELEMENTS:
+        case "ELEMENTS" /* ViewLocationCategory.ELEMENTS */:
             return i18nString(UIStrings.elements);
-        case ViewLocationCategory.DRAWER:
+        case "DRAWER" /* ViewLocationCategory.DRAWER */:
             return i18nString(UIStrings.drawer);
-        case ViewLocationCategory.DRAWER_SIDEBAR:
+        case "DRAWER_SIDEBAR" /* ViewLocationCategory.DRAWER_SIDEBAR */:
             return i18nString(UIStrings.drawer_sidebar);
-        case ViewLocationCategory.PANEL:
+        case "PANEL" /* ViewLocationCategory.PANEL */:
             return i18nString(UIStrings.panel);
-        case ViewLocationCategory.NETWORK:
+        case "NETWORK" /* ViewLocationCategory.NETWORK */:
             return i18nString(UIStrings.network);
-        case ViewLocationCategory.SETTINGS:
+        case "SETTINGS" /* ViewLocationCategory.SETTINGS */:
             return i18nString(UIStrings.settings);
-        case ViewLocationCategory.SOURCES:
+        case "SOURCES" /* ViewLocationCategory.SOURCES */:
             return i18nString(UIStrings.sources);
-        case ViewLocationCategory.NONE:
+        case "" /* ViewLocationCategory.NONE */:
             return i18n.i18n.lockedString('');
     }
 }

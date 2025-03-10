@@ -45,7 +45,7 @@ export class ChunkedFileReader {
         this.#file = file;
         this.#fileSizeInternal = file.size;
         this.#loadedSizeInternal = 0;
-        this.#chunkSize = chunkSize;
+        this.#chunkSize = (chunkSize) ? chunkSize : Number.MAX_VALUE;
         this.#chunkTransferredCallback = chunkTransferredCallback;
         this.#decoder = new TextDecoder();
         this.#isCanceled = false;
@@ -71,7 +71,7 @@ export class ChunkedFileReader {
         }
         this.#output = output;
         void this.loadChunk();
-        return new Promise(resolve => {
+        return await new Promise(resolve => {
             this.#transferFinished = resolve;
         });
     }
@@ -120,7 +120,7 @@ export class ChunkedFileReader {
             return;
         }
         const decodedString = this.#decoder.decode(buffer, { stream: !endOfFile });
-        await this.#output.write(decodedString);
+        await this.#output.write(decodedString, endOfFile);
         if (this.#isCanceled) {
             return;
         }
@@ -149,7 +149,9 @@ export class ChunkedFileReader {
         if (this.#streamReader) {
             const { value, done } = await this.#streamReader.read();
             if (done || !value) {
-                return this.finishRead();
+                // Write empty string to inform of file end
+                await this.#output.write('', true);
+                return await this.finishRead();
             }
             void this.decodeChunkBuffer(value.buffer, false);
         }
@@ -177,9 +179,9 @@ export class FileOutputStream {
         this.#closed = false;
         this.#writeCallbacks = [];
         this.#fileName = fileName;
-        const saveResponse = await Workspace.FileManager.FileManager.instance().save(this.#fileName, '', true);
+        const saveResponse = await Workspace.FileManager.FileManager.instance().save(this.#fileName, '', true, false /* isBase64 */);
         if (saveResponse) {
-            Workspace.FileManager.FileManager.instance().addEventListener(Workspace.FileManager.Events.AppendedToURL, this.onAppendDone, this);
+            Workspace.FileManager.FileManager.instance().addEventListener("AppendedToURL" /* Workspace.FileManager.Events.APPENDED_TO_URL */, this.onAppendDone, this);
         }
         return Boolean(saveResponse);
     }
@@ -194,7 +196,7 @@ export class FileOutputStream {
         if (this.#writeCallbacks.length) {
             return;
         }
-        Workspace.FileManager.FileManager.instance().removeEventListener(Workspace.FileManager.Events.AppendedToURL, this.onAppendDone, this);
+        Workspace.FileManager.FileManager.instance().removeEventListener("AppendedToURL" /* Workspace.FileManager.Events.APPENDED_TO_URL */, this.onAppendDone, this);
         Workspace.FileManager.FileManager.instance().close(this.#fileName);
     }
     onAppendDone(event) {
@@ -211,7 +213,7 @@ export class FileOutputStream {
         if (!this.#closed) {
             return;
         }
-        Workspace.FileManager.FileManager.instance().removeEventListener(Workspace.FileManager.Events.AppendedToURL, this.onAppendDone, this);
+        Workspace.FileManager.FileManager.instance().removeEventListener("AppendedToURL" /* Workspace.FileManager.Events.APPENDED_TO_URL */, this.onAppendDone, this);
         Workspace.FileManager.FileManager.instance().close(this.#fileName);
     }
 }

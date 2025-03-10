@@ -1,9 +1,8 @@
 // Copyright 2022 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
-import { Capability } from './Target.js';
-import { SDKModel } from './SDKModel.js';
 import * as Common from '../common/common.js';
+import { SDKModel } from './SDKModel.js';
 export class StorageKeyManager extends SDKModel {
     #mainStorageKeyInternal;
     #storageKeysInternal;
@@ -17,12 +16,12 @@ export class StorageKeyManager extends SDKModel {
         this.#storageKeysInternal = storageKeys;
         for (const storageKey of oldStorageKeys) {
             if (!this.#storageKeysInternal.has(storageKey)) {
-                this.dispatchEventToListeners(Events.StorageKeyRemoved, storageKey);
+                this.dispatchEventToListeners("StorageKeyRemoved" /* Events.STORAGE_KEY_REMOVED */, storageKey);
             }
         }
         for (const storageKey of this.#storageKeysInternal) {
             if (!oldStorageKeys.has(storageKey)) {
-                this.dispatchEventToListeners(Events.StorageKeyAdded, storageKey);
+                this.dispatchEventToListeners("StorageKeyAdded" /* Events.STORAGE_KEY_ADDED */, storageKey);
             }
         }
     }
@@ -34,7 +33,7 @@ export class StorageKeyManager extends SDKModel {
     }
     setMainStorageKey(storageKey) {
         this.#mainStorageKeyInternal = storageKey;
-        this.dispatchEventToListeners(Events.MainStorageKeyChanged, {
+        this.dispatchEventToListeners("MainStorageKeyChanged" /* Events.MAIN_STORAGE_KEY_CHANGED */, {
             mainStorageKey: this.#mainStorageKeyInternal,
         });
     }
@@ -50,14 +49,6 @@ export function parseStorageKey(storageKeyString) {
     }
     return storageKey;
 }
-// TODO(crbug.com/1167717): Make this a const enum again
-// eslint-disable-next-line rulesdir/const_enum
-export var Events;
-(function (Events) {
-    Events["StorageKeyAdded"] = "StorageKeyAdded";
-    Events["StorageKeyRemoved"] = "StorageKeyRemoved";
-    Events["MainStorageKeyChanged"] = "MainStorageKeyChanged";
-})(Events || (Events = {}));
 // TODO(jarhar): this is the one of the two usages of Capability.None. Do something about it!
-SDKModel.register(StorageKeyManager, { capabilities: Capability.None, autostart: false });
+SDKModel.register(StorageKeyManager, { capabilities: 0 /* Capability.NONE */, autostart: false });
 //# sourceMappingURL=StorageKeyManager.js.map

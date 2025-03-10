@@ -2,7 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 import * as i18n from '../../core/i18n/i18n.js';
-import * as Root from '../../core/root/root.js';
 import * as UI from '../../ui/legacy/legacy.js';
 const UIStrings = {
     /**
@@ -32,8 +31,7 @@ UI.ViewManager.registerViewExtension({
     persistence: "closeable" /* UI.ViewManager.ViewPersistence.CLOSEABLE */,
     async loadView() {
         const Webauthn = await loadWebauthnModule();
-        return Webauthn.WebauthnPane.WebauthnPaneImpl.instance();
+        return new Webauthn.WebauthnPane.WebauthnPaneImpl();
     },
-    experiment: Root.Runtime.ExperimentName.WEBAUTHN_PANE,
 });
 //# sourceMappingURL=webauthn-meta.js.map

@@ -1,14 +1,19 @@
 // Copyright 2021 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
+import '../../../../ui/legacy/legacy.js';
 import * as i18n from '../../../../core/i18n/i18n.js';
+import * as Platform from '../../../../core/platform/platform.js';
 import * as Buttons from '../../../../ui/components/buttons/buttons.js';
-import * as ComponentHelpers from '../../../../ui/components/helpers/helpers.js';
-import * as LitHtml from '../../../../ui/lit-html/lit-html.js';
-import userAgentClientHintsFormStyles from './userAgentClientHintsForm.css.js';
 import * as Input from '../../../../ui/components/input/input.js';
-import * as IconButton from '../../../../ui/components/icon_button/icon_button.js';
+import * as Lit from '../../../../ui/lit/lit.js';
+import * as VisualLogging from '../../../../ui/visual_logging/visual_logging.js';
 import * as EmulationUtils from '../utils/utils.js';
+import userAgentClientHintsFormStylesRaw from './userAgentClientHintsForm.css.js';
+// TODO(crbug.com/391381439): Fully migrate off of constructed style sheets.
+const userAgentClientHintsFormStyles = new CSSStyleSheet();
+userAgentClientHintsFormStyles.replaceSync(userAgentClientHintsFormStylesRaw.cssContent);
+const { html } = Lit;
 const UIStrings = {
     /**
      * @description Title for user agent client hints form
@@ -181,9 +186,7 @@ const DEFAULT_METADATA = {
  * Component for user agent client hints form, it is used in device settings panel
  * and network conditions panel. It is customizable through showMobileCheckbox and showSubmitButton.
  */
-// eslint-disable-next-line rulesdir/custom_element_definitions_location
 export class UserAgentClientHintsForm extends HTMLElement {
-    static litTagName = LitHtml.literal `devtools-user-agent-client-hints-form`;
     #shadow = this.attachShadow({ mode: 'open' });
     #isFormOpened = false;
     #isFormDisabled = false;
@@ -403,7 +406,7 @@ export class UserAgentClientHintsForm extends HTMLElement {
             const value = event.target.value;
             this.#handleInputChange(stateKey, value);
         };
-        return LitHtml.html `
+        return html `
       <label class="full-row label input-field-label-container">
         ${label}
         <input
@@ -412,7 +415,8 @@ export class UserAgentClientHintsForm extends HTMLElement {
           @input=${handleInputChange}
           .value=${value}
           placeholder=${placeholder}
-        />
+          jslog=${VisualLogging.textField().track({ change: true }).context(Platform.StringUtilities.toKebabCase(stateKey))}
+          />
       </label>
     `;
     }
@@ -426,7 +430,7 @@ export class UserAgentClientHintsForm extends HTMLElement {
             const value = event.target.value;
             this.#handleInputChange('platformVersion', value);
         };
-        return LitHtml.html `
+        return html `
       <span class="full-row label">${i18nString(UIStrings.platformLabel)}</span>
       <div class="full-row brand-row" aria-label=${i18nString(UIStrings.platformProperties)} role="group">
         <input
@@ -436,6 +440,9 @@ export class UserAgentClientHintsForm extends HTMLElement {
           .value=${platform}
           placeholder=${i18nString(UIStrings.platformPlaceholder)}
           aria-label=${i18nString(UIStrings.platformLabel)}
+          jslog=${VisualLogging.textField('platform').track({
+            change: true,
+        })}
         />
         <input
           class="input-field half-row"
@@ -444,6 +451,9 @@ export class UserAgentClientHintsForm extends HTMLElement {
           .value=${platformVersion}
           placeholder=${i18nString(UIStrings.platformVersion)}
           aria-label=${i18nString(UIStrings.platformVersion)}
+          jslog=${VisualLogging.textField('platform-version').track({
+            change: true,
+        })}
         />
       </div>
     `;
@@ -458,14 +468,18 @@ export class UserAgentClientHintsForm extends HTMLElement {
             const value = event.target.checked;
             this.#handleInputChange('mobile', value);
         };
-        const mobileCheckboxInput = this.#showMobileCheckbox ? LitHtml.html `
+        const mobileCheckboxInput = this.#showMobileCheckbox ? html `
       <label class="mobile-checkbox-container">
-        <input type="checkbox" @input=${handleMobileChange} .checked=${mobile} />
+        <input type="checkbox" @input=${handleMobileChange} .checked=${mobile}
+          jslog=${VisualLogging.toggle('mobile').track({
+            click: true,
+        })}
+        />
         ${i18nString(UIStrings.mobileCheckboxLabel)}
       </label>
     ` :
-            LitHtml.html ``;
-        return LitHtml.html `
+            html ``;
+        return html `
       <span class="full-row label">${i18nString(UIStrings.deviceModel)}</span>
       <div class="full-row brand-row" aria-label=${i18nString(UIStrings.deviceProperties)} role="group">
         <input
@@ -474,6 +488,9 @@ export class UserAgentClientHintsForm extends HTMLElement {
           @input=${handleDeviceModelChange}
           .value=${model}
           placeholder=${i18nString(UIStrings.deviceModel)}
+          jslog=${VisualLogging.textField('model').track({
+            change: true,
+        })}
         />
         ${mobileCheckboxInput}
       </div>
@@ -505,7 +522,7 @@ export class UserAgentClientHintsForm extends HTMLElement {
                 const value = event.target.value;
                 this.#handleUseragentInputChange(value, index, 'brandVersion');
             };
-            return LitHtml.html `
+            return html `
         <div class="full-row brand-row" aria-label=${i18nString(UIStrings.brandProperties)} role="group">
           <input
             class="input-field ua-brand-name-input"
@@ -517,6 +534,9 @@ export class UserAgentClientHintsForm extends HTMLElement {
             aria-label=${i18nString(UIStrings.brandNameAriaLabel, {
                 PH1: index + 1,
             })}
+            jslog=${VisualLogging.textField('brand-name').track({
+                change: true,
+            })}
           />
           <input
             class="input-field"
@@ -527,9 +547,14 @@ export class UserAgentClientHintsForm extends HTMLElement {
             aria-label=${i18nString(UIStrings.brandVersionAriaLabel, {
                 PH1: index + 1,
             })}
+            jslog=${VisualLogging.textField('brand-version').track({
+                change: true,
+            })}
           />
-          <${IconButton.Icon.Icon.litTagName}
-            .data=${{ color: 'var(--icon-default)', iconName: 'bin', width: '16px', height: '16px' }}
+          <devtools-icon
+            .data=${{
+                color: 'var(--icon-default)', iconName: 'bin', width: '16px', height: '16px',
+            }}
             title=${i18nString(UIStrings.brandUserAgentDelete)}
             class="delete-icon"
             tabindex="0"
@@ -538,11 +563,11 @@ export class UserAgentClientHintsForm extends HTMLElement {
             @keypress=${handleKeyPress}
             aria-label=${i18nString(UIStrings.brandUserAgentDelete)}
           >
-          </${IconButton.Icon.Icon.litTagName}>
+          </devtools-icon>
         </div>
       `;
         });
-        return LitHtml.html `
+        return html `
       <span class="full-row label">${i18nString(UIStrings.useragent)}</span>
       ${brandElements}
       <div
@@ -554,11 +579,13 @@ export class UserAgentClientHintsForm extends HTMLElement {
         @click=${this.#handleAddUseragentBrandClick}
         @keypress=${this.#handleAddUseragentBrandKeyPress}
       >
-        <${IconButton.Icon.Icon.litTagName}
+        <devtools-icon
           aria-hidden="true"
-          .data=${{ color: 'var(--icon-default)', iconName: 'plus', width: '16px' }}
+          .data=${{
+            color: 'var(--icon-default)', iconName: 'plus', width: '16px',
+        }}
         >
-        </${IconButton.Icon.Icon.litTagName}>
+        </devtools-icon>
         ${i18nString(UIStrings.addBrand)}
       </div>
     `;
@@ -589,8 +616,12 @@ export class UserAgentClientHintsForm extends HTMLElement {
                 const value = event.target.value;
                 this.#handleFullVersionListInputChange(value, index, 'brandVersion');
             };
-            return LitHtml.html `
-        <div class="full-row brand-row" aria-label=${i18nString(UIStrings.brandProperties)} role="group">
+            return html `
+        <div
+          class="full-row brand-row"
+          aria-label=${i18nString(UIStrings.brandProperties)}
+          jslog=${VisualLogging.section('full-version')}
+          role="group">
           <input
             class="input-field fvl-brand-name-input"
             type="text"
@@ -600,6 +631,9 @@ export class UserAgentClientHintsForm extends HTMLElement {
             placeholder=${i18nString(UIStrings.brandName)}
             aria-label=${i18nString(UIStrings.brandNameAriaLabel, {
                 PH1: index + 1,
+            })}
+            jslog=${VisualLogging.textField('brand-name').track({
+                change: true,
             })}
           />
           <input
@@ -611,9 +645,14 @@ export class UserAgentClientHintsForm extends HTMLElement {
             aria-label=${i18nString(UIStrings.brandVersionAriaLabel, {
                 PH1: index + 1,
             })}
+            jslog=${VisualLogging.textField('brand-version').track({
+                change: true,
+            })}
           />
-          <${IconButton.Icon.Icon.litTagName}
-            .data=${{ color: 'var(--icon-default)', iconName: 'bin', width: '16px', height: '16px' }}
+          <devtools-icon
+            .data=${{
+                color: 'var(--icon-default)', iconName: 'bin', width: '16px', height: '16px',
+            }}
             title=${i18nString(UIStrings.brandFullVersionListDelete)}
             class="delete-icon"
             tabindex="0"
@@ -622,11 +661,11 @@ export class UserAgentClientHintsForm extends HTMLElement {
             @keypress=${handleKeyPress}
             aria-label=${i18nString(UIStrings.brandFullVersionListDelete)}
           >
-          </${IconButton.Icon.Icon.litTagName}>
+          </devtools-icon>
         </div>
       `;
         });
-        return LitHtml.html `
+        return html `
       <span class="full-row label">${i18nString(UIStrings.fullVersionList)}</span>
       ${elements}
       <div
@@ -638,11 +677,13 @@ export class UserAgentClientHintsForm extends HTMLElement {
         @click=${this.#handleAddFullVersionListBrandClick}
         @keypress=${this.#handleAddFullVersionListBrandKeyPress}
       >
-        <${IconButton.Icon.Icon.litTagName}
+        <devtools-icon
           aria-hidden="true"
-          .data=${{ color: 'var(--icon-default)', iconName: 'plus', width: '16px' }}
+          .data=${{
+            color: 'var(--icon-default)', iconName: 'plus', width: '16px',
+        }}
         >
-        </${IconButton.Icon.Icon.litTagName}>
+        </devtools-icon>
         ${i18nString(UIStrings.addBrand)}
       </div>
     `;
@@ -656,55 +697,56 @@ export class UserAgentClientHintsForm extends HTMLElement {
         const architectureInput = this.#renderInputWithLabel(i18nString(UIStrings.architecture), i18nString(UIStrings.architecturePlaceholder), architecture, 'architecture');
         const deviceModelSection = this.#renderDeviceModelSection();
         // clang-format off
-        const submitButton = this.#showSubmitButton ? LitHtml.html `
-      <${Buttons.Button.Button.litTagName}
-        .variant=${"secondary" /* Buttons.Button.Variant.SECONDARY */}
+        const submitButton = this.#showSubmitButton ? html `
+      <devtools-button
+        .variant=${"outlined" /* Buttons.Button.Variant.OUTLINED */}
         .type=${'submit'}
       >
         ${i18nString(UIStrings.update)}
-      </${Buttons.Button.Button.litTagName}>
-    ` : LitHtml.nothing;
+      </devtools-button>
+    ` : Lit.nothing;
         // clang-format on
         // clang-format off
-        const output = LitHtml.html `
+        const output = html `
       <section class="root">
         <div
           class="tree-title"
           role="button"
           @click=${this.#handleTreeClick}
-          tabindex="0"
+          tabindex=${this.#isFormDisabled ? '-1' : '0'}
           @keydown=${this.#handleTreeExpand}
           aria-expanded=${this.#isFormOpened}
           aria-controls="form-container"
-          @disabled=${this.#isFormDisabled}
           aria-disabled=${this.#isFormDisabled}
           aria-label=${i18nString(UIStrings.title)}
+          jslog=${VisualLogging.toggleSubpane().track({ click: true })}
         >
-          <${IconButton.Icon.Icon.litTagName}
+          <devtools-icon
             class=${this.#isFormOpened ? 'rotate-icon' : ''}
             .data=${{
             color: 'var(--icon-default)',
             iconName: 'triangle-right',
             width: '14px',
         }}
-          ></${IconButton.Icon.Icon.litTagName}>
+          ></devtools-icon>
           ${i18nString(UIStrings.title)}
-          <${IconButton.Icon.Icon.litTagName}
+          <devtools-icon
             .data=${{
             color: 'var(--icon-default)',
             iconName: 'info',
             width: '16px',
         }}
             title=${i18nString(UIStrings.userAgentClientHintsInfo)}
-            class='info-icon',
-          ></${IconButton.Icon.Icon.litTagName}>
+            class='info-icon'
+          ></devtools-icon>
           <x-link
-           tabindex="0"
+           tabindex=${this.#isFormDisabled ? '-1' : '0'}
            href="https://web.dev/user-agent-client-hints/"
            target="_blank"
            class="link"
            @keypress=${this.#handleLinkPress}
            aria-label=${i18nString(UIStrings.userAgentClientHintsInfo)}
+           jslog=${VisualLogging.link('learn-more').track({ click: true })}
           >
             ${i18nString(UIStrings.learnMore)}
           </x-link>
@@ -726,7 +768,7 @@ export class UserAgentClientHintsForm extends HTMLElement {
       </section>
     `;
         // clang-format on
-        LitHtml.render(output, this.#shadow, { host: this });
+        Lit.render(output, this.#shadow, { host: this });
     }
     validate = () => {
         for (const [metaDataKey, metaDataValue] of Object.entries(this.#metaData)) {
@@ -752,5 +794,5 @@ export class UserAgentClientHintsForm extends HTMLElement {
         return { valid: true };
     };
 }
-ComponentHelpers.CustomElements.defineComponent('devtools-user-agent-client-hints-form', UserAgentClientHintsForm);
+customElements.define('devtools-user-agent-client-hints-form', UserAgentClientHintsForm);
 //# sourceMappingURL=UserAgentClientHintsForm.js.map

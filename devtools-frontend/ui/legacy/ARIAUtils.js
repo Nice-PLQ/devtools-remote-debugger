@@ -2,11 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 import * as Platform from '../../core/platform/platform.js';
-// TODO(crbug.com/1172300) Ignored during the jsdoc to ts migration
-// eslint-disable-next-line @typescript-eslint/naming-convention
-let _id = 0;
+import { Dialog } from './Dialog.js';
+let id = 0;
 export function nextId(prefix) {
-    return (prefix || '') + ++_id;
+    return (prefix || '') + ++id;
 }
 export function bindLabelToControl(label, control) {
     const controlId = nextId('labelledControl');
@@ -112,9 +111,6 @@ export function markAsOption(element) {
 export function markAsRadioGroup(element) {
     element.setAttribute('role', 'radiogroup');
 }
-export function markAsHidden(element) {
-    element.setAttribute('aria-hidden', 'true');
-}
 export function markAsSlider(element, min = 0, max = 100) {
     element.setAttribute('role', 'slider');
     element.setAttribute('aria-valuemin', String(min));
@@ -129,9 +125,6 @@ export function markAsPoliteLiveRegion(element, isAtomic) {
     if (isAtomic) {
         element.setAttribute('aria-atomic', 'true');
     }
-}
-export function markAsLog(element) {
-    element.setAttribute('role', 'log');
 }
 export function hasRole(element) {
     return element.hasAttribute('role');
@@ -192,36 +185,19 @@ export function unsetExpandable(element) {
     element.removeAttribute('aria-expanded');
 }
 export function setHidden(element, value) {
-    element.setAttribute('aria-hidden', (Boolean(value)).toString());
+    element.setAttribute('aria-hidden', value.toString());
 }
 export function setLevel(element, level) {
     element.setAttribute('aria-level', level.toString());
 }
-// TODO(crbug.com/1167717): Make this a const enum again
-// eslint-disable-next-line rulesdir/const_enum
-export var AutocompleteInteractionModel;
-(function (AutocompleteInteractionModel) {
-    // TODO(crbug.com/1172300) Ignored during the jsdoc to ts migration
-    // eslint-disable-next-line @typescript-eslint/naming-convention
-    AutocompleteInteractionModel["inline"] = "inline";
-    // TODO(crbug.com/1172300) Ignored during the jsdoc to ts migration
-    // eslint-disable-next-line @typescript-eslint/naming-convention
-    AutocompleteInteractionModel["list"] = "list";
-    // TODO(crbug.com/1172300) Ignored during the jsdoc to ts migration
-    // eslint-disable-next-line @typescript-eslint/naming-convention
-    AutocompleteInteractionModel["both"] = "both";
-    // TODO(crbug.com/1172300) Ignored during the jsdoc to ts migration
-    // eslint-disable-next-line @typescript-eslint/naming-convention
-    AutocompleteInteractionModel["none"] = "none";
-})(AutocompleteInteractionModel || (AutocompleteInteractionModel = {}));
-export function setAutocomplete(element, interactionModel = AutocompleteInteractionModel.none) {
+export function setAutocomplete(element, interactionModel = "none" /* AutocompleteInteractionModel.NONE */) {
     element.setAttribute('aria-autocomplete', interactionModel);
 }
 export function clearAutocomplete(element) {
     element.removeAttribute('aria-autocomplete');
 }
-export function setHasPopup(element, value = "false" /* PopupRole.False */) {
-    if (value !== "false" /* PopupRole.False */) {
+export function setHasPopup(element, value = "false" /* PopupRole.FALSE */) {
+    if (value !== "false" /* PopupRole.FALSE */) {
         element.setAttribute('aria-haspopup', value);
     }
     else {
@@ -304,43 +280,48 @@ function hideFromLayout(element) {
     element.style.width = '100em';
     element.style.overflow = 'hidden';
 }
-let alertElementOne;
-let alertElementTwo;
-let alertToggle = false;
+const alertElements = new WeakMap();
+function createAlertElement(container) {
+    const element = container.createChild('div');
+    hideFromLayout(element);
+    element.setAttribute('role', 'alert');
+    element.setAttribute('aria-atomic', 'true');
+    return element;
+}
+export function getOrCreateAlertElements(container = document.body) {
+    let state = alertElements.get(container);
+    if (!state) {
+        state = {
+            one: createAlertElement(container),
+            two: createAlertElement(container),
+            alertToggle: false,
+        };
+        alertElements.set(container, state);
+    }
+    return state;
+}
 /**
  * This function instantiates and switches off returning one of two offscreen alert elements.
  * We utilize two alert elements to ensure that alerts with the same string are still registered
  * as changes and trigger screen reader announcement.
  */
-export function alertElementInstance() {
-    if (!alertElementOne) {
-        const element = document.body.createChild('div');
-        hideFromLayout(element);
-        element.setAttribute('role', 'alert');
-        element.setAttribute('aria-atomic', 'true');
-        alertElementOne = element;
+export function alertElementInstance(container = document.body) {
+    const state = getOrCreateAlertElements(container);
+    state.alertToggle = !state.alertToggle;
+    if (state.alertToggle) {
+        state.two.textContent = '';
+        return state.one;
     }
-    if (!alertElementTwo) {
-        const element = document.body.createChild('div');
-        hideFromLayout(element);
-        element.setAttribute('role', 'alert');
-        element.setAttribute('aria-atomic', 'true');
-        alertElementTwo = element;
-    }
-    alertToggle = !alertToggle;
-    if (alertToggle) {
-        alertElementTwo.textContent = '';
-        return alertElementOne;
-    }
-    alertElementOne.textContent = '';
-    return alertElementTwo;
+    state.one.textContent = '';
+    return state.two;
 }
 /**
  * This function is used to announce a message with the screen reader.
  * Setting the textContent would allow the SR to access the offscreen element via browse mode
  */
 export function alert(message) {
-    const element = alertElementInstance();
+    const dialog = Dialog.getInstance();
+    const element = alertElementInstance(dialog?.isShowing() ? dialog.contentElement : undefined);
     element.textContent = Platform.StringUtilities.trimEndWithMaxLength(message, 10000);
 }
 //# sourceMappingURL=ARIAUtils.js.map

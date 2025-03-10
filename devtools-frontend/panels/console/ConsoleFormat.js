@@ -1,6 +1,7 @@
 // Copyright 2021 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
+import * as Common from '../../core/common/common.js';
 // VGA color palette
 const ANSI_COLORS = ['black', 'red', 'green', 'yellow', 'blue', 'magenta', 'cyan', 'gray'];
 const ANSI_BRIGHT_COLORS = ['darkgray', 'lightred', 'lightgreen', 'lightyellow', 'lightblue', 'lightmagenta', 'lightcyan', 'white'];
@@ -195,7 +196,7 @@ export const updateStyle = (currentStyle, styleToAdd) => {
         // If any of them is not a `data` URL, we skip the whole property.
         const value = buffer.style.getPropertyValue(property);
         const potentialUrls = [...value.matchAll(URL_REGEX)].map(match => match[1]);
-        if (potentialUrls.some(potentialUrl => !potentialUrl.startsWith('data:'))) {
+        if (potentialUrls.some(potentialUrl => !Common.ParsedURL.schemeIs(potentialUrl, 'data:'))) {
             continue;
         }
         currentStyle.set(property, {

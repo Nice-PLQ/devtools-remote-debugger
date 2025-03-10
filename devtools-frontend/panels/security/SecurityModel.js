@@ -52,38 +52,24 @@ export class SecurityModel extends SDK.SDKModel.SDKModel {
     networkManager() {
         return this.target().model(SDK.NetworkManager.NetworkManager);
     }
-    // eslint-disable-next-line @typescript-eslint/naming-convention
-    static SecurityStateComparator(a, b) {
-        const securityStateMap = getOrCreateSecurityStateOrdinalMap();
-        const aScore = a && securityStateMap.get(a) || 0;
-        const bScore = b && securityStateMap.get(b) || 0;
-        return aScore - bScore;
-    }
 }
-let securityStateToOrdinal = null;
-const getOrCreateSecurityStateOrdinalMap = () => {
-    if (!securityStateToOrdinal) {
-        securityStateToOrdinal = new Map();
-        const ordering = [
-            "info" /* Protocol.Security.SecurityState.Info */,
-            "insecure-broken" /* Protocol.Security.SecurityState.InsecureBroken */,
-            "insecure" /* Protocol.Security.SecurityState.Insecure */,
-            "neutral" /* Protocol.Security.SecurityState.Neutral */,
-            "secure" /* Protocol.Security.SecurityState.Secure */,
-            "unknown" /* Protocol.Security.SecurityState.Unknown */,
-        ];
-        for (let i = 0; i < ordering.length; i++) {
-            securityStateToOrdinal.set(ordering[i], i + 1);
-        }
-    }
-    return securityStateToOrdinal;
-};
-SDK.SDKModel.SDKModel.register(SecurityModel, { capabilities: SDK.Target.Capability.Security, autostart: false });
-// TODO(crbug.com/1167717): Make this a const enum again
-// eslint-disable-next-line rulesdir/const_enum
+export function securityStateCompare(a, b) {
+    const SECURITY_STATE_ORDER = [
+        "info" /* Protocol.Security.SecurityState.Info */,
+        "insecure-broken" /* Protocol.Security.SecurityState.InsecureBroken */,
+        "insecure" /* Protocol.Security.SecurityState.Insecure */,
+        "neutral" /* Protocol.Security.SecurityState.Neutral */,
+        "secure" /* Protocol.Security.SecurityState.Secure */,
+        "unknown" /* Protocol.Security.SecurityState.Unknown */,
+    ];
+    return SECURITY_STATE_ORDER.indexOf(a) - SECURITY_STATE_ORDER.indexOf(b);
+}
+SDK.SDKModel.SDKModel.register(SecurityModel, { capabilities: 512 /* SDK.Target.Capability.SECURITY */, autostart: false });
 export var Events;
 (function (Events) {
+    /* eslint-disable @typescript-eslint/naming-convention -- Used by web_tests. */
     Events["VisibleSecurityStateChanged"] = "VisibleSecurityStateChanged";
+    /* eslint-enable @typescript-eslint/naming-convention */
 })(Events || (Events = {}));
 export const SummaryMessages = {
     ["unknown" /* Protocol.Security.SecurityState.Unknown */]: i18nLazyString(UIStrings.theSecurityOfThisPageIsUnknown),

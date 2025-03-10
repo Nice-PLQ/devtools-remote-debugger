@@ -3,18 +3,13 @@
 // found in the LICENSE file.
 // We need these enums here as enum values of enums defined in closure land
 // are typed as string, and hence provide for weaker type-checking.
-// eslint-disable-next-line rulesdir/const_enum
 export var FrontendMessageType;
 (function (FrontendMessageType) {
+    /* eslint-disable @typescript-eslint/naming-convention -- Used by web_tests. */
     FrontendMessageType["Result"] = "result";
     FrontendMessageType["Command"] = "command";
     FrontendMessageType["System"] = "system";
     FrontendMessageType["QueryObjectResult"] = "queryObjectResult";
+    /* eslint-enable @typescript-eslint/naming-convention */
 })(FrontendMessageType || (FrontendMessageType = {}));
-// eslint-disable-next-line rulesdir/const_enum
-export var FrontendMessageSource;
-(function (FrontendMessageSource) {
-    FrontendMessageSource["CSS"] = "css";
-    FrontendMessageSource["ConsoleAPI"] = "console-api";
-})(FrontendMessageSource || (FrontendMessageSource = {}));
 //# sourceMappingURL=ConsoleModelTypes.js.map

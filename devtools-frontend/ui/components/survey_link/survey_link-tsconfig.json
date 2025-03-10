@@ -32,8 +32,8 @@
     "../../../../../../../front_end/ui/components/survey_link/SurveyLink.ts",
     "../../../../../../../front_end/legacy/legacy-defs.d.ts",
     "../../../../../../../front_end/global_typings/global_defs.d.ts",
-    "../../../../../../../front_end/global_typings/request_idle_callback.d.ts",
-    "../../../../../../../node_modules/@types/filesystem/index.d.ts"
+    "../../../../../../../node_modules/@types/filesystem/index.d.ts",
+    "../../../../../../../node_modules/@types/wicg-task-scheduling/index.d.ts"
   ],
   "references": [
     {
@@ -49,7 +49,7 @@
       "path": "../helpers/bundle-tsconfig.json"
     },
     {
-      "path": "../../lit-html/bundle-tsconfig.json"
+      "path": "../../lit/bundle-tsconfig.json"
     },
     {
       "path": "../icon_button/bundle-tsconfig.json"

@@ -28,8 +28,10 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 import * as Common from '../../core/common/common.js';
+import * as Host from '../../core/host/host.js';
 import * as i18n from '../../core/i18n/i18n.js';
 import * as UI from '../../ui/legacy/legacy.js';
+import * as VisualLogging from '../../ui/visual_logging/visual_logging.js';
 import renderingOptionsStyles from './renderingOptions.css.js';
 const UIStrings = {
     /**
@@ -46,7 +48,7 @@ const UIStrings = {
      * (regions) of the page that were shifted (where a 'layout shift' occurred). A layout shift is
      * where elements on the webpage move around and cause other nearby elements to move as well.
      */
-    layoutShiftRegions: 'Layout Shift Regions',
+    layoutShiftRegions: 'Layout shift regions',
     /**
      * @description Explanation text for the 'Layout Shift Regions' setting in the Rendering tool.
      */
@@ -89,15 +91,6 @@ const UIStrings = {
      */
     highlightsFramesRedDetectedToBe: 'Highlights frames (red) detected to be ads.',
     /**
-     * @description The name of a checkbox setting in the Rendering tool. This setting shows an overlay
-     * with Core Web Vitals. Core Web Vitals: https://support.google.com/webmasters/answer/9205520?hl=en
-     */
-    coreWebVitals: 'Core Web Vitals',
-    /**
-     * @description Explanation text for the 'Core Web Vitals' setting in the Rendering tool.
-     */
-    showsAnOverlayWithCoreWebVitals: 'Shows an overlay with Core Web Vitals.',
-    /**
      * @description The name of a checkbox setting in the Rendering tool. This setting prevents the
      * webpage from loading 'local' fonts. Local fonts are fonts that are installed on the user's
      * computer, and not loaded over the network.
@@ -116,7 +109,7 @@ const UIStrings = {
     /**
      * @description Explanation text for the 'Emulate a focused page' setting in the Rendering tool.
      */
-    emulatesAFocusedPage: 'Emulates a focused page.',
+    emulatesAFocusedPage: 'Keep page focused. Commonly used for debugging disappearing elements.',
     /**
      * @description The name of a checkbox setting in the Rendering tool. This setting enables auto dark mode emulation.
      */
@@ -147,6 +140,10 @@ const UIStrings = {
      * @description Explanation text for the 'Forces CSS prefers-reduced-data media' setting in the Rendering tool.
      */
     forcesCssPrefersreduceddataMedia: 'Forces CSS `prefers-reduced-data` media feature',
+    /**
+     * @description Explanation text for the 'Forces CSS prefers-reduced-transparency media' setting in the Rendering tool.
+     */
+    forcesCssPrefersreducedtransparencyMedia: 'Forces CSS `prefers-reduced-transparency` media feature',
     /**
      * @description Explanation text for the 'Forces CSS color-gamut media' setting in the Rendering tool.
      */
@@ -183,88 +180,71 @@ const i18nString = i18n.i18n.getLocalizedString.bind(undefined, str_);
 // `front_end/sdk/module.json` to make this feature available in the
 // Command Menu.
 const supportsPrefersReducedData = () => {
-    const query = '(prefers-reduced-data)';
-    // Note: `media` serializes to `'not all'` for unsupported queries.
-    return window.matchMedia(query).media === query;
+    const query = 'not all and (prefers-reduced-data), (prefers-reduced-data)';
+    return window.matchMedia(query).matches;
+};
+// TODO(1424879): remove this feature detection and expose the UI
+// unconditionally once prefers-reduced-transparency ships unflagged.
+const supportsPrefersReducedTransparency = () => {
+    const query = 'not all and (prefers-reduced-transparency), (prefers-reduced-transparency)';
+    return window.matchMedia(query).matches;
 };
 const supportsPrefersContrast = () => {
-    const query = '(prefers-contrast)';
-    return window.matchMedia(query).media === query;
+    const query = 'not all and (prefers-contrast), (prefers-contrast)';
+    return window.matchMedia(query).matches;
 };
-let renderingOptionsViewInstance;
 export class RenderingOptionsView extends UI.Widget.VBox {
     constructor() {
         super(true);
-        this.#appendCheckbox(i18nString(UIStrings.paintFlashing), i18nString(UIStrings.highlightsAreasOfThePageGreen), Common.Settings.Settings.instance().moduleSetting('showPaintRects'));
-        this.#appendCheckbox(i18nString(UIStrings.layoutShiftRegions), i18nString(UIStrings.highlightsAreasOfThePageBlueThat), Common.Settings.Settings.instance().moduleSetting('showLayoutShiftRegions'));
-        this.#appendCheckbox(i18nString(UIStrings.layerBorders), i18nString(UIStrings.showsLayerBordersOrangeoliveAnd), Common.Settings.Settings.instance().moduleSetting('showDebugBorders'));
-        this.#appendCheckbox(i18nString(UIStrings.frameRenderingStats), i18nString(UIStrings.plotsFrameThroughputDropped), Common.Settings.Settings.instance().moduleSetting('showFPSCounter'));
-        this.#appendCheckbox(i18nString(UIStrings.scrollingPerformanceIssues), i18nString(UIStrings.highlightsElementsTealThatCan), Common.Settings.Settings.instance().moduleSetting('showScrollBottleneckRects'));
-        this.#appendCheckbox(i18nString(UIStrings.highlightAdFrames), i18nString(UIStrings.highlightsFramesRedDetectedToBe), Common.Settings.Settings.instance().moduleSetting('showAdHighlights'));
-        this.#appendCheckbox(i18nString(UIStrings.coreWebVitals), i18nString(UIStrings.showsAnOverlayWithCoreWebVitals), Common.Settings.Settings.instance().moduleSetting('showWebVitals'));
-        this.#appendCheckbox(i18nString(UIStrings.disableLocalFonts), i18nString(UIStrings.disablesLocalSourcesInFontface), Common.Settings.Settings.instance().moduleSetting('localFontsDisabled'));
-        this.#appendCheckbox(i18nString(UIStrings.emulateAFocusedPage), i18nString(UIStrings.emulatesAFocusedPage), Common.Settings.Settings.instance().moduleSetting('emulatePageFocus'));
-        this.#appendCheckbox(i18nString(UIStrings.emulateAutoDarkMode), i18nString(UIStrings.emulatesAutoDarkMode), Common.Settings.Settings.instance().moduleSetting('emulateAutoDarkMode'));
+        this.registerRequiredCSS(renderingOptionsStyles);
+        this.element.setAttribute('jslog', `${VisualLogging.panel('rendering').track({ resize: true })}`);
+        this.#appendCheckbox(i18nString(UIStrings.paintFlashing), i18nString(UIStrings.highlightsAreasOfThePageGreen), Common.Settings.Settings.instance().moduleSetting('show-paint-rects'));
+        this.#appendCheckbox(i18nString(UIStrings.layoutShiftRegions), i18nString(UIStrings.highlightsAreasOfThePageBlueThat), Common.Settings.Settings.instance().moduleSetting('show-layout-shift-regions'));
+        this.#appendCheckbox(i18nString(UIStrings.layerBorders), i18nString(UIStrings.showsLayerBordersOrangeoliveAnd), Common.Settings.Settings.instance().moduleSetting('show-debug-borders'));
+        this.#appendCheckbox(i18nString(UIStrings.frameRenderingStats), i18nString(UIStrings.plotsFrameThroughputDropped), Common.Settings.Settings.instance().moduleSetting('show-fps-counter'));
+        this.#appendCheckbox(i18nString(UIStrings.scrollingPerformanceIssues), i18nString(UIStrings.highlightsElementsTealThatCan), Common.Settings.Settings.instance().moduleSetting('show-scroll-bottleneck-rects'));
+        this.#appendCheckbox(i18nString(UIStrings.highlightAdFrames), i18nString(UIStrings.highlightsFramesRedDetectedToBe), Common.Settings.Settings.instance().moduleSetting('show-ad-highlights'));
+        this.#appendCheckbox(i18nString(UIStrings.disableLocalFonts), i18nString(UIStrings.disablesLocalSourcesInFontface), Common.Settings.Settings.instance().moduleSetting('local-fonts-disabled'));
+        this.#appendCheckbox(i18nString(UIStrings.emulateAFocusedPage), i18nString(UIStrings.emulatesAFocusedPage), Common.Settings.Settings.instance().moduleSetting('emulate-page-focus'), { toggle: Host.UserMetrics.Action.ToggleEmulateFocusedPageFromRenderingTab });
+        this.#appendCheckbox(i18nString(UIStrings.emulateAutoDarkMode), i18nString(UIStrings.emulatesAutoDarkMode), Common.Settings.Settings.instance().moduleSetting('emulate-auto-dark-mode'));
         this.contentElement.createChild('div').classList.add('panel-section-separator');
-        this.#appendSelect(i18nString(UIStrings.forcesCssPreferscolorschemeMedia), Common.Settings.Settings.instance().moduleSetting('emulatedCSSMediaFeaturePrefersColorScheme'));
-        this.#appendSelect(i18nString(UIStrings.forcesMediaTypeForTestingPrint), Common.Settings.Settings.instance().moduleSetting('emulatedCSSMedia'));
-        this.#appendSelect(i18nString(UIStrings.forcesCssForcedColors), Common.Settings.Settings.instance().moduleSetting('emulatedCSSMediaFeatureForcedColors'));
+        this.#appendSelect(i18nString(UIStrings.forcesCssPreferscolorschemeMedia), Common.Settings.Settings.instance().moduleSetting('emulated-css-media-feature-prefers-color-scheme'));
+        this.#appendSelect(i18nString(UIStrings.forcesMediaTypeForTestingPrint), Common.Settings.Settings.instance().moduleSetting('emulated-css-media'));
+        this.#appendSelect(i18nString(UIStrings.forcesCssForcedColors), Common.Settings.Settings.instance().moduleSetting('emulated-css-media-feature-forced-colors'));
         if (supportsPrefersContrast()) {
-            this.#appendSelect(i18nString(UIStrings.forcesCssPreferscontrastMedia), Common.Settings.Settings.instance().moduleSetting('emulatedCSSMediaFeaturePrefersContrast'));
+            this.#appendSelect(i18nString(UIStrings.forcesCssPreferscontrastMedia), Common.Settings.Settings.instance().moduleSetting('emulated-css-media-feature-prefers-contrast'));
         }
-        this.#appendSelect(i18nString(UIStrings.forcesCssPrefersreducedmotion), Common.Settings.Settings.instance().moduleSetting('emulatedCSSMediaFeaturePrefersReducedMotion'));
+        this.#appendSelect(i18nString(UIStrings.forcesCssPrefersreducedmotion), Common.Settings.Settings.instance().moduleSetting('emulated-css-media-feature-prefers-reduced-motion'));
         if (supportsPrefersReducedData()) {
-            this.#appendSelect(i18nString(UIStrings.forcesCssPrefersreduceddataMedia), Common.Settings.Settings.instance().moduleSetting('emulatedCSSMediaFeaturePrefersReducedData'));
+            this.#appendSelect(i18nString(UIStrings.forcesCssPrefersreduceddataMedia), Common.Settings.Settings.instance().moduleSetting('emulated-css-media-feature-prefers-reduced-data'));
         }
-        this.#appendSelect(i18nString(UIStrings.forcesCssColorgamutMediaFeature), Common.Settings.Settings.instance().moduleSetting('emulatedCSSMediaFeatureColorGamut'));
-        this.contentElement.createChild('div').classList.add('panel-section-separator');
-        this.#appendSelect(i18nString(UIStrings.forcesVisionDeficiencyEmulation), Common.Settings.Settings.instance().moduleSetting('emulatedVisionDeficiency'));
-        this.contentElement.createChild('div').classList.add('panel-section-separator');
-        this.#appendCheckbox(i18nString(UIStrings.disableAvifImageFormat), i18nString(UIStrings.requiresAPageReloadToApplyAnd), Common.Settings.Settings.instance().moduleSetting('avifFormatDisabled'));
-        this.#appendCheckbox(i18nString(UIStrings.disableWebpImageFormat), i18nString(UIStrings.requiresAPageReloadToApplyAnd), Common.Settings.Settings.instance().moduleSetting('webpFormatDisabled'));
-        this.contentElement.createChild('div').classList.add('panel-section-separator');
-    }
-    static instance(opts = { forceNew: null }) {
-        const { forceNew } = opts;
-        if (!renderingOptionsViewInstance || forceNew) {
-            renderingOptionsViewInstance = new RenderingOptionsView();
+        if (supportsPrefersReducedTransparency()) {
+            this.#appendSelect(i18nString(UIStrings.forcesCssPrefersreducedtransparencyMedia), Common.Settings.Settings.instance().moduleSetting('emulated-css-media-feature-prefers-reduced-transparency'));
         }
-        return renderingOptionsViewInstance;
+        this.#appendSelect(i18nString(UIStrings.forcesCssColorgamutMediaFeature), Common.Settings.Settings.instance().moduleSetting('emulated-css-media-feature-color-gamut'));
+        this.contentElement.createChild('div').classList.add('panel-section-separator');
+        this.#appendSelect(i18nString(UIStrings.forcesVisionDeficiencyEmulation), Common.Settings.Settings.instance().moduleSetting('emulated-vision-deficiency'));
+        this.contentElement.createChild('div').classList.add('panel-section-separator');
+        this.#appendCheckbox(i18nString(UIStrings.disableAvifImageFormat), i18nString(UIStrings.requiresAPageReloadToApplyAnd), Common.Settings.Settings.instance().moduleSetting('avif-format-disabled'));
+        this.#appendCheckbox(i18nString(UIStrings.disableWebpImageFormat), i18nString(UIStrings.requiresAPageReloadToApplyAnd), Common.Settings.Settings.instance().moduleSetting('webp-format-disabled'));
+        this.contentElement.createChild('div').classList.add('panel-section-separator');
     }
-    #createCheckbox(label, subtitle, setting) {
-        const checkboxLabel = UI.UIUtils.CheckboxLabel.create(label, false, subtitle);
-        UI.SettingsUI.bindCheckbox(checkboxLabel.checkboxElement, setting);
-        return checkboxLabel;
-    }
-    #appendCheckbox(label, subtitle, setting) {
-        const checkbox = this.#createCheckbox(label, subtitle, setting);
+    #appendCheckbox(label, subtitle, setting, metric) {
+        const checkbox = UI.UIUtils.CheckboxLabel.create(label, false, subtitle, setting.name);
+        UI.SettingsUI.bindCheckbox(checkbox.checkboxElement, setting, metric);
         this.contentElement.appendChild(checkbox);
         return checkbox;
     }
-    // TODO(crbug.com/1172300) Ignored during the jsdoc to ts migration
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     #appendSelect(label, setting) {
         const control = UI.SettingsUI.createControlForSetting(setting, label);
         if (control) {
             this.contentElement.appendChild(control);
         }
     }
-    wasShown() {
-        super.wasShown();
-        this.registerCSSFiles([renderingOptionsStyles]);
-    }
 }
-let reloadActionDelegateInstance;
 export class ReloadActionDelegate {
-    static instance(opts = { forceNew: null }) {
-        const { forceNew } = opts;
-        if (!reloadActionDelegateInstance || forceNew) {
-            reloadActionDelegateInstance = new ReloadActionDelegate();
-        }
-        return reloadActionDelegateInstance;
-    }
-    handleAction(context, actionId) {
-        const emulatedCSSMediaFeaturePrefersColorSchemeSetting = Common.Settings.Settings.instance().moduleSetting('emulatedCSSMediaFeaturePrefersColorScheme');
+    handleAction(_context, actionId) {
+        const emulatedCSSMediaFeaturePrefersColorSchemeSetting = Common.Settings.Settings.instance().moduleSetting('emulated-css-media-feature-prefers-color-scheme');
         switch (actionId) {
             case 'rendering.toggle-prefers-color-scheme': {
                 // Cycle between no emulation, light, dark

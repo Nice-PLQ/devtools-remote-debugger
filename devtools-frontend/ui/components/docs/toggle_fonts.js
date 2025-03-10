@@ -25,7 +25,7 @@ export function init() {
         document.body.style.fontFamily = `${urlParams.get('fontFamily')}`;
         return;
     }
-    document.body.classList.add(PLATFORM_LINUX_CLASS);
+    document.documentElement.classList.add(PLATFORM_LINUX_CLASS);
     const button = document.createElement('button');
     button.className = 'component-docs-ui';
     const loop = [
@@ -36,10 +36,10 @@ export function init() {
     function toggleFonts() {
         for (const className of loop) {
             if (className === loop[0]) {
-                document.body.classList.add(className);
+                document.documentElement.classList.add(className);
             }
             else {
-                document.body.classList.remove(className);
+                document.documentElement.classList.remove(className);
             }
         }
         loop.push(loop.shift());

@@ -1,6 +1,5 @@
 import * as ProtocolClient from '../../core/protocol_client/protocol_client.js';
 import * as UI from '../../ui/legacy/legacy.js';
-import * as LitHtml from '../../ui/lit-html/lit-html.js';
 
 let screenPreviewPanelInstance;
 export class ScreenPreviewPanel extends UI.Widget.VBox {
@@ -86,8 +85,8 @@ export class ScreenPreviewPanel extends UI.Widget.VBox {
     // }
     this.iframe.style.width = `${width}px`;
     this.iframe.style.height = `${height}px`;
-    this.iframe.style.border = '10px solid var(--color-details-hairline)';
-    this.iframe.style.borderRadius = '10px';
+    // this.iframe.style.border = '10px solid rgb(202 205 209)';
+    // this.iframe.style.borderRadius = '10px';
     this.iframe.style.boxSizing = 'content-box';
     this.iframe.style.pointerEvents = 'none';
   }
@@ -116,27 +115,32 @@ export class ScreenPreviewPanel extends UI.Widget.VBox {
     this.mouse = document.createElement('div');
     this.mouse.style.cssText = 'display:none;position:absolute;top:10px;left:10px;width:20px;height:20px;border-radius:50%;border:2px solid #c2c2c2;background:rgba(0,0,0,0.4);';
 
-    const dom = LitHtml.html`
-      <style>
-        .preview-container {
-          display:flex;
-          flex-direction:column;
-          justify-content:center;
-          align-items:center;
-          flex:1;
-        }
-      </style>
-      <div class="preview-container">
-        <div style="margin-bottom:16px;">
-          ${this.previewBtn}
-        </div>
-        <div style="position:relative">
-          ${this.iframe}
-          ${this.mouse}
-        </div>
-      </div>
-    `;
+    const style = document.createElement('style');
+    style.innerHTML = `
+      .preview-container {
+        display:flex;
+        flex-direction:column;
+        justify-content:center;
+        align-items:center;
+        flex:1;
+      }`;
 
-    LitHtml.render(dom, this.contentElement);
+    const container = document.createElement('div');
+    container.classList.add('preview-container');
+
+    const child_1 = document.createElement('div');
+    child_1.style.marginBottom = '16px'
+    child_1.appendChild(this.previewBtn);
+
+    const child_2 = document.createElement('div');
+    child_2.style.position = 'relative'
+    child_2.appendChild(this.iframe);
+    child_2.appendChild(this.mouse);
+
+    container.appendChild(child_1);
+    container.appendChild(child_2);
+
+    this.contentElement.appendChild(style);
+    this.contentElement.appendChild(container);
   }
 }

@@ -5,13 +5,13 @@ import * as i18n from '../../core/i18n/i18n.js';
 import * as UI from '../../ui/legacy/legacy.js';
 const UIStrings = {
     /**
-     *@description Title of the CSS Overview Panel
+     *@description Title of the CSS overview panel
      */
-    cssOverview: 'CSS Overview',
+    cssOverview: 'CSS overview',
     /**
-     *@description Title of the CSS Overview Panel
+     *@description Title of the CSS overview panel
      */
-    showCssOverview: 'Show CSS Overview',
+    showCssOverview: 'Show CSS overview',
 };
 const str_ = i18n.i18n.registerUIStrings('panels/css_overview/css_overview-meta.ts', UIStrings);
 const i18nLazyString = i18n.i18n.getLazilyComputedLocalizedString.bind(undefined, str_);

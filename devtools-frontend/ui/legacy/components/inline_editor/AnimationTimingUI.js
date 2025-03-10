@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 import * as Platform from '../../../../core/platform/platform.js';
+import * as VisualLogging from '../../../visual_logging/visual_logging.js';
 import * as UI from '../../legacy.js';
 import { BezierUI } from './BezierUI.js';
 import { CSSLinearEasingModel } from './CSSLinearEasingModel.js';
@@ -79,6 +80,7 @@ class LinearEasingPresentation {
     }
     #drawControlPoint(parentElement, controlX, controlY, index) {
         const circle = UI.UIUtils.createSVGChild(parentElement, 'circle', 'bezier-control-circle');
+        circle.setAttribute('jslog', `${VisualLogging.controlPoint('bezier.linear-control-circle').track({ drag: true, dblclick: true })}`);
         circle.setAttribute('data-point-index', String(index));
         circle.setAttribute('cx', String(controlX));
         circle.setAttribute('cy', String(controlY));

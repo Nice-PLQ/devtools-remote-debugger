@@ -1,6 +1,7 @@
 {
   "compilerOptions": {
     "allowJs": true,
+    "allowUmdGlobalAccess": true,
     "checkJs": true,
     "composite": true,
     "declaration": true,
@@ -40,18 +41,18 @@
     "../../../../../../../../front_end/ui/components/docs/legacy_color_invert/basic.ts",
     "../../../../../../../../front_end/legacy/legacy-defs.d.ts",
     "../../../../../../../../front_end/global_typings/global_defs.d.ts",
-    "../../../../../../../../front_end/global_typings/request_idle_callback.d.ts",
-    "../../../../../../../../node_modules/@types/filesystem/index.d.ts"
+    "../../../../../../../../node_modules/@types/filesystem/index.d.ts",
+    "../../../../../../../../node_modules/@types/wicg-task-scheduling/index.d.ts"
   ],
   "references": [
-    {
-      "path": "../../../../../test/unittests/front_end/helpers/helpers-tsconfig.json"
-    },
     {
       "path": "../../../../core/common/bundle-tsconfig.json"
     },
     {
       "path": "../../../../core/platform/bundle-tsconfig.json"
+    },
+    {
+      "path": "../../../../testing/testing-tsconfig.json"
     },
     {
       "path": "../../helpers/bundle-tsconfig.json"

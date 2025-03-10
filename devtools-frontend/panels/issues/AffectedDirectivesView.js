@@ -7,8 +7,8 @@ import * as i18n from '../../core/i18n/i18n.js';
 import * as Platform from '../../core/platform/platform.js';
 import * as SDK from '../../core/sdk/sdk.js';
 import * as IssuesManager from '../../models/issues_manager/issues_manager.js';
-import * as IssuesComponents from './components/components.js';
 import { AffectedResourcesView } from './AffectedResourcesView.js';
+import * as IssuesComponents from './components/components.js';
 const UIStrings = {
     /**
      *@description Singular or plural label for number of affected CSP (content security policy,
@@ -32,13 +32,13 @@ const UIStrings = {
      */
     directiveC: 'Directive',
     /**
-     *@description Label for the column in the element list in the CSS Overview report
+     *@description Label for the column in the element list in the CSS overview report
      */
     element: 'Element',
     /**
      *@description Header for the source location column
      */
-    sourceLocation: 'Source Location',
+    sourceLocation: 'Source location',
     /**
      *@description Text for the status of something
      */
@@ -85,7 +85,7 @@ export class AffectedDirectivesView extends AffectedResourcesView {
             const onElementRevealIconClick = () => {
                 const target = model.getTargetIfNotDisposed();
                 if (target) {
-                    Host.userMetrics.issuesPanelResourceOpened(this.issue.getCategory(), "Element" /* AffectedItem.Element */);
+                    Host.userMetrics.issuesPanelResourceOpened(this.issue.getCategory(), "Element" /* AffectedItem.ELEMENT */);
                     const deferredDOMNode = new SDK.DOMModel.DeferredDOMNode(target, violatingNodeId);
                     void Common.Revealer.reveal(deferredDOMNode);
                 }

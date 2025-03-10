@@ -3,8 +3,9 @@
 // found in the LICENSE file.
 import './SettingsScreen.js';
 import './FrameworkIgnoreListSettingsTab.js';
+import * as AISettingsTab from './AISettingsTab.js';
 import * as FrameworkIgnoreListSettingsTab from './FrameworkIgnoreListSettingsTab.js';
 import * as KeybindsSettingsTab from './KeybindsSettingsTab.js';
 import * as SettingsScreen from './SettingsScreen.js';
-export { FrameworkIgnoreListSettingsTab, KeybindsSettingsTab, SettingsScreen, };
+export { AISettingsTab, FrameworkIgnoreListSettingsTab, KeybindsSettingsTab, SettingsScreen, };
 //# sourceMappingURL=settings.js.map

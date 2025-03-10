@@ -7,5 +7,6 @@ import * as RequestHeaderSection from './RequestHeaderSection.js';
 import * as RequestHeadersView from './RequestHeadersView.js';
 import * as RequestTrustTokensView from './RequestTrustTokensView.js';
 import * as ResponseHeaderSection from './ResponseHeaderSection.js';
-export { EditableSpan, HeaderSectionRow, RequestHeaderSection, RequestHeadersView, RequestTrustTokensView, ResponseHeaderSection, };
+import * as WebBundleInfoView from './WebBundleInfoView.js';
+export { EditableSpan, HeaderSectionRow, RequestHeaderSection, RequestHeadersView, RequestTrustTokensView, ResponseHeaderSection, WebBundleInfoView, };
 //# sourceMappingURL=components.js.map

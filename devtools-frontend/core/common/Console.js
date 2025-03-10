@@ -22,19 +22,33 @@ export class Console extends ObjectWrapper {
     static removeInstance() {
         consoleInstance = undefined;
     }
-    addMessage(text, level, show) {
-        const message = new Message(text, level || MessageLevel.Info, Date.now(), show || false);
+    /**
+     * Add a message to the Console panel.
+     *
+     * @param text the message text.
+     * @param level the message level.
+     * @param show whether to show the Console panel (if it's not already shown).
+     * @param source the message source.
+     */
+    addMessage(text, level = "info" /* MessageLevel.INFO */, show = false, source) {
+        const message = new Message(text, level, Date.now(), show, source);
         this.#messagesInternal.push(message);
-        this.dispatchEventToListeners(Events.MessageAdded, message);
+        this.dispatchEventToListeners("messageAdded" /* Events.MESSAGE_ADDED */, message);
     }
     log(text) {
-        this.addMessage(text, MessageLevel.Info);
+        this.addMessage(text, "info" /* MessageLevel.INFO */);
     }
-    warn(text) {
-        this.addMessage(text, MessageLevel.Warning);
+    warn(text, source) {
+        this.addMessage(text, "warning" /* MessageLevel.WARNING */, undefined, source);
     }
-    error(text) {
-        this.addMessage(text, MessageLevel.Error, true);
+    /**
+     * Adds an error message to the Console panel.
+     *
+     * @param text the message text.
+     * @param show whether to show the Console panel (if it's not already shown).
+     */
+    error(text, show = true) {
+        this.addMessage(text, "error" /* MessageLevel.ERROR */, show);
     }
     messages() {
         return this.#messagesInternal;
@@ -46,30 +60,28 @@ export class Console extends ObjectWrapper {
         return reveal(this);
     }
 }
-// TODO(crbug.com/1167717): Make this a const enum again
-// eslint-disable-next-line rulesdir/const_enum
-export var Events;
-(function (Events) {
-    Events["MessageAdded"] = "messageAdded";
-})(Events || (Events = {}));
-// TODO(crbug.com/1167717): Make this a const enum again
-// eslint-disable-next-line rulesdir/const_enum
-export var MessageLevel;
-(function (MessageLevel) {
-    MessageLevel["Info"] = "info";
-    MessageLevel["Warning"] = "warning";
-    MessageLevel["Error"] = "error";
-})(MessageLevel || (MessageLevel = {}));
+export var FrontendMessageSource;
+(function (FrontendMessageSource) {
+    FrontendMessageSource["CSS"] = "css";
+    // eslint-disable-next-line @typescript-eslint/naming-convention -- Used by web_tests.
+    FrontendMessageSource["ConsoleAPI"] = "console-api";
+    FrontendMessageSource["ISSUE_PANEL"] = "issue-panel";
+    FrontendMessageSource["SELF_XSS"] = "self-xss";
+})(FrontendMessageSource || (FrontendMessageSource = {}));
 export class Message {
     text;
     level;
     timestamp;
     show;
-    constructor(text, level, timestamp, show) {
+    source;
+    constructor(text, level, timestamp, show, source) {
         this.text = text;
         this.level = level;
         this.timestamp = (typeof timestamp === 'number') ? timestamp : Date.now();
         this.show = show;
+        if (source) {
+            this.source = source;
+        }
     }
 }
 //# sourceMappingURL=Console.js.map

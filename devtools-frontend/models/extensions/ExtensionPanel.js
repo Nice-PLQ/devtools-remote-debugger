@@ -27,6 +27,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+import '../../ui/legacy/legacy.js';
 import * as SDK from '../../core/sdk/sdk.js';
 import * as UI from '../../ui/legacy/legacy.js';
 import { ExtensionNotifierView, ExtensionView } from './ExtensionView.js';
@@ -40,14 +41,14 @@ export class ExtensionPanel extends UI.Panel.Panel {
         this.server = server;
         this.id = id;
         this.setHideOnDetach();
-        this.panelToolbar = new UI.Toolbar.Toolbar('hidden', this.element);
+        this.panelToolbar = this.element.createChild('devtools-toolbar', 'hidden');
         this.searchableViewInternal = new UI.SearchableView.SearchableView(this, null);
         this.searchableViewInternal.show(this.element);
         const extensionView = new ExtensionView(server, this.id, pageURL, 'extension');
         extensionView.show(this.searchableViewInternal.element);
     }
     addToolbarItem(item) {
-        this.panelToolbar.element.classList.remove('hidden');
+        this.panelToolbar.classList.remove('hidden');
         this.panelToolbar.appendToolbarItem(item);
     }
     onSearchCanceled() {
@@ -80,7 +81,7 @@ export class ExtensionButton {
     constructor(server, id, iconURL, tooltip, disabled) {
         this.id = id;
         this.toolbarButtonInternal = new UI.Toolbar.ToolbarButton('', '');
-        this.toolbarButtonInternal.addEventListener(UI.Toolbar.ToolbarButton.Events.Click, server.notifyButtonClicked.bind(server, this.id));
+        this.toolbarButtonInternal.addEventListener("Click" /* UI.Toolbar.ToolbarButton.Events.CLICK */, server.notifyButtonClicked.bind(server, this.id));
         this.update(iconURL, tooltip, disabled);
     }
     update(iconURL, tooltip, disabled) {
@@ -177,7 +178,7 @@ export class ExtensionSidebarPane extends UI.View.SimpleView {
                 callback();
                 return;
             }
-            const firstChild = result.tree && result.tree.firstChild();
+            const firstChild = result.tree?.firstChild();
             if (firstChild) {
                 firstChild.expand();
             }

@@ -11,7 +11,7 @@
         "interestGroupStorageView.css.js",
         "openedWindowDetailsView.css.js",
         "preloading/preloadingView.css.js",
-        "reportingApiReportsView.css.js",
+        "preloading/preloadingViewDropDown.css.js",
         "resourcesPanel.css.js",
         "resourcesSidebar.css.js",
         "serviceWorkerCacheViews.css.js",

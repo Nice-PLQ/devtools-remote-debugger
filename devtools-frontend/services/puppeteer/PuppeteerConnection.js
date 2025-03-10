@@ -49,22 +49,21 @@ class PuppeteerConnection extends puppeteer.Connection {
     }
 }
 export class PuppeteerConnectionHelper {
-    static async connectPuppeteerToConnection(options) {
-        const { connection, mainFrameId, targetInfos, targetFilterCallback, isPageTargetCallback } = options;
+    static async connectPuppeteerToConnectionViaTab(options) {
+        const { connection, rootTargetId, isPageTargetCallback } = options;
         // Pass an empty message handler because it will be overwritten by puppeteer anyways.
         const transport = new Transport(connection);
         // url is an empty string in this case parallel to:
         // https://github.com/puppeteer/puppeteer/blob/f63a123ecef86693e6457b07437a96f108f3e3c5/src/common/BrowserConnector.ts#L72
         const puppeteerConnection = new PuppeteerConnection('', transport);
-        const targetIdsForAutoAttachEmulation = targetInfos.filter(targetFilterCallback).map(t => t.targetId);
-        const browserPromise = puppeteer.Browser._create('chrome', puppeteerConnection, [] /* contextIds */, false /* ignoreHTTPSErrors */, undefined /* defaultViewport */, undefined /* process */, undefined /* closeCallback */, targetFilterCallback, isPageTargetCallback);
+        const browserPromise = puppeteer.Browser._create(puppeteerConnection, [] /* contextIds */, false /* ignoreHTTPSErrors */, undefined /* defaultViewport */, undefined /* DownloadBehavior */, undefined /* process */, undefined /* closeCallback */, undefined /* targetFilterCallback */, target => isPageTargetCallback(target._getTargetInfo()), false /* waitForInitiallyDiscoveredTargets */);
         const [, browser] = await Promise.all([
-            Promise.all(targetIdsForAutoAttachEmulation.map(targetId => puppeteerConnection._createSession({ targetId }, /* emulateAutoAttach= */ true))),
+            puppeteerConnection._createSession({ targetId: rootTargetId }, /* emulateAutoAttach= */ true),
             browserPromise,
         ]);
+        await browser.waitForTarget(t => t.type() === 'page');
         const pages = await browser.pages();
-        const page = pages.filter((p) => p !== null).find(p => p.mainFrame()._id === mainFrameId) || null;
-        return { page, browser, puppeteerConnection };
+        return { page: pages[0], browser, puppeteerConnection };
     }
 }
 //# sourceMappingURL=PuppeteerConnection.js.map

@@ -1,11 +1,11 @@
 // Copyright 2019 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
-import * as CSSOverviewComponents from './components/components.js';
-import cssOverviewStyles from './cssOverview.css.js';
 import * as Host from '../../core/host/host.js';
 import * as SDK from '../../core/sdk/sdk.js';
 import * as UI from '../../ui/legacy/legacy.js';
+import * as CSSOverviewComponents from './components/components.js';
+import cssOverviewStyles from './cssOverview.css.js';
 import { CSSOverviewCompletedView } from './CSSOverviewCompletedView.js';
 import { CSSOverviewModel } from './CSSOverviewModel.js';
 import { CSSOverviewProcessingView } from './CSSOverviewProcessingView.js';
@@ -26,21 +26,22 @@ export class CSSOverviewPanel extends UI.Panel.Panel {
     #globalStyleStats;
     #textColorContrastIssues;
     constructor(controller) {
-        super('css_overview');
+        super('css-overview');
+        this.registerRequiredCSS(cssOverviewStyles);
         this.element.classList.add('css-overview-panel');
         this.#controller = controller;
         this.#startView = new CSSOverviewComponents.CSSOverviewStartView.CSSOverviewStartView();
-        this.#startView.addEventListener('overviewstartrequested', () => this.#controller.dispatchEventToListeners("RequestOverviewStart" /* Events.RequestOverviewStart */));
+        this.#startView.addEventListener('overviewstartrequested', () => this.#controller.dispatchEventToListeners("RequestOverviewStart" /* Events.REQUEST_OVERVIEW_START */));
         this.#processingView = new CSSOverviewProcessingView(this.#controller);
         this.#completedView = new CSSOverviewCompletedView(this.#controller);
         SDK.TargetManager.TargetManager.instance().observeTargets(this);
-        this.#controller.addEventListener("RequestOverviewStart" /* Events.RequestOverviewStart */, _event => {
+        this.#controller.addEventListener("RequestOverviewStart" /* Events.REQUEST_OVERVIEW_START */, _event => {
             Host.userMetrics.actionTaken(Host.UserMetrics.Action.CaptureCssOverviewClicked);
             void this.#startOverview();
         }, this);
-        this.#controller.addEventListener("OverviewCompleted" /* Events.OverviewCompleted */, this.#overviewCompleted, this);
-        this.#controller.addEventListener("Reset" /* Events.Reset */, this.#reset, this);
-        this.#controller.addEventListener("RequestNodeHighlight" /* Events.RequestNodeHighlight */, this.#requestNodeHighlight, this);
+        this.#controller.addEventListener("OverviewCompleted" /* Events.OVERVIEW_COMPLETED */, this.#overviewCompleted, this);
+        this.#controller.addEventListener("Reset" /* Events.RESET */, this.#reset, this);
+        this.#controller.addEventListener("RequestNodeHighlight" /* Events.REQUEST_NODE_HIGHLIGHT */, this.#requestNodeHighlight, this);
         this.#reset();
     }
     targetAdded(target) {
@@ -155,14 +156,10 @@ export class CSSOverviewPanel extends UI.Panel.Panel {
         if (unusedDeclarations) {
             this.#unusedDeclarations = unusedDeclarations;
         }
-        this.#controller.dispatchEventToListeners("OverviewCompleted" /* Events.OverviewCompleted */);
+        this.#controller.dispatchEventToListeners("OverviewCompleted" /* Events.OVERVIEW_COMPLETED */);
     }
     #overviewCompleted() {
         this.#renderOverviewCompletedView();
-    }
-    wasShown() {
-        super.wasShown();
-        this.registerCSSFiles([cssOverviewStyles]);
     }
 }
 //# sourceMappingURL=CSSOverviewPanel.js.map

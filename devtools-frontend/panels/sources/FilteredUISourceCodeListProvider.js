@@ -2,9 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 import * as i18n from '../../core/i18n/i18n.js';
+import * as Root from '../../core/root/root.js';
 import * as Bindings from '../../models/bindings/bindings.js';
 import * as Persistence from '../../models/persistence/persistence.js';
-import * as Root from '../../core/root/root.js';
 import * as Workspace from '../../models/workspace/workspace.js';
 import * as QuickOpen from '../../ui/legacy/components/quick_open/quick_open.js';
 import * as UI from '../../ui/legacy/legacy.js';
@@ -29,8 +29,8 @@ export class FilteredUISourceCodeListProvider extends QuickOpen.FilteredListWidg
     uiSourceCodes;
     uiSourceCodeIds;
     query;
-    constructor() {
-        super();
+    constructor(jslogContext) {
+        super(jslogContext);
         this.queryLineNumberAndColumnNumber = '';
         this.defaultScores = null;
         this.scorer = new FilePathScoreFunction('');
@@ -60,8 +60,11 @@ export class FilteredUISourceCodeListProvider extends QuickOpen.FilteredListWidg
         if (this.uiSourceCodeIds.has(uiSourceCode.canononicalScriptId())) {
             return false;
         }
-        if (Root.Runtime.experiments.isEnabled(Root.Runtime.ExperimentName.JUST_MY_CODE) &&
+        if (Root.Runtime.experiments.isEnabled("just-my-code" /* Root.Runtime.ExperimentName.JUST_MY_CODE */) &&
             Bindings.IgnoreListManager.IgnoreListManager.instance().isUserOrSourceMapIgnoreListedUISourceCode(uiSourceCode)) {
+            return false;
+        }
+        if (uiSourceCode.isFetchXHR()) {
             return false;
         }
         const binding = Persistence.Persistence.PersistenceImpl.instance().binding(uiSourceCode);
@@ -116,6 +119,7 @@ export class FilteredUISourceCodeListProvider extends QuickOpen.FilteredListWidg
         return score + multiplier * (contentTypeBonus + this.scorer.calculateScore(fullDisplayName, null));
     }
     renderItem(itemIndex, query, titleElement, subtitleElement) {
+        titleElement.parentElement?.parentElement?.classList.toggle('search-mode', Boolean(query));
         query = this.rewriteQuery(query);
         const uiSourceCode = this.uiSourceCodes[itemIndex];
         const fullDisplayName = uiSourceCode.fullDisplayName();

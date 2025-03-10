@@ -22,7 +22,7 @@ export class CSSOverviewModel extends SDK.SDKModel.SDKModel {
         const highlightConfig = {
             contentColor: Common.Color.PageHighlight.Content.toProtocolRGBA(),
             showInfo: true,
-            contrastAlgorithm: Root.Runtime.experiments.isEnabled('APCA') ? "apca" /* Protocol.Overlay.ContrastAlgorithm.Apca */ :
+            contrastAlgorithm: Root.Runtime.experiments.isEnabled('apca') ? "apca" /* Protocol.Overlay.ContrastAlgorithm.Apca */ :
                 "aa" /* Protocol.Overlay.ContrastAlgorithm.Aa */,
         };
         void this.#overlayAgent.invoke_hideHighlight();
@@ -209,7 +209,7 @@ export class CSSOverviewModel extends SDK.SDKModel.SDKModel {
                     const formattedTextColor = formatColor(blendedTextColor);
                     const formattedBackgroundColor = formatColor(blendedBackgroundColor.asLegacyColor());
                     const key = `${formattedTextColor}_${formattedBackgroundColor}`;
-                    if (Root.Runtime.experiments.isEnabled('APCA')) {
+                    if (Root.Runtime.experiments.isEnabled('apca')) {
                         const contrastRatio = contrastInfo.contrastRatioAPCA();
                         const threshold = contrastInfo.contrastRatioAPCAThreshold();
                         const passes = contrastRatio && threshold ? Math.abs(contrastRatio) >= threshold : false;
@@ -395,5 +395,5 @@ export class CSSOverviewModel extends SDK.SDKModel.SDKModel {
         return result.value;
     }
 }
-SDK.SDKModel.SDKModel.register(CSSOverviewModel, { capabilities: SDK.Target.Capability.DOM, autostart: false });
+SDK.SDKModel.SDKModel.register(CSSOverviewModel, { capabilities: 2 /* SDK.Target.Capability.DOM */, autostart: false });
 //# sourceMappingURL=CSSOverviewModel.js.map

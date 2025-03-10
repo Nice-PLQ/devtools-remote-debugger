@@ -1,21 +1,22 @@
 // Copyright 2020 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
-import * as FrontendHelpers from '../../../../../test/unittests/front_end/helpers/EnvironmentHelpers.js';
-import * as LitHtml from '../../../lit-html/lit-html.js';
+import * as FrontendHelpers from '../../../../testing/EnvironmentHelpers.js';
+import * as Lit from '../../../lit/lit.js';
 import * as ComponentHelpers from '../../helpers/helpers.js';
 import * as TreeOutline from '../../tree_outline/tree_outline.js';
+const { html } = Lit;
 await ComponentHelpers.ComponentServerSetup.setup();
 await FrontendHelpers.initializeGlobalVars();
 const data = {
     defaultRenderer: (node, state) => {
         const { cssProperty, cssValue } = node.treeNodeData;
-        const valueStyles = LitHtml.Directives.styleMap({
+        const valueStyles = Lit.Directives.styleMap({
             paddingLeft: '10px',
             fontStyle: 'italic',
-            color: 'var(--color-syntax-1)',
+            color: 'var(--sys-color-token-property-special)',
         });
-        return LitHtml.html `<code>${cssProperty}</code>:${state.isExpanded ? LitHtml.nothing : LitHtml.html `<code style=${valueStyles}>${cssValue}</code>`}`;
+        return html `<code>${cssProperty}</code>:${state.isExpanded ? Lit.nothing : html `<code style=${valueStyles}>${cssValue}</code>`}`;
     },
     tree: [
         {

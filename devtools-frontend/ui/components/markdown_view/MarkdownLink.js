@@ -2,17 +2,19 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 import '../../legacy/legacy.js'; // Required for <x-link>.
-import * as ComponentHelpers from '../../components/helpers/helpers.js';
-import * as LitHtml from '../../lit-html/lit-html.js';
-import markdownLinkStyles from './markdownLink.css.js';
+import { html, render } from '../../lit/lit.js';
+import * as VisualLogging from '../../visual_logging/visual_logging.js';
+import markdownLinkStylesRaw from './markdownLink.css.js';
 import { getMarkdownLink } from './MarkdownLinksMap.js';
+// TODO(crbug.com/391381439): Fully migrate off of constructed style sheets.
+const markdownLinkStyles = new CSSStyleSheet();
+markdownLinkStyles.replaceSync(markdownLinkStylesRaw.cssContent);
 /**
  * Component to render link from parsed markdown.
  * Parsed links from markdown are not directly rendered, instead they have to be added to the <key, link> map in MarkdownLinksMap.ts.
  * This makes sure that all links are accounted for and no bad links are introduced to devtools via markdown.
  */
 export class MarkdownLink extends HTMLElement {
-    static litTagName = LitHtml.literal `devtools-markdown-link`;
     #shadow = this.attachShadow({ mode: 'open' });
     #linkText = '';
     #linkUrl = '';
@@ -28,12 +30,11 @@ export class MarkdownLink extends HTMLElement {
     }
     #render() {
         // clang-format off
-        const output = LitHtml.html `
-      <x-link class="devtools-link" href=${this.#linkUrl}>${this.#linkText}</x-link>
-    `;
-        LitHtml.render(output, this.#shadow, { host: this });
+        const output = html `<x-link class="devtools-link" href=${this.#linkUrl} jslog=${VisualLogging.link().track({ click: true })}
+    >${this.#linkText}</x-link>`;
+        render(output, this.#shadow, { host: this });
         // clang-format on
     }
 }
-ComponentHelpers.CustomElements.defineComponent('devtools-markdown-link', MarkdownLink);
+customElements.define('devtools-markdown-link', MarkdownLink);
 //# sourceMappingURL=MarkdownLink.js.map

@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 import { Logger } from './Logger.js';
 import { SelectorComputer } from './SelectorComputer.js';
-import { getMouseEventOffsets, getClickableTargetFromEvent, haultImmediateEvent } from './util.js';
+import { getClickableTargetFromEvent, getMouseEventOffsets, haultImmediateEvent } from './util.js';
 class SelectorPicker {
     #logger;
     #computer;

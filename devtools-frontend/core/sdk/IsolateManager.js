@@ -37,12 +37,6 @@ export class IsolateManager extends Common.ObjectWrapper.ObjectWrapper {
             observer.isolateAdded(isolate);
         }
     }
-    unobserveIsolates(observer) {
-        this.#observers.delete(observer);
-        if (!this.#observers.size) {
-            ++this.#pollId;
-        } // Stops the current polling loop.
-    }
     modelAdded(model) {
         void this.modelAddedInternal(model);
     }
@@ -111,12 +105,6 @@ export class IsolateManager extends Common.ObjectWrapper.ObjectWrapper {
         }
     }
 }
-// TODO(crbug.com/1167717): Make this a const enum again
-// eslint-disable-next-line rulesdir/const_enum
-export var Events;
-(function (Events) {
-    Events["MemoryChanged"] = "MemoryChanged";
-})(Events || (Events = {}));
 export const MemoryTrendWindowMs = 120e3;
 const PollIntervalMs = 2e3;
 export class Isolate {
@@ -142,7 +130,7 @@ export class Isolate {
     }
     heapProfilerModel() {
         const runtimeModel = this.runtimeModel();
-        return runtimeModel && runtimeModel.heapProfilerModel();
+        return runtimeModel?.heapProfilerModel() ?? null;
     }
     async update() {
         const model = this.runtimeModel();
@@ -150,9 +138,9 @@ export class Isolate {
         if (!usage) {
             return;
         }
-        this.#usedHeapSizeInternal = usage.usedSize;
+        this.#usedHeapSizeInternal = usage.usedSize + (usage.embedderHeapUsedSize ?? 0) + (usage.backingStorageSize ?? 0);
         this.#memoryTrend.add(this.#usedHeapSizeInternal);
-        IsolateManager.instance().dispatchEventToListeners(Events.MemoryChanged, this);
+        IsolateManager.instance().dispatchEventToListeners("MemoryChanged" /* Events.MEMORY_CHANGED */, this);
     }
     samplesCount() {
         return this.#memoryTrend.count();
@@ -165,10 +153,6 @@ export class Isolate {
      */
     usedHeapSizeGrowRate() {
         return this.#memoryTrend.fitSlope();
-    }
-    isMainThread() {
-        const model = this.runtimeModel();
-        return model ? model.target().id() === 'main' : false;
     }
 }
 export class MemoryTrend {

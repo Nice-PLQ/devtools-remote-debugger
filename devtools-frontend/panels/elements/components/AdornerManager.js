@@ -1,8 +1,6 @@
 // Copyright 2021 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
-// TODO(crbug.com/1167717): Make this a const enum again
-// eslint-disable-next-line rulesdir/const_enum
 export var RegisteredAdorners;
 (function (RegisteredAdorners) {
     RegisteredAdorners["GRID"] = "grid";
@@ -14,6 +12,8 @@ export var RegisteredAdorners;
     RegisteredAdorners["SLOT"] = "slot";
     RegisteredAdorners["TOP_LAYER"] = "top-layer";
     RegisteredAdorners["REVEAL"] = "reveal";
+    RegisteredAdorners["MEDIA"] = "media";
+    RegisteredAdorners["SCROLL"] = "scroll";
 })(RegisteredAdorners || (RegisteredAdorners = {}));
 // This enum-like const object serves as the authoritative registry for all the
 // adorners available.
@@ -71,6 +71,18 @@ export function getRegisteredAdorner(which) {
             return {
                 name: 'reveal',
                 category: "Default" /* AdornerCategories.DEFAULT */,
+                enabledByDefault: true,
+            };
+        case RegisteredAdorners.MEDIA:
+            return {
+                name: 'media',
+                category: "Default" /* AdornerCategories.DEFAULT */,
+                enabledByDefault: false,
+            };
+        case RegisteredAdorners.SCROLL:
+            return {
+                name: 'scroll',
+                category: "Layout" /* AdornerCategories.LAYOUT */,
                 enabledByDefault: true,
             };
     }

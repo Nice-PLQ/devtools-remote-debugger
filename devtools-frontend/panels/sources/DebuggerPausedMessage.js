@@ -5,8 +5,10 @@ import * as Common from '../../core/common/common.js';
 import * as i18n from '../../core/i18n/i18n.js';
 import * as SDK from '../../core/sdk/sdk.js';
 import * as IconButton from '../../ui/components/icon_button/icon_button.js';
-import debuggerPausedMessageStyles from './debuggerPausedMessage.css.js';
 import * as UI from '../../ui/legacy/legacy.js';
+import * as VisualLogging from '../../ui/visual_logging/visual_logging.js';
+import { getLocalizedBreakpointName } from './CategorizedBreakpointL10n.js';
+import debuggerPausedMessageStyles from './debuggerPausedMessage.css.js';
 const UIStrings = {
     /**
      *@description Text in the JavaScript Debugging pane of the Sources pane when a DOM breakpoint is hit
@@ -91,6 +93,16 @@ const UIStrings = {
      *@description Text in Debugger Paused Message of the Sources panel
      */
     nodeRemoval: 'node removal',
+    /**
+     *@description Error message text
+     *@example {Snag Error} PH1
+     */
+    webglErrorFiredS: 'WebGL Error Fired ({PH1})',
+    /**
+     *@description Text in DOMDebugger Model
+     *@example {"script-src 'self'"} PH1
+     */
+    scriptBlockedDueToContent: 'Script blocked due to Content Security Policy directive: {PH1}',
 };
 const str_ = i18n.i18n.registerUIStrings('panels/sources/DebuggerPausedMessage.ts', UIStrings);
 const i18nString = i18n.i18n.getLocalizedString.bind(undefined, str_);
@@ -102,7 +114,8 @@ export class DebuggerPausedMessage {
         this.elementInternal = document.createElement('div');
         this.elementInternal.classList.add('paused-message');
         this.elementInternal.classList.add('flex-none');
-        const root = UI.Utils.createShadowRootWithCoreStyles(this.elementInternal, { cssFile: [debuggerPausedMessageStyles], delegatesFocus: undefined });
+        this.elementInternal.setAttribute('jslog', `${VisualLogging.dialog('debugger-paused')}`);
+        const root = UI.UIUtils.createShadowRootWithCoreStyles(this.elementInternal, { cssFile: debuggerPausedMessageStyles });
         this.contentElement = root.createChild('div');
         UI.ARIAUtils.markAsPoliteLiveRegion(this.elementInternal, false);
     }
@@ -127,10 +140,10 @@ export class DebuggerPausedMessage {
         const mainElement = messageWrapper.createChild('div', 'status-main');
         const mainIcon = new IconButton.Icon.Icon();
         mainIcon.data = {
-            iconName: 'info-filled',
-            color: 'var(--icon-default)',
-            width: '14px',
-            height: '14px',
+            iconName: 'info',
+            color: 'var(--sys-color-on-yellow-container)',
+            width: '16px',
+            height: '16px',
         };
         mainElement.appendChild(mainIcon);
         const breakpointType = BreakpointTypeNouns.get(data.type);
@@ -157,6 +170,31 @@ export class DebuggerPausedMessage {
         }
         return messageWrapper;
     }
+    static #findEventNameForUi(detailsAuxData) {
+        if (!detailsAuxData) {
+            return '';
+        }
+        const { eventName, webglErrorName, directiveText, targetName } = detailsAuxData;
+        if (eventName === 'instrumentation:webglErrorFired' && webglErrorName) {
+            // If there is a hex code of the error, display only this.
+            const errorName = webglErrorName.replace(/^.*(0x[0-9a-f]+).*$/i, '$1');
+            return i18nString(UIStrings.webglErrorFiredS, { PH1: errorName });
+        }
+        if (eventName === 'instrumentation:scriptBlockedByCSP' && directiveText) {
+            return i18nString(UIStrings.scriptBlockedDueToContent, { PH1: directiveText });
+        }
+        let breakpoint = SDK.EventBreakpointsModel.EventBreakpointsManager.instance().resolveEventListenerBreakpoint(detailsAuxData);
+        if (breakpoint) {
+            // EventBreakpointsManager breakpoints are the only ones with localized names.
+            return getLocalizedBreakpointName(breakpoint.name);
+        }
+        breakpoint = SDK.DOMDebuggerModel.DOMDebuggerManager.instance().resolveEventListenerBreakpoint(detailsAuxData);
+        if (breakpoint && targetName) {
+            // For standard DOM event listeners we prepend the target of the event.
+            return targetName + '.' + breakpoint.name;
+        }
+        return breakpoint?.name ?? '';
+    }
     async render(details, debuggerWorkspaceBinding, breakpointManager) {
         this.contentElement.removeChildren();
         this.contentElement.hidden = !details;
@@ -173,16 +211,7 @@ export class DebuggerPausedMessage {
             messageWrapper = await DebuggerPausedMessage.createDOMBreakpointHitMessage(details);
         }
         else if (details.reason === "EventListener" /* Protocol.Debugger.PausedEventReason.EventListener */) {
-            let eventNameForUI = '';
-            if (details.auxData) {
-                const maybeNonDomEventNameForUI = SDK.EventBreakpointsModel.EventBreakpointsManager.instance().resolveEventListenerBreakpointTitle(details.auxData);
-                if (maybeNonDomEventNameForUI) {
-                    eventNameForUI = maybeNonDomEventNameForUI;
-                }
-                else {
-                    eventNameForUI = SDK.DOMDebuggerModel.DOMDebuggerManager.instance().resolveEventListenerBreakpointTitle(details.auxData);
-                }
-            }
+            const eventNameForUI = DebuggerPausedMessage.#findEventNameForUi(details.auxData);
             messageWrapper = buildWrapper(i18nString(UIStrings.pausedOnEventListener), eventNameForUI);
         }
         else if (details.reason === "XHR" /* Protocol.Debugger.PausedEventReason.XHR */) {
@@ -211,8 +240,7 @@ export class DebuggerPausedMessage {
         else if (details.reason === "OOM" /* Protocol.Debugger.PausedEventReason.OOM */) {
             messageWrapper = buildWrapper(i18nString(UIStrings.pausedBeforePotentialOutofmemory));
         }
-        else if (details.reason === "CSPViolation" /* Protocol.Debugger.PausedEventReason.CSPViolation */ && details.auxData &&
-            details.auxData['violationType']) {
+        else if (details.reason === "CSPViolation" /* Protocol.Debugger.PausedEventReason.CSPViolation */ && details.auxData?.['violationType']) {
             const text = details.auxData['violationType'];
             if (text === "trustedtype-sink-violation" /* Protocol.DOMDebugger.CSPViolationType.TrustedtypeSinkViolation */) {
                 messageWrapper =
@@ -241,10 +269,10 @@ export class DebuggerPausedMessage {
             const mainElement = messageWrapper.createChild('div', 'status-main');
             const mainIcon = new IconButton.Icon.Icon();
             mainIcon.data = {
-                iconName: errorLike ? 'cross-circle-filled' : 'info-filled',
-                color: errorLike ? 'var(--icon-error)' : 'var(--icon-default)',
-                width: '14px',
-                height: '14px',
+                iconName: errorLike ? 'cross-circle-filled' : 'info',
+                color: errorLike ? 'var(--icon-error)' : 'var(--sys-color-on-yellow-container)',
+                width: '16px',
+                height: '16px',
             };
             mainElement.appendChild(mainIcon);
             mainElement.appendChild(document.createTextNode(mainText));

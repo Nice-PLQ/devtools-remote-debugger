@@ -2,31 +2,75 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 import * as Common from '../../core/common/common.js';
+import * as Root from '../../core/root/root.js';
 import * as SDK from '../../core/sdk/sdk.js';
 import * as UI from '../../ui/legacy/legacy.js';
+import { ComputedStyleWidget } from './ComputedStyleWidget.js';
+import { StylesSidebarPane } from './StylesSidebarPane.js';
 export class ComputedStyleModel extends Common.ObjectWrapper.ObjectWrapper {
     nodeInternal;
     cssModelInternal;
     eventListeners;
     frameResizedTimer;
     computedStylePromise;
+    currentTrackedNodeId;
     constructor() {
         super();
-        this.nodeInternal = UI.Context.Context.instance().flavor(SDK.DOMModel.DOMNode);
         this.cssModelInternal = null;
         this.eventListeners = [];
+        this.nodeInternal = UI.Context.Context.instance().flavor(SDK.DOMModel.DOMNode);
         UI.Context.Context.instance().addFlavorChangeListener(SDK.DOMModel.DOMNode, this.onNodeChanged, this);
+        UI.Context.Context.instance().addFlavorChangeListener(StylesSidebarPane, this.evaluateTrackingComputedStyleUpdatesForNode, this);
+        UI.Context.Context.instance().addFlavorChangeListener(ComputedStyleWidget, this.evaluateTrackingComputedStyleUpdatesForNode, this);
+    }
+    dispose() {
+        UI.Context.Context.instance().removeFlavorChangeListener(SDK.DOMModel.DOMNode, this.onNodeChanged, this);
+        UI.Context.Context.instance().removeFlavorChangeListener(StylesSidebarPane, this.evaluateTrackingComputedStyleUpdatesForNode, this);
+        UI.Context.Context.instance().removeFlavorChangeListener(ComputedStyleWidget, this.evaluateTrackingComputedStyleUpdatesForNode, this);
     }
     node() {
         return this.nodeInternal;
     }
     cssModel() {
-        return this.cssModelInternal && this.cssModelInternal.isEnabled() ? this.cssModelInternal : null;
+        return this.cssModelInternal?.isEnabled() ? this.cssModelInternal : null;
     }
+    // This is a debounced method because the user might be navigated from Styles tab to Computed Style tab and vice versa.
+    // For that case, we want to only run this function once.
+    evaluateTrackingComputedStyleUpdatesForNode = Common.Debouncer.debounce(() => {
+        if (!this.nodeInternal) {
+            // There isn't a node selected now, so let's stop tracking computed style updates for the previously tracked node.
+            if (this.currentTrackedNodeId) {
+                void this.cssModel()?.trackComputedStyleUpdatesForNode(undefined);
+                this.currentTrackedNodeId = undefined;
+            }
+            return;
+        }
+        const { hostConfig } = Root.Runtime;
+        const isComputedStyleWidgetVisible = Boolean(UI.Context.Context.instance().flavor(ComputedStyleWidget));
+        const isStylesTabVisible = Boolean(UI.Context.Context.instance().flavor(StylesSidebarPane));
+        const shouldTrackComputedStyleUpdates = isComputedStyleWidgetVisible || (isStylesTabVisible && hostConfig.devToolsAnimationStylesInStylesTab?.enabled);
+        // There is a selected node but not the computed style widget nor the styles tab is visible.
+        // If there is a previously tracked node let's stop tracking computed style updates for that node.
+        if (!shouldTrackComputedStyleUpdates) {
+            if (this.currentTrackedNodeId) {
+                void this.cssModel()?.trackComputedStyleUpdatesForNode(undefined);
+                this.currentTrackedNodeId = undefined;
+            }
+            return;
+        }
+        // Either computed style widget or styles tab is visible
+        // if the currently tracked node id is not the same as the selected node
+        // let's start tracking the currently selected node.
+        if (this.currentTrackedNodeId !== this.nodeInternal.id) {
+            void this.cssModel()?.trackComputedStyleUpdatesForNode(this.nodeInternal.id);
+            this.currentTrackedNodeId = this.nodeInternal.id;
+        }
+    }, 100);
     onNodeChanged(event) {
         this.nodeInternal = event.data;
         this.updateModel(this.nodeInternal ? this.nodeInternal.domModel().cssModel() : null);
-        this.onComputedStyleChanged(null);
+        this.onCSSModelChanged(null);
+        this.evaluateTrackingComputedStyleUpdatesForNode();
     }
     updateModel(cssModel) {
         if (this.cssModelInternal === cssModel) {
@@ -38,21 +82,31 @@ export class ComputedStyleModel extends Common.ObjectWrapper.ObjectWrapper {
         const resourceTreeModel = cssModel ? cssModel.target().model(SDK.ResourceTreeModel.ResourceTreeModel) : null;
         if (cssModel && domModel && resourceTreeModel) {
             this.eventListeners = [
-                cssModel.addEventListener(SDK.CSSModel.Events.StyleSheetAdded, this.onComputedStyleChanged, this),
-                cssModel.addEventListener(SDK.CSSModel.Events.StyleSheetRemoved, this.onComputedStyleChanged, this),
-                cssModel.addEventListener(SDK.CSSModel.Events.StyleSheetChanged, this.onComputedStyleChanged, this),
-                cssModel.addEventListener(SDK.CSSModel.Events.FontsUpdated, this.onComputedStyleChanged, this),
-                cssModel.addEventListener(SDK.CSSModel.Events.MediaQueryResultChanged, this.onComputedStyleChanged, this),
-                cssModel.addEventListener(SDK.CSSModel.Events.PseudoStateForced, this.onComputedStyleChanged, this),
-                cssModel.addEventListener(SDK.CSSModel.Events.ModelWasEnabled, this.onComputedStyleChanged, this),
+                cssModel.addEventListener(SDK.CSSModel.Events.StyleSheetAdded, this.onCSSModelChanged, this),
+                cssModel.addEventListener(SDK.CSSModel.Events.StyleSheetRemoved, this.onCSSModelChanged, this),
+                cssModel.addEventListener(SDK.CSSModel.Events.StyleSheetChanged, this.onCSSModelChanged, this),
+                cssModel.addEventListener(SDK.CSSModel.Events.FontsUpdated, this.onCSSModelChanged, this),
+                cssModel.addEventListener(SDK.CSSModel.Events.MediaQueryResultChanged, this.onCSSModelChanged, this),
+                cssModel.addEventListener(SDK.CSSModel.Events.PseudoStateForced, this.onCSSModelChanged, this),
+                cssModel.addEventListener(SDK.CSSModel.Events.ModelWasEnabled, this.onCSSModelChanged, this),
+                cssModel.addEventListener(SDK.CSSModel.Events.ComputedStyleUpdated, this.onComputedStyleChanged, this),
                 domModel.addEventListener(SDK.DOMModel.Events.DOMMutated, this.onDOMModelChanged, this),
                 resourceTreeModel.addEventListener(SDK.ResourceTreeModel.Events.FrameResized, this.onFrameResized, this),
             ];
         }
     }
+    onCSSModelChanged(event) {
+        delete this.computedStylePromise;
+        this.dispatchEventToListeners("CSSModelChanged" /* Events.CSS_MODEL_CHANGED */, event?.data ?? null);
+    }
     onComputedStyleChanged(event) {
         delete this.computedStylePromise;
-        this.dispatchEventToListeners("ComputedStyleChanged" /* Events.ComputedStyleChanged */, event?.data ?? null);
+        // If the event contains `nodeId` and that's not the same as this node's id
+        // we don't emit the COMPUTED_STYLE_CHANGED event.
+        if (event?.data && 'nodeId' in event.data && event.data.nodeId !== this.nodeInternal?.id) {
+            return;
+        }
+        this.dispatchEventToListeners("ComputedStyleChanged" /* Events.COMPUTED_STYLE_CHANGED */);
     }
     onDOMModelChanged(event) {
         // Any attribute removal or modification can affect the styles of "related" nodes.
@@ -62,11 +116,11 @@ export class ComputedStyleModel extends Common.ObjectWrapper.ObjectWrapper {
                 !node.isAncestor(this.nodeInternal)) {
             return;
         }
-        this.onComputedStyleChanged(null);
+        this.onCSSModelChanged(null);
     }
     onFrameResized() {
         function refreshContents() {
-            this.onComputedStyleChanged(null);
+            this.onCSSModelChanged(null);
             delete this.frameResizedTimer;
         }
         if (this.frameResizedTimer) {
@@ -94,7 +148,7 @@ export class ComputedStyleModel extends Common.ObjectWrapper.ObjectWrapper {
         if (!this.computedStylePromise) {
             this.computedStylePromise = cssModel.getComputedStyle(nodeId).then(verifyOutdated.bind(this, elementNode));
         }
-        return this.computedStylePromise;
+        return await this.computedStylePromise;
         function verifyOutdated(elementNode, style) {
             return elementNode === this.elementNode() && style ? new ComputedStyle(elementNode, style) :
                 null;

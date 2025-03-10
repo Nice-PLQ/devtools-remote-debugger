@@ -32,8 +32,8 @@
     "../../../../../../front_end/entrypoints/shell/shell.ts",
     "../../../../../../front_end/legacy/legacy-defs.d.ts",
     "../../../../../../front_end/global_typings/global_defs.d.ts",
-    "../../../../../../front_end/global_typings/request_idle_callback.d.ts",
-    "../../../../../../node_modules/@types/filesystem/index.d.ts"
+    "../../../../../../node_modules/@types/filesystem/index.d.ts",
+    "../../../../../../node_modules/@types/wicg-task-scheduling/index.d.ts"
   ],
   "references": [
     {
@@ -41,9 +41,6 @@
     },
     {
       "path": "../../core/dom_extension/bundle-tsconfig.json"
-    },
-    {
-      "path": "../../core/root/legacy-tsconfig.json"
     },
     {
       "path": "../../core/sdk/meta-tsconfig.json"
@@ -56,6 +53,9 @@
     },
     {
       "path": "../../models/persistence/meta-tsconfig.json"
+    },
+    {
+      "path": "../../panels/ai_assistance/meta-tsconfig.json"
     },
     {
       "path": "../../panels/application/meta-tsconfig.json"
@@ -73,6 +73,12 @@
       "path": "../../panels/coverage/meta-tsconfig.json"
     },
     {
+      "path": "../../panels/explain/meta-tsconfig.json"
+    },
+    {
+      "path": "../../panels/linear_memory_inspector/meta-tsconfig.json"
+    },
+    {
       "path": "../../panels/profiler/meta-tsconfig.json"
     },
     {
@@ -83,9 +89,6 @@
     },
     {
       "path": "../../panels/sources/meta-tsconfig.json"
-    },
-    {
-      "path": "../../ui/components/linear_memory_inspector/meta-tsconfig.json"
     },
     {
       "path": "../../ui/legacy/components/object_ui/meta-tsconfig.json"

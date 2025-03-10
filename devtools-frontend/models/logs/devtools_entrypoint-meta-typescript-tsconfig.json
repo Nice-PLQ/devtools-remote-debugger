@@ -32,12 +32,18 @@
     "../../../../../../front_end/models/logs/logs-meta.ts",
     "../../../../../../front_end/legacy/legacy-defs.d.ts",
     "../../../../../../front_end/global_typings/global_defs.d.ts",
-    "../../../../../../front_end/global_typings/request_idle_callback.d.ts",
-    "../../../../../../node_modules/@types/filesystem/index.d.ts"
+    "../../../../../../node_modules/@types/filesystem/index.d.ts",
+    "../../../../../../node_modules/@types/wicg-task-scheduling/index.d.ts"
   ],
   "references": [
     {
       "path": "./bundle-tsconfig.json"
+    },
+    {
+      "path": "../../core/common/bundle-tsconfig.json"
+    },
+    {
+      "path": "../../core/i18n/bundle-tsconfig.json"
     }
   ]
 }

@@ -3,16 +3,16 @@
 // found in the LICENSE file.
 import * as Common from '../../core/common/common.js';
 import * as UI from '../../ui/legacy/legacy.js';
-import { ComputedStyleModel } from './ComputedStyleModel.js';
 export class ElementsSidebarPane extends UI.Widget.VBox {
     computedStyleModelInternal;
     updateThrottler;
     updateWhenVisible;
-    constructor(delegatesFocus) {
+    constructor(computedStyleModel, delegatesFocus) {
         super(true, delegatesFocus);
         this.element.classList.add('flex-none');
-        this.computedStyleModelInternal = new ComputedStyleModel();
-        this.computedStyleModelInternal.addEventListener("ComputedStyleChanged" /* Events.ComputedStyleChanged */, this.onCSSModelChanged, this);
+        this.computedStyleModelInternal = computedStyleModel;
+        this.computedStyleModelInternal.addEventListener("CSSModelChanged" /* Events.CSS_MODEL_CHANGED */, this.onCSSModelChanged, this);
+        this.computedStyleModelInternal.addEventListener("ComputedStyleChanged" /* Events.COMPUTED_STYLE_CHANGED */, this.onComputedStyleChanged, this);
         this.updateThrottler = new Common.Throttler.Throttler(100);
         this.updateWhenVisible = false;
     }
@@ -45,6 +45,8 @@ export class ElementsSidebarPane extends UI.Widget.VBox {
         }
     }
     onCSSModelChanged(_event) {
+    }
+    onComputedStyleChanged() {
     }
 }
 //# sourceMappingURL=ElementsSidebarPane.js.map

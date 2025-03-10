@@ -27,16 +27,19 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-export class ContentProvider {
-}
 export class SearchMatch {
     lineNumber;
     lineContent;
     columnNumber;
-    constructor(lineNumber, lineContent, columnNumber) {
+    matchLength;
+    constructor(lineNumber, lineContent, columnNumber, matchLength) {
         this.lineNumber = lineNumber;
         this.lineContent = lineContent;
         this.columnNumber = columnNumber;
+        this.matchLength = matchLength;
+    }
+    static comparator(a, b) {
+        return a.lineNumber - b.lineNumber || a.columnNumber - b.columnNumber;
     }
 }
 export const contentAsDataURL = function (content, mimeType, contentEncoded, charset, limitSize = true) {
@@ -44,7 +47,11 @@ export const contentAsDataURL = function (content, mimeType, contentEncoded, cha
     if (content === undefined || content === null || (limitSize && content.length > maxDataUrlSize)) {
         return null;
     }
+    content = contentEncoded ? content : encodeURIComponent(content);
     return 'data:' + mimeType + (charset ? ';charset=' + charset : '') + (contentEncoded ? ';base64' : '') + ',' +
         content;
+};
+export const isStreamingContentProvider = function (provider) {
+    return 'requestStreamingContent' in provider;
 };
 //# sourceMappingURL=ContentProvider.js.map

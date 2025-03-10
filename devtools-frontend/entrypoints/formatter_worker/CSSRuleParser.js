@@ -35,7 +35,7 @@ export function parseCSS(text, chunkCallback) {
                 if (tokenType.has('qualifier') || tokenType.has('builtin') || tokenType.has('tag')) {
                     rule = {
                         selectorText: tokenValue,
-                        lineNumber: lineNumber,
+                        lineNumber,
                         columnNumber: column,
                         properties: [],
                     };
@@ -44,7 +44,7 @@ export function parseCSS(text, chunkCallback) {
                 else if (tokenType.has('def')) {
                     rule = {
                         atRule: tokenValue,
-                        lineNumber: lineNumber,
+                        lineNumber,
                         columnNumber: column,
                     };
                     state = CSSParserStates.AtRule;

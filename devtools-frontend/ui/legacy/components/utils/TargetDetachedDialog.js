@@ -1,17 +1,8 @@
 // Copyright 2018 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
-import * as i18n from '../../../../core/i18n/i18n.js';
 import * as SDK from '../../../../core/sdk/sdk.js';
 import * as UI from '../../legacy.js';
-const UIStrings = {
-    /**
-     *@description Text on the remote debugging window to indicate the connection is lost
-     */
-    websocketDisconnected: 'WebSocket disconnected',
-};
-const str_ = i18n.i18n.registerUIStrings('ui/legacy/components/utils/TargetDetachedDialog.ts', UIStrings);
-const i18nString = i18n.i18n.getLocalizedString.bind(undefined, str_);
 export class TargetDetachedDialog extends SDK.SDKModel.SDKModel {
     static hideCrashedDialog;
     constructor(target) {
@@ -19,7 +10,7 @@ export class TargetDetachedDialog extends SDK.SDKModel.SDKModel {
         target.registerInspectorDispatcher(this);
         void target.inspectorAgent().invoke_enable();
         // Hide all dialogs if a new top-level target is created.
-        if (target.parentTarget()?.type() === SDK.Target.Type.Browser && TargetDetachedDialog.hideCrashedDialog) {
+        if (target.parentTarget()?.type() === SDK.Target.Type.BROWSER && TargetDetachedDialog.hideCrashedDialog) {
             TargetDetachedDialog.hideCrashedDialog.call(null);
             TargetDetachedDialog.hideCrashedDialog = null;
         }
@@ -27,8 +18,8 @@ export class TargetDetachedDialog extends SDK.SDKModel.SDKModel {
     detached({ reason }) {
         UI.RemoteDebuggingTerminatedScreen.RemoteDebuggingTerminatedScreen.show(reason);
     }
-    static webSocketConnectionLost() {
-        UI.RemoteDebuggingTerminatedScreen.RemoteDebuggingTerminatedScreen.show(i18nString(UIStrings.websocketDisconnected));
+    static connectionLost(message) {
+        UI.RemoteDebuggingTerminatedScreen.RemoteDebuggingTerminatedScreen.show(message);
     }
     targetCrashed() {
         // In case of service workers targetCrashed usually signals that the worker is stopped
@@ -39,11 +30,11 @@ export class TargetDetachedDialog extends SDK.SDKModel.SDKModel {
         }
         // Ignore child targets altogether.
         const parentTarget = this.target().parentTarget();
-        if (parentTarget && parentTarget.type() !== SDK.Target.Type.Browser) {
+        if (parentTarget && parentTarget.type() !== SDK.Target.Type.BROWSER) {
             return;
         }
-        const dialog = new UI.Dialog.Dialog();
-        dialog.setSizeBehavior("MeasureContent" /* UI.GlassPane.SizeBehavior.MeasureContent */);
+        const dialog = new UI.Dialog.Dialog('target-crashed');
+        dialog.setSizeBehavior("MeasureContent" /* UI.GlassPane.SizeBehavior.MEASURE_CONTENT */);
         dialog.addCloseButton();
         dialog.setDimmed(true);
         TargetDetachedDialog.hideCrashedDialog = dialog.hide.bind(dialog);
@@ -52,10 +43,6 @@ export class TargetDetachedDialog extends SDK.SDKModel.SDKModel {
             TargetDetachedDialog.hideCrashedDialog = null;
         })
             .show(dialog.contentElement);
-        // UI.Dialog extends GlassPane and overrides the `show` method with a wider
-        // accepted type. However, TypeScript uses the supertype declaration to
-        // determine the full type, which requires a `!Document`.
-        // @ts-ignore
         dialog.show();
     }
     /** ;
@@ -68,5 +55,5 @@ export class TargetDetachedDialog extends SDK.SDKModel.SDKModel {
         }
     }
 }
-SDK.SDKModel.SDKModel.register(TargetDetachedDialog, { capabilities: SDK.Target.Capability.Inspector, autostart: true });
+SDK.SDKModel.SDKModel.register(TargetDetachedDialog, { capabilities: 2048 /* SDK.Target.Capability.INSPECTOR */, autostart: true });
 //# sourceMappingURL=TargetDetachedDialog.js.map

@@ -2,11 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 import * as ComponentHelpers from '../../../ui/components/helpers/helpers.js';
-import * as LitHtml from '../../../ui/lit-html/lit-html.js';
-import editableSpanStyles from './EditableSpan.css.js';
-const { render, html } = LitHtml;
+import { html, render } from '../../../ui/lit/lit.js';
+import * as VisualLogging from '../../../ui/visual_logging/visual_logging.js';
+import editableSpanStylesRaw from './EditableSpan.css.js';
+// TODO(crbug.com/391381439): Fully migrate off of constructed style sheets.
+const editableSpanStyles = new CSSStyleSheet();
+editableSpanStyles.replaceSync(editableSpanStylesRaw.cssContent);
 export class EditableSpan extends HTMLElement {
-    static litTagName = LitHtml.literal `devtools-editable-span`;
     #shadow = this.attachShadow({ mode: 'open' });
     #boundRender = this.#render.bind(this);
     #value = '';
@@ -14,7 +16,6 @@ export class EditableSpan extends HTMLElement {
         this.#shadow.adoptedStyleSheets = [editableSpanStyles];
         this.#shadow.addEventListener('focusin', this.#selectAllText.bind(this));
         this.#shadow.addEventListener('keydown', this.#onKeyDown.bind(this));
-        this.#shadow.addEventListener('paste', this.#onPaste.bind(this));
         this.#shadow.addEventListener('input', this.#onInput.bind(this));
     }
     set data(data) {
@@ -48,32 +49,19 @@ export class EditableSpan extends HTMLElement {
         selection?.removeAllRanges();
         selection?.addRange(range);
     }
-    #onPaste(event) {
-        const clipboardEvent = event;
-        event.preventDefault();
-        if (clipboardEvent.clipboardData) {
-            const text = clipboardEvent.clipboardData.getData('text/plain');
-            const range = this.#shadow.getSelection()?.getRangeAt(0);
-            if (!range) {
-                return;
-            }
-            range.deleteContents();
-            const textNode = document.createTextNode(text);
-            range.insertNode(textNode);
-            range.selectNodeContents(textNode);
-            range.collapse(false);
-            const selection = window.getSelection();
-            selection?.removeAllRanges();
-            selection?.addRange(range);
-        }
-    }
     #render() {
         if (!ComponentHelpers.ScheduledRender.isScheduledRender(this)) {
             throw new Error('HeaderSectionRow render was not scheduled');
         }
         // Disabled until https://crbug.com/1079231 is fixed.
         // clang-format off
-        render(html `<span contenteditable="true" class="editable" tabindex="0" .innerText=${this.#value}></span>`, this.#shadow, { host: this });
+        render(html `<span
+        contenteditable="plaintext-only"
+        class="editable"
+        tabindex="0"
+        .innerText=${this.#value}
+        jslog=${VisualLogging.value('header-editor').track({ change: true, keydown: 'Enter|Escape' })}
+    </span>`, this.#shadow, { host: this });
         // clang-format on
     }
     focus() {
@@ -83,5 +71,5 @@ export class EditableSpan extends HTMLElement {
         });
     }
 }
-ComponentHelpers.CustomElements.defineComponent('devtools-editable-span', EditableSpan);
+customElements.define('devtools-editable-span', EditableSpan);
 //# sourceMappingURL=EditableSpan.js.map

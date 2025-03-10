@@ -3,16 +3,18 @@
 // found in the LICENSE file.
 import * as SDK from '../../core/sdk/sdk.js';
 import * as UI from '../../ui/legacy/legacy.js';
+import * as VisualLogging from '../../ui/visual_logging/visual_logging.js';
 import { ReportingApiReportsView } from './ReportingApiReportsView.js';
 export class ReportingApiView extends UI.SplitWidget.SplitWidget {
     endpointsGrid;
     endpoints;
     constructor(endpointsGrid) {
         super(/* isVertical: */ false, /* secondIsSidebar: */ true);
+        this.element.setAttribute('jslog', `${VisualLogging.pane('reporting-api')}`);
         this.endpointsGrid = endpointsGrid;
         this.endpoints = new Map();
         const mainTarget = SDK.TargetManager.TargetManager.instance().primaryPageTarget();
-        const networkManager = mainTarget && mainTarget.model(SDK.NetworkManager.NetworkManager);
+        const networkManager = mainTarget?.model(SDK.NetworkManager.NetworkManager);
         if (networkManager) {
             networkManager.addEventListener(SDK.NetworkManager.Events.ReportingApiEndpointsChangedForOrigin, event => this.onEndpointsChangedForOrigin(event.data), this);
             const reportingApiReportsView = new ReportingApiReportsView(networkManager);

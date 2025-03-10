@@ -1,16 +1,17 @@
 // Copyright (c) 2020 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
-import * as ComponentHelpers from '../../../components/helpers/helpers.js';
-import * as LitHtml from '../../../lit-html/lit-html.js';
-import cssAngleStyles from './cssAngle.css.js';
+import './CSSAngleEditor.js';
+import './CSSAngleSwatch.js';
+import * as Lit from '../../../lit/lit.js';
+import cssAngleStylesRaw from './cssAngle.css.js';
 import { convertAngleUnit, getNewAngleFromEvent, getNextUnit, parseText, roundAngleByUnit, } from './CSSAngleUtils.js';
 import { ValueChangedEvent } from './InlineEditorUtils.js';
-import { CSSAngleEditor } from './CSSAngleEditor.js';
-import { CSSAngleSwatch } from './CSSAngleSwatch.js';
-const { render, html } = LitHtml;
-const styleMap = LitHtml.Directives.styleMap;
-const ContextAwareProperties = new Set(['color', 'background', 'background-color']);
+// TODO(crbug.com/391381439): Fully migrate off of constructed style sheets.
+const cssAngleStyles = new CSSStyleSheet();
+cssAngleStyles.replaceSync(cssAngleStylesRaw.cssContent);
+const { render, html } = Lit;
+const styleMap = Lit.Directives.styleMap;
 export class PopoverToggledEvent extends Event {
     static eventName = 'popovertoggled';
     data;
@@ -29,14 +30,12 @@ export class UnitChangedEvent extends Event {
 }
 const DefaultAngle = {
     value: 0,
-    unit: "rad" /* AngleUnit.Rad */,
+    unit: "rad" /* AngleUnit.RAD */,
 };
 export class CSSAngle extends HTMLElement {
-    static litTagName = LitHtml.literal `devtools-css-angle`;
     shadow = this.attachShadow({ mode: 'open' });
     angle = DefaultAngle;
     displayedAngle = DefaultAngle;
-    propertyName = '';
     propertyValue = '';
     containingPane;
     angleElement = null;
@@ -55,8 +54,6 @@ export class CSSAngle extends HTMLElement {
         }
         this.angle = parsedResult;
         this.displayedAngle = { ...parsedResult };
-        this.propertyName = data.propertyName;
-        this.propertyValue = data.propertyValue;
         this.containingPane = data.containingPane;
         this.render();
     }
@@ -66,7 +63,7 @@ export class CSSAngle extends HTMLElement {
     // We bind and unbind mouse event listeners upon popping over and minifying,
     // because we anticipate most of the time this widget is minified even when
     // it's attached to the DOM tree.
-    popover() {
+    popOver() {
         if (!this.containingPane) {
             return;
         }
@@ -86,7 +83,7 @@ export class CSSAngle extends HTMLElement {
         if (miniIconBottom && miniIconLeft) {
             // We offset mini icon's X and Y positions with the containing styles
             // pane's positions because DevTools' root SplitWidget's
-            // insertion-point-sidebar slot, where most of the DevTools content lives,
+            // sidebar slot, where most of the DevTools content lives,
             // has an offset of positions, which makes all of its children's DOMRect
             // positions to have this offset.
             const offsetTop = this.containingPane.getBoundingClientRect().top;
@@ -98,6 +95,9 @@ export class CSSAngle extends HTMLElement {
         this.render();
         this.angleElement.focus();
     }
+    addEventListener(type, listener, options) {
+        super.addEventListener(type, listener, options);
+    }
     minify() {
         if (this.popoverOpen === false) {
             return;
@@ -107,8 +107,7 @@ export class CSSAngle extends HTMLElement {
         this.unbindMinifyingAction();
         this.render();
     }
-    updateProperty(name, value) {
-        this.propertyName = name;
+    updateProperty(value) {
         this.propertyValue = value;
         this.render();
     }
@@ -116,6 +115,7 @@ export class CSSAngle extends HTMLElement {
         this.displayedAngle = roundAngleByUnit(convertAngleUnit(angle, this.displayedAngle.unit));
         this.angle = this.displayedAngle;
         this.dispatchEvent(new ValueChangedEvent(`${this.angle.value}${this.angle.unit}`));
+        this.render();
     }
     displayNextUnit() {
         const nextUnit = getNextUnit(this.displayedAngle.unit);
@@ -140,7 +140,7 @@ export class CSSAngle extends HTMLElement {
             this.displayNextUnit();
             return;
         }
-        this.popoverOpen ? this.minify() : this.popover();
+        this.popoverOpen ? this.minify() : this.popOver();
     }
     // Fix that the previous text will be selected when double-clicking the angle icon
     consume(event) {
@@ -171,16 +171,16 @@ export class CSSAngle extends HTMLElement {
         // Disabled until https://crbug.com/1079231 is fixed.
         // clang-format off
         render(html `
-      <div class="css-angle" @keydown=${this.onKeydown} tabindex="-1">
+      <div class="css-angle" @focusout=${this.minify} @keydown=${this.onKeydown} tabindex="-1">
         <div class="preview">
-          <${CSSAngleSwatch.litTagName}
+          <devtools-css-angle-swatch
             @click=${this.onMiniIconClick}
             @mousedown=${this.consume}
             @dblclick=${this.consume}
             .data=${{
             angle: this.angle,
         }}>
-          </${CSSAngleSwatch.litTagName}><slot></slot></div>
+          </devtools-css-angle-swatch><slot></slot></div>
         ${this.popoverOpen ? this.renderPopover() : null}
       </div>
     `, this.shadow, {
@@ -190,15 +190,13 @@ export class CSSAngle extends HTMLElement {
     }
     renderPopover() {
         let contextualBackground = '';
-        // TODO(crbug.com/1143010): for now we ignore values with "url"; when we refactor
-        // CSS value parsing we should properly apply atomic contextual background.
-        if (ContextAwareProperties.has(this.propertyName) && !this.propertyValue.match(/url\(.*\)/i)) {
+        if (this.propertyValue && !this.propertyValue.match(/url\(.*\)/i)) {
             contextualBackground = this.propertyValue;
         }
         // Disabled until https://crbug.com/1079231 is fixed.
         // clang-format off
         return html `
-    <${CSSAngleEditor.litTagName}
+    <devtools-css-angle-editor
       class="popover popover-css-angle"
       style=${styleMap({ top: this.popoverStyleTop, left: this.popoverStyleLeft })}
       .data=${{
@@ -208,10 +206,10 @@ export class CSSAngle extends HTMLElement {
             },
             background: contextualBackground,
         }}
-    ></${CSSAngleEditor.litTagName}>
+    ></devtools-css-angle-editor>
     `;
         // clang-format on
     }
 }
-ComponentHelpers.CustomElements.defineComponent('devtools-css-angle', CSSAngle);
+customElements.define('devtools-css-angle', CSSAngle);
 //# sourceMappingURL=CSSAngle.js.map

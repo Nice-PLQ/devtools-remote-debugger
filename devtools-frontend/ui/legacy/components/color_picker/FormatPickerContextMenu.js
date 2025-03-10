@@ -16,22 +16,14 @@ const str_ = i18n.i18n.registerUIStrings('ui/legacy/components/color_picker/Form
 const i18nString = i18n.i18n.getLocalizedString.bind(undefined, str_);
 export class FormatPickerContextMenu {
     #color;
-    #format;
-    constructor(color, format) {
+    constructor(color) {
         this.#color = color;
-        this.#format = format;
     }
     async show(e, onSelect) {
-        let resolveShowPromise = undefined;
-        const showPromise = new Promise(resolve => {
-            resolveShowPromise = resolve;
-        });
+        const { resolve, promise: showPromise, } = Promise.withResolvers();
         const legacyFormats = [
-            "nickname" /* Common.Color.Format.Nickname */,
             "hex" /* Common.Color.Format.HEX */,
-            "shorthex" /* Common.Color.Format.ShortHEX */,
             "hexa" /* Common.Color.Format.HEXA */,
-            "shorthexa" /* Common.Color.Format.ShortHEXA */,
             "rgb" /* Common.Color.Format.RGB */,
             "rgba" /* Common.Color.Format.RGBA */,
             "hsl" /* Common.Color.Format.HSL */,
@@ -52,51 +44,67 @@ export class FormatPickerContextMenu {
             "xyz-d50" /* Common.Color.Format.XYZ_D50 */,
             "xyz-d65" /* Common.Color.Format.XYZ_D65 */,
         ];
-        const menu = new UI.ContextMenu.ContextMenu(e, { useSoftMenu: true, onSoftMenuClosed: () => resolveShowPromise?.() });
+        const menu = new UI.ContextMenu.ContextMenu(e, { onSoftMenuClosed: () => resolve() });
         const legacySection = menu.section('legacy');
         const wideSection = menu.section('wide');
-        const colorFunctionSection = menu.section('color-function').appendSubMenuItem('color()').section();
+        const colorFunctionSection = menu.section('color-function').appendSubMenuItem('color()', false, 'color').section();
+        if (!(this.#color instanceof Common.Color.Nickname)) {
+            const nickname = this.#color.asLegacyColor().nickname();
+            if (nickname) {
+                this.addColorToSection(nickname, legacySection, onSelect);
+            }
+        }
+        if (!(this.#color instanceof Common.Color.ShortHex)) {
+            const shortHex = this.#color.as((this.#color.alpha ?? 1) === 1 ? "hex" /* Common.Color.Format.HEX */ : "hexa" /* Common.Color.Format.HEXA */)
+                .shortHex();
+            if (shortHex) {
+                this.addColorToSection(shortHex, legacySection, onSelect);
+            }
+        }
         for (const format of [...legacyFormats, ...modernFormats]) {
-            if (format === this.#format) {
+            if (format === this.#color.format()) {
                 continue;
             }
             const newColor = this.#color.as(format);
-            if (newColor instanceof Common.Color.Legacy) {
-                const originalHasAlpha = (this.#color.alpha ?? 1) !== 1;
-                const isAlphaFormat = newColor.alpha !== null;
-                // When the original color has alpha, only print alpha legacy formats. Otherwise, only print non-alpha legacy
-                // formats.
-                if (isAlphaFormat !== originalHasAlpha) {
-                    continue;
-                }
-            }
-            const label = newColor.asString();
-            if (!label) {
-                continue;
-            }
-            let icon = undefined;
-            if (newColor.isGamutClipped()) {
-                icon = new IconButton.Icon.Icon();
-                icon.data = {
-                    iconName: 'warning',
-                    color: 'var(--icon-default)',
-                    width: '16px',
-                    height: '16px',
-                };
-                icon.style.marginLeft = '1px';
-                icon.style.marginTop = '-1px';
-                icon.style.minWidth = '16px';
-                icon.style.minHeight = '16px';
-            }
-            const tooltip = icon ? i18nString(UIStrings.colorClippedTooltipText, { PH1: newColor.getAsRawString() ?? 'none' }) : undefined;
-            const handler = () => onSelect(format);
             const section = legacyFormats.includes(format) ? legacySection :
                 newColor instanceof Common.Color.ColorFunction ? colorFunctionSection :
                     wideSection;
-            section.appendItem(label, handler, false, icon, tooltip);
+            this.addColorToSection(newColor, section, onSelect);
         }
         await menu.show();
         await showPromise;
+    }
+    addColorToSection(newColor, section, onSelect) {
+        if (newColor instanceof Common.Color.Legacy) {
+            const originalHasAlpha = (this.#color.alpha ?? 1) !== 1;
+            const isAlphaFormat = newColor.alpha !== null;
+            // When the original color has alpha, only print alpha legacy formats. Otherwise, only print non-alpha legacy
+            // formats.
+            if (isAlphaFormat !== originalHasAlpha) {
+                return;
+            }
+        }
+        const label = newColor.asString();
+        if (!label) {
+            return;
+        }
+        let icon = undefined;
+        if (newColor.isGamutClipped()) {
+            icon = new IconButton.Icon.Icon();
+            icon.data = {
+                iconName: 'warning',
+                color: 'var(--icon-default)',
+                width: '16px',
+                height: '16px',
+            };
+            icon.style.marginLeft = '1px';
+            icon.style.marginTop = '-1px';
+            icon.style.minWidth = '16px';
+            icon.style.minHeight = '16px';
+        }
+        const tooltip = icon ? i18nString(UIStrings.colorClippedTooltipText, { PH1: newColor.getAsRawString() ?? 'none' }) : undefined;
+        const handler = () => onSelect(newColor);
+        section.appendItem(label, handler, { additionalElement: icon, tooltip, jslogContext: newColor.isGamutClipped() ? 'color' : 'clipped-color' });
     }
 }
 //# sourceMappingURL=FormatPickerContextMenu.js.map

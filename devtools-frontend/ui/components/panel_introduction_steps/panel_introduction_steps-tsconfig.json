@@ -32,8 +32,8 @@
     "../../../../../../../front_end/ui/components/panel_introduction_steps/PanelIntroductionSteps.ts",
     "../../../../../../../front_end/legacy/legacy-defs.d.ts",
     "../../../../../../../front_end/global_typings/global_defs.d.ts",
-    "../../../../../../../front_end/global_typings/request_idle_callback.d.ts",
-    "../../../../../../../node_modules/@types/filesystem/index.d.ts"
+    "../../../../../../../node_modules/@types/filesystem/index.d.ts",
+    "../../../../../../../node_modules/@types/wicg-task-scheduling/index.d.ts"
   ],
   "references": [
     {
@@ -52,7 +52,7 @@
       "path": "../render_coordinator/bundle-tsconfig.json"
     },
     {
-      "path": "../../lit-html/bundle-tsconfig.json"
+      "path": "../../lit/bundle-tsconfig.json"
     },
     {
       "path": "../buttons/bundle-tsconfig.json"

@@ -163,18 +163,20 @@ export class StatusView {
         this.render();
     }
     render() {
-        const dialogRoot = UI.Utils.createShadowRootWithCoreStyles(this.dialog.contentElement, { cssFile: [lighthouseDialogStyles], delegatesFocus: undefined });
+        const dialogRoot = UI.UIUtils.createShadowRootWithCoreStyles(this.dialog.contentElement, { cssFile: lighthouseDialogStyles });
         const lighthouseViewElement = dialogRoot.createChild('div', 'lighthouse-view vbox');
-        const cancelButton = UI.UIUtils.createTextButton(i18nString(UIStrings.cancel), this.cancel.bind(this));
+        const cancelButton = UI.UIUtils.createTextButton(i18nString(UIStrings.cancel), this.cancel.bind(this), {
+            jslogContext: 'lighthouse.cancel',
+        });
         const fragment = UI.Fragment.Fragment.build `
-  <div class="lighthouse-view vbox">
-  <h2 $="status-header">Auditing your web page…</h2>
+  <span $="status-header" class="header">Auditing your web page…</span>
   <div class="lighthouse-status vbox" $="status-view">
   <div class="lighthouse-progress-wrapper" $="progress-wrapper">
   <div class="lighthouse-progress-bar" $="progress-bar"></div>
   </div>
   <div class="lighthouse-status-text" $="status-text"></div>
   </div>
+  <div class="lighthouse-action-buttons">
   ${cancelButton}
   </div>
   `;
@@ -189,7 +191,7 @@ export class StatusView {
         this.cancelButton = cancelButton;
         UI.ARIAUtils.markAsStatus(this.statusText);
         this.dialog.setDefaultFocusedElement(cancelButton);
-        this.dialog.setSizeBehavior("SetExactWidthMaxHeight" /* UI.GlassPane.SizeBehavior.SetExactWidthMaxHeight */);
+        this.dialog.setSizeBehavior("SetExactWidthMaxHeight" /* UI.GlassPane.SizeBehavior.SET_EXACT_WIDTH_MAX_HEIGHT */);
         this.dialog.setMaxContentSize(new UI.Geometry.Size(500, 400));
     }
     reset() {
@@ -204,10 +206,9 @@ export class StatusView {
         this.reset();
         this.updateStatus(i18nString(UIStrings.loading));
         const parsedURL = Common.ParsedURL.ParsedURL.fromString(this.inspectedURL);
-        const pageHost = parsedURL && parsedURL.host;
+        const pageHost = parsedURL?.host;
         const statusHeader = pageHost ? i18nString(UIStrings.auditingS, { PH1: pageHost }) : i18nString(UIStrings.auditingYourWebPage);
         this.renderStatusHeader(statusHeader);
-        // @ts-ignore TS expects Document, but gets Element (show takes Element|Document)
         this.dialog.show(dialogRenderElement);
     }
     renderStatusHeader(statusHeader) {
@@ -245,7 +246,6 @@ export class StatusView {
             this.resetProgressBarClasses();
             if (this.progressBar) {
                 this.progressBar.classList.add(nextPhase.progressBarClass);
-                // @ts-ignore indexOf null is valid.
                 const nextPhaseIndex = StatusPhases.indexOf(nextPhase);
                 UI.ARIAUtils.setProgressBarValue(this.progressBar, nextPhaseIndex, text);
             }
@@ -258,7 +258,7 @@ export class StatusView {
         if (phase.message()) {
             return phase.message();
         }
-        const deviceTypeSetting = RuntimeSettings.find(item => item.setting.name === 'lighthouse.device_type');
+        const deviceTypeSetting = RuntimeSettings.find(item => item.setting.name === 'lighthouse.device-type');
         const throttleSetting = RuntimeSettings.find(item => item.setting.name === 'lighthouse.throttling');
         const deviceType = deviceTypeSetting ? deviceTypeSetting.setting.get() : '';
         const throttling = throttleSetting ? throttleSetting.setting.get() : '';
@@ -336,7 +336,7 @@ export class StatusView {
     }
     renderBugReportBody(err, auditURL) {
         const chromeVersion = navigator.userAgent.match(/Chrome\/(\S+)/) || ['', 'Unknown'];
-        // @ts-ignore Lighthouse sets `friendlyMessage` on certain
+        // @ts-expect-error Lighthouse sets `friendlyMessage` on certain
         // important errors such as PROTOCOL_TIMEOUT.
         const errorMessage = err.friendlyMessage || err.message;
         const issueBody = `

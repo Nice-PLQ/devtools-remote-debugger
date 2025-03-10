@@ -33,16 +33,20 @@ export class NetworkManageCustomHeadersView extends UI.Widget.VBox {
     editor;
     constructor(columnData, addHeaderColumnCallback, changeHeaderColumnCallback, removeHeaderColumnCallback) {
         super(true);
-        this.contentElement.classList.add('custom-headers-wrapper');
+        this.registerRequiredCSS(networkManageCustomHeadersViewStyles);
         this.contentElement.createChild('div', 'header').textContent = i18nString(UIStrings.manageHeaderColumns);
         this.list = new UI.ListWidget.ListWidget(this);
+        this.list.registerRequiredCSS(networkManageCustomHeadersViewStyles);
         this.list.element.classList.add('custom-headers-list');
         const placeholder = document.createElement('div');
         placeholder.classList.add('custom-headers-list-list-empty');
         placeholder.textContent = i18nString(UIStrings.noCustomHeaders);
         this.list.setEmptyPlaceholder(placeholder);
         this.list.show(this.contentElement);
-        this.contentElement.appendChild(UI.UIUtils.createTextButton(i18nString(UIStrings.addCustomHeader), this.addButtonClicked.bind(this), 'add-button'));
+        this.contentElement.appendChild(UI.UIUtils.createTextButton(i18nString(UIStrings.addCustomHeader), this.addButtonClicked.bind(this), {
+            className: 'add-button',
+            jslogContext: 'network.add-custom-header',
+        }));
         this.columnConfigs = new Map();
         columnData.forEach(columnData => this.columnConfigs.set(columnData.title.toLowerCase(), columnData));
         this.addHeaderColumnCallback = addHeaderColumnCallback;
@@ -51,9 +55,8 @@ export class NetworkManageCustomHeadersView extends UI.Widget.VBox {
         this.contentElement.tabIndex = 0;
     }
     wasShown() {
+        super.wasShown();
         this.headersUpdated();
-        this.list.registerCSSFiles([networkManageCustomHeadersViewStyles]);
-        this.registerCSSFiles([networkManageCustomHeadersViewStyles]);
     }
     headersUpdated() {
         this.list.clear();

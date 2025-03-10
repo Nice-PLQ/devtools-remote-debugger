@@ -1,11 +1,13 @@
 // Copyright 2020 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
+import '../../legacy.js';
 import * as Common from '../../../../core/common/common.js';
 import * as i18n from '../../../../core/i18n/i18n.js';
 import * as Platform from '../../../../core/platform/platform.js';
 import * as SDK from '../../../../core/sdk/sdk.js';
 import * as IconButton from '../../../components/icon_button/icon_button.js';
+import * as VisualLogging from '../../../visual_logging/visual_logging.js';
 import * as UI from '../../legacy.js';
 import fontEditorStyles from './fontEditor.css.js';
 import * as FontEditorUnitConverter from './FontEditorUnitConverter.js';
@@ -119,9 +121,11 @@ export class FontEditor extends Common.ObjectWrapper.eventMixin(UI.Widget.VBox) 
     fontsList;
     constructor(propertyMap) {
         super(true);
+        this.registerRequiredCSS(fontEditorStyles);
         this.selectedNode = UI.Context.Context.instance().flavor(SDK.DOMModel.DOMNode);
         this.propertyMap = propertyMap;
         this.contentElement.tabIndex = 0;
+        this.contentElement.setAttribute('jslog', `${VisualLogging.dialog('font-editor').parent('mapped').track({ keydown: 'Enter|Escape' })}`);
         this.setDefaultFocusedElement(this.contentElement);
         // Font Selector Section
         this.fontSelectorSection = this.contentElement.createChild('div', 'font-selector-section');
@@ -146,9 +150,6 @@ export class FontEditor extends Common.ObjectWrapper.eventMixin(UI.Widget.VBox) 
         /** hasUnits= */ false);
         new FontPropertyInputs('letter-spacing', i18nString(UIStrings.spacing), cssPropertySection, letterSpacingPropertyInfo, FontEditorUtils.LetterSpacingStaticParams, this.updatePropertyValue.bind(this), this.resizePopout.bind(this), 
         /** hasUnits= */ true);
-    }
-    wasShown() {
-        this.registerCSSFiles([fontEditorStyles]);
     }
     async createFontSelectorSection(propertyValue) {
         if (propertyValue) {
@@ -221,11 +222,11 @@ export class FontEditor extends Common.ObjectWrapper.eventMixin(UI.Widget.VBox) 
             const globalValuesMap = new Map([['Global Values', FontEditorUtils.GlobalValues]]);
             const primaryFontList = [...this.fontsList];
             primaryFontList.push(globalValuesMap);
-            this.createSelector(selectorField, label, primaryFontList, value.trim());
+            this.createSelector(selectorField, label, primaryFontList, value.trim(), 'primary-font-family');
         }
         else {
             label = i18nString(UIStrings.fallbackS, { PH1: this.fontSelectors.length });
-            this.createSelector(selectorField, label, this.fontsList, value.trim());
+            this.createSelector(selectorField, label, this.fontsList, value.trim(), 'fallback-font-family');
         }
     }
     deleteFontSelector(index, isGlobalValue) {
@@ -295,10 +296,11 @@ export class FontEditor extends Common.ObjectWrapper.eventMixin(UI.Widget.VBox) 
         }
         return { value: null, units: null };
     }
-    createSelector(field, label, options, currentValue) {
+    createSelector(field, label, options, currentValue, jslogContext) {
         const index = this.fontSelectors.length;
-        const selectInput = UI.UIUtils.createSelect(label, options);
+        const selectInput = (UI.UIUtils.createSelect(label, options));
         selectInput.value = currentValue;
+        selectInput.setAttribute('jslog', `${VisualLogging.dropDown(jslogContext).track({ click: true, change: true })}`);
         const selectLabel = UI.UIUtils.createLabel(label, 'shadow-editor-label', selectInput);
         selectInput.addEventListener('input', this.onFontSelectorChanged.bind(this), false);
         // We want to prevent the Enter key from propagating to the SwatchPopoverHelper which will close the editor.
@@ -309,11 +311,11 @@ export class FontEditor extends Common.ObjectWrapper.eventMixin(UI.Widget.VBox) 
         }, false);
         field.appendChild(selectLabel);
         field.appendChild(selectInput);
-        const deleteToolbar = new UI.Toolbar.Toolbar('', field);
-        const deleteButton = new UI.Toolbar.ToolbarButton(i18nString(UIStrings.deleteS, { PH1: label }), 'bin');
+        const deleteToolbar = field.createChild('devtools-toolbar');
+        const deleteButton = new UI.Toolbar.ToolbarButton(i18nString(UIStrings.deleteS, { PH1: label }), 'bin', undefined, 'delete');
         deleteToolbar.appendToolbarItem(deleteButton);
         const fontSelectorObject = { label: selectLabel, input: selectInput, deleteButton, index };
-        deleteButton.addEventListener(UI.Toolbar.ToolbarButton.Events.Click, () => {
+        deleteButton.addEventListener("Click" /* UI.Toolbar.ToolbarButton.Events.CLICK */, () => {
             this.deleteFontSelector(fontSelectorObject.index);
         });
         deleteButton.element.addEventListener('keydown', (event) => {
@@ -353,19 +355,12 @@ export class FontEditor extends Common.ObjectWrapper.eventMixin(UI.Widget.VBox) 
         this.updatePropertyValue('font-family', value);
     }
     updatePropertyValue(propertyName, value) {
-        this.dispatchEventToListeners(Events.FontChanged, { propertyName, value });
+        this.dispatchEventToListeners("FontChanged" /* Events.FONT_CHANGED */, { propertyName, value });
     }
     resizePopout() {
-        this.dispatchEventToListeners(Events.FontEditorResized);
+        this.dispatchEventToListeners("FontEditorResized" /* Events.FONT_EDITOR_RESIZED */);
     }
 }
-// TODO(crbug.com/1167717): Make this a const enum again
-// eslint-disable-next-line rulesdir/const_enum
-export var Events;
-(function (Events) {
-    Events["FontChanged"] = "FontChanged";
-    Events["FontEditorResized"] = "FontEditorResized";
-})(Events || (Events = {}));
 class FontPropertyInputs {
     showSliderMode;
     errorText;
@@ -413,12 +408,12 @@ class FontPropertyInputs {
         this.selectedNode = UI.Context.Context.instance().flavor(SDK.DOMModel.DOMNode);
         const propertyLabel = UI.UIUtils.createLabel(label, 'shadow-editor-label');
         propertyField.append(propertyLabel);
-        this.sliderInput = this.createSliderInput(propertyField, label);
-        this.textBoxInput = this.createTextBoxInput(propertyField);
+        this.sliderInput = this.createSliderInput(propertyField, propertyName);
+        this.textBoxInput = this.createTextBoxInput(propertyField, propertyName);
         UI.ARIAUtils.bindLabelToControl(propertyLabel, this.textBoxInput);
-        this.unitInput = this.createUnitInput(propertyField);
-        this.selectorInput = this.createSelectorInput(propertyField);
-        this.createTypeToggle(propertyField);
+        this.unitInput = this.createUnitInput(propertyField, `${propertyName}-unit`);
+        this.selectorInput = this.createSelectorInput(propertyField, propertyName);
+        this.createTypeToggle(propertyField, `${propertyName}-value-type`);
         this.checkSelectorValueAndToggle();
         this.applyNextInput = false;
     }
@@ -430,12 +425,10 @@ class FontPropertyInputs {
                 this.boundResizeCallback();
             }
         }
-        else {
-            if (!this.errorText.hidden) {
-                this.errorText.hidden = true;
-                this.textBoxInput.classList.remove('error-input');
-                this.boundResizeCallback();
-            }
+        else if (!this.errorText.hidden) {
+            this.errorText.hidden = true;
+            this.textBoxInput.classList.remove('error-input');
+            this.boundResizeCallback();
         }
     }
     checkSelectorValueAndToggle() {
@@ -478,19 +471,19 @@ class FontPropertyInputs {
         }
         return { min, max, step };
     }
-    createSliderInput(field, _label) {
+    createSliderInput(field, jslogContext) {
         const min = this.initialRange.min;
         const max = this.initialRange.max;
         const step = this.initialRange.step;
         const slider = UI.UIUtils.createSlider(min, max, -1);
-        slider.sliderElement.step = step.toString();
-        slider.sliderElement.tabIndex = 0;
+        slider.step = step.toString();
+        slider.tabIndex = 0;
         if (this.propertyInfo.value) {
-            slider.value = parseFloat(this.propertyInfo.value);
+            slider.value = this.propertyInfo.value;
         }
         else {
             const newValue = (min + max) / 2;
-            slider.value = newValue;
+            slider.value = newValue.toString();
         }
         slider.addEventListener('input', event => {
             this.onSliderInput(event, /** apply= */ false);
@@ -509,11 +502,12 @@ class FontPropertyInputs {
             }
         });
         field.appendChild(slider);
-        UI.ARIAUtils.setLabel(slider.sliderElement, i18nString(UIStrings.sSliderInput, { PH1: this.propertyName }));
+        UI.ARIAUtils.setLabel(slider, i18nString(UIStrings.sSliderInput, { PH1: this.propertyName }));
+        slider.setAttribute('jslog', `${VisualLogging.slider(jslogContext).track({ change: true })}`);
         return slider;
     }
-    createTextBoxInput(field) {
-        const textBoxInput = UI.UIUtils.createInput('shadow-editor-text-input', 'number');
+    createTextBoxInput(field, jslogContext) {
+        const textBoxInput = UI.UIUtils.createInput('shadow-editor-text-input', 'number', jslogContext);
         textBoxInput.step = this.initialRange.step.toString();
         textBoxInput.classList.add('font-editor-text-input');
         if (this.propertyInfo.value !== null) {
@@ -528,7 +522,7 @@ class FontPropertyInputs {
         UI.ARIAUtils.setLabel(textBoxInput, i18nString(UIStrings.sTextInput, { PH1: this.propertyName }));
         return textBoxInput;
     }
-    createUnitInput(field) {
+    createUnitInput(field, jslogContext) {
         let unitInput;
         if (this.hasUnits && this.staticParams.units) {
             const currentValue = this.propertyInfo.units;
@@ -548,6 +542,7 @@ class FontPropertyInputs {
             unitInput.classList.add('font-editor-select');
             unitInput.disabled = true;
         }
+        unitInput.setAttribute('jslog', `${VisualLogging.dropDown(jslogContext).track({ click: true, change: true })}`);
         // We want to prevent the Enter key from propagating to the SwatchPopoverHelper which will close the editor.
         unitInput.addEventListener('keydown', (event) => {
             if (event.key === 'Enter') {
@@ -558,7 +553,7 @@ class FontPropertyInputs {
         UI.ARIAUtils.setLabel(unitInput, i18nString(UIStrings.sUnitInput, { PH1: this.propertyName }));
         return unitInput;
     }
-    createSelectorInput(field) {
+    createSelectorInput(field, jslogContext) {
         const selectInput = UI.UIUtils.createSelect(i18nString(UIStrings.sKeyValueSelector, { PH1: this.propertyName }), this.staticParams.keyValues);
         selectInput.classList.add('font-selector-input');
         if (this.propertyInfo.value) {
@@ -573,14 +568,15 @@ class FontPropertyInputs {
         }, false);
         field.appendChild(selectInput);
         selectInput.hidden = true;
+        selectInput.setAttribute('jslog', `${VisualLogging.dropDown(jslogContext).track({ click: true, change: true })}`);
         return selectInput;
     }
     onSelectorInput(event) {
         if (event.currentTarget) {
             const value = event.currentTarget.value;
             this.textBoxInput.value = '';
-            const newValue = (parseFloat(this.sliderInput.sliderElement.min) + parseFloat(this.sliderInput.sliderElement.max)) / 2;
-            this.sliderInput.value = newValue;
+            const newValue = (parseFloat(this.sliderInput.min) + parseFloat(this.sliderInput.max)) / 2;
+            this.sliderInput.value = newValue.toString();
             this.setInvalidTextBoxInput(false);
             this.boundUpdateCallback(this.propertyName, value);
         }
@@ -606,13 +602,13 @@ class FontPropertyInputs {
             const units = value === '' ? '' : this.unitInput.value;
             const valueString = value + units;
             if (this.staticParams.regex.test(valueString) || (value === '' && !target.validationMessage.length)) {
-                if (parseFloat(value) > parseFloat(this.sliderInput.sliderElement.max)) {
-                    this.sliderInput.sliderElement.max = value;
+                if (parseFloat(value) > parseFloat(this.sliderInput.max)) {
+                    this.sliderInput.max = value;
                 }
-                else if (parseFloat(value) < parseFloat(this.sliderInput.sliderElement.min)) {
-                    this.sliderInput.sliderElement.min = value;
+                else if (parseFloat(value) < parseFloat(this.sliderInput.min)) {
+                    this.sliderInput.min = value;
                 }
-                this.sliderInput.value = parseFloat(value);
+                this.sliderInput.value = value;
                 this.selectorInput.value = '';
                 this.setInvalidTextBoxInput(false);
                 this.boundUpdateCallback(this.propertyName, valueString);
@@ -639,7 +635,7 @@ class FontPropertyInputs {
             unitInput.focus();
         }
     }
-    createTypeToggle(field) {
+    createTypeToggle(field, jslogContext) {
         const displaySwitcher = field.createChild('div', 'spectrum-switcher');
         const icon = new IconButton.Icon.Icon();
         icon.data = { iconName: 'fold-more', color: 'var(--icon-default)', width: '16px', height: '16px' };
@@ -648,6 +644,7 @@ class FontPropertyInputs {
         displaySwitcher.tabIndex = 0;
         self.onInvokeElement(displaySwitcher, this.toggleInputType.bind(this));
         UI.ARIAUtils.markAsButton(displaySwitcher);
+        displaySwitcher.setAttribute('jslog', `${VisualLogging.toggle(jslogContext).track({ click: true })}`);
     }
     toggleInputType(event) {
         if (event && event.key === 'Enter') {
@@ -692,14 +689,14 @@ class FontPropertyInputs {
             hasValue = true;
             newValue = parseFloat((parseFloat(this.textBoxInput.value) * multiplier).toFixed(roundingPrecision));
         }
-        this.sliderInput.sliderElement.min = Math.min(newValue, newMin).toString();
-        this.sliderInput.sliderElement.max = Math.max(newValue, newMax).toString();
-        this.sliderInput.sliderElement.step = newStep.toString();
+        this.sliderInput.min = Math.min(newValue, newMin).toString();
+        this.sliderInput.max = Math.max(newValue, newMax).toString();
+        this.sliderInput.step = newStep.toString();
         this.textBoxInput.step = newStep.toString();
         if (hasValue) {
             this.textBoxInput.value = newValue.toString();
         }
-        this.sliderInput.value = newValue;
+        this.sliderInput.value = newValue.toString();
     }
 }
 //# sourceMappingURL=FontEditor.js.map

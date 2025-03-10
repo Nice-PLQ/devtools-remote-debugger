@@ -32,8 +32,8 @@
     "../../../../../../../../front_end/panels/settings/emulation/components/UserAgentClientHintsForm.ts",
     "../../../../../../../../front_end/legacy/legacy-defs.d.ts",
     "../../../../../../../../front_end/global_typings/global_defs.d.ts",
-    "../../../../../../../../front_end/global_typings/request_idle_callback.d.ts",
-    "../../../../../../../../node_modules/@types/filesystem/index.d.ts"
+    "../../../../../../../../node_modules/@types/filesystem/index.d.ts",
+    "../../../../../../../../node_modules/@types/wicg-task-scheduling/index.d.ts"
   ],
   "references": [
     {
@@ -55,7 +55,7 @@
       "path": "../../../../ui/legacy/bundle-tsconfig.json"
     },
     {
-      "path": "../../../../ui/lit-html/bundle-tsconfig.json"
+      "path": "../../../../ui/lit/bundle-tsconfig.json"
     },
     {
       "path": "../utils/bundle-tsconfig.json"

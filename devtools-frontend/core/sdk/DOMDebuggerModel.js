@@ -2,222 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 import * as Common from '../common/common.js';
-import * as i18n from '../i18n/i18n.js';
 import * as Platform from '../platform/platform.js';
 import { CategorizedBreakpoint } from './CategorizedBreakpoint.js';
 import { DOMModel, Events as DOMModelEvents } from './DOMModel.js';
 import { RemoteObject } from './RemoteObject.js';
 import { RuntimeModel } from './RuntimeModel.js';
-import { Capability } from './Target.js';
 import { SDKModel } from './SDKModel.js';
 import { TargetManager } from './TargetManager.js';
-const UIStrings = {
-    /**
-     *@description Title for a category of breakpoints on Trusted Type violations
-     */
-    trustedTypeViolations: 'Trusted Type Violations',
-    /**
-     * @description Noun. Title for a checkbox that turns on breakpoints on Trusted Type sink violations.
-     * "Trusted Types" is a Web API. A "Sink" (Noun, singular) is a special function, akin to a data sink, that expects
-     * to receive data in a specific format. Should the data be in the wrong format, or something else
-     * go wrong, its called a "sink violation".
-     */
-    sinkViolations: 'Sink Violations',
-    /**
-     *@description Title for a checkbox that turns on breakpoints on Trusted Type policy violations
-     */
-    policyViolations: 'Policy Violations',
-    /**
-     *@description Text that refers to the animation of the web page
-     */
-    animation: 'Animation',
-    /**
-     *@description Text in DOMDebugger Model
-     */
-    canvas: 'Canvas',
-    /**
-     *@description Title for a group of cities
-     */
-    geolocation: 'Geolocation',
-    /**
-     *@description Text in DOMDebugger Model
-     */
-    notification: 'Notification',
-    /**
-     *@description Text to parse something
-     */
-    parse: 'Parse',
-    /**
-     *@description Label for a group of JavaScript files
-     */
-    script: 'Script',
-    /**
-     *@description Text in DOMDebugger Model
-     */
-    timer: 'Timer',
-    /**
-     *@description Text in DOMDebugger Model
-     */
-    window: 'Window',
-    /**
-     *@description Title of the WebAudio tool
-     */
-    webaudio: 'WebAudio',
-    /**
-     *@description Text that appears on a button for the media resource type filter.
-     */
-    media: 'Media',
-    /**
-     *@description Text in DOMDebugger Model
-     */
-    pictureinpicture: 'Picture-in-Picture',
-    /**
-     *@description Text in DOMDebugger Model
-     */
-    clipboard: 'Clipboard',
-    /**
-     * @description Noun. Describes a group of DOM events (such as 'select' and 'submit') in this context.
-     */
-    control: 'Control',
-    /**
-     *@description Text that refers to device such as a phone
-     */
-    device: 'Device',
-    /**
-     *@description Text in DOMDebugger Model
-     */
-    domMutation: 'DOM Mutation',
-    /**
-     *@description Text in DOMDebugger Model
-     */
-    dragDrop: 'Drag / drop',
-    /**
-     *@description Text in DOMDebugger Model
-     */
-    keyboard: 'Keyboard',
-    /**
-     *@description Text to load something
-     */
-    load: 'Load',
-    /**
-     *@description Text in DOMDebugger Model
-     */
-    mouse: 'Mouse',
-    /**
-     *@description Text in DOMDebugger Model
-     */
-    pointer: 'Pointer',
-    /**
-     *@description Text for the touch type to simulate on a device
-     */
-    touch: 'Touch',
-    /**
-     *@description Text that appears on a button for the xhr resource type filter.
-     */
-    xhr: 'XHR',
-    /**
-     *@description Text in the Event Listener Breakpoints Panel of the JavaScript Debugger in the Sources Panel
-     *@example {setTimeout} PH1
-     */
-    setTimeoutOrIntervalFired: '{PH1} fired',
-    /**
-     *@description Text in the Event Listener Breakpoints Panel of the JavaScript Debugger in the Sources Panel
-     */
-    scriptFirstStatement: 'Script First Statement',
-    /**
-     *@description Text in the Event Listener Breakpoints Panel of the JavaScript Debugger in the Sources Panel
-     */
-    scriptBlockedByContentSecurity: 'Script Blocked by Content Security Policy',
-    /**
-     *@description Text for the request animation frame event
-     */
-    requestAnimationFrame: 'Request Animation Frame',
-    /**
-     *@description Text to cancel the animation frame
-     */
-    cancelAnimationFrame: 'Cancel Animation Frame',
-    /**
-     *@description Text for the event that an animation frame is fired
-     */
-    animationFrameFired: 'Animation Frame Fired',
-    /**
-     *@description Text in the Event Listener Breakpoints Panel of the JavaScript Debugger in the Sources Panel
-     */
-    webglErrorFired: 'WebGL Error Fired',
-    /**
-     *@description Text in the Event Listener Breakpoints Panel of the JavaScript Debugger in the Sources Panel
-     */
-    webglWarningFired: 'WebGL Warning Fired',
-    /**
-     *@description Text in the Event Listener Breakpoints Panel of the JavaScript Debugger in the Sources Panel
-     */
-    setInnerhtml: 'Set `innerHTML`',
-    /**
-     *@description Name of a breakpoint type in the Sources Panel.
-     */
-    createCanvasContext: 'Create canvas context',
-    /**
-     *@description Name of a breakpoint type in the Sources Panel.
-     */
-    createAudiocontext: 'Create `AudioContext`',
-    /**
-     *@description Name of a breakpoint type in the Sources Panel. Close is a verb.
-     */
-    closeAudiocontext: 'Close `AudioContext`',
-    /**
-     *@description Name of a breakpoint type in the Sources Panel. Resume is a verb.
-     */
-    resumeAudiocontext: 'Resume `AudioContext`',
-    /**
-     *@description Name of a breakpoint type in the Sources Panel.
-     */
-    suspendAudiocontext: 'Suspend `AudioContext`',
-    /**
-     *@description Error message text
-     *@example {Snag Error} PH1
-     */
-    webglErrorFiredS: 'WebGL Error Fired ({PH1})',
-    /**
-     *@description Text in DOMDebugger Model
-     *@example {"script-src 'self'"} PH1
-     */
-    scriptBlockedDueToContent: 'Script blocked due to Content Security Policy directive: {PH1}',
-    /**
-     *@description Text for the service worker type.
-     */
-    worker: 'Worker',
-};
-const str_ = i18n.i18n.registerUIStrings('core/sdk/DOMDebuggerModel.ts', UIStrings);
-const i18nString = i18n.i18n.getLocalizedString.bind(undefined, str_);
-// Some instrumentation breakpoints have their titles adjusted to localized
-// versions, and some are merely renamed to more recognizable names.
-//
-// This function returns a table that links the breakpoint names and replacement
-// titles.
-function getInstrumentationBreakpointTitles() {
-    return [
-        ['setTimeout.callback', i18nString(UIStrings.setTimeoutOrIntervalFired, { PH1: 'setTimeout' })],
-        ['setInterval.callback', i18nString(UIStrings.setTimeoutOrIntervalFired, { PH1: 'setInterval' })],
-        ['scriptFirstStatement', i18nString(UIStrings.scriptFirstStatement)],
-        ['scriptBlockedByCSP', i18nString(UIStrings.scriptBlockedByContentSecurity)],
-        ['requestAnimationFrame', i18nString(UIStrings.requestAnimationFrame)],
-        ['cancelAnimationFrame', i18nString(UIStrings.cancelAnimationFrame)],
-        ['requestAnimationFrame.callback', i18nString(UIStrings.animationFrameFired)],
-        ['webglErrorFired', i18nString(UIStrings.webglErrorFired)],
-        ['webglWarningFired', i18nString(UIStrings.webglWarningFired)],
-        ['Element.setInnerHTML', i18nString(UIStrings.setInnerhtml)],
-        ['canvasContextCreated', i18nString(UIStrings.createCanvasContext)],
-        ['Geolocation.getCurrentPosition', 'getCurrentPosition'],
-        ['Geolocation.watchPosition', 'watchPosition'],
-        ['Notification.requestPermission', 'requestPermission'],
-        ['DOMWindow.close', 'window.close'],
-        ['Document.write', 'document.write'],
-        ['audioContextCreated', i18nString(UIStrings.createAudiocontext)],
-        ['audioContextClosed', i18nString(UIStrings.closeAudiocontext)],
-        ['audioContextResumed', i18nString(UIStrings.resumeAudiocontext)],
-        ['audioContextSuspended', i18nString(UIStrings.suspendAudiocontext)],
-    ];
-}
 export class DOMDebuggerModel extends SDKModel {
     agent;
     #runtimeModelInternal;
@@ -233,7 +24,7 @@ export class DOMDebuggerModel extends SDKModel {
         this.#domModel.addEventListener(DOMModelEvents.DocumentUpdated, this.documentUpdated, this);
         this.#domModel.addEventListener(DOMModelEvents.NodeRemoved, this.nodeRemoved, this);
         this.#domBreakpointsInternal = [];
-        this.#domBreakpointsSetting = Common.Settings.Settings.instance().createLocalSetting('domBreakpoints', []);
+        this.#domBreakpointsSetting = Common.Settings.Settings.instance().createLocalSetting('dom-breakpoints', []);
         if (this.#domModel.existingDocument()) {
             void this.documentUpdated();
         }
@@ -283,7 +74,7 @@ export class DOMDebuggerModel extends SDKModel {
         this.#domBreakpointsInternal.push(breakpoint);
         this.saveDOMBreakpoints();
         this.enableDOMBreakpoint(breakpoint);
-        this.dispatchEventToListeners(Events.DOMBreakpointAdded, breakpoint);
+        this.dispatchEventToListeners("DOMBreakpointAdded" /* Events.DOM_BREAKPOINT_ADDED */, breakpoint);
         return breakpoint;
     }
     removeDOMBreakpoint(node, type) {
@@ -303,7 +94,7 @@ export class DOMDebuggerModel extends SDKModel {
         else {
             this.disableDOMBreakpoint(breakpoint);
         }
-        this.dispatchEventToListeners(Events.DOMBreakpointToggled, breakpoint);
+        this.dispatchEventToListeners("DOMBreakpointToggled" /* Events.DOM_BREAKPOINT_TOGGLED */, breakpoint);
     }
     enableDOMBreakpoint(breakpoint) {
         if (breakpoint.node.id) {
@@ -337,7 +128,7 @@ export class DOMDebuggerModel extends SDKModel {
             insertion = auxData['insertion'] || false;
             targetNode = this.#domModel.nodeForId(auxData['targetNodeId']);
         }
-        return { type: type, node: node, targetNode: targetNode, insertion: insertion };
+        return { type, node, targetNode, insertion };
     }
     currentURL() {
         const domDocument = this.#domModel.existingDocument();
@@ -349,7 +140,7 @@ export class DOMDebuggerModel extends SDKModel {
         }
         const removed = this.#domBreakpointsInternal;
         this.#domBreakpointsInternal = [];
-        this.dispatchEventToListeners(Events.DOMBreakpointsRemoved, removed);
+        this.dispatchEventToListeners("DOMBreakpointsRemoved" /* Events.DOM_BREAKPOINTS_REMOVED */, removed);
         // this.currentURL() is empty when the page is reloaded because the
         // new document has not been requested yet and the old one has been
         // removed. Therefore, we need to request the document and wait for it.
@@ -372,7 +163,7 @@ export class DOMDebuggerModel extends SDKModel {
             if (breakpoint.enabled) {
                 this.enableDOMBreakpoint(domBreakpoint);
             }
-            this.dispatchEventToListeners(Events.DOMBreakpointAdded, domBreakpoint);
+            this.dispatchEventToListeners("DOMBreakpointAdded" /* Events.DOM_BREAKPOINT_ADDED */, domBreakpoint);
         }
     }
     removeDOMBreakpoints(filter) {
@@ -395,7 +186,7 @@ export class DOMDebuggerModel extends SDKModel {
         }
         this.#domBreakpointsInternal = left;
         this.saveDOMBreakpoints();
-        this.dispatchEventToListeners(Events.DOMBreakpointsRemoved, removed);
+        this.dispatchEventToListeners("DOMBreakpointsRemoved" /* Events.DOM_BREAKPOINTS_REMOVED */, removed);
     }
     nodeRemoved(event) {
         if (this.suspended) {
@@ -414,14 +205,6 @@ export class DOMDebuggerModel extends SDKModel {
         this.#domBreakpointsSetting.set(breakpoints);
     }
 }
-// TODO(crbug.com/1167717): Make this a const enum again
-// eslint-disable-next-line rulesdir/const_enum
-export var Events;
-(function (Events) {
-    Events["DOMBreakpointAdded"] = "DOMBreakpointAdded";
-    Events["DOMBreakpointToggled"] = "DOMBreakpointToggled";
-    Events["DOMBreakpointsRemoved"] = "DOMBreakpointsRemoved";
-})(Events || (Events = {}));
 const Marker = 'breakpoint-marker';
 export class DOMBreakpoint {
     domDebuggerModel;
@@ -461,7 +244,7 @@ export class EventListener {
         const script = location.script();
         this.#sourceURLInternal = script ? script.contentURL() : Platform.DevToolsPath.EmptyUrlString;
         this.#customRemoveFunction = customRemoveFunction;
-        this.#originInternal = origin || EventListener.Origin.Raw;
+        this.#originInternal = origin || "Raw" /* EventListener.Origin.RAW */;
     }
     domDebuggerModel() {
         return this.#domDebuggerModelInternal;
@@ -491,26 +274,23 @@ export class EventListener {
         return this.#originalHandlerInternal;
     }
     canRemove() {
-        return Boolean(this.#customRemoveFunction) || this.#originInternal !== EventListener.Origin.FrameworkUser;
+        return Boolean(this.#customRemoveFunction) || this.#originInternal !== "FrameworkUser" /* EventListener.Origin.FRAMEWORK_USER */;
     }
     remove() {
         if (!this.canRemove()) {
             return Promise.resolve(undefined);
         }
-        if (this.#originInternal !== EventListener.Origin.FrameworkUser) {
+        if (this.#originInternal !== "FrameworkUser" /* EventListener.Origin.FRAMEWORK_USER */) {
             function removeListener(type, listener, useCapture) {
                 this.removeEventListener(type, listener, useCapture);
-                // @ts-ignore:
+                // @ts-expect-error:
                 if (this['on' + type]) {
-                    // @ts-ignore:
+                    // @ts-expect-error:
                     this['on' + type] = undefined;
                 }
             }
             return this.#eventTarget
-                .callFunction(
-            // TODO(crbug.com/1172300) Ignored during the jsdoc to ts migration
-            // @ts-expect-error
-            removeListener, [
+                .callFunction(removeListener, [
                 RemoteObject.toCallArgument(this.#typeInternal),
                 RemoteObject.toCallArgument(this.#originalHandlerInternal),
                 RemoteObject.toCallArgument(this.#useCaptureInternal),
@@ -522,10 +302,7 @@ export class EventListener {
                 this.call(null, type, listener, useCapture, passive);
             }
             return this.#customRemoveFunction
-                .callFunction(
-            // TODO(crbug.com/1172300) Ignored during the jsdoc to ts migration
-            // @ts-expect-error
-            callCustomRemove, [
+                .callFunction(callCustomRemove, [
                 RemoteObject.toCallArgument(this.#typeInternal),
                 RemoteObject.toCallArgument(this.#originalHandlerInternal),
                 RemoteObject.toCallArgument(this.#useCaptureInternal),
@@ -536,14 +313,11 @@ export class EventListener {
         return Promise.resolve(undefined);
     }
     canTogglePassive() {
-        return this.#originInternal !== EventListener.Origin.FrameworkUser;
+        return this.#originInternal !== "FrameworkUser" /* EventListener.Origin.FRAMEWORK_USER */;
     }
     togglePassive() {
         return this.#eventTarget
-            .callFunction(
-        // TODO(crbug.com/1172300) Ignored during the jsdoc to ts migration
-        // @ts-expect-error
-        callTogglePassive, [
+            .callFunction(callTogglePassive, [
             RemoteObject.toCallArgument(this.#typeInternal),
             RemoteObject.toCallArgument(this.#originalHandlerInternal),
             RemoteObject.toCallArgument(this.#useCaptureInternal),
@@ -559,27 +333,17 @@ export class EventListener {
         return this.#originInternal;
     }
     markAsFramework() {
-        this.#originInternal = EventListener.Origin.Framework;
+        this.#originInternal = "Framework" /* EventListener.Origin.FRAMEWORK */;
     }
     isScrollBlockingType() {
         return this.#typeInternal === 'touchstart' || this.#typeInternal === 'touchmove' ||
             this.#typeInternal === 'mousewheel' || this.#typeInternal === 'wheel';
     }
 }
-(function (EventListener) {
-    // TODO(crbug.com/1167717): Make this a const enum again
-    // eslint-disable-next-line rulesdir/const_enum
-    let Origin;
-    (function (Origin) {
-        Origin["Raw"] = "Raw";
-        Origin["Framework"] = "Framework";
-        Origin["FrameworkUser"] = "FrameworkUser";
-    })(Origin = EventListener.Origin || (EventListener.Origin = {}));
-})(EventListener || (EventListener = {}));
 export class CSPViolationBreakpoint extends CategorizedBreakpoint {
     #typeInternal;
-    constructor(category, title, type) {
-        super(category, title);
+    constructor(category, type) {
+        super(category, type);
         this.#typeInternal = type;
     }
     type() {
@@ -587,13 +351,9 @@ export class CSPViolationBreakpoint extends CategorizedBreakpoint {
     }
 }
 export class DOMEventListenerBreakpoint extends CategorizedBreakpoint {
-    instrumentationName;
-    eventName;
     eventTargetNames;
-    constructor(instrumentationName, eventName, eventTargetNames, category, title) {
-        super(category, title);
-        this.instrumentationName = instrumentationName;
-        this.eventName = eventName;
+    constructor(eventName, eventTargetNames, category) {
+        super(category, eventName);
         this.eventTargetNames = eventTargetNames;
     }
     setEnabled(enabled) {
@@ -606,27 +366,16 @@ export class DOMEventListenerBreakpoint extends CategorizedBreakpoint {
         }
     }
     updateOnModel(model) {
-        if (this.instrumentationName) {
+        for (const eventTargetName of this.eventTargetNames) {
             if (this.enabled()) {
-                void model.agent.invoke_setInstrumentationBreakpoint({ eventName: this.instrumentationName });
+                void model.agent.invoke_setEventListenerBreakpoint({ eventName: this.name, targetName: eventTargetName });
             }
             else {
-                void model.agent.invoke_removeInstrumentationBreakpoint({ eventName: this.instrumentationName });
-            }
-        }
-        else {
-            for (const eventTargetName of this.eventTargetNames) {
-                if (this.enabled()) {
-                    void model.agent.invoke_setEventListenerBreakpoint({ eventName: this.eventName, targetName: eventTargetName });
-                }
-                else {
-                    void model.agent.invoke_removeEventListenerBreakpoint({ eventName: this.eventName, targetName: eventTargetName });
-                }
+                void model.agent.invoke_removeEventListenerBreakpoint({ eventName: this.name, targetName: eventTargetName });
             }
         }
     }
     static listener = 'listener:';
-    static instrumentation = 'instrumentation:';
 }
 let domDebuggerManagerInstance;
 export class DOMDebuggerManager {
@@ -635,37 +384,41 @@ export class DOMDebuggerManager {
     #cspViolationsToBreakOn;
     #eventListenerBreakpointsInternal;
     constructor() {
-        this.#xhrBreakpointsSetting = Common.Settings.Settings.instance().createLocalSetting('xhrBreakpoints', []);
+        this.#xhrBreakpointsSetting = Common.Settings.Settings.instance().createLocalSetting('xhr-breakpoints', []);
         this.#xhrBreakpointsInternal = new Map();
         for (const breakpoint of this.#xhrBreakpointsSetting.get()) {
             this.#xhrBreakpointsInternal.set(breakpoint.url, breakpoint.enabled);
         }
         this.#cspViolationsToBreakOn = [];
-        this.#cspViolationsToBreakOn.push(new CSPViolationBreakpoint(i18nString(UIStrings.trustedTypeViolations), i18nString(UIStrings.sinkViolations), "trustedtype-sink-violation" /* Protocol.DOMDebugger.CSPViolationType.TrustedtypeSinkViolation */));
-        this.#cspViolationsToBreakOn.push(new CSPViolationBreakpoint(i18nString(UIStrings.trustedTypeViolations), i18nString(UIStrings.policyViolations), "trustedtype-policy-violation" /* Protocol.DOMDebugger.CSPViolationType.TrustedtypePolicyViolation */));
+        this.#cspViolationsToBreakOn.push(new CSPViolationBreakpoint("trusted-type-violation" /* Category.TRUSTED_TYPE_VIOLATION */, "trustedtype-sink-violation" /* Protocol.DOMDebugger.CSPViolationType.TrustedtypeSinkViolation */));
+        this.#cspViolationsToBreakOn.push(new CSPViolationBreakpoint("trusted-type-violation" /* Category.TRUSTED_TYPE_VIOLATION */, "trustedtype-policy-violation" /* Protocol.DOMDebugger.CSPViolationType.TrustedtypePolicyViolation */));
         this.#eventListenerBreakpointsInternal = [];
-        this.createInstrumentationBreakpoints(i18nString(UIStrings.animation), ['requestAnimationFrame', 'cancelAnimationFrame', 'requestAnimationFrame.callback']);
-        this.createInstrumentationBreakpoints(i18nString(UIStrings.canvas), ['canvasContextCreated', 'webglErrorFired', 'webglWarningFired']);
-        this.createInstrumentationBreakpoints(i18nString(UIStrings.geolocation), ['Geolocation.getCurrentPosition', 'Geolocation.watchPosition']);
-        this.createInstrumentationBreakpoints(i18nString(UIStrings.notification), ['Notification.requestPermission']);
-        this.createInstrumentationBreakpoints(i18nString(UIStrings.parse), ['Element.setInnerHTML', 'Document.write']);
-        this.createInstrumentationBreakpoints(i18nString(UIStrings.script), ['scriptFirstStatement', 'scriptBlockedByCSP']);
-        this.createInstrumentationBreakpoints(i18nString(UIStrings.timer), ['setTimeout', 'clearTimeout', 'setInterval', 'clearInterval', 'setTimeout.callback', 'setInterval.callback']);
-        this.createInstrumentationBreakpoints(i18nString(UIStrings.window), ['DOMWindow.close']);
-        this.createInstrumentationBreakpoints(i18nString(UIStrings.webaudio), ['audioContextCreated', 'audioContextClosed', 'audioContextResumed', 'audioContextSuspended']);
-        this.createEventListenerBreakpoints(i18nString(UIStrings.media), [
+        this.createEventListenerBreakpoints("media" /* Category.MEDIA */, [
             'play', 'pause', 'playing', 'canplay', 'canplaythrough', 'seeking',
             'seeked', 'timeupdate', 'ended', 'ratechange', 'durationchange', 'volumechange',
             'loadstart', 'progress', 'suspend', 'abort', 'error', 'emptied',
             'stalled', 'loadedmetadata', 'loadeddata', 'waiting',
         ], ['audio', 'video']);
-        this.createEventListenerBreakpoints(i18nString(UIStrings.pictureinpicture), ['enterpictureinpicture', 'leavepictureinpicture'], ['video']);
-        this.createEventListenerBreakpoints(i18nString(UIStrings.pictureinpicture), ['resize'], ['PictureInPictureWindow']);
-        this.createEventListenerBreakpoints(i18nString(UIStrings.pictureinpicture), ['enter'], ['documentPictureInPicture']);
-        this.createEventListenerBreakpoints(i18nString(UIStrings.clipboard), ['copy', 'cut', 'paste', 'beforecopy', 'beforecut', 'beforepaste'], ['*']);
-        this.createEventListenerBreakpoints(i18nString(UIStrings.control), ['resize', 'scroll', 'scrollend', 'zoom', 'focus', 'blur', 'select', 'change', 'submit', 'reset'], ['*']);
-        this.createEventListenerBreakpoints(i18nString(UIStrings.device), ['deviceorientation', 'devicemotion'], ['*']);
-        this.createEventListenerBreakpoints(i18nString(UIStrings.domMutation), [
+        this.createEventListenerBreakpoints("picture-in-picture" /* Category.PICTURE_IN_PICTURE */, ['enterpictureinpicture', 'leavepictureinpicture'], ['video']);
+        this.createEventListenerBreakpoints("picture-in-picture" /* Category.PICTURE_IN_PICTURE */, ['resize'], ['PictureInPictureWindow']);
+        this.createEventListenerBreakpoints("picture-in-picture" /* Category.PICTURE_IN_PICTURE */, ['enter'], ['documentPictureInPicture']);
+        this.createEventListenerBreakpoints("clipboard" /* Category.CLIPBOARD */, ['copy', 'cut', 'paste', 'beforecopy', 'beforecut', 'beforepaste'], ['*']);
+        this.createEventListenerBreakpoints("control" /* Category.CONTROL */, [
+            'resize',
+            'scroll',
+            'scrollend',
+            'scrollsnapchange',
+            'scrollsnapchanging',
+            'zoom',
+            'focus',
+            'blur',
+            'select',
+            'change',
+            'submit',
+            'reset',
+        ], ['*']);
+        this.createEventListenerBreakpoints("device" /* Category.DEVICE */, ['deviceorientation', 'devicemotion'], ['*']);
+        this.createEventListenerBreakpoints("dom-mutation" /* Category.DOM_MUTATION */, [
             'DOMActivate',
             'DOMFocusIn',
             'DOMFocusOut',
@@ -678,9 +431,9 @@ export class DOMDebuggerManager {
             'DOMSubtreeModified',
             'DOMContentLoaded',
         ], ['*']);
-        this.createEventListenerBreakpoints(i18nString(UIStrings.dragDrop), ['drag', 'dragstart', 'dragend', 'dragenter', 'dragover', 'dragleave', 'drop'], ['*']);
-        this.createEventListenerBreakpoints(i18nString(UIStrings.keyboard), ['keydown', 'keyup', 'keypress', 'input'], ['*']);
-        this.createEventListenerBreakpoints(i18nString(UIStrings.load), [
+        this.createEventListenerBreakpoints("drag-drop" /* Category.DRAG_DROP */, ['drag', 'dragstart', 'dragend', 'dragenter', 'dragover', 'dragleave', 'drop'], ['*']);
+        this.createEventListenerBreakpoints("keyboard" /* Category.KEYBOARD */, ['keydown', 'keyup', 'keypress', 'input'], ['*']);
+        this.createEventListenerBreakpoints("load" /* Category.LOAD */, [
             'load',
             'beforeunload',
             'unload',
@@ -697,7 +450,7 @@ export class DOMDebuggerManager {
             'finish',
             'dispose',
         ], ['*']);
-        this.createEventListenerBreakpoints(i18nString(UIStrings.mouse), [
+        this.createEventListenerBreakpoints("mouse" /* Category.MOUSE */, [
             'auxclick',
             'click',
             'dblclick',
@@ -712,7 +465,7 @@ export class DOMDebuggerManager {
             'wheel',
             'contextmenu',
         ], ['*']);
-        this.createEventListenerBreakpoints(i18nString(UIStrings.pointer), [
+        this.createEventListenerBreakpoints("pointer" /* Category.POINTER */, [
             'pointerover',
             'pointerout',
             'pointerenter',
@@ -725,15 +478,9 @@ export class DOMDebuggerManager {
             'lostpointercapture',
             'pointerrawupdate',
         ], ['*']);
-        this.createEventListenerBreakpoints(i18nString(UIStrings.touch), ['touchstart', 'touchmove', 'touchend', 'touchcancel'], ['*']);
-        this.createEventListenerBreakpoints(i18nString(UIStrings.worker), ['message', 'messageerror'], ['*']);
-        this.createEventListenerBreakpoints(i18nString(UIStrings.xhr), ['readystatechange', 'load', 'loadstart', 'loadend', 'abort', 'error', 'progress', 'timeout'], ['xmlhttprequest', 'xmlhttprequestupload']);
-        for (const [name, newTitle] of getInstrumentationBreakpointTitles()) {
-            const breakpoint = this.resolveEventListenerBreakpointInternal('instrumentation:' + name);
-            if (breakpoint) {
-                breakpoint.setTitle(newTitle);
-            }
-        }
+        this.createEventListenerBreakpoints("touch" /* Category.TOUCH */, ['touchstart', 'touchmove', 'touchend', 'touchcancel'], ['*']);
+        this.createEventListenerBreakpoints("worker" /* Category.WORKER */, ['message', 'messageerror'], ['*']);
+        this.createEventListenerBreakpoints("xhr" /* Category.XHR */, ['readystatechange', 'load', 'loadstart', 'loadend', 'abort', 'error', 'progress', 'timeout'], ['xmlhttprequest', 'xmlhttprequestupload']);
         TargetManager.instance().observeModels(DOMDebuggerModel, this);
     }
     static instance(opts = { forceNew: null }) {
@@ -746,42 +493,26 @@ export class DOMDebuggerManager {
     cspViolationBreakpoints() {
         return this.#cspViolationsToBreakOn.slice();
     }
-    createInstrumentationBreakpoints(category, instrumentationNames) {
-        for (const instrumentationName of instrumentationNames) {
-            this.#eventListenerBreakpointsInternal.push(new DOMEventListenerBreakpoint(instrumentationName, '', [], category, instrumentationName));
-        }
-    }
     createEventListenerBreakpoints(category, eventNames, eventTargetNames) {
         for (const eventName of eventNames) {
-            this.#eventListenerBreakpointsInternal.push(new DOMEventListenerBreakpoint('', eventName, eventTargetNames, category, eventName));
+            this.#eventListenerBreakpointsInternal.push(new DOMEventListenerBreakpoint(eventName, eventTargetNames, category));
         }
     }
-    resolveEventListenerBreakpointInternal(eventName, eventTargetName) {
-        const instrumentationPrefix = 'instrumentation:';
+    resolveEventListenerBreakpoint({ eventName, targetName }) {
         const listenerPrefix = 'listener:';
-        let instrumentationName = '';
-        if (eventName.startsWith(instrumentationPrefix)) {
-            instrumentationName = eventName.substring(instrumentationPrefix.length);
-            eventName = '';
-        }
-        else if (eventName.startsWith(listenerPrefix)) {
+        if (eventName.startsWith(listenerPrefix)) {
             eventName = eventName.substring(listenerPrefix.length);
         }
         else {
             return null;
         }
-        eventTargetName = (eventTargetName || '*').toLowerCase();
+        targetName = (targetName || '*').toLowerCase();
         let result = null;
         for (const breakpoint of this.#eventListenerBreakpointsInternal) {
-            if (instrumentationName && breakpoint.instrumentationName === instrumentationName) {
+            if (eventName && breakpoint.name === eventName && breakpoint.eventTargetNames.indexOf(targetName) !== -1) {
                 result = breakpoint;
             }
-            if (eventName && breakpoint.eventName === eventName &&
-                breakpoint.eventTargetNames.indexOf(eventTargetName) !== -1) {
-                result = breakpoint;
-            }
-            if (!result && eventName && breakpoint.eventName === eventName &&
-                breakpoint.eventTargetNames.indexOf('*') !== -1) {
+            if (!result && eventName && breakpoint.name === eventName && breakpoint.eventTargetNames.indexOf('*') !== -1) {
                 result = breakpoint;
             }
         }
@@ -790,29 +521,6 @@ export class DOMDebuggerManager {
     eventListenerBreakpoints() {
         return this.#eventListenerBreakpointsInternal.slice();
     }
-    resolveEventListenerBreakpointTitle(auxData) {
-        const id = auxData['eventName'];
-        if (id === 'instrumentation:webglErrorFired' && auxData['webglErrorName']) {
-            let errorName = auxData['webglErrorName'];
-            // If there is a hex code of the error, display only this.
-            errorName = errorName.replace(/^.*(0x[0-9a-f]+).*$/i, '$1');
-            return i18nString(UIStrings.webglErrorFiredS, { PH1: errorName });
-        }
-        if (id === 'instrumentation:scriptBlockedByCSP' && auxData['directiveText']) {
-            return i18nString(UIStrings.scriptBlockedDueToContent, { PH1: auxData['directiveText'] });
-        }
-        const breakpoint = this.resolveEventListenerBreakpointInternal(id, auxData['targetName']);
-        if (!breakpoint) {
-            return '';
-        }
-        if (auxData['targetName']) {
-            return auxData['targetName'] + '.' + breakpoint.title();
-        }
-        return breakpoint.title();
-    }
-    resolveEventListenerBreakpoint(auxData) {
-        return this.resolveEventListenerBreakpointInternal(auxData['eventName'], auxData['targetName']);
-    }
     updateCSPViolationBreakpoints() {
         const violationTypes = this.#cspViolationsToBreakOn.filter(v => v.enabled()).map(v => v.type());
         for (const model of TargetManager.instance().models(DOMDebuggerModel)) {
@@ -820,7 +528,7 @@ export class DOMDebuggerManager {
         }
     }
     updateCSPViolationBreakpointsForModel(model, violationTypes) {
-        void model.agent.invoke_setBreakOnCSPViolation({ violationTypes: violationTypes });
+        void model.agent.invoke_setBreakOnCSPViolation({ violationTypes });
     }
     xhrBreakpoints() {
         return this.#xhrBreakpointsInternal;
@@ -828,7 +536,7 @@ export class DOMDebuggerManager {
     saveXHRBreakpoints() {
         const breakpoints = [];
         for (const url of this.#xhrBreakpointsInternal.keys()) {
-            breakpoints.push({ url: url, enabled: this.#xhrBreakpointsInternal.get(url) || false });
+            breakpoints.push({ url, enabled: this.#xhrBreakpointsInternal.get(url) || false });
         }
         this.#xhrBreakpointsSetting.set(breakpoints);
     }
@@ -866,7 +574,7 @@ export class DOMDebuggerManager {
     modelAdded(domDebuggerModel) {
         for (const url of this.#xhrBreakpointsInternal.keys()) {
             if (this.#xhrBreakpointsInternal.get(url)) {
-                void domDebuggerModel.agent.invoke_setXHRBreakpoint({ url: url });
+                void domDebuggerModel.agent.invoke_setXHRBreakpoint({ url });
             }
         }
         for (const breakpoint of this.#eventListenerBreakpointsInternal) {
@@ -880,5 +588,5 @@ export class DOMDebuggerManager {
     modelRemoved(_domDebuggerModel) {
     }
 }
-SDKModel.register(DOMDebuggerModel, { capabilities: Capability.DOM, autostart: false });
+SDKModel.register(DOMDebuggerModel, { capabilities: 2 /* Capability.DOM */, autostart: false });
 //# sourceMappingURL=DOMDebuggerModel.js.map

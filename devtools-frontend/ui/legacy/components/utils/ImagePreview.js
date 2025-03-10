@@ -49,17 +49,13 @@ function isImageResource(resource) {
     return resource !== null && resource.resourceType() === Common.ResourceType.resourceTypes.Image;
 }
 export class ImagePreview {
-    static async build(target, originalImageURL, showDimensions, options = { precomputedFeatures: undefined, imageAltText: undefined }) {
-        const { precomputedFeatures, imageAltText } = options;
-        const resourceTreeModel = target.model(SDK.ResourceTreeModel.ResourceTreeModel);
-        if (!resourceTreeModel) {
-            return null;
-        }
-        let resource = resourceTreeModel.resourceForURL(originalImageURL);
+    static async build(target, originalImageURL, showDimensions, options = { precomputedFeatures: undefined, imageAltText: undefined, align: "center" /* Align.CENTER */ }) {
+        const { precomputedFeatures, imageAltText, align } = options;
+        let resource = SDK.ResourceTreeModel.ResourceTreeModel.resourceForURL(originalImageURL);
         let imageURL = originalImageURL;
         if (!isImageResource(resource) && precomputedFeatures && precomputedFeatures.currentSrc) {
             imageURL = precomputedFeatures.currentSrc;
-            resource = resourceTreeModel.resourceForURL(imageURL);
+            resource = SDK.ResourceTreeModel.ResourceTreeModel.resourceForURL(imageURL);
         }
         if (!resource || !isImageResource(resource)) {
             return null;
@@ -70,8 +66,8 @@ export class ImagePreview {
         const content = resource.content ? resource.content : resource.url.split('base64,')[1];
         const contentSize = resource.contentSize();
         const resourceSize = contentSize ? contentSize : Platform.StringUtilities.base64ToSize(content);
-        const resourceSizeText = resourceSize > 0 ? Platform.NumberUtilities.bytesToString(resourceSize) : '';
-        return new Promise(resolve => {
+        const resourceSizeText = resourceSize > 0 ? i18n.ByteUtilities.bytesToString(resourceSize) : '';
+        return await new Promise(resolve => {
             const imageElement = document.createElement('img');
             imageElement.addEventListener('load', buildContent, false);
             imageElement.addEventListener('error', () => resolve(null), false);
@@ -82,12 +78,12 @@ export class ImagePreview {
             function buildContent() {
                 const shadowBoundary = document.createElement('div');
                 const shadowRoot = shadowBoundary.attachShadow({ mode: 'open' });
-                shadowRoot.adoptedStyleSheets = [imagePreviewStyles];
+                shadowRoot.createChild('style').textContent = imagePreviewStyles.cssContent;
                 const container = shadowRoot.createChild('table');
                 container.className = 'image-preview-container';
                 const imageRow = container.createChild('tr').createChild('td', 'image-container');
                 imageRow.colSpan = 2;
-                const link = imageRow.createChild('div');
+                const link = imageRow.createChild('div', ` ${align}`);
                 link.title = displayName;
                 link.appendChild(imageElement);
                 // Open image in new tab.
@@ -100,35 +96,38 @@ export class ImagePreview {
                 const renderedHeight = precomputedFeatures ? precomputedFeatures.renderedHeight : intrinsicHeight;
                 if (showDimensions) {
                     const renderedRow = container.createChild('tr', 'row');
-                    renderedRow.createChild('td', 'title').textContent = i18nString(UIStrings.renderedSize);
+                    renderedRow.createChild('td', `title ${align}`).textContent = i18nString(UIStrings.renderedSize);
                     renderedRow.createChild('td', 'description').textContent = `${renderedWidth} × ${renderedHeight} px`;
                     const aspectRatioRow = container.createChild('tr', 'row');
-                    aspectRatioRow.createChild('td', 'title').textContent = i18nString(UIStrings.renderedAspectRatio);
+                    aspectRatioRow.createChild('td', `title ${align}`).textContent = i18nString(UIStrings.renderedAspectRatio);
                     aspectRatioRow.createChild('td', 'description').textContent =
                         Platform.NumberUtilities.aspectRatio(renderedWidth, renderedHeight);
                     if (renderedHeight !== intrinsicHeight || renderedWidth !== intrinsicWidth) {
                         const intrinsicRow = container.createChild('tr', 'row');
-                        intrinsicRow.createChild('td', 'title').textContent = i18nString(UIStrings.intrinsicSize);
+                        intrinsicRow.createChild('td', `title ${align}`).textContent = i18nString(UIStrings.intrinsicSize);
                         intrinsicRow.createChild('td', 'description').textContent = `${intrinsicWidth} × ${intrinsicHeight} px`;
                         const intrinsicAspectRatioRow = container.createChild('tr', 'row');
-                        intrinsicAspectRatioRow.createChild('td', 'title').textContent = i18nString(UIStrings.intrinsicAspectRatio);
+                        intrinsicAspectRatioRow.createChild('td', `title ${align}`).textContent =
+                            i18nString(UIStrings.intrinsicAspectRatio);
                         intrinsicAspectRatioRow.createChild('td', 'description').textContent =
                             Platform.NumberUtilities.aspectRatio(intrinsicWidth, intrinsicHeight);
                     }
                 }
-                // File size
-                const fileRow = container.createChild('tr', 'row');
-                fileRow.createChild('td', 'title').textContent = i18nString(UIStrings.fileSize);
-                fileRow.createChild('td', 'description').textContent = resourceSizeText;
-                // Current source
-                const originalRow = container.createChild('tr', 'row');
-                originalRow.createChild('td', 'title').textContent = i18nString(UIStrings.currentSource);
-                const sourceText = Platform.StringUtilities.trimMiddle(imageURL, 100);
-                const sourceLink = originalRow.createChild('td', 'description description-link').createChild('span', 'source-link');
-                sourceLink.textContent = sourceText;
-                sourceLink.addEventListener('click', () => {
-                    Host.InspectorFrontendHost.InspectorFrontendHostInstance.openInNewTab(imageURL);
-                });
+                if (!options.hideFileData) {
+                    // File size
+                    const fileRow = container.createChild('tr', 'row');
+                    fileRow.createChild('td', `title ${align}`).textContent = i18nString(UIStrings.fileSize);
+                    fileRow.createChild('td', 'description').textContent = resourceSizeText;
+                    // Current source
+                    const originalRow = container.createChild('tr', 'row');
+                    originalRow.createChild('td', `title ${align}`).textContent = i18nString(UIStrings.currentSource);
+                    const sourceText = Platform.StringUtilities.trimMiddle(imageURL, 100);
+                    const sourceLink = originalRow.createChild('td', 'description description-link').createChild('span', 'source-link');
+                    sourceLink.textContent = sourceText;
+                    sourceLink.addEventListener('click', () => {
+                        Host.InspectorFrontendHost.InspectorFrontendHostInstance.openInNewTab(imageURL);
+                    });
+                }
                 resolve(shadowBoundary);
             }
         });
@@ -141,8 +140,6 @@ export class ImagePreview {
         if (!object) {
             return;
         }
-        // TODO(crbug.com/1172300) Ignored during the jsdoc to ts migration
-        // @ts-expect-error
         const featuresObject = await object.callFunctionJSON(features, undefined);
         object.release();
         return featuresObject;

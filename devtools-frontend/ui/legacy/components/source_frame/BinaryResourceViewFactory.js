@@ -3,119 +3,57 @@
 // found in the LICENSE file.
 import * as TextUtils from '../../../../models/text_utils/text_utils.js';
 import { ResourceSourceFrame } from './ResourceSourceFrame.js';
+import { StreamingContentHexView } from './StreamingContentHexView.js';
 export class BinaryResourceViewFactory {
-    base64content;
+    streamingContent;
     contentUrl;
     resourceType;
-    arrayPromise;
-    hexPromise;
-    utf8Promise;
-    constructor(base64content, contentUrl, resourceType) {
-        this.base64content = base64content;
+    constructor(content, contentUrl, resourceType) {
+        this.streamingContent = content;
         this.contentUrl = contentUrl;
         this.resourceType = resourceType;
-        this.arrayPromise = null;
-        this.hexPromise = null;
-        this.utf8Promise = null;
     }
-    async fetchContentAsArray() {
-        if (!this.arrayPromise) {
-            this.arrayPromise = new Promise(async (resolve) => {
-                const fetchResponse = await fetch('data:;base64,' + this.base64content);
-                resolve(new Uint8Array(await fetchResponse.arrayBuffer()));
-            });
-        }
-        return await this.arrayPromise;
+    hex() {
+        const binaryString = window.atob(this.base64());
+        const array = Uint8Array.from(binaryString, m => m.codePointAt(0));
+        return BinaryResourceViewFactory.#uint8ArrayToHexString(array);
     }
-    async hex() {
-        if (!this.hexPromise) {
-            const content = await this.fetchContentAsArray();
-            const hexString = BinaryResourceViewFactory.uint8ArrayToHexString(content);
-            return { content: hexString, isEncoded: false };
-        }
-        return this.hexPromise;
+    base64() {
+        return this.streamingContent.content().base64;
     }
-    async base64() {
-        return { content: this.base64content, isEncoded: true };
-    }
-    async utf8() {
-        if (!this.utf8Promise) {
-            this.utf8Promise = new Promise(async (resolve) => {
-                const content = await this.fetchContentAsArray();
-                const utf8String = new TextDecoder('utf8').decode(content);
-                resolve({ content: utf8String, isEncoded: false });
-            });
-        }
-        return this.utf8Promise;
+    utf8() {
+        return new TextUtils.ContentData.ContentData(this.base64(), /* isBase64 */ true, 'text/plain', 'utf-8').text;
     }
     createBase64View() {
-        return new ResourceSourceFrame(TextUtils.StaticContentProvider.StaticContentProvider.fromString(this.contentUrl, this.resourceType, this.base64content), this.resourceType.canonicalMimeType(), { lineNumbers: false, lineWrapping: true });
+        const resourceFrame = new ResourceSourceFrame(TextUtils.StaticContentProvider.StaticContentProvider.fromString(this.contentUrl, this.resourceType, this.streamingContent.content().base64), this.resourceType.canonicalMimeType(), { lineNumbers: false, lineWrapping: true });
+        this.streamingContent.addEventListener("ChunkAdded" /* TextUtils.StreamingContentData.Events.CHUNK_ADDED */, () => {
+            void resourceFrame.setContent(this.base64());
+        });
+        return resourceFrame;
     }
     createHexView() {
-        const hexViewerContentProvider = new TextUtils.StaticContentProvider.StaticContentProvider(this.contentUrl, this.resourceType, async () => {
-            const contentAsArray = await this.fetchContentAsArray();
-            const content = BinaryResourceViewFactory.uint8ArrayToHexViewer(contentAsArray);
-            return { content, isEncoded: false };
-        });
-        return new ResourceSourceFrame(hexViewerContentProvider, this.resourceType.canonicalMimeType(), { lineNumbers: false, lineWrapping: false });
+        return new StreamingContentHexView(this.streamingContent);
     }
     createUtf8View() {
-        const utf8fn = this.utf8.bind(this);
-        const utf8ContentProvider = new TextUtils.StaticContentProvider.StaticContentProvider(this.contentUrl, this.resourceType, utf8fn);
-        return new ResourceSourceFrame(utf8ContentProvider, this.resourceType.canonicalMimeType(), { lineNumbers: true, lineWrapping: true });
+        const resourceFrame = new ResourceSourceFrame(TextUtils.StaticContentProvider.StaticContentProvider.fromString(this.contentUrl, this.resourceType, this.utf8()), this.resourceType.canonicalMimeType(), { lineNumbers: true, lineWrapping: true });
+        this.streamingContent.addEventListener("ChunkAdded" /* TextUtils.StreamingContentData.Events.CHUNK_ADDED */, () => {
+            void resourceFrame.setContent(this.utf8());
+        });
+        return resourceFrame;
     }
-    static uint8ArrayToHexString(uint8Array) {
+    static #uint8ArrayToHexString(uint8Array) {
         let output = '';
         for (let i = 0; i < uint8Array.length; i++) {
-            output += BinaryResourceViewFactory.numberToHex(uint8Array[i], 2);
+            output += BinaryResourceViewFactory.#numberToHex(uint8Array[i], 2);
         }
         return output;
     }
-    static numberToHex(number, padding) {
+    static #numberToHex(number, padding) {
         let hex = number.toString(16);
         while (hex.length < padding) {
             hex = '0' + hex;
         }
         return hex;
-    }
-    static uint8ArrayToHexViewer(array) {
-        let output = '';
-        let line = 0;
-        while ((line * 16) < array.length) {
-            const lineArray = array.slice(line * 16, (line + 1) * 16);
-            // line number
-            output += BinaryResourceViewFactory.numberToHex(line, 8) + ':';
-            // hex
-            let hexColsPrinted = 0;
-            for (let i = 0; i < lineArray.length; i++) {
-                if (i % 2 === 0) {
-                    output += ' ';
-                    hexColsPrinted++;
-                }
-                output += BinaryResourceViewFactory.numberToHex(lineArray[i], 2);
-                hexColsPrinted += 2;
-            }
-            // hex-ascii padding
-            while (hexColsPrinted < 42) {
-                output += ' ';
-                hexColsPrinted++;
-            }
-            // ascii
-            for (let i = 0; i < lineArray.length; i++) {
-                const code = lineArray[i];
-                if (code >= 32 && code <= 126) {
-                    // printable ascii character
-                    output += String.fromCharCode(code);
-                }
-                else {
-                    // non-printable
-                    output += '.';
-                }
-            }
-            output += '\n';
-            line++;
-        }
-        return output;
     }
 }
 //# sourceMappingURL=BinaryResourceViewFactory.js.map

@@ -82,7 +82,7 @@ export class ResizerWidget extends Common.ObjectWrapper.ObjectWrapper {
         return true;
     }
     sendDragStart(x, y) {
-        this.dispatchEventToListeners(Events.ResizeStart, { startX: x, currentX: x, startY: y, currentY: y });
+        this.dispatchEventToListeners("ResizeStart" /* Events.RESIZE_START */, { startX: x, currentX: x, startY: y, currentY: y });
     }
     drag(event) {
         if (!this.isEnabledInternal) {
@@ -94,23 +94,14 @@ export class ResizerWidget extends Common.ObjectWrapper.ObjectWrapper {
         return false; // Continue drag.
     }
     sendDragMove(startX, currentX, startY, currentY, shiftKey) {
-        this.dispatchEventToListeners(Events.ResizeUpdateXY, { startX: startX, currentX: currentX, startY: startY, currentY: currentY, shiftKey: shiftKey });
+        this.dispatchEventToListeners("ResizeUpdateXY" /* Events.RESIZE_UPDATE_XY */, { startX, currentX, startY, currentY, shiftKey });
     }
     dragEnd(_event) {
-        this.dispatchEventToListeners(Events.ResizeEnd);
+        this.dispatchEventToListeners("ResizeEnd" /* Events.RESIZE_END */);
         delete this.startX;
         delete this.startY;
     }
 }
-// TODO(crbug.com/1167717): Make this a const enum again
-// eslint-disable-next-line rulesdir/const_enum
-export var Events;
-(function (Events) {
-    Events["ResizeStart"] = "ResizeStart";
-    Events["ResizeUpdateXY"] = "ResizeUpdateXY";
-    Events["ResizeUpdatePosition"] = "ResizeUpdatePosition";
-    Events["ResizeEnd"] = "ResizeEnd";
-})(Events || (Events = {}));
 export class SimpleResizerWidget extends ResizerWidget {
     isVerticalInternal;
     constructor() {
@@ -132,14 +123,14 @@ export class SimpleResizerWidget extends ResizerWidget {
     }
     sendDragStart(x, y) {
         const position = this.isVerticalInternal ? y : x;
-        this.dispatchEventToListeners(Events.ResizeStart, { startPosition: position, currentPosition: position });
+        this.dispatchEventToListeners("ResizeStart" /* Events.RESIZE_START */, { startPosition: position, currentPosition: position });
     }
     sendDragMove(startX, currentX, startY, currentY, shiftKey) {
         if (this.isVerticalInternal) {
-            this.dispatchEventToListeners(Events.ResizeUpdatePosition, { startPosition: startY, currentPosition: currentY, shiftKey: shiftKey });
+            this.dispatchEventToListeners("ResizeUpdatePosition" /* Events.RESIZE_UPDATE_POSITION */, { startPosition: startY, currentPosition: currentY, shiftKey });
         }
         else {
-            this.dispatchEventToListeners(Events.ResizeUpdatePosition, { startPosition: startX, currentPosition: currentX, shiftKey: shiftKey });
+            this.dispatchEventToListeners("ResizeUpdatePosition" /* Events.RESIZE_UPDATE_POSITION */, { startPosition: startX, currentPosition: currentX, shiftKey });
         }
     }
 }

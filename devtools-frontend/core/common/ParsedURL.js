@@ -61,6 +61,14 @@ export function normalizePath(path) {
     }
     return normalizedPath;
 }
+export function schemeIs(url, scheme) {
+    try {
+        return (new URL(url)).protocol === scheme;
+    }
+    catch {
+        return false;
+    }
+}
 export class ParsedURL {
     isValid;
     url;
@@ -122,13 +130,16 @@ export class ParsedURL {
             }
             this.path = this.url;
         }
-        const lastSlashIndex = this.path.lastIndexOf('/');
-        if (lastSlashIndex !== -1) {
-            this.folderPathComponents = this.path.substring(0, lastSlashIndex);
-            this.lastPathComponent = this.path.substring(lastSlashIndex + 1);
+        const lastSlashExceptTrailingIndex = this.path.lastIndexOf('/', this.path.length - 2);
+        if (lastSlashExceptTrailingIndex !== -1) {
+            this.lastPathComponent = this.path.substring(lastSlashExceptTrailingIndex + 1);
         }
         else {
             this.lastPathComponent = this.path;
+        }
+        const lastSlashIndex = this.path.lastIndexOf('/');
+        if (lastSlashIndex !== -1) {
+            this.folderPathComponents = this.path.substring(0, lastSlashIndex);
         }
     }
     static fromString(string) {
@@ -142,7 +153,7 @@ export class ParsedURL {
         // Based on net::FilePathToFileURL. Ideally we would handle
         // '\\' as well on non-Windows file systems.
         for (const specialChar of ['%', ';', '#', '?', ' ']) {
-            path = path.replaceAll(specialChar, encodeURIComponent(specialChar));
+            (path) = path.replaceAll(specialChar, encodeURIComponent(specialChar));
         }
         return path;
     }
@@ -295,14 +306,14 @@ export class ParsedURL {
     }
     static completeURL(baseURL, href) {
         // Return special URLs as-is.
-        const trimmedHref = href.trim();
-        if (trimmedHref.startsWith('data:') || trimmedHref.startsWith('blob:') || trimmedHref.startsWith('javascript:') ||
-            trimmedHref.startsWith('mailto:')) {
+        if (href.startsWith('data:') || href.startsWith('blob:') || href.startsWith('javascript:') ||
+            href.startsWith('mailto:')) {
             return href;
         }
         // Return absolute URLs with normalized path and other components as-is.
+        const trimmedHref = href.trim();
         const parsedHref = this.fromString(trimmedHref);
-        if (parsedHref && parsedHref.scheme) {
+        if (parsedHref?.scheme) {
             const securityOrigin = parsedHref.securityOrigin();
             const pathText = normalizePath(parsedHref.path);
             const queryText = parsedHref.queryParams && `?${parsedHref.queryParams}`;
@@ -437,8 +448,13 @@ export class ParsedURL {
     isDataURL() {
         return this.scheme === 'data';
     }
-    isHttpOrHttps() {
-        return this.scheme === 'http' || this.scheme === 'https';
+    extractDataUrlMimeType() {
+        const regexp = /^data:((?<type>\w+)\/(?<subtype>\w+))?(;base64)?,/;
+        const match = this.url.match(regexp);
+        return {
+            type: match?.groups?.type,
+            subtype: match?.groups?.subtype,
+        };
     }
     isBlobURL() {
         return this.url.startsWith('blob:');

@@ -30,36 +30,17 @@ import * as Acorn from '../../third_party/acorn/acorn.js';
  * out whether the next token should be the preceding comment or not.
  */
 export class AcornTokenizer {
-    #content;
-    #comments;
-    #tokenizer;
     #textCursor;
     #tokenLineStartInternal;
     #tokenLineEndInternal;
-    #tokenColumnStartInternal;
-    #bufferedToken;
-    constructor(content) {
-        this.#content = content;
-        this.#comments = [];
-        this.#tokenizer =
-            Acorn.tokenizer(this.#content, { onComment: this.#comments, ecmaVersion: ECMA_VERSION, allowHashBang: true });
-        const contentLineEndings = Platform.StringUtilities.findLineEndingIndexes(this.#content);
+    #tokens;
+    #idx = 0;
+    constructor(content, tokens) {
+        this.#tokens = tokens;
+        const contentLineEndings = Platform.StringUtilities.findLineEndingIndexes(content);
         this.#textCursor = new TextUtils.TextCursor.TextCursor(contentLineEndings);
         this.#tokenLineStartInternal = 0;
         this.#tokenLineEndInternal = 0;
-        this.#tokenColumnStartInternal = 0;
-        // If the first "token" should be a comment, we don't want to shift
-        // the comment from the array (which happens in `nextTokenInternal`).
-        // Therefore, we should bail out from retrieving the token if this
-        // is the case.
-        //
-        // However, sometimes we have leading comments that are attached to tokens
-        // themselves. In that case, we first retrieve the actual token, before
-        // we see the comment itself. In that case, we should proceed and
-        // initialize `bufferedToken` as normal, to allow us to fix the reordering.
-        if (this.#comments.length === 0) {
-            this.#nextTokenInternal();
-        }
     }
     static punctuator(token, values) {
         return token.type !== Acorn.tokTypes.num && token.type !== Acorn.tokTypes.regexp &&
@@ -74,58 +55,38 @@ export class AcornTokenizer {
     static identifier(token, identifier) {
         return token.type === Acorn.tokTypes.name && (!identifier || token.value === identifier);
     }
+    static arrowIdentifier(token, identifier) {
+        return token.type === Acorn.tokTypes.arrow && (!identifier || token.type.label === identifier);
+    }
     static lineComment(token) {
         return token.type === 'Line';
     }
     static blockComment(token) {
         return token.type === 'Block';
     }
-    #nextTokenInternal() {
-        if (this.#comments.length) {
-            const nextComment = this.#comments.shift();
-            // If this was the last comment to process, we need to make
-            // sure to update our `bufferedToken` to become the actual
-            // token. This only happens when we are processing the very
-            // first comment of a file (usually a hashbang comment)
-            // in which case we don't have to fix the reordering of tokens.
-            if (!this.#bufferedToken && this.#comments.length === 0) {
-                this.#bufferedToken = this.#tokenizer.getToken();
-            }
-            return nextComment;
-        }
-        const token = this.#bufferedToken;
-        this.#bufferedToken = this.#tokenizer.getToken();
-        return token;
-    }
     nextToken() {
-        const token = this.#nextTokenInternal();
+        const token = this.#tokens[this.#idx++];
         if (!token || token.type === Acorn.tokTypes.eof) {
             return null;
         }
         this.#textCursor.advance(token.start);
         this.#tokenLineStartInternal = this.#textCursor.lineNumber();
-        this.#tokenColumnStartInternal = this.#textCursor.columnNumber();
         this.#textCursor.advance(token.end);
         this.#tokenLineEndInternal = this.#textCursor.lineNumber();
         return token;
     }
     peekToken() {
-        if (this.#comments.length) {
-            return this.#comments[0];
-        }
-        if (!this.#bufferedToken) {
+        const token = this.#tokens[this.#idx];
+        if (!token || token.type === Acorn.tokTypes.eof) {
             return null;
         }
-        return this.#bufferedToken.type !== Acorn.tokTypes.eof ? this.#bufferedToken : null;
+        return token;
     }
     tokenLineStart() {
         return this.#tokenLineStartInternal;
     }
     tokenLineEnd() {
         return this.#tokenLineEndInternal;
-    }
-    tokenColumnStart() {
-        return this.#tokenColumnStartInternal;
     }
 }
 export const ECMA_VERSION = 2022;

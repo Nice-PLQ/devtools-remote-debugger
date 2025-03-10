@@ -4,6 +4,7 @@
 import * as SDK from '../../core/sdk/sdk.js';
 import * as TreeOutline from '../../ui/components/tree_outline/tree_outline.js';
 import * as UI from '../../ui/legacy/legacy.js';
+import * as VisualLogging from '../../ui/visual_logging/visual_logging.js';
 import * as AccessibilityTreeUtils from './AccessibilityTreeUtils.js';
 import accessibilityTreeViewStyles from './accessibilityTreeView.css.js';
 import { ElementsPanel } from './ElementsPanel.js';
@@ -14,12 +15,14 @@ export class AccessibilityTreeView extends UI.Widget.VBox {
     root = null;
     constructor(toggleButton, accessibilityTreeComponent) {
         super();
+        this.registerRequiredCSS(accessibilityTreeViewStyles);
         // toggleButton is bound to a click handler on ElementsPanel to switch between the DOM tree
         // and accessibility tree views.
         this.toggleButton = toggleButton;
         this.accessibilityTreeComponent = accessibilityTreeComponent;
         const container = this.contentElement.createChild('div');
         container.classList.add('accessibility-tree-view-container');
+        container.setAttribute('jslog', `${VisualLogging.tree('full-accessibility')}`);
         container.appendChild(this.toggleButton);
         container.appendChild(this.accessibilityTreeComponent);
         SDK.TargetManager.TargetManager.instance().observeModels(SDK.AccessibilityModel.AccessibilityModel, this, { scoped: true });
@@ -51,21 +54,21 @@ export class AccessibilityTreeView extends UI.Widget.VBox {
         });
     }
     async wasShown() {
+        super.wasShown();
         await this.refreshAccessibilityTree();
         if (this.inspectedDOMNode) {
             await this.loadSubTreeIntoAccessibilityModel(this.inspectedDOMNode);
         }
-        this.registerCSSFiles([accessibilityTreeViewStyles]);
     }
     async refreshAccessibilityTree() {
         if (!this.root) {
             const frameId = SDK.FrameManager.FrameManager.instance().getOutermostFrame()?.id;
             if (!frameId) {
-                throw Error('No top frame');
+                throw new Error('No top frame');
             }
             this.root = await AccessibilityTreeUtils.getRootNode(frameId);
             if (!this.root) {
-                throw Error('No root');
+                throw new Error('No root');
             }
         }
         await this.renderTree();
@@ -79,7 +82,7 @@ export class AccessibilityTreeView extends UI.Widget.VBox {
         this.accessibilityTreeComponent.data = {
             defaultRenderer: AccessibilityTreeUtils.accessibilityNodeRenderer,
             tree: treeData,
-            filter: (node) => {
+            filter: node => {
                 return node.ignored() || (node.role()?.value === 'generic' && !node.name()?.value) ?
                     "FLATTEN" /* TreeOutline.TreeOutline.FilterOption.FLATTEN */ :
                     "SHOW" /* TreeOutline.TreeOutline.FilterOption.SHOW */;
@@ -121,6 +124,9 @@ export class AccessibilityTreeView extends UI.Widget.VBox {
         }
     }
     treeUpdated({ data }) {
+        if (!this.isShowing()) {
+            return;
+        }
         if (!data.root) {
             void this.renderTree();
             return;
@@ -135,10 +141,10 @@ export class AccessibilityTreeView extends UI.Widget.VBox {
         void this.refreshAccessibilityTree();
     }
     modelAdded(model) {
-        model.addEventListener(SDK.AccessibilityModel.Events.TreeUpdated, this.treeUpdated, this);
+        model.addEventListener("TreeUpdated" /* SDK.AccessibilityModel.Events.TREE_UPDATED */, this.treeUpdated, this);
     }
     modelRemoved(model) {
-        model.removeEventListener(SDK.AccessibilityModel.Events.TreeUpdated, this.treeUpdated, this);
+        model.removeEventListener("TreeUpdated" /* SDK.AccessibilityModel.Events.TREE_UPDATED */, this.treeUpdated, this);
     }
 }
 //# sourceMappingURL=AccessibilityTreeView.js.map
