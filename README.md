@@ -2,6 +2,8 @@
 
 [中文文档](./README_CN.md)
 
+[DeepWiki](https://deepwiki.com/Nice-PLQ/devtools-remote-debugger)
+
 Based on Google's open-source [devtools-frontend](https://github.com/ChromeDevTools/devtools-frontend), you can use JavaScript to implement the [Chrome DevTools Protocol](https://chromedevtools.github.io/devtools-protocol/) . By simply loading a piece of JavaScript code on a web page, you can use the familiar Chrome DevTools to remotely debug the page.
 
 The web page being debugged connects to an intermediate Node layer via WebSocket, and DevTools also connects to the Node layer via WebSocket. The primary role of the Node intermediate layer is to forward socket protocols between the web page and DevTools, enabling full-duplex communication between them.
