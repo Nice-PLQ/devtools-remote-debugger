@@ -326,12 +326,12 @@ export const resourceCategories = {
     Document: new ResourceCategory(UIStrings.document, i18nLazyString(UIStrings.document), i18nLazyString(UIStrings.doc)),
     Stylesheet: new ResourceCategory(UIStrings.css, i18nLazyString(UIStrings.css), i18nLazyString(UIStrings.css)),
     Script: new ResourceCategory(UIStrings.javascript, i18nLazyString(UIStrings.javascript), i18nLazyString(UIStrings.js)),
-    Font: new ResourceCategory(UIStrings.font, i18nLazyString(UIStrings.font), i18nLazyString(UIStrings.font)),
+    // Font: new ResourceCategory(UIStrings.font, i18nLazyString(UIStrings.font), i18nLazyString(UIStrings.font)),
     Image: new ResourceCategory(UIStrings.image, i18nLazyString(UIStrings.image), i18nLazyString(UIStrings.img)),
-    Media: new ResourceCategory(UIStrings.media, i18nLazyString(UIStrings.media), i18nLazyString(UIStrings.media)),
-    Manifest: new ResourceCategory(UIStrings.manifest, i18nLazyString(UIStrings.manifest), i18nLazyString(UIStrings.manifest)),
-    WebSocket: new ResourceCategory(UIStrings.websocket, i18nLazyString(UIStrings.websocket), i18nLazyString(UIStrings.ws)),
-    Wasm: new ResourceCategory(UIStrings.webassembly, i18nLazyString(UIStrings.webassembly), i18nLazyString(UIStrings.wasm)),
+    // Media: new ResourceCategory(UIStrings.media, i18nLazyString(UIStrings.media), i18nLazyString(UIStrings.media)),
+    // Manifest: new ResourceCategory(UIStrings.manifest, i18nLazyString(UIStrings.manifest), i18nLazyString(UIStrings.manifest)),
+    // WebSocket: new ResourceCategory(UIStrings.websocket, i18nLazyString(UIStrings.websocket), i18nLazyString(UIStrings.ws)),
+    // Wasm: new ResourceCategory(UIStrings.webassembly, i18nLazyString(UIStrings.webassembly), i18nLazyString(UIStrings.wasm)),
     Other: new ResourceCategory(UIStrings.other, i18nLazyString(UIStrings.other), i18nLazyString(UIStrings.other)),
 };
 /**

@@ -918,7 +918,7 @@ export class ElementsPanel extends UI.Panel.Panel {
         tabbedPane.addEventListener(UI.TabbedPane.Events.TabSelected, tabSelected, this);
         this.sidebarPaneView.appendView(computedView);
         this.stylesViewToReveal = stylesView;
-        this.sidebarPaneView.appendApplicableItems('elements-sidebar');
+        // this.sidebarPaneView.appendApplicableItems('elements-sidebar');
         const extensionSidebarPanes = Extensions.ExtensionServer.ExtensionServer.instance().sidebarPanes();
         for (let i = 0; i < extensionSidebarPanes.length; ++i) {
             this.addExtensionSidebarPane(extensionSidebarPanes[i]);

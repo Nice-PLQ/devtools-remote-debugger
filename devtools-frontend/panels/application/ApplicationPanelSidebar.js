@@ -335,19 +335,19 @@ export class ApplicationPanelSidebar extends UI.Widget.VBox {
         // Listener needs to have been set up before the elements are added
         this.sidebarTree.addEventListener(UI.TreeOutline.Events.ElementAttached, this.treeElementAdded, this);
         this.contentElement.appendChild(this.sidebarTree.element);
-        const applicationSectionTitle = i18nString(UIStrings.application);
-        this.applicationTreeElement = this.addSidebarSection(applicationSectionTitle, 'application');
-        const applicationPanelSidebar = this.applicationTreeElement.treeOutline?.contentElement;
-        if (applicationPanelSidebar) {
-            applicationPanelSidebar.ariaLabel = i18nString(UIStrings.applicationSidebarPanel);
-        }
+        // const applicationSectionTitle = i18nString(UIStrings.application);
+        // this.applicationTreeElement = this.addSidebarSection(applicationSectionTitle, 'application');
+        // const applicationPanelSidebar = this.applicationTreeElement.treeOutline?.contentElement;
+        // if (applicationPanelSidebar) {
+        //     applicationPanelSidebar.ariaLabel = i18nString(UIStrings.applicationSidebarPanel);
+        // }
         const manifestTreeElement = new AppManifestTreeElement(panel);
-        this.applicationTreeElement.appendChild(manifestTreeElement);
+        // this.applicationTreeElement.appendChild(manifestTreeElement);
         manifestTreeElement.generateChildren();
         this.serviceWorkersTreeElement = new ServiceWorkersTreeElement(panel);
-        this.applicationTreeElement.appendChild(this.serviceWorkersTreeElement);
+        // this.applicationTreeElement.appendChild(this.serviceWorkersTreeElement);
         const clearStorageTreeElement = new ClearStorageTreeElement(panel);
-        this.applicationTreeElement.appendChild(clearStorageTreeElement);
+        // this.applicationTreeElement.appendChild(clearStorageTreeElement);
         const storageSectionTitle = i18nString(UIStrings.storage);
         const storageTreeElement = this.addSidebarSection(storageSectionTitle, 'storage');
         this.localStorageListTreeElement = new ExpandableApplicationPanelTreeElement(panel, i18nString(UIStrings.localStorage), i18nString(UIStrings.noLocalStorage), i18nString(UIStrings.localStorageDescription), 'local-storage');
@@ -364,54 +364,54 @@ export class ApplicationPanelSidebar extends UI.Widget.VBox {
         this.extensionStorageListTreeElement.setLink('https://developer.chrome.com/docs/extensions/reference/api/storage/?utm_source=devtools');
         const extensionStorageIcon = IconButton.Icon.create('table');
         this.extensionStorageListTreeElement.setLeadingIcons([extensionStorageIcon]);
-        storageTreeElement.appendChild(this.extensionStorageListTreeElement);
+        // storageTreeElement.appendChild(this.extensionStorageListTreeElement);
         this.indexedDBListTreeElement = new IndexedDBTreeElement(panel);
         this.indexedDBListTreeElement.setLink('https://developer.chrome.com/docs/devtools/storage/indexeddb/?utm_source=devtools');
-        storageTreeElement.appendChild(this.indexedDBListTreeElement);
+        // storageTreeElement.appendChild(this.indexedDBListTreeElement);
         this.cookieListTreeElement = new ExpandableApplicationPanelTreeElement(panel, i18nString(UIStrings.cookies), i18nString(UIStrings.noCookies), i18nString(UIStrings.cookiesDescription), 'cookies');
         this.cookieListTreeElement.setLink('https://developer.chrome.com/docs/devtools/storage/cookies/?utm_source=devtools');
         const cookieIcon = IconButton.Icon.create('cookie');
         this.cookieListTreeElement.setLeadingIcons([cookieIcon]);
         storageTreeElement.appendChild(this.cookieListTreeElement);
         this.trustTokensTreeElement = new TrustTokensTreeElement(panel);
-        storageTreeElement.appendChild(this.trustTokensTreeElement);
+        // storageTreeElement.appendChild(this.trustTokensTreeElement);
         this.interestGroupTreeElement = new InterestGroupTreeElement(panel);
-        storageTreeElement.appendChild(this.interestGroupTreeElement);
+        // storageTreeElement.appendChild(this.interestGroupTreeElement);
         this.sharedStorageListTreeElement = new SharedStorageListTreeElement(panel);
-        storageTreeElement.appendChild(this.sharedStorageListTreeElement);
+        // storageTreeElement.appendChild(this.sharedStorageListTreeElement);
         this.cacheStorageListTreeElement = new ServiceWorkerCacheTreeElement(panel);
-        storageTreeElement.appendChild(this.cacheStorageListTreeElement);
+        // storageTreeElement.appendChild(this.cacheStorageListTreeElement);
         this.storageBucketsTreeElement = new StorageBucketsTreeParentElement(panel);
-        storageTreeElement.appendChild(this.storageBucketsTreeElement);
-        const backgroundServiceSectionTitle = i18nString(UIStrings.backgroundServices);
-        const backgroundServiceTreeElement = this.addSidebarSection(backgroundServiceSectionTitle, 'background-services');
+        // storageTreeElement.appendChild(this.storageBucketsTreeElement);
+        // const backgroundServiceSectionTitle = i18nString(UIStrings.backgroundServices);
+        // const backgroundServiceTreeElement = this.addSidebarSection(backgroundServiceSectionTitle, 'background-services');
         this.backForwardCacheListTreeElement = new BackForwardCacheTreeElement(panel);
-        backgroundServiceTreeElement.appendChild(this.backForwardCacheListTreeElement);
+        // backgroundServiceTreeElement.appendChild(this.backForwardCacheListTreeElement);
         this.backgroundFetchTreeElement =
             new BackgroundServiceTreeElement(panel, "backgroundFetch" /* Protocol.BackgroundService.ServiceName.BackgroundFetch */);
-        backgroundServiceTreeElement.appendChild(this.backgroundFetchTreeElement);
+        // backgroundServiceTreeElement.appendChild(this.backgroundFetchTreeElement);
         this.backgroundSyncTreeElement =
             new BackgroundServiceTreeElement(panel, "backgroundSync" /* Protocol.BackgroundService.ServiceName.BackgroundSync */);
-        backgroundServiceTreeElement.appendChild(this.backgroundSyncTreeElement);
+        // backgroundServiceTreeElement.appendChild(this.backgroundSyncTreeElement);
         this.bounceTrackingMitigationsTreeElement = new BounceTrackingMitigationsTreeElement(panel);
-        backgroundServiceTreeElement.appendChild(this.bounceTrackingMitigationsTreeElement);
+        // backgroundServiceTreeElement.appendChild(this.bounceTrackingMitigationsTreeElement);
         this.notificationsTreeElement =
             new BackgroundServiceTreeElement(panel, "notifications" /* Protocol.BackgroundService.ServiceName.Notifications */);
-        backgroundServiceTreeElement.appendChild(this.notificationsTreeElement);
+        // backgroundServiceTreeElement.appendChild(this.notificationsTreeElement);
         this.paymentHandlerTreeElement =
             new BackgroundServiceTreeElement(panel, "paymentHandler" /* Protocol.BackgroundService.ServiceName.PaymentHandler */);
-        backgroundServiceTreeElement.appendChild(this.paymentHandlerTreeElement);
+        // backgroundServiceTreeElement.appendChild(this.paymentHandlerTreeElement);
         this.periodicBackgroundSyncTreeElement =
             new BackgroundServiceTreeElement(panel, "periodicBackgroundSync" /* Protocol.BackgroundService.ServiceName.PeriodicBackgroundSync */);
-        backgroundServiceTreeElement.appendChild(this.periodicBackgroundSyncTreeElement);
+        // backgroundServiceTreeElement.appendChild(this.periodicBackgroundSyncTreeElement);
         this.preloadingSummaryTreeElement = new PreloadingSummaryTreeElement(panel);
-        backgroundServiceTreeElement.appendChild(this.preloadingSummaryTreeElement);
+        // backgroundServiceTreeElement.appendChild(this.preloadingSummaryTreeElement);
         this.preloadingSummaryTreeElement.constructChildren(panel);
         this.pushMessagingTreeElement =
             new BackgroundServiceTreeElement(panel, "pushMessaging" /* Protocol.BackgroundService.ServiceName.PushMessaging */);
-        backgroundServiceTreeElement.appendChild(this.pushMessagingTreeElement);
+        // backgroundServiceTreeElement.appendChild(this.pushMessagingTreeElement);
         this.reportingApiTreeElement = new ReportingApiTreeElement(panel);
-        backgroundServiceTreeElement.appendChild(this.reportingApiTreeElement);
+        // backgroundServiceTreeElement.appendChild(this.reportingApiTreeElement);
         const resourcesSectionTitle = i18nString(UIStrings.frames);
         const resourcesTreeElement = this.addSidebarSection(resourcesSectionTitle, 'frames');
         this.resourcesSection = new ResourcesSection(panel, resourcesTreeElement);
