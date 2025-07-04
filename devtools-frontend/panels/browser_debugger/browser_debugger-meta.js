@@ -188,31 +188,31 @@ UI.ViewManager.registerViewExtension({
         return Sources.SourcesNavigator.NetworkNavigatorView.instance();
     },
 });
-UI.ViewManager.registerViewExtension({
-    location: "navigator-view" /* UI.ViewManager.ViewLocationValues.NAVIGATOR_VIEW */,
-    id: 'navigator-overrides',
-    title: i18nLazyString(UIStrings.overrides),
-    commandPrompt: i18nLazyString(UIStrings.showOverrides),
-    order: 4,
-    persistence: "permanent" /* UI.ViewManager.ViewPersistence.PERMANENT */,
-    async loadView() {
-        const Sources = await loadSourcesModule();
-        return Sources.SourcesNavigator.OverridesNavigatorView.instance();
-    },
-});
-UI.ViewManager.registerViewExtension({
-    location: "navigator-view" /* UI.ViewManager.ViewLocationValues.NAVIGATOR_VIEW */,
-    id: 'navigator-content-scripts',
-    title: i18nLazyString(UIStrings.contentScripts),
-    commandPrompt: i18nLazyString(UIStrings.showContentScripts),
-    order: 5,
-    persistence: "permanent" /* UI.ViewManager.ViewPersistence.PERMANENT */,
-    condition: () => Root.Runtime.getPathName() !== '/bundled/worker_app.html',
-    async loadView() {
-        const Sources = await loadSourcesModule();
-        return new Sources.SourcesNavigator.ContentScriptsNavigatorView();
-    },
-});
+// UI.ViewManager.registerViewExtension({
+//     location: "navigator-view" /* UI.ViewManager.ViewLocationValues.NAVIGATOR_VIEW */,
+//     id: 'navigator-overrides',
+//     title: i18nLazyString(UIStrings.overrides),
+//     commandPrompt: i18nLazyString(UIStrings.showOverrides),
+//     order: 4,
+//     persistence: "permanent" /* UI.ViewManager.ViewPersistence.PERMANENT */,
+//     async loadView() {
+//         const Sources = await loadSourcesModule();
+//         return Sources.SourcesNavigator.OverridesNavigatorView.instance();
+//     },
+// });
+// UI.ViewManager.registerViewExtension({
+//     location: "navigator-view" /* UI.ViewManager.ViewLocationValues.NAVIGATOR_VIEW */,
+//     id: 'navigator-content-scripts',
+//     title: i18nLazyString(UIStrings.contentScripts),
+//     commandPrompt: i18nLazyString(UIStrings.showContentScripts),
+//     order: 5,
+//     persistence: "permanent" /* UI.ViewManager.ViewPersistence.PERMANENT */,
+//     condition: () => Root.Runtime.getPathName() !== '/bundled/worker_app.html',
+//     async loadView() {
+//         const Sources = await loadSourcesModule();
+//         return new Sources.SourcesNavigator.ContentScriptsNavigatorView();
+//     },
+// });
 UI.ActionRegistration.registerActionExtension({
     category: "DEBUGGER" /* UI.ActionRegistration.ActionCategory.DEBUGGER */,
     actionId: 'browser-debugger.refresh-global-event-listeners',

@@ -835,14 +835,14 @@ UI.Toolbar.registerToolbarItem({
     order: 99,
     location: "main-toolbar-right" /* UI.Toolbar.ToolbarItemLocation.MAIN_TOOLBAR_RIGHT */,
 });
-UI.Toolbar.registerToolbarItem({
-    async loadItem() {
-        const Main = await loadMainModule();
-        return Main.MainImpl.MainMenuItem.instance();
-    },
-    order: 100,
-    location: "main-toolbar-right" /* UI.Toolbar.ToolbarItemLocation.MAIN_TOOLBAR_RIGHT */,
-});
+// UI.Toolbar.registerToolbarItem({
+//     async loadItem() {
+//         const Main = await loadMainModule();
+//         return Main.MainImpl.MainMenuItem.instance();
+//     },
+//     order: 100,
+//     location: "main-toolbar-right" /* UI.Toolbar.ToolbarItemLocation.MAIN_TOOLBAR_RIGHT */,
+// });
 UI.Toolbar.registerToolbarItem({
     async loadItem() {
         return UI.DockController.CloseButtonProvider.instance();

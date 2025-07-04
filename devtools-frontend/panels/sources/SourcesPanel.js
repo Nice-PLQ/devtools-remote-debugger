@@ -216,7 +216,8 @@ export class SourcesPanel extends UI.Panel.Panel {
         const initialDebugSidebarWidth = 225;
         this.splitWidget =
             new UI.SplitWidget.SplitWidget(true, true, 'sources-panel-split-view-state', initialDebugSidebarWidth);
-        this.splitWidget.enableShowModeSaving();
+        this.splitWidget.hideSidebar();
+        // this.splitWidget.enableShowModeSaving();
         this.splitWidget.show(this.element);
         // Create scripts navigator
         const initialNavigatorWidth = 225;
@@ -232,7 +233,7 @@ export class SourcesPanel extends UI.Panel.Panel {
         tabbedPane.headerElement().setAttribute('jslog', `${VisualLogging.toolbar('navigator').track({ keydown: 'ArrowUp|ArrowLeft|ArrowDown|ArrowRight|Enter|Space' })}`);
         const navigatorMenuButton = new UI.Toolbar.ToolbarMenuButton(this.populateNavigatorMenu.bind(this), /* isIconDropdown */ true, /* useSoftMenu */ true, 'more-options', 'dots-vertical');
         navigatorMenuButton.setTitle(i18nString(UIStrings.moreOptions));
-        tabbedPane.rightToolbar().appendToolbarItem(navigatorMenuButton);
+        // tabbedPane.rightToolbar().appendToolbarItem(navigatorMenuButton);
         if (UI.ViewManager.ViewManager.instance().hasViewsForLocation('run-view-sidebar')) {
             const navigatorSplitWidget = new UI.SplitWidget.SplitWidget(false, true, 'source-panel-navigator-sidebar-split-view-state');
             navigatorSplitWidget.setMainWidget(tabbedPane);
@@ -250,6 +251,7 @@ export class SourcesPanel extends UI.Panel.Panel {
         this.sourcesViewInternal.addEventListener("EditorSelected" /* Events.EDITOR_SELECTED */, this.editorSelected.bind(this));
         this.toggleNavigatorSidebarButton = this.editorView.createShowHideSidebarButton(i18nString(UIStrings.showNavigator), i18nString(UIStrings.hideNavigator), i18nString(UIStrings.navigatorShown), i18nString(UIStrings.navigatorHidden), 'navigator');
         this.toggleDebuggerSidebarButton = this.splitWidget.createShowHideSidebarButton(i18nString(UIStrings.showDebugger), i18nString(UIStrings.hideDebugger), i18nString(UIStrings.debuggerShown), i18nString(UIStrings.debuggerHidden), 'debugger');
+        this.toggleDebuggerSidebarButton.element.style.display = 'none';
         this.editorView.setMainWidget(this.sourcesViewInternal);
         this.threadsSidebarPane = null;
         this.watchSidebarPane = UI.ViewManager.ViewManager.instance().view('sources.watch');
