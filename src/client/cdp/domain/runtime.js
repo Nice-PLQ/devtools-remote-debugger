@@ -117,27 +117,39 @@ export default class Runtime extends BaseDomain {
    */
   static getCallFrames(error) {
     let callFrames = [];
+
+    // Helper function to process stack frames
+    const processFrames = (frames) => {
+      return frames.map(frame => ({
+        ...frame,
+        url: frame.fileName || frame.getFileName?.() || '',
+      }));
+    };
+
+    // Case 1: Error object provided
     if (error) {
-      callFrames = ErrorStackParser.parse(error).map(frame => ({
-        ...frame,
-        url: frame.fileName,
-      }));
-      // Safari does not support captureStackTrace
+      callFrames = ErrorStackParser.parse(error);
     } else if (Error.captureStackTrace) {
-      callFrames = callsite().map(val => ({
-        functionName: val.getFunctionName(),
-        lineNumber: val.getLineNumber(),
-        columnNumber: val.getColumnNumber(),
-        url: val.getFileName(),
-      }));
+      // Case 2: Error.captureStackTrace available
+      const errorStack = callsite();
+      if (typeof errorStack === 'string') {
+        // Safari's stack returns a string
+        callFrames = ErrorStackParser.parse(new Error(errorStack));
+      } else {
+        // V8's stack returns an array
+        callFrames = errorStack.map(val => ({
+          functionName: val.getFunctionName(),
+          lineNumber: val.getLineNumber(),
+          columnNumber: val.getColumnNumber(),
+          url: val.getFileName(),
+        }));
+      }
     } else {
-      callFrames = ErrorStackParser.parse(new Error()).map(frame => ({
-        ...frame,
-        url: frame.fileName,
-      }));
+      // Case 3: Default case (create a new Error object)
+      callFrames = ErrorStackParser.parse(new Error());
     }
 
-    return callFrames;
+    return processFrames(callFrames);
   }
 
   /**
@@ -262,6 +274,7 @@ export default class Runtime extends BaseDomain {
               type: 'object',
               subtype: 'error',
               className: error ? error.name : 'Error',
+              // TODO: safari use error.message
               description: error ? error.stack : 'Script error.',
             },
             stackTrace: {
@@ -291,7 +304,7 @@ export default class Runtime extends BaseDomain {
     if (silent === true) {
       try {
         return fun.apply(objectId ? getObjectById(objectId) : null, args);
-      } catch (error) {}
+      } catch (error) { }
     } else {
       return fun.apply(objectId ? getObjectById(objectId) : null, args);
     }
