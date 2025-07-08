@@ -1,5 +1,6 @@
 import ErrorStackParser from 'error-stack-parser';
 import { objectFormat, objectRelease, getObjectProperties, getObjectById } from '../common/remoteObject';
+import { isSafari } from '../common/utils';
 import BaseDomain from './domain';
 import { Event } from './protocol';
 
@@ -274,8 +275,7 @@ export default class Runtime extends BaseDomain {
               type: 'object',
               subtype: 'error',
               className: error ? error.name : 'Error',
-              // TODO: safari use error.message
-              description: error ? error.stack : 'Script error.',
+              description: error ? (isSafari() ? error.message : error.stack) : 'Script error.',
             },
             stackTrace: {
               callFrames: Runtime.getCallFrames(error)

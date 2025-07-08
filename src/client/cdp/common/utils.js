@@ -35,6 +35,10 @@ export function isMobile() {
   return /ios|iphone|ipod|android/.test(navigator.userAgent.toLowerCase());
 }
 
+export function isSafari() {
+  return /Safari/.test(navigator.userAgent) && !/Chrome/.test(navigator.userAgent);
+}
+
 export function isElement(node) {
   return node instanceof Element;
 }
