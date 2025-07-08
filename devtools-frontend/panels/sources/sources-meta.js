@@ -492,18 +492,18 @@ UI.ViewManager.registerViewExtension({
         return Sources.SourcesPanel.SourcesPanel.instance();
     },
 });
-UI.ViewManager.registerViewExtension({
-    location: "navigator-view" /* UI.ViewManager.ViewLocationValues.NAVIGATOR_VIEW */,
-    id: 'navigator-files',
-    commandPrompt: i18nLazyString(UIStrings.showWorkspace),
-    title: i18nLazyString(UIStrings.workspace),
-    order: 3,
-    persistence: "permanent" /* UI.ViewManager.ViewPersistence.PERMANENT */,
-    async loadView() {
-        const Sources = await loadSourcesModule();
-        return new Sources.SourcesNavigator.FilesNavigatorView();
-    },
-});
+// UI.ViewManager.registerViewExtension({
+//     location: "navigator-view" /* UI.ViewManager.ViewLocationValues.NAVIGATOR_VIEW */,
+//     id: 'navigator-files',
+//     commandPrompt: i18nLazyString(UIStrings.showWorkspace),
+//     title: i18nLazyString(UIStrings.workspace),
+//     order: 3,
+//     persistence: "permanent" /* UI.ViewManager.ViewPersistence.PERMANENT */,
+//     async loadView() {
+//         const Sources = await loadSourcesModule();
+//         return new Sources.SourcesNavigator.FilesNavigatorView();
+//     },
+// });
 UI.ViewManager.registerViewExtension({
     location: "navigator-view" /* UI.ViewManager.ViewLocationValues.NAVIGATOR_VIEW */,
     id: 'navigator-snippets',

@@ -206,9 +206,9 @@ export class ElementsPanel extends UI.Panel.Panel {
         this.mainContainer = document.createElement('div');
         this.domTreeContainer = document.createElement('div');
         const crumbsContainer = document.createElement('div');
-        if (Root.Runtime.experiments.isEnabled('full-accessibility-tree')) {
-            this.initializeFullAccessibilityTreeView();
-        }
+        // if (Root.Runtime.experiments.isEnabled('full-accessibility-tree')) {
+        //     this.initializeFullAccessibilityTreeView();
+        // }
         this.mainContainer.appendChild(this.domTreeContainer);
         stackElement.appendChild(this.mainContainer);
         stackElement.appendChild(crumbsContainer);

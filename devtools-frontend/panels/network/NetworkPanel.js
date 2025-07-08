@@ -372,7 +372,7 @@ export class NetworkPanel extends UI.Panel.Panel {
                 searchToggle.element.focus();
             }
         }
-        this.panelToolbar.appendToolbarItem(UI.Toolbar.Toolbar.createActionButton(this.toggleRecordAction));
+        // this.panelToolbar.appendToolbarItem(UI.Toolbar.Toolbar.createActionButton(this.toggleRecordAction));
         this.panelToolbar.appendToolbarItem(UI.Toolbar.Toolbar.createActionButton('network.clear'));
         this.panelToolbar.appendSeparator();
         this.panelToolbar.appendToolbarItem(this.filterBar.filterButton());
@@ -386,13 +386,13 @@ export class NetworkPanel extends UI.Panel.Panel {
         this.panelToolbar.appendToolbarItem(new UI.Toolbar.ToolbarSettingCheckbox(this.preserveLogSetting, i18nString(UIStrings.doNotClearLogOnPageReload), i18nString(UIStrings.preserveLog)));
         this.panelToolbar.appendSeparator();
         const disableCacheCheckbox = new UI.Toolbar.ToolbarSettingCheckbox(Common.Settings.Settings.instance().moduleSetting('cache-disabled'), i18nString(UIStrings.disableCacheWhileDevtoolsIsOpen), i18nString(UIStrings.disableCache));
-        this.panelToolbar.appendToolbarItem(disableCacheCheckbox);
-        this.panelToolbar.appendToolbarItem(this.throttlingSelect);
+        // this.panelToolbar.appendToolbarItem(disableCacheCheckbox);
+        // this.panelToolbar.appendToolbarItem(this.throttlingSelect);
         const networkConditionsButton = new UI.Toolbar.ToolbarButton(i18nString(UIStrings.moreNetworkConditions), 'network-settings', undefined, 'network-conditions');
         networkConditionsButton.addEventListener("Click" /* UI.Toolbar.ToolbarButton.Events.CLICK */, () => {
             void UI.ViewManager.ViewManager.instance().showView('network.config');
         }, this);
-        this.panelToolbar.appendToolbarItem(networkConditionsButton);
+        // this.panelToolbar.appendToolbarItem(networkConditionsButton);
         this.rightToolbar.appendToolbarItem(new UI.Toolbar.ToolbarItem(this.progressBarContainer));
         this.rightToolbar.appendSeparator();
         this.rightToolbar.appendToolbarItem(new UI.Toolbar.ToolbarSettingToggle(this.showSettingsPaneSetting, 'gear', i18nString(UIStrings.networkSettings), 'gear-filled', 'network-settings'));
@@ -403,10 +403,10 @@ export class NetworkPanel extends UI.Panel.Panel {
         this.panelToolbar.appendSeparator();
         const importHarButton = new UI.Toolbar.ToolbarButton(i18nString(UIStrings.importHarFile), 'import', undefined, 'import-har');
         importHarButton.addEventListener("Click" /* UI.Toolbar.ToolbarButton.Events.CLICK */, () => this.fileSelectorElement.click(), this);
-        this.panelToolbar.appendToolbarItem(importHarButton);
+        // this.panelToolbar.appendToolbarItem(importHarButton);
         const exportHarButton = new UI.Toolbar.ToolbarButton(i18nString(UIStrings.exportHarSanitized), 'download', undefined, 'export-har');
         exportHarButton.addEventListener("Click" /* UI.Toolbar.ToolbarButton.Events.CLICK */, this.networkLogView.exportAll.bind(this.networkLogView, { sanitize: true }), this);
-        this.panelToolbar.appendToolbarItem(exportHarButton);
+        // this.panelToolbar.appendToolbarItem(exportHarButton);
         const exportHarMenuButton = new UI.Toolbar.ToolbarMenuButton(exportHarContextMenu, /* isIconDropdown */ true, /* useSoftMenu */ false, 'export-har-menu', 'download');
         exportHarMenuButton.setTitle(i18nString(UIStrings.exportHar));
         this.panelToolbar.appendToolbarItem(exportHarMenuButton);
@@ -639,7 +639,7 @@ export class NetworkPanel extends UI.Panel.Panel {
             contextMenu.revealSection().appendItem(i18nString(UIStrings.openInNetworkPanel), () => UI.ViewManager.ViewManager.instance()
                 .showView('network')
                 .then(this.networkLogView.resetFilter.bind(this.networkLogView))
-                .then(this.selectAndActivateRequest.bind(this, request.networkRequest, "headers-component" /* NetworkForward.UIRequestLocation.UIRequestTabs.HEADERS_COMPONENT */, 
+                .then(this.selectAndActivateRequest.bind(this, request.networkRequest, "headers-component" /* NetworkForward.UIRequestLocation.UIRequestTabs.HEADERS_COMPONENT */,
             /* FilterOptions= */ undefined)), { jslogContext: 'timeline.reveal-in-network' });
         };
         if (event.target.isSelfOrDescendant(this.element)) {

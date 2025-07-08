@@ -1977,19 +1977,19 @@ export class NetworkLogView extends Common.ObjectWrapper.eventMixin(UI.Widget.VB
         const ignoredHeaders = new Set(['accept-encoding', 'host', 'method', 'path', 'scheme', 'version', 'authority', 'protocol']);
         function escapeStringWin(str) {
             /* Always escape the " characters so that we can use caret escaping.
-      
+
                Because cmd.exe parser and MS Crt arguments parsers use some of the
                same escape characters, they can interact with each other in
                horrible ways, the order of operations is critical.
-      
+
                Replace \ with \\ first because it is an escape character for certain
                conditions in both parsers.
-      
+
                Replace all " with \" to ensure the first parser does not remove it.
-      
+
                Then escape all characters we are not sure about with ^ to ensure it
                gets to MS Crt parser safely.
-      
+
                The % character is special because MS Crt parser will try and look for
                ENV variables and fill them in its place. We cannot escape them with %
                and cannot escape them with ^ (because it's cmd.exe's escape not MS Crt
@@ -1997,7 +1997,7 @@ export class NetworkLogView extends Common.ObjectWrapper.eventMixin(UI.Widget.VB
                if it is followed by a valid beginning character of an ENV variable.
                This ensures we do not try and double escape another ^ if it was placed
                by the previous replace.
-      
+
                Lastly we replace new lines with ^ and TWO new lines because the first
                new line is there to enact the escape command the second is the character
                to escape (in this case new line).
@@ -2240,13 +2240,13 @@ export class MoreFiltersDropDownUI extends Common.ObjectWrapper.ObjectWrapper {
         };
         this.activeFiltersCountAdorner.classList.add('active-filters-count');
         this.updateActiveFiltersCount();
-        this.dropDownButton = new UI.Toolbar.ToolbarMenuButton(this.showMoreFiltersContextMenu.bind(this), /* isIconDropdown=*/ false, /* useSoftMenu=*/ true, 
-        /* jslogContext=*/ undefined, /* iconName=*/ undefined, 
+        this.dropDownButton = new UI.Toolbar.ToolbarMenuButton(this.showMoreFiltersContextMenu.bind(this), /* isIconDropdown=*/ false, /* useSoftMenu=*/ true,
+        /* jslogContext=*/ undefined, /* iconName=*/ undefined,
         /* keepOpen=*/ true);
         this.dropDownButton.setTitle(i18nString(UIStrings.showOnlyHideRequests));
         this.dropDownButton.setText(i18nString(UIStrings.moreFilters));
         this.dropDownButton.setAdorner(this.activeFiltersCountAdorner);
-        this.filterElement.appendChild(this.dropDownButton.element);
+        // this.filterElement.appendChild(this.dropDownButton.element);
         this.dropDownButton.element.classList.add('dropdown-filterbar');
         this.updateTooltip();
     }

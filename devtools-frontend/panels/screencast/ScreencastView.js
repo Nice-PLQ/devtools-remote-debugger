@@ -143,7 +143,7 @@ export class ScreencastView extends UI.Widget.VBox {
     }
     initialize() {
         this.element.classList.add('screencast');
-        this.createNavigationBar();
+        // this.createNavigationBar();
         this.viewportElement = this.element.createChild('div', 'screencast-viewport hidden');
         this.canvasContainerElement = this.viewportElement.createChild('div', 'screencast-canvas-container');
         this.glassPaneElement = this.canvasContainerElement.createChild('div', 'screencast-glasspane fill hidden');
