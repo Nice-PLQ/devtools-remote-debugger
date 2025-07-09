@@ -1,6 +1,5 @@
 import throttle from 'lodash.throttle';
-import { isMatches, isMobile, loadScript } from '../common/utils';
-import { DEVTOOL_OVERLAY } from '../common/constant';
+import { isMobile, loadScript } from '../common/utils';
 import BaseDomain from './domain';
 import { Event } from './protocol';
 
@@ -8,28 +7,14 @@ export default class ScreenPreview extends BaseDomain {
   namespace = 'ScreenPreview';
 
   static captureScreen() {
-    const renderScreen = () => window.html2canvas(document.body, {
-      allowTaint: true,
-      backgroundColor: null,
-      useCORS: true,
-      imageTimeout: 10000,
-      scale: 1,
-      logging: false,
-      ignoreElements: (element) => {
-        if (!element?.style) return false;
-        const { display, opacity, visibility } = element.style;
-        return isMatches(element, `.${DEVTOOL_OVERLAY}`) ||
-          display === 'none' ||
-          opacity === 0 ||
-          visibility === 'hidden';
-      }
-    }).then(canvas => canvas.toDataURL('image/jpeg'));
+    const renderScreen = () => window.snapdom.toCanvas(document.body)
+      .then(canvas => canvas.toDataURL('image/jpeg'));
 
-    if (window.html2canvas) {
+    if (window.snapdom) {
       return renderScreen();
     }
 
-    return loadScript('https://unpkg.com/html2canvas@1.4.1/dist/html2canvas.min.js').then(renderScreen);
+    return loadScript('https://unpkg.com/@zumer/snapdom@1.8.0/dist/snapdom.min.js').then(renderScreen);
   }
 
   /**

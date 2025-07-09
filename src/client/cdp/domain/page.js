@@ -80,7 +80,7 @@ export default class Page extends BaseDomain {
 
     captureScreen();
 
-    this.intervalTimer = setInterval(captureScreen, 2000);
+    this.intervalTimer = setInterval(captureScreen, 1000);
   }
 
   stopScreencast() {

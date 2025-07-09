@@ -193,6 +193,7 @@ export default class Overlay extends BaseDomain {
 
     containerBox.className = DEVTOOL_OVERLAY;
     containerBox.id = DEVTOOL_OVERLAY;
+    containerBox.setAttribute('data-capture', 'exclude');
     document.body.appendChild(containerBox);
 
     this.highlightBox = { containerBox, contentBox, marginBox, tooltipsBox };
