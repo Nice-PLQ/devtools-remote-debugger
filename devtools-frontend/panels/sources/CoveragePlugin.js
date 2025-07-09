@@ -41,11 +41,11 @@ export class CoveragePlugin extends Plugin {
         super(uiSourceCode);
         this.originalSourceCode = this.uiSourceCode;
         this.#transformer = transformer;
-        this.infoInToolbar = new UI.Toolbar.ToolbarButton(i18nString(UIStrings.clickToShowCoveragePanel), undefined, undefined, 'debugger.show-coverage');
-        this.infoInToolbar.setSecondary();
-        this.infoInToolbar.addEventListener("Click" /* UI.Toolbar.ToolbarButton.Events.CLICK */, () => {
-            void UI.ViewManager.ViewManager.instance().showView('coverage');
-        });
+        // this.infoInToolbar = new UI.Toolbar.ToolbarButton(i18nString(UIStrings.clickToShowCoveragePanel), undefined, undefined, 'debugger.show-coverage');
+        // this.infoInToolbar.setSecondary();
+        // this.infoInToolbar.addEventListener("Click" /* UI.Toolbar.ToolbarButton.Events.CLICK */, () => {
+        //     void UI.ViewManager.ViewManager.instance().showView('coverage');
+        // });
         const mainTarget = SDK.TargetManager.TargetManager.instance().primaryPageTarget();
         if (mainTarget) {
             this.model = mainTarget.model(Coverage.CoverageModel.CoverageModel);
@@ -57,7 +57,7 @@ export class CoveragePlugin extends Plugin {
                 }
             }
         }
-        this.updateStats();
+        // this.updateStats();
     }
     dispose() {
         if (this.coverage) {
@@ -72,10 +72,10 @@ export class CoveragePlugin extends Plugin {
     }
     handleReset() {
         this.coverage = null;
-        this.updateStats();
+        // this.updateStats();
     }
     handleCoverageSizesChanged() {
-        this.updateStats();
+        // this.updateStats();
     }
     updateStats() {
         if (this.coverage) {

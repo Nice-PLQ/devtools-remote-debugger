@@ -23,7 +23,7 @@ export class ScreencastApp {
     screencastView;
     rootView;
     constructor() {
-        this.enabledSetting = Common.Settings.Settings.instance().createSetting('screencast-enabled', true);
+        this.enabledSetting = Common.Settings.Settings.instance().createSetting('screencast-enabled', false);
         this.toggleButton = new UI.Toolbar.ToolbarToggle(i18nString(UIStrings.toggleScreencast), 'devices');
         this.toggleButton.setToggled(this.enabledSetting.get());
         this.toggleButton.setEnabled(false);

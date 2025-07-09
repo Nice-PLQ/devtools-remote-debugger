@@ -25,8 +25,8 @@ const UIStrings = {
 const str_ = i18n.i18n.registerUIStrings('ui/legacy/ViewManager.ts', UIStrings);
 const i18nString = i18n.i18n.getLocalizedString.bind(undefined, str_);
 export const defaultOptionsForTabs = {
-    security: true,
-    freestyler: true,
+    security: false,
+    freestyler: false,
 };
 export class PreRegisteredView {
     viewRegistration;
@@ -515,6 +515,7 @@ class TabbedLocation extends Location {
         const newClosable = {
             ...defaultOptionsForTabs,
             ...this.closeableTabSetting.get(),
+            'chrome-recorder': false,
         };
         this.closeableTabSetting.set(newClosable);
     }

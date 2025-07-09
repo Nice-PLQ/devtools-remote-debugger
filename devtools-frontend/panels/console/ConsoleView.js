@@ -399,7 +399,7 @@ export class ConsoleView extends UI.Widget.VBox {
             accessibleName: i18nString(UIStrings.issueToolbarTooltipGeneral),
             displayMode: "OmitEmpty" /* IssueCounter.IssueCounter.DisplayMode.OMIT_EMPTY */,
         };
-        toolbar.appendToolbarItem(issuesToolbarItem);
+        // toolbar.appendToolbarItem(issuesToolbarItem);
         toolbar.appendSeparator();
         toolbar.appendToolbarItem(this.filterStatusText);
         toolbar.appendToolbarItem(this.showSettingsPaneButton);
