@@ -265,6 +265,12 @@ export default class Runtime extends BaseDomain {
    */
   listenError() {
     const exceptionThrown = (error) => {
+      let desc = error ? error.stack : 'Script error.';
+
+      if (isSafari() && error) {
+        desc = `${error.name}: ${error.message}\n    at (${error.sourceURL}:${error.line}:${error.column})`;
+      }
+
       const data = {
         method: Event.exceptionThrown,
         params: {
@@ -275,7 +281,7 @@ export default class Runtime extends BaseDomain {
               type: 'object',
               subtype: 'error',
               className: error ? error.name : 'Error',
-              description: error ? (isSafari() ? error.message : error.stack) : 'Script error.',
+              description: desc,
             },
             stackTrace: {
               callFrames: Runtime.getCallFrames(error)
