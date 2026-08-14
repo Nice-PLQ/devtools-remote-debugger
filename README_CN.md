@@ -152,7 +152,7 @@ npm run start
 
 ## Star History
 
-[![Star History Chart](https://api.star-history.com/svg?repos=Nice-PLQ/devtools-remote-debugger&type=Date)](https://star-history.com/#Nice-PLQ/devtools-remote-debugger&Date)
+[![Star History Chart](https://api.star-history.dera.page/svg?repos=Nice-PLQ/devtools-remote-debugger&type=Date)](https://star-history.dera.page/#Nice-PLQ/devtools-remote-debugger&Date)
 
 ## License
 
